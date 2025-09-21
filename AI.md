@@ -20,6 +20,9 @@ This is a browser extension (WXT + React 19) that intelligently cleans up messy 
 - `bun run zip` — Package the extension
 - `bun run fix` — One-shot auto-fix and verify
 - `bun run verify` — Lint, type-check, and build
+- `bun run test` — Run unit tests (Vitest)
+- `bun run test:watch` — Watch mode for tests
+- `bun run coverage` — Generate coverage report
 
 ## Architecture
 
@@ -46,7 +49,23 @@ Built with WXT framework and React 19, using Tailwind CSS v4. Entry points live 
 
 - `bun run fix` to auto-fix and verify
 - `bun run verify` before PRs
-- Keep tree green; fix lints and types
+- Resolve any linting or type errors that exist.
+
+### Development Workflow Guidelines
+
+- After each change, choose the lightest effective check:
+  - Small fixes (docs, style-only, non-behavioral refactors, test-only): run `bun run fix`.
+  - New behavior, new files/entrypoints, storage/background/manifest changes, or new dependencies: run `bun run verify`.
+  - For behavior changes, also run tests: `bun run test:run` (or `bun run coverage`).
+- If `verify` fails due to formatting/lints, run `bun run fix` then re-run `bun run verify`.
+- Prefer `fix` before commit and `verify` before push.
+
+## Testing
+
+- Test file naming: `**/*.test.ts(x)`
+- Commands: `bun run test`, `bun run test:watch`, `bun run coverage`.
+- WXT APIs are auto-polyfilled in tests; reset state with `fakeBrowser.reset()` in `beforeEach` when using storage or browser APIs.
+- When mocking `#imports`, mock the underlying real path (e.g., `wxt/utils/inject-script`).
 
 ### Code Organization (Domain-Driven Design)
 
