@@ -1,0 +1,22 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./entrypoints"],
+  "entryPointStrategy": "expand",
+  "json": "./temp-structure.json",
+  "excludePrivate": false,
+  "excludeInternal": false,
+  "excludeProtected": false,
+  "excludeNotDocumented": false,
+  "excludeExternals": true,
+  "exclude": [
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/node_modules/**",
+    "**/.output/**",
+    "**/.wxt/**",
+    "**/dist/**"
+  ],
+  "pretty": true,
+  "includeHierarchySummary": true,
+  "categorizeByGroup": false
+}
