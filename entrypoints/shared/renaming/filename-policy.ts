@@ -241,17 +241,28 @@ export function applyFilenamePolicy(
     }
   }
 
-  if (included.length === 0) {
-    const fallback = entries.find((entry) => entry.value.length > 0)?.value;
+  let usableEntries = included
+    .map((entry) => ({ ...entry, value: entry.value.trim() }))
+    .filter((entry) => entry.value.length > 0);
+
+  if (usableEntries.length === 0) {
+    const fallback = entries.find((entry) => entry.value.trim().length > 0);
     if (fallback) {
-      included = [{ value: fallback.slice(0, allowance), type: 'subject' }];
+      const trimmedFallback = fallback.value.trim().slice(0, allowance);
+      if (trimmedFallback.length > 0) {
+        usableEntries = [{ value: trimmedFallback, type: 'subject' }];
+      }
     }
   }
 
-  const base =
-    included.length > 0
-      ? included.map((item) => item.value).join(separatorChar)
-      : '';
+  if (usableEntries.length === 0) {
+    usableEntries = [{ value: 'file', type: 'subject' }];
+  }
+
+  const base = usableEntries
+    .map((item) => item.value)
+    .join(separatorChar)
+    .trim();
   const safeBase = base.length > 0 ? base : 'file';
   const filename = extension ? `${safeBase}.${extension}` : safeBase;
 
