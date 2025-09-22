@@ -75,6 +75,7 @@ export function isFileType(value: unknown): value is FileType {
     value === 'image' ||
     value === 'audio' ||
     value === 'video' ||
+    value === 'office' ||
     value === 'archive' ||
     value === 'data'
   );

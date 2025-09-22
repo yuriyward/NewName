@@ -20,7 +20,7 @@
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "fix": "bun run check:fix && bun run check",
-    "verify": "bun run check && bun run compile && bun run build",
+    "verify": "bun run check && bun run compile && bun run test:run && bun run build",
     "test": "vitest",
     "test:watch": "vitest --watch",
     "test:run": "vitest run",

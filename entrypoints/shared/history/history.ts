@@ -20,22 +20,53 @@ export interface HistoryItem {
 
 const HISTORY_KEY = 'history.v1';
 const MAX_ITEMS = getHistoryMax();
+const MAX_HISTORY_AGE_MS = 1000 * 60 * 60 * 24 * 90; // 90 days
+
+function isHistorySource(value: unknown): value is HistoryItem['source'] {
+  return value === 'on-device' || value === 'cloud' || value === 'metadata';
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+  );
+}
+
+function isValidHistoryItem(entry: unknown): entry is HistoryItem {
+  if (!entry || typeof entry !== 'object') return false;
+  const maybe = entry as Partial<HistoryItem>;
+  if (
+    typeof maybe.id !== 'string' ||
+    typeof maybe.ts !== 'number' ||
+    !Number.isFinite(maybe.ts) ||
+    typeof maybe.path !== 'string' ||
+    typeof maybe.original !== 'string' ||
+    typeof maybe.final !== 'string' ||
+    (maybe.phase !== 1 && maybe.phase !== 2) ||
+    !isHistorySource(maybe.source) ||
+    !isFileType(maybe.fileType) ||
+    !isStringArray(maybe.reasonTags)
+  ) {
+    return false;
+  }
+  if (maybe.undone !== undefined && typeof maybe.undone !== 'boolean') {
+    return false;
+  }
+  return true;
+}
+
+function pruneHistory(items: HistoryItem[], now = Date.now()): HistoryItem[] {
+  const cutoff = now - MAX_HISTORY_AGE_MS;
+  return items.filter((item) => item.ts >= cutoff).slice(0, MAX_ITEMS);
+}
 
 function sanitiseHistory(items: unknown): HistoryItem[] {
   if (!Array.isArray(items)) return [];
-  return items.slice(0, MAX_ITEMS).filter((entry): entry is HistoryItem => {
-    if (!entry || typeof entry !== 'object') return false;
-    const maybe = entry as Partial<HistoryItem>;
-    return (
-      typeof maybe.id === 'string' &&
-      typeof maybe.ts === 'number' &&
-      typeof maybe.path === 'string' &&
-      typeof maybe.original === 'string' &&
-      typeof maybe.final === 'string' &&
-      (maybe.phase === 1 || maybe.phase === 2) &&
-      isFileType(maybe.fileType)
-    );
-  });
+  const now = Date.now();
+  const validItems = items.filter((entry): entry is HistoryItem =>
+    isValidHistoryItem(entry),
+  );
+  return pruneHistory(validItems, now);
 }
 
 async function readHistory(): Promise<HistoryItem[]> {
@@ -45,16 +76,13 @@ async function readHistory(): Promise<HistoryItem[]> {
 }
 
 async function writeHistory(items: HistoryItem[]): Promise<void> {
-  await browser.storage.local.set({ [HISTORY_KEY]: items.slice(0, MAX_ITEMS) });
+  const normalised = pruneHistory(items);
+  await browser.storage.local.set({ [HISTORY_KEY]: normalised });
 }
 
 export async function addHistoryItem(item: HistoryItem): Promise<void> {
   const history = await readHistory();
-  history.unshift(item);
-  if (history.length > MAX_ITEMS) {
-    history.length = MAX_ITEMS;
-  }
-  await writeHistory(history);
+  await writeHistory([item, ...history]);
 }
 
 export async function listHistory(): Promise<HistoryItem[]> {
