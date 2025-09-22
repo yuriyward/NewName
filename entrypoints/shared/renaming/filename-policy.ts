@@ -72,7 +72,12 @@ function isCurrencyToken(token: string | undefined): boolean {
   if (!token) return false;
   if (/^[A-Z]{2,4}$/.test(token)) return true;
   const lowered = token.toLowerCase();
-  return lowered === 'zl' || lowered === 'pln' || lowered === 'eur' || lowered === 'usd';
+  return (
+    lowered === 'zl' ||
+    lowered === 'pln' ||
+    lowered === 'eur' ||
+    lowered === 'usd'
+  );
 }
 
 function isFractionToken(token: string | undefined): boolean {
@@ -93,7 +98,11 @@ function restoreSpecialTokens(tokens: string[]): string[] {
       continue;
     }
 
-    if (/^\d+$/.test(current) && isFractionToken(next) && isCurrencyToken(nextNext)) {
+    if (
+      /^\d+$/.test(current) &&
+      isFractionToken(next) &&
+      isCurrencyToken(nextNext)
+    ) {
       restored.push(`${current},${next}`);
       index += 1;
       continue;
@@ -104,7 +113,10 @@ function restoreSpecialTokens(tokens: string[]): string[] {
   return restored;
 }
 
-function uniqueTokens(tokens: string[], existing: Set<string> = new Set()): string[] {
+function uniqueTokens(
+  tokens: string[],
+  existing: Set<string> = new Set(),
+): string[] {
   const seen = new Set(existing);
   const result: string[] = [];
   for (const token of tokens) {
@@ -137,31 +149,6 @@ function formatTokens(tokens: string[], separator: Separator): string[] {
     default:
       return tokens.map(capitaliseToken);
   }
-}
-
-function joinTokensWithinLimit(
-  tokens: string[],
-  separator: string,
-  limit: number,
-): string {
-  const result: string[] = [];
-  let length = 0;
-
-  for (const token of tokens) {
-    if (token.length === 0) continue;
-    const additional =
-      result.length === 0 ? token.length : token.length + separator.length;
-    if (length + additional > limit) {
-      if (result.length === 0 && limit > 0) {
-        result.push(token.slice(0, limit));
-      }
-      break;
-    }
-    result.push(token);
-    length += additional;
-  }
-
-  return result.join(separator).trim();
 }
 
 function prepareTokens(
@@ -224,8 +211,6 @@ export function applyFilenamePolicy(
     entries.push({ value: token, type: 'subject' });
   }
 
-  const subjectKeys = new Set(seenTokens);
-
   for (const token of formattedQualifiers) {
     const key = token.toLowerCase();
     if (seenTokens.has(key) || token.length === 0) continue;
@@ -237,9 +222,7 @@ export function applyFilenamePolicy(
     return items.reduce((total, item, index) => {
       if (item.value.length === 0) return total;
       return (
-        total +
-        item.value.length +
-        (index === 0 ? 0 : separatorChar.length)
+        total + item.value.length + (index === 0 ? 0 : separatorChar.length)
       );
     }, 0);
   }
@@ -255,21 +238,20 @@ export function applyFilenamePolicy(
     }
 
     if (entry.type === 'qualifier') {
-      continue;
     }
   }
 
   if (included.length === 0) {
-    const fallback = entries.find((entry) => entry.value.length > 0)
-      ?.value;
+    const fallback = entries.find((entry) => entry.value.length > 0)?.value;
     if (fallback) {
       included = [{ value: fallback.slice(0, allowance), type: 'subject' }];
     }
   }
 
-  const base = included.length > 0
-    ? included.map((item) => item.value).join(separatorChar)
-    : '';
+  const base =
+    included.length > 0
+      ? included.map((item) => item.value).join(separatorChar)
+      : '';
   const safeBase = base.length > 0 ? base : 'file';
   const filename = extension ? `${safeBase}.${extension}` : safeBase;
 

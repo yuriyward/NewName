@@ -59,10 +59,7 @@ export function detectFileType({
     if (mime.startsWith('image/')) return 'image';
     if (mime.startsWith('audio/')) return 'audio';
     if (mime.startsWith('video/')) return 'video';
-    if (
-      mime === 'application/zip' ||
-      mime === 'application/x-zip-compressed'
-    ) {
+    if (mime === 'application/zip' || mime === 'application/x-zip-compressed') {
       return 'archive';
     }
     if (

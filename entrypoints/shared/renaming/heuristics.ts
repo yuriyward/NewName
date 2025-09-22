@@ -1,5 +1,8 @@
 import { detectFileType } from '@/entrypoints/shared/renaming/file-types';
-import type { FileType, SettingsV1 } from '@/entrypoints/shared/settings/settings';
+import type {
+  FileType,
+  SettingsV1,
+} from '@/entrypoints/shared/settings/settings';
 
 export interface PageContextSnapshot {
   title?: string;
@@ -70,9 +73,22 @@ const LINK_STOPWORDS = new Set([
 
 const LINK_TRAILING_STOPWORDS = new Set(['copy', 'file', 'download']);
 
-const FILENAME_STOPWORDS = new Set(['download', 'downloads', 'tmp', 'temp', 'untitled']);
+const FILENAME_STOPWORDS = new Set([
+  'download',
+  'downloads',
+  'tmp',
+  'temp',
+  'untitled',
+]);
 
-const URL_STOPWORDS = new Set(['download', 'downloads', 'file', 'files', 'index', 'view']);
+const URL_STOPWORDS = new Set([
+  'download',
+  'downloads',
+  'file',
+  'files',
+  'index',
+  'view',
+]);
 
 const GENERIC_SUBJECT_TOKENS = new Set([
   'download',
@@ -147,17 +163,20 @@ function pickBestSegment(value: string, brand: string | null): string {
 function shouldKeepToken(
   token: string,
   reason: Candidate['reason'],
-  brand: string | null,
+  _brand: string | null,
 ): boolean {
   if (!token) return false;
   if (token === '-') return true;
-  if (/^[\-–—]+$/.test(token)) return false;
+  if (/^[-–—]+$/.test(token)) return false;
   const lower = token.toLowerCase();
   if (looksLikeHash(token)) return false;
   if (/^\d{8,}$/.test(token)) return false;
   if (BASE_STOPWORDS.has(lower)) return false;
   if (reason === 'Link' && LINK_STOPWORDS.has(lower)) return false;
-  if ((reason === 'Filename' || reason === 'URL') && FILENAME_STOPWORDS.has(lower))
+  if (
+    (reason === 'Filename' || reason === 'URL') &&
+    FILENAME_STOPWORDS.has(lower)
+  )
     return false;
   if (reason === 'URL' && URL_STOPWORDS.has(lower)) return false;
   return true;
@@ -169,17 +188,25 @@ function trimLinkTokens(tokens: string[]): string[] {
   while (start < end && LINK_STOPWORDS.has(tokens[start].toLowerCase())) {
     start += 1;
   }
-  while (end > start && LINK_TRAILING_STOPWORDS.has(tokens[end - 1].toLowerCase())) {
+  while (
+    end > start &&
+    LINK_TRAILING_STOPWORDS.has(tokens[end - 1].toLowerCase())
+  ) {
     end -= 1;
   }
   return tokens.slice(start, end);
 }
 
-function computeGenericPenalty(value: string, reason: Candidate['reason']): number {
+function computeGenericPenalty(
+  value: string,
+  reason: Candidate['reason'],
+): number {
   if (reason === 'Filename' || reason === 'Link') return 0;
   const tokens = value.toLowerCase().split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return 0;
-  const informative = tokens.filter((token) => !GENERIC_SUBJECT_TOKENS.has(token));
+  const informative = tokens.filter(
+    (token) => !GENERIC_SUBJECT_TOKENS.has(token),
+  );
   if (informative.length === 0) {
     return 40;
   }
@@ -195,9 +222,9 @@ function normaliseCandidate(
   reason: Candidate['reason'],
 ): string | null {
   if (!raw) return null;
-  let value = raw
+  const value = raw
     .replace(/\s+/g, ' ')
-    .replace(/[\[\](){}]+/g, ' ')
+    .replace(/[[\](){}]+/g, ' ')
     .replace(/[_]+/g, ' ')
     .replace(
       /\s*(?:\.|-)?\s*(?:pdf|docx?|doc|xlsx?|xls|pptx?|ppt|txt|csv|json|mp3|mp4|jpg|jpeg|png|gif|zip)$/i,
@@ -296,9 +323,17 @@ function deriveQualifiers(params: {
     }
   }
 
-  if (params.fileType === 'image' && params.settings.metadataToggles.mediaSpecs) {
-    const dimensionHint = extractResolutionFromFilename(params.signals.filename);
-    if (dimensionHint && !lowerCandidate.includes(dimensionHint.toLowerCase())) {
+  if (
+    params.fileType === 'image' &&
+    params.settings.metadataToggles.mediaSpecs
+  ) {
+    const dimensionHint = extractResolutionFromFilename(
+      params.signals.filename,
+    );
+    if (
+      dimensionHint &&
+      !lowerCandidate.includes(dimensionHint.toLowerCase())
+    ) {
       qualifiers.push(dimensionHint);
       reasons.push('Spec');
     }

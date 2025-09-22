@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '@/entrypoints/shared/settings/types';
-import { computePhase1Outcome, type Phase1Outcome } from './phase1';
 import type { Phase1Signals } from './heuristics';
+import { computePhase1Outcome } from './phase1';
 
 describe('computePhase1Outcome', () => {
   describe('complete pipeline integration', () => {
@@ -32,7 +32,9 @@ describe('computePhase1Outcome', () => {
       });
 
       expect(result.filename).toBe('March Invoice 2024-03-15 Example.pdf');
-      expect(result.path).toBe('Downloads/March Invoice 2024-03-15 Example.pdf');
+      expect(result.path).toBe(
+        'Downloads/March Invoice 2024-03-15 Example.pdf',
+      );
       expect(result.reasonTags).toContain('Link');
       expect(result.reasonTags).toContain('Date');
       expect(result.reasonTags).toContain('Source');
@@ -64,8 +66,12 @@ describe('computePhase1Outcome', () => {
         transliterateAscii: false,
       });
 
-      expect(result.filename).toBe('navbar-component-mobile-responsive-design-figma-1920x1080.png');
-      expect(result.path).toBe('navbar-component-mobile-responsive-design-figma-1920x1080.png');
+      expect(result.filename).toBe(
+        'navbar-component-mobile-responsive-design-figma-1920x1080.png',
+      );
+      expect(result.path).toBe(
+        'navbar-component-mobile-responsive-design-figma-1920x1080.png',
+      );
       expect(result.reasonTags).toContain('Title');
       expect(result.reasonTags).toContain('Source');
       expect(result.reasonTags).toContain('Spec');
@@ -94,8 +100,12 @@ describe('computePhase1Outcome', () => {
         transliterateAscii: false,
       });
 
-      expect(result.filename).toBe('Sprint Planning Session 45 Minutes Zoom.mp4');
-      expect(result.path).toBe('temp/Sprint Planning Session 45 Minutes Zoom.mp4');
+      expect(result.filename).toBe(
+        'Sprint Planning Session 45 Minutes Zoom.mp4',
+      );
+      expect(result.path).toBe(
+        'temp/Sprint Planning Session 45 Minutes Zoom.mp4',
+      );
       expect(result.reasonTags).toContain('Link');
       expect(result.reasonTags).toContain('Source');
       expect(result.fileType).toBe('video');
@@ -106,11 +116,13 @@ describe('computePhase1Outcome', () => {
     it('respects length limits while preserving essential information', () => {
       const signals: Phase1Signals = {
         url: 'https://university.edu/research/papers/machine-learning-artificial-intelligence-deep-neural-networks.pdf',
-        filename: 'research_paper_very_long_title_with_many_descriptive_words.pdf',
+        filename:
+          'research_paper_very_long_title_with_many_descriptive_words.pdf',
         mime: 'application/pdf',
         startTime: '2024-06-15T10:00:00Z',
         page: {
-          title: 'Advanced Machine Learning Techniques for Artificial Intelligence Applications in Deep Neural Network Architectures',
+          title:
+            'Advanced Machine Learning Techniques for Artificial Intelligence Applications in Deep Neural Network Architectures',
           capturedAt: Date.now(),
         },
       };
@@ -136,9 +148,11 @@ describe('computePhase1Outcome', () => {
     it('falls back gracefully when all sources are too long', () => {
       const signals: Phase1Signals = {
         url: 'https://example.com/files/extremely-long-filename-that-exceeds-reasonable-limits.txt',
-        filename: 'an-incredibly-verbose-and-unnecessarily-long-filename-that-no-reasonable-person-would-use.txt',
+        filename:
+          'an-incredibly-verbose-and-unnecessarily-long-filename-that-no-reasonable-person-would-use.txt',
         page: {
-          title: 'An Extraordinarily Long Page Title That Describes Every Possible Detail About The Content In Excruciating Detail',
+          title:
+            'An Extraordinarily Long Page Title That Describes Every Possible Detail About The Content In Excruciating Detail',
           capturedAt: Date.now(),
         },
       };
@@ -172,7 +186,9 @@ describe('computePhase1Outcome', () => {
       const result = computePhase1Outcome(signals, DEFAULT_SETTINGS);
 
       expect(result.filename).toBe('Q4 Performance Report.pdf');
-      expect(result.path).toBe('Documents/Work/Projects/Q4/Q4 Performance Report.pdf');
+      expect(result.path).toBe(
+        'Documents/Work/Projects/Q4/Q4 Performance Report.pdf',
+      );
       expect(result.originalPath).toBe('Documents/Work/Projects/Q4/report.pdf');
     });
 
@@ -220,7 +236,9 @@ describe('computePhase1Outcome', () => {
         transliterateAscii: false,
       });
 
-      expect(result.filename).toBe('Wniosek O Przedłużenie Zezwolenia Na Pobyt Czasowy 2025-09-15 Gov.pdf');
+      expect(result.filename).toBe(
+        'Wniosek O Przedłużenie Zezwolenia Na Pobyt Czasowy 2025-09-15 Gov.pdf',
+      );
       expect(result.filename).toContain('ł'); // Polish character preserved
       expect(result.reasonTags).toContain('Title');
       expect(result.reasonTags).toContain('Date');
@@ -247,7 +265,9 @@ describe('computePhase1Outcome', () => {
         transliterateAscii: true,
       });
 
-      expect(result.filename).toBe('Resume Professionnel Francois Muller Example.pdf');
+      expect(result.filename).toBe(
+        'Resume Professionnel Francois Muller Example.pdf',
+      );
       expect(result.filename).not.toContain('é');
       expect(result.filename).not.toContain('ç');
       expect(result.filename).not.toContain('ü');
@@ -356,8 +376,12 @@ describe('computePhase1Outcome', () => {
         maxLen: 80,
       });
 
-      expect(result.filename).toBe('Wniosek O Przedłużenie Zezwolenia Na Pobyt 2025-09-15.pdf');
-      expect(result.path).toBe('Downloads/Wniosek O Przedłużenie Zezwolenia Na Pobyt 2025-09-15.pdf');
+      expect(result.filename).toBe(
+        'Wniosek O Przedłużenie Zezwolenia Na Pobyt 2025-09-15.pdf',
+      );
+      expect(result.path).toBe(
+        'Downloads/Wniosek O Przedłużenie Zezwolenia Na Pobyt 2025-09-15.pdf',
+      );
     });
 
     it('produces expected filename for Biedronka invoice', () => {
@@ -382,8 +406,12 @@ describe('computePhase1Outcome', () => {
         maxLen: 80,
       });
 
-      expect(result.filename).toBe('Biedronka Faktura 146,20 PLN 2025-03-04.pdf');
-      expect(result.path).toBe('Downloads/Biedronka Faktura 146,20 PLN 2025-03-04.pdf');
+      expect(result.filename).toBe(
+        'Biedronka Faktura 146,20 PLN 2025-03-04.pdf',
+      );
+      expect(result.path).toBe(
+        'Downloads/Biedronka Faktura 146,20 PLN 2025-03-04.pdf',
+      );
     });
 
     it('produces expected filename for Figma screenshot', () => {
@@ -429,7 +457,9 @@ describe('computePhase1Outcome', () => {
       });
 
       expect(result.filename).toBe('Waypass Sprint Planning Q4 Goals 45m.mp3');
-      expect(result.path).toBe('Downloads/Waypass Sprint Planning Q4 Goals 45m.mp3');
+      expect(result.path).toBe(
+        'Downloads/Waypass Sprint Planning Q4 Goals 45m.mp3',
+      );
     });
 
     it('produces expected filename for video tutorial', () => {
@@ -451,8 +481,12 @@ describe('computePhase1Outcome', () => {
         },
       });
 
-      expect(result.filename).toBe('Supabase CORS Dla Edge Functions 1080p 12m.mp4');
-      expect(result.path).toBe('Downloads/Supabase CORS Dla Edge Functions 1080p 12m.mp4');
+      expect(result.filename).toBe(
+        'Supabase CORS Dla Edge Functions 1080p 12m.mp4',
+      );
+      expect(result.path).toBe(
+        'Downloads/Supabase CORS Dla Edge Functions 1080p 12m.mp4',
+      );
     });
 
     it('produces expected filename for photo with location', () => {
@@ -476,8 +510,12 @@ describe('computePhase1Outcome', () => {
         },
       });
 
-      expect(result.filename).toBe('Zachód Słońca Tatry Morskie Oko 2025-08-17.jpg');
-      expect(result.path).toBe('Zachód Słońca Tatry Morskie Oko 2025-08-17.jpg');
+      expect(result.filename).toBe(
+        'Zachód Słońca Tatry Morskie Oko 2025-08-17.jpg',
+      );
+      expect(result.path).toBe(
+        'Zachód Słońca Tatry Morskie Oko 2025-08-17.jpg',
+      );
     });
   });
 });

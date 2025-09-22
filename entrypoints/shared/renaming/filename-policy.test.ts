@@ -256,7 +256,9 @@ describe('applyFilenamePolicy', () => {
         transliterateAscii: false,
       });
 
-      expect(result.filename).toBe('Wniosek O Przedłużenie Zezwolenia Na Pobyt 2025-09-15.pdf');
+      expect(result.filename).toBe(
+        'Wniosek O Przedłużenie Zezwolenia Na Pobyt 2025-09-15.pdf',
+      );
     });
 
     it('formats invoice with amount', () => {
@@ -269,7 +271,9 @@ describe('applyFilenamePolicy', () => {
         transliterateAscii: false,
       });
 
-      expect(result.filename).toBe('Biedronka Faktura 2025-03-04 146,20 PLN.pdf');
+      expect(result.filename).toBe(
+        'Biedronka Faktura 2025-03-04 146,20 PLN.pdf',
+      );
     });
 
     it('formats screenshot description', () => {
@@ -308,7 +312,9 @@ describe('applyFilenamePolicy', () => {
         transliterateAscii: false,
       });
 
-      expect(result.filename).toBe('Supabase CORS Dla Edge Functions 1080p 12m.mp4');
+      expect(result.filename).toBe(
+        'Supabase CORS Dla Edge Functions 1080p 12m.mp4',
+      );
     });
 
     it('formats photo with location and date', () => {
@@ -321,7 +327,9 @@ describe('applyFilenamePolicy', () => {
         transliterateAscii: false,
       });
 
-      expect(result.filename).toBe('Zachód Słońca Tatry Morskie Oko 2025-08-17.jpg');
+      expect(result.filename).toBe(
+        'Zachód Słońca Tatry Morskie Oko 2025-08-17.jpg',
+      );
     });
   });
 });

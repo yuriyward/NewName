@@ -324,7 +324,9 @@ describe('runPhase1Heuristics', () => {
         },
       });
 
-      expect(result.subject).toBe('Wniosek o przedłużenie zezwolenia na pobyt czasowy');
+      expect(result.subject).toBe(
+        'Wniosek o przedłużenie zezwolenia na pobyt czasowy',
+      );
       expect(result.qualifiers).toContain('2025-09-15');
       expect(result.qualifiers).toContain('gov');
       expect(result.fileType).toBe('pdf');

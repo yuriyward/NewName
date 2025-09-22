@@ -5,7 +5,8 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react', '@wxt-dev/auto-icons'],
   manifest: {
     name: 'NewName',
-    description: 'Intelligent, context-aware file renamer for Chrome downloads.',
+    description:
+      'Intelligent, context-aware file renamer for Chrome downloads.',
     version: '0.1.0',
     minimum_chrome_version: '138',
     permissions: ['downloads', 'storage', 'notifications', 'offscreen'],

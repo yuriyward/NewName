@@ -16,14 +16,27 @@ import {
   updatePageContext,
 } from '@/entrypoints/shared/signals/page-context-store';
 
+let fallbackRandomSeed = 0;
+
 function randomId(): string {
-  if (
-    typeof crypto !== 'undefined' &&
-    typeof crypto.randomUUID === 'function'
-  ) {
-    return crypto.randomUUID();
+  if (typeof crypto !== 'undefined') {
+    if (typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    if (typeof crypto.getRandomValues === 'function') {
+      const buffer = new Uint32Array(4);
+      crypto.getRandomValues(buffer);
+      return Array.from(buffer, (value) =>
+        value.toString(16).padStart(8, '0'),
+      ).join('');
+    }
   }
-  return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
+
+  fallbackRandomSeed = (fallbackRandomSeed + 1) & 0xffff;
+  const timeHex = Date.now().toString(16);
+  const seedHex = fallbackRandomSeed.toString(16).padStart(4, '0');
+  const randomHex = Math.random().toString(16).slice(2, 10);
+  return `${timeHex}-${seedHex}-${randomHex}`;
 }
 
 function basename(path: string): string {
@@ -94,66 +107,78 @@ function shouldRenameType(
   return true;
 }
 
-const handleDeterminingFilename: Parameters<
+type DeterminingListener = Parameters<
   typeof browser.downloads.onDeterminingFilename.addListener
->[0] = (item, suggest) => {
-  (async () => {
-    let suggestionIssued = false;
-    try {
-      pruneStaleContexts();
+>[0];
 
-      const settings = readSettings();
-      const url = item.finalUrl ?? item.url;
-      const filename = item.filename ?? fallbackNameFromUrl(url);
-      const initiatingTabId =
-        typeof (item as { tabId?: number }).tabId === 'number'
-          ? (item as { tabId?: number }).tabId
-          : undefined;
-      const pageContext = getPageContext(initiatingTabId);
+type DeterminingItem = Parameters<DeterminingListener>[0];
+type SuggestCallback = Parameters<DeterminingListener>[1];
 
-      const outcome = computePhase1Outcome(
-        {
-          url,
-          referrer: item.referrer,
-          filename,
-          mime: item.mime,
-          startTime: item.startTime,
-          page: pageContext,
-        },
-        settings,
-      );
+async function processDeterminingFilename(
+  item: DeterminingItem,
+  suggest: SuggestCallback,
+): Promise<void> {
+  let suggestionIssued = false;
+  try {
+    pruneStaleContexts();
 
-      if (shouldRenameType(settings, outcome.fileType)) {
-        suggest({ filename: outcome.path });
-        suggestionIssued = true;
-      } else {
+    const settings = readSettings();
+    const url = item.finalUrl ?? item.url;
+    const filename = item.filename ?? fallbackNameFromUrl(url);
+    const initiatingTabId =
+      typeof (item as { tabId?: number }).tabId === 'number'
+        ? (item as { tabId?: number }).tabId
+        : undefined;
+    const pageContext = getPageContext(initiatingTabId);
+
+    const outcome = computePhase1Outcome(
+      {
+        url,
+        referrer: item.referrer,
+        filename,
+        mime: item.mime,
+        startTime: item.startTime,
+        page: pageContext,
+      },
+      settings,
+    );
+
+    if (shouldRenameType(settings, outcome.fileType)) {
+      suggest({ filename: outcome.path });
+      suggestionIssued = true;
+    } else {
+      suggest();
+      suggestionIssued = true;
+      return;
+    }
+
+    await addHistoryItem({
+      id: randomId(),
+      ts: Date.now(),
+      path: outcome.path,
+      original: basename(filename),
+      final: outcome.filename,
+      source: outcome.source,
+      fileType: outcome.fileType,
+      phase: 1,
+      reasonTags: outcome.reasonTags,
+    });
+  } catch (error) {
+    console.error('Phase-1 rename failed', error);
+    if (!suggestionIssued) {
+      try {
         suggest();
-        suggestionIssued = true;
-        return;
-      }
-
-      await addHistoryItem({
-        id: randomId(),
-        ts: Date.now(),
-        path: outcome.path,
-        original: basename(filename),
-        final: outcome.filename,
-        source: outcome.source,
-        fileType: outcome.fileType,
-        phase: 1,
-        reasonTags: outcome.reasonTags,
-      });
-    } catch (error) {
-      console.error('Phase-1 rename failed', error);
-      if (!suggestionIssued) {
-        try {
-          suggest();
-        } catch {
-          // Suggestion may have already been sent; ignore secondary errors.
-        }
+      } catch {
+        // Suggestion may have already been sent; ignore secondary errors.
       }
     }
-  })();
+  }
+}
+
+const handleDeterminingFilename: DeterminingListener = (item, suggest) => {
+  void processDeterminingFilename(item, suggest).catch((error) => {
+    console.error('Phase-1 rename unhandled failure', error);
+  });
 };
 
 export default defineBackground(() => {
