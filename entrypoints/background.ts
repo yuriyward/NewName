@@ -1,7 +1,7 @@
 import { browser } from 'wxt/browser';
 import { addHistoryItem } from '@/entrypoints/shared/history/history';
 import { registerInstallDateListener } from '@/entrypoints/shared/integrations/install-date';
-import { computePhase1Outcome } from '@/entrypoints/shared/renaming/phase1';
+import { computePhase1Outcome } from '@/entrypoints/shared/pipeline/phase1-coordinator';
 import {
   getLastKnownSettings,
   getSettings,

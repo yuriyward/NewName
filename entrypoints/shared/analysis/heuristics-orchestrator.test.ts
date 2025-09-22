@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { Phase1Signals } from '@/entrypoints/shared/context/page-analyzer';
 import { DEFAULT_SETTINGS } from '@/entrypoints/shared/settings/types';
-import { type Phase1Signals, runPhase1Heuristics } from './heuristics';
+import { runPhase1Heuristics } from './heuristics-orchestrator';
 
 describe('runPhase1Heuristics', () => {
   describe('source prioritization', () => {

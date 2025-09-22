@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import type { Phase1Signals } from '@/entrypoints/shared/context/page-analyzer';
 import { DEFAULT_SETTINGS } from '@/entrypoints/shared/settings/types';
-import type { Phase1Signals } from './heuristics';
-import { computePhase1Outcome } from './phase1';
+import { computePhase1Outcome } from './phase1-coordinator';
 
 describe('computePhase1Outcome', () => {
   describe('complete pipeline integration', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyFilenamePolicy } from './filename-policy';
+import { applyFilenamePolicy } from './policy-engine';
 
 describe('applyFilenamePolicy', () => {
   describe('basic functionality', () => {
