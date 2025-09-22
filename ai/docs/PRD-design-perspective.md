@@ -1,514 +1,351 @@
-# PRD - Design Perspective — “NewName”
+# PRD — Design Perspective (v2) — “NewName”
 
 **Owner:** Yuriy Babyak
 **Date:** 22 Sep 2025
-**Platforms:** Chrome extension
+**Platform:** Chrome Extension (MV3). Offscreen document hosts AI. Optional desktop helper later.
+
+---
 
 ## 1) Product personality & UX principles
 
-* **Invisible helper**: acts automatically, interrupts only when confidence is low or the user asked to confirm.
-* **Human-first clarity**: names are short, readable, localized.
-* **Control without clutter**: quick revert, clear settings, smart defaults.
-* **Privacy-forward**: visible cues when metadata (e.g., geolocation) influences naming and whether processing stayed on-device.
+**Personality:** Invisible, competent, privacy-forward.
+**Tone:** concise, friendly, non-cute.
 
-Tone of voice: concise, friendly, non-cute.
-Examples: “Renamed (On-device) to: **Wniosek o…**” / “Kept original name—already clear.”
+**UX principles**
 
----
+1. **Instant value, zero drag** — phase-1 rename never blocks the download longer than necessary.
+2. **Upgrade, don’t nag** — phase-2 suggestions appear briefly and are easy to accept, ignore, or undo.
+3. **Trust at a glance** — clear “On-device” vs “Cloud assist” badges; reason tags (Title/Date/Geo).
+4. **Deterministic safety** — filenames are validated inline; we never propose unsafe chars or double dots.
+5. **Respect agency** — Undo everywhere, per-type controls, explicit cloud consent.
 
-## 2) Information architecture
+Sample copy:
 
-**Primary UI surfaces**
-
-1. **Extension Popup** (quick actions)
-2. **Settings Page** (full preferences)
-3. **Rename Review** (optional confirm flow)
-4. **Rename Toast** (inline success/undo)
-5. **History** (recent actions + revert)
-6. **First-Run / Onboarding** (model download + choices)
-
-Optional (if you add desktop helper later): **Helper Status Drawer**.
+* “Renamed (On-device) to **Wniosek o…**”
+* “Kept original name — already clear.”
+* “✨ Found better name: **Supabase — CORS dla Edge Functions** • Apply • Details”
 
 ---
 
-## 3) First-run & onboarding
+## 2) Information Architecture
 
-### 3.1 First-run modal (one-time)
+**Primary surfaces**
 
-* **Screen 1: Welcome & Mode Selection**
+1. **First-Run / Onboarding** (mode + permissions + AI session activation)
+2. **Rename Toast** (phase-1 results; one-click Undo)
+3. **Upgrade Notification** (phase-2 suggestion with reasoning)
+4. **Confirm Modal** (Careful mode & sensitive docs)
+5. **Extension Popup** (status + quick actions)
+6. **Settings Page** (full preferences)
+7. **History Panel** (recent actions + Undo/Redo/Edit)
 
-  * Title: "Name files like a human."
-  * Bullets: Smart by default, full transparency, quick undo.
-  * **Choose your mode** (radio cards with descriptions):
-    * **🔄 Balanced (Recommended)**: Auto-rename with notifications, confirm sensitive docs
-    * **🔇 Silent**: Auto-rename everything quietly, no popups or notifications
-    * **🛡️ Careful**: Always confirm before renaming, maximum control
-    * **⚙️ Custom**: Set your own rules (expands advanced options below)
-  * **Advanced options** (shown only if Custom selected):
-    * **Filename language**: Auto-detect / Polski / English / Українська…
-    * **Separator style**: Clean / kebab-case / snake_case
-    * **Smart metadata**: location, dates, source context (toggles)
-  * Primary: **Get Started**
-* **Screen 2: Processing Preference**
+**Runtime note (for design):** an **Offscreen Document** hosts Summarizer/Prompt/Language Detector, PDF.js/MuPDF, OCR. Service worker messages it. This affects where spinners/badges read “On-device” vs “Cloud assist”.
 
-  * Headline: "Stay on device or allow cloud assist?"
-  * Copy: “We default to private, on-device naming. You can enable cloud fallback for better coverage when your device can’t process locally.”
-  * Controls:
-    * Toggle **"Allow cloud assist when needed"** (off by default) with tooltip summarizing provider (Firebase AI Logic → Gemini) and data minimization.
-    * Checkbox list per file type (disabled until toggle on): PDFs, Images, Audio, Video, Archives.
-    * Link: “Learn more about how we protect your data.”
-  * Primary: **Continue**; secondary: **Keep on-device only**.
-* **Screen 3: Ready & Model Setup**
+---
 
-  * "You're all set! Settings can be changed anytime."
-  * If model downloading: Progress bar "Setting up intelligence..." (doesn't block, works in background)
-  * If ready: "Ready to rename your files intelligently."
-  * Primary: **Start Using**
-* Final note: “You can change everything later in Settings.”
+## 3) First-run & Onboarding (updated)
 
-### Empty-state copy examples
+**Screen 1 — Mode**
 
-* “Ready! New files will be named automatically. Undo anytime.”
+* Title: “Name files like a human.”
+* Cards:
+
+  * **🔄 Balanced (Rec.)** — Auto-rename + toasts; confirm legal/financial.
+  * **🔇 Silent** — Auto-rename everything, no notifications; see History.
+  * **🛡️ Careful** — Always confirm before renaming.
+  * **⚙️ Custom** — Tune everything (reveals advanced).
+* Advanced (when **Custom**):
+  Filename language (Auto/PL/EN/UK…), Separator (Clean/kebab/snake), Metadata toggles (Geo/Date/Source/Duration).
+* Primary: **Continue**
+
+**Screen 2 — Privacy & Cloud**
+
+* Headline: “Stay on device or allow cloud assist?”
+* Toggle (off by default): **Allow cloud assist when needed**
+
+  * Per-type checkboxes: PDFs / Images / Audio / Video / Archives
+  * Small disclosure link “How we protect your data”
+* Primary: **Continue** · Secondary: **Keep on-device only**
+
+**Screen 3 — Enable post-save controls**
+
+* Headline: “Enable Undo & Upgrade after save”
+* Text: “Grant Downloads folder access so we can safely rename or revert later.”
+* Button: **Grant access** (invokes File System Access picker)
+* Small alternate: “Skip for now (Undo/Upgrade limited)”
+
+**Screen 4 — Activate on-device AI**
+
+* Headline: “Optimize on-device intelligence”
+* Action buttons (require user gesture):
+
+  * **Enable Summarizer** (init session; shows small check on success)
+  * **Enable Language Detection** (init session)
+* Status line if model download starts: “Setting up on-device AI (runs in background).”
+* Primary: **Start using**
+
+**Empty state**
+“Ready! New files will be named automatically. Undo anytime.”
 
 ---
 
 ## 4) Mode-based flows
 
-### 4.1 Balanced Mode (default)
+### 4.1 Balanced (default)
 
-**Behavior**: Auto-rename most files + toast notifications + auto-confirm sensitive docs
+* Phase-1 auto-rename + toast.
+* Sensitive docs (auto-detected) go through Confirm Modal.
+* Phase-2 shows Upgrade Notification with reason tags.
 
-### 4.2 Silent Mode
+### 4.2 Silent
 
-**Behavior**: Auto-rename everything + no notifications + history tracking only
+* No toasts; quiet auto-apply.
+* Phase-2: only auto-apply when **High confidence**, log the rest to History.
+* Badge in History indicates “Auto-applied (Silent).”
 
-### 4.3 Careful Mode
+### 4.3 Careful
 
-**Behavior**: Always confirm before renaming + detailed review modals
+* Always show Confirm Modal before any rename.
+* Phase-2 suggestions also open the Confirm Modal, not a toast.
 
-### 4.4 Context-First Auto-rename flow (All modes)
+### 4.4 Context-First Auto-rename (All modes)
 
-**Trigger**: User initiates download (save/download action).
-
-**Phase 1: Instant Smart Naming (<1 second)**
-
-1. **Lightning analysis**: Page context + metadata + user patterns
-2. **Immediate download**: File saves instantly with context-based smart name
-3. **Success feedback**: Brief toast showing applied name
-
-**Phase 2: Background AI Enhancement (optional)**
-
-4. **Background processing**: Content analysis starts after download completes
-5. **AI upgrade available**: Show notification when better name found
-
-**User experience flow**
-
-* **Instant**: File downloads immediately with smart name (no delay)
-* **Background**: Subtle indicator "🧠 Analyzing content for better name..."
-* **Upgrade offer**: "✨ Found better name: **[AI name]** • Apply • Details"
-
-### 4.5 AI Upgrade Notification Patterns
-
-**Upgrade notification (appears 10s-1min after download)**
-
-* **Location**: Same position as download completion toast
-* **Design**:
-  * Icon: ✨ or 🔄 to indicate upgrade/improvement
-  * **Before/After preview**: "Document.pdf" → "**Wniosek o przedłużenie zezwolenia - 2025-09-15.pdf**"
-  * **Confidence indicator**: "High confidence" / "Suggested" / "Alternative option"
-  * **Reasoning snippet**: "Found form title and date on page 1"
-
-* **Actions**:
-  * **Apply** (primary button)
-  * **Details** (shows reasoning + alternatives)
-  * **Not now** (dismiss)
-  * **Always apply for [PDF/this site]** (learning option)
-
-* **Mode-specific behavior**:
-  * **Balanced Mode**: Show upgrade notifications with reasoning
-  * **Silent Mode**: Auto-apply high-confidence upgrades, show others in History
-  * **Careful Mode**: Always show upgrade notifications with full details
-
-* **Rename toast (bottom-right, Balanced mode only)**
-
-  * Icon + text: "Renamed (On-device) to **Figma - Navbar fix - dialog**"; if cloud assist used, display "Renamed (Cloud assist) to …" with shield icon.
-  * Language indicator (when auto-detected): small "🇵🇱" or "EN" badge
-  * Actions: **Undo**, **Edit name…**, **Details**
-  * Auto-dismiss (8–10s), hover to persist, accessible via History.
-
-* **Kept name toast (Balanced mode, if user enabled "Notify on keep")**
-
-  * "Kept original name — looks good."
-
-**Undo behavior**
-
-* One click **Undo** restores original name; toast updates to “Restored original name.”
-
-### 4.5 Confirm flow (Careful mode + Balanced mode for sensitive docs)
-
-**Trigger**:
-- **Careful Mode**: ALL files trigger confirmation
-- **Balanced Mode**: Only auto-detected legal/financial content (invoices, contracts, permits, tax forms, certificates)
-- **Silent Mode**: Never confirms, auto-renames everything
-- **Custom Mode**: Based on user settings
-
-**Auto-detection indicators**: Document keywords ("faktura", "umowa", "invoice", "contract"), formal letterheads, government forms, financial amounts/account numbers on first pages.
-
-**Rename Review modal**
-
-* Preview icon + filetype chip (PDF/Image/Video/Audio) + **sensitive doc badge** if auto-detected
-* Banner (if auto-triggered): "⚠️ Legal/financial document detected - confirming for safety"
-* Language selector dropdown (when auto-detect is ON): "Detected: Polski 🇵🇱" with override options
-* Proposed name (editable text field)
-* Subtext: brief rationale (1 line): "Found form title on page 1; added date from document."
-* Small pill tags showing used hints: **Title**, **Date on page**, **Geolocation** (hover explains)
-* Actions:
-
-  * **Rename** (primary)
-  * **Keep original**
-  * **Show alternatives** (dropdown of 1–2 other candidates)
-* Link: "Always auto-apply for this type" (sets per-type preference)
-
-### 4.3 Batch review (optional later)
-
-When multiple files land together (e.g., 10 images), a **Review panel** slides in with a list:
-
-* Each row: thumbnail, proposed name, single-click approve/keep.
-* “Approve all” + “Keep all” + “Select all”.
+* Trigger: download starts.
+* **Phase-1**: context heuristics → instant `suggest()`; show toast per mode.
+* **Phase-2** (offscreen): text-first for PDFs (Summarizer “headline”); image/scan fallback (MuPDF raster → Prompt image or OCR); keyframe+audio for media; Language Detector if Auto language.
 
 ---
 
-## 5) Extension popup (compact control center)
+## 5) UI Patterns (updated)
 
-**Sections**
+### 5.1 Rename Toast (phase-1)
+
+* Location: bottom-right (desktop).
+* Content:
+
+  * Icon + “Renamed (**On-device**) to **{name}**”
+  * Badges (if applicable): **🇵🇱 PL**, **Clean/kebab/snake** chip
+* Actions: **Undo**, **Edit name…**, **Details**
+* Auto-dismiss 8–10s; hover to persist; accessible via History.
+
+**Kept toast (optional if enabled)**
+
+* “Kept original name — already clear.”
+
+### 5.2 Upgrade Notification (phase-2)
+
+* Icon: ✨
+* Before/After: `Original.pdf` → **New name**
+* **Confidence**: High / Suggested / Alternative
+* **Reason tags**: **Title**, **Date**, **Geo**, **Source**, **Language**
+* Actions: **Apply** (primary), **Details**, **Not now**, “Always apply for \[type/site]”
+
+**Details drawer**
+
+* Mini preview: first-page title / detected issuer / excerpt (if text path)
+* Why this name (one-liner), processing source badge: **On-device** / **Cloud assist**
+
+### 5.3 Confirm Modal
+
+* Banner (if triggered automatically): “⚠️ Legal/financial document detected — confirming for safety.”
+* Fields:
+
+  * Proposed name (editable text field)
+  * Small helper: “Aim for 30–60 characters. We’ll keep the extension.”
+  * Language selector (“Detected: Polski 🇵🇱” with override)
+* Reason tags (hover for explanations).
+* Actions: **Rename** (primary), **Keep original**, **Show alternatives** (1–2 more)
+* Footer link: “Always auto-apply for this type” (sets per-type rule)
+
+### 5.4 Extension Popup
 
 * **Status**
 
-  * Current mode badge: "🔄 Balanced" / "🔇 Silent" / "🛡️ Careful" / "⚙️ Custom"
-  * Last action: "Renamed (On-device): **…** · Undo" or "Renamed (Cloud assist): **…** · Undo"
-  * Processing chip showing current routing: **On-device** / **Cloud assist paused** / **Cloud assist active** (tap to manage).
+  * Mode badge: 🔄/🔇/🛡️/⚙️
+  * Last action: “Renamed (On-device): **…** · Undo”
+  * Processing pill: **On-device** / **Cloud assist paused** / **Cloud assist active**
 * **Quick actions**
 
-  * **Rename current file** (if on a file tab or selected download)
-  * **Revert last**
-  * **Open History**
+  * Rename current file
+  * Revert last
+  * Open History
 * **Shortcuts**
 
-  * “Temporarily pause (30 min)”
-* **Footer**
+  * Pause 30 min
+* Footer: **Settings** | What’s new
 
-  * **Settings** ⚙️  |  “What’s new”
+### 5.5 Settings Page
 
-**Design**
-Clean list; use platform font; 320–380 px width; icons for filetypes.
+**General**
 
----
+* Mode cards (as onboarding)
+* Max filename length slider (40–80, default 60)
+* Transliterate to ASCII (toggle)
+* Cloud assist toggle + disclosure
 
-## 6) Settings page (full preferences)
+**Language & Format**
 
-### 6.1 General
+* Filename language (Browser/Auto/PL/EN/UK…)
+* Separator: Clean / kebab / snake
+* Live example preview (type to see formatted output)
 
-* **Mode** \[radio cards]:
-  * **🔄 Balanced**: Auto-rename + toast notifications + confirm sensitive docs
-  * **🔇 Silent**: Auto-rename everything + no notifications + history tracking only
-  * **🛡️ Careful**: Confirm all renames + detailed review modals
-  * **⚙️ Custom**: Manual control over all settings below
-* **Max filename length** \[slider 40–80, default 60]
-* **Transliterate to ASCII** \[toggle] (off by default)
-* **Allow cloud assist when on-device fails** \[toggle] (off by default) + inline provider disclosure
+**Metadata usage**
 
-### 6.1.1 Custom Mode Settings (shown only when Custom selected)
+* Use photo location (adds city/landmark when helpful)
+* Use document date from content
+* Add duration/resolution to media
+* Use source site hint
 
-* **Auto-rename** \[toggle]
-* **Confirm mode** \[toggle] (+ checkbox "Default for legal/finance docs")
-* **Toast notifications** \[toggle]
-* **Notify when keeping original** \[toggle]
-* **Cloud assist scope** \[chips]: PDFs / Images / Audio / Video / Archives (visible when cloud assist enabled)
+**Per-type behavior**
 
-### 6.2 Language & format
+* Cards: PDFs/Docs, Images, Audio, Video, Archives, Data/Code
+* Each: Auto-rename | Confirm | Off
+* Cloud status pill when applicable
 
-* **Filename language** \[dropdown: Browser default / Auto / PL / EN / UK / …]
-* **Separator style** \[radio: Clean / kebab-case / snake\_case]
-* **Examples** live-preview: type sample → see formatted output
+**History & Safety**
 
-### 6.3 Metadata usage
+* Recent items (search/filter: All/Renamed/Kept/Undone)
+* Actions per row: Undo, Redo, Edit, Copy name
+* Source badge: **On-device** / **Cloud assist**
+* **Clear local logs**, **Export/Import settings**
 
-* **Use photo location** \[toggle, default ON] (subtitle: "adds city/landmark when helpful")
-* **Use source site hint** \[toggle, default ON]
-* **Use document date from content** \[toggle, default ON]
-* **Add duration/resolution to media** \[toggle, default ON]
-* (Tooltips explain privacy: local-only by default)
+**Diagnostics**
 
-### 6.4 Per-type behavior
-
-Cards: **PDF/Docs**, **Images**, **Audio**, **Video**, **Archives**, **Data/Code**
-Each card: \[Auto-rename | Confirm | Off], plus small per-type notes:
-
-* PDFs: “Inspect first 2–5 pages.”
-* Images: “OCR for screenshots; add place when helpful.”
-* Audio/Video: “Brief intro transcript only.”
-* Archives: “Top folder / product + count.”
-* Data/Code: “Dataset size / project name\@version.”
-* Cloud status pill when applicable: “On-device only” / “Cloud fallback allowed”.
-
-### 6.5 History & safety
-
-* **Recent items** (list with search/filter)
-
-  * Row: thumbnail/emoji, final name, original name (small), date/time, actions: Undo / Redo / Edit
-  * Processing source badge: "On-device" / "Cloud assist"
-* **Clear local logs** \[button] (confirm)
-* **Export settings** / **Import settings**
-
-### 6.6 About / Diagnostics
-
-* Model status (On-device available / downloading % / unavailable)
-* Disk space hint if needed
-* Optional error log viewer (collapsed)
+* On-device model status (Available / Downloading % / Unavailable)
+* Space hints if needed
+* Error log viewer (collapsed)
 
 ---
 
-## 7) History (standalone panel)
+## 6) Micro-interactions & Copy (expanded)
 
-* Filter by: **All / Renamed / Kept / Undone**
-* Search input (fuzzy)
-* Rows show:
+**Background processing (offscreen)**
 
-  * Icon/thumbnail
-  * Final name (bold) + language badge if auto-detected
-  * Original name (muted)
-  * Chips for hints: Title / Geo / Date / Duration / Source / Language (if auto-detected)
-  * Actions: **Undo**, **Edit**, **Copy name**
-* Bulk actions (multi-select): Undo selected
+* “🧠 Analyzing first pages…”
+* “📖 Reading document structure…”
+* “🌍 Detecting language…”
+* “⚡ Almost ready with upgrade…”
+* “☁️ Using cloud assist (per your settings)…”
 
-Empty state: “No recent items. New files will appear here.”
+**AI outcomes**
 
----
+* High confidence: “✨ Found better name: **{name}**”
+* Moderate: “🔄 Suggested improvement: **{name}**”
+* Alternative: “💡 Another option: **{name}**”
+* Applied: “✅ Applied smarter name: **{name}**”
+* Learning: “📚 Thanks — we’ll remember this preference.”
 
-## 8) Micro-interactions & copy
+**Error & fallback**
 
-**Background processing messages (subtle, non-blocking)**
-
-* **Initial**: "🧠 Analyzing content for better name..."
-* **Content analysis**: "📖 Reading document structure..."
-* **Language detection**: "🌍 Detecting language and context..."
-* **Finalizing**: "⚡ Almost ready with upgrade..."
-* **Cloud processing**: "☁️ Using cloud assist for deeper analysis..."
-
-**AI upgrade messages**
-
-* **High confidence**: "✨ Found better name: **[new name]**"
-* **Moderate confidence**: "🔄 Suggested improvement: **[new name]**"
-* **Alternative**: "💡 Alternative name found: **[new name]**"
-* **Applied**: "✅ Applied smarter name: **[new name]**"
-* **Learning**: "📚 Thanks! Learning your preferences..."
-
-**Rename toast**
-
-* Success: "Renamed to **{name}**" · **Undo** · **Edit name…**
-* Kept: "Kept original name — already clear."
-* Processing complete: "✨ Smart name applied: **{name}**" · **Undo** · **Details**
-
-**Confirm modal**
-
-* Title: "Review filename"
-* Field placeholder: "Enter a short, clear name"
-* Helper text: "Aim for 30–60 characters. We'll keep the extension."
-
-**Settings hints**
-
-* “Auto-rename” → “Rename new files automatically using content and helpful metadata.”
-* “Confirm mode” → “Ask before renaming; ideal for sensitive documents.”
-* “Use photo location” → “Adds city/landmark—never shares your exact GPS.”
+* Model unavailable: “On-device model not ready — using Metadata-only mode.”
+* Timeout: “Taking longer than expected — saved with basic name.”
+* Rename blocked (in use): “File is busy — we’ll retry shortly.”
+* Permission missing (post-save): “Grant Downloads access to enable Undo & Upgrade.”
 
 ---
 
-## 9) States & edge cases
+## 7) States & Edge Cases
 
-### 9.1 Model & System States
+**Model & activation**
 
-* **Model unavailable / not downloaded**
+* If Summarizer/Language Detector require activation: show inline prompt in popup/settings: “Enable on-device {feature}”.
+* “Downloading on-device model… XX%” with non-blocking progress.
 
-  * Banner in popup: "On-device model not ready."
-  * Button: **Set up now…** → opens model setup section in Settings.
-  * Fallback behavior: keep original names; show gentle notice after first event.
-  * **Metadata-only mode available**: Uses only file metadata (date, source domain, file type, size) without content analysis
-  * If cloud assist enabled and network available: auto-route to cloud after user consent reminder; toast clarifies "Used cloud assist while model downloads."
+**Metadata-only Mode (explicit design)**
 
-* **Model download failed**
+* Screenshot → `Screenshot — 2025-09-22 — 1080p`
+* PDF from GitHub → `Document — github.com — 2025-09-22`
+* Image download → `Image — reddit.com — 2025-09-22 — 2MB`
 
-  * Error toast: "⚠️ Setup failed. Check network connection."
-  * Actions: **Retry**, **Use metadata-only mode** (date, source, file type patterns), **Temporarily allow cloud assist** (if not already enabled)
-  * Settings shows offline fallback options
+**File conflicts**
 
-**Metadata-only Mode Examples (when AI model unavailable):**
-- Screenshot → `Screenshot - 2025-09-22 - 1080p`
-- PDF from GitHub → `Document - github.com - 2025-09-22`
-- Image download → `Image - reddit.com - 2025-09-22 - 2MB`
-- Generic file → `Document - domain.com - 2025-09-22`
+* If name exists, auto suffix “- 2”, “- 3”, etc.; show conflict resolution hint in Confirm.
 
-* **Processing timeout / errors**
+**Restricted chars/length**
 
-  * Processing spinner shows timeout: "Taking longer than expected... using basic name"
-  * Auto-fallback to metadata-only naming after 90 seconds
-  * Error toast: "⚠️ Analysis failed - saved with basic name • Retry"
-  * Manual retry available from History or popup
+* Inline validation; auto-clean preview: “Will become: safe-filename-v2”
 
-* **Network issues during processing**
+**Sensitive content**
 
-  * Processing indicator shows "Analyzing offline..." (for on-device processing)
-  * If cloud assist needed: "⚠️ Analysis paused - no connection • Continue offline"
-  * Auto-retry with backoff; manual retry button
-  * Graceful degradation to cached partial model if available
+* Extra confirmation for patterns like account numbers;
+* Option: “Exclude sensitive tokens from filename”;
+* If cloud assist is on, show: “Sensitive content will not leave your device” and disable cloud routing for this item.
 
-### 9.2 File Operation Errors
+**No Downloads permission**
 
-* **File permission errors**
-
-  * Error toast: "⚠️ Can't rename - file is read-only or in use"
-  * Actions: **Retry**, **Skip**, **Copy suggested name** (to clipboard)
-  * Queue for retry when file becomes available
-
-* **File locked / in use**
-
-  * Background retry logic (3 attempts over 30s)
-  * Toast: "File is busy - will retry automatically"
-  * User can manually trigger retry from History
-
-* **Disk space issues**
-
-  * Warning before model download: "Need 250MB free space"
-  * Error during download: "Download paused - insufficient space"
-  * Cleanup suggestions: clear browser cache, delete old downloads
-
-* **File system errors**
-
-  * Generic fallback: "⚠️ Rename failed - system error"
-  * Actions: **Copy name**, **Try again**, **Report issue**
-  * Log technical details for debugging (user can export)
-
-### 9.3 Content & Naming Issues
-
-* **Low confidence**
-
-  * Auto mode: keep original; toast: "Skipped — unsure."
-  * Confirm mode: show Review modal with context chips and 2 suggestions; if user allowed cloud assist, offer "Ask cloud for another option" secondary button with privacy reminder.
-
-* **Conflicting filename**
-
-  * Auto suffix "(1)" / "(2)" or increment token.
-  * If series detected: suggest "- 1", "- 2", etc.
-  * Show conflict resolution in Review modal
-
-* **Restricted characters / too long**
-
-  * Inline validation with red hint; auto-clean when possible; trim gracefully.
-  * Preview shows cleaned version: "Will become: safe-filename-version"
-
-* **Content parsing failures**
-
-  * Fallback to metadata-only naming (date, file size, download source, file type)
-  * Toast: "Used file info only - content unclear"
-  * Option to manually trigger re-analysis when model is available
-
-### 9.4 Privacy & Security
-
-* **Privacy guard**
-
-  * If metadata usage is off but detected, show subtle info: "Location detected (off). You can enable it in Settings."
-
-* **Sensitive content detected**
-
-  * Extra confirmation for detected personal info (SSN patterns, credit cards)
-  * Option to exclude sensitive text from filename
-  * "Keep completely original" quick action
-  * If cloud assist toggle is on, surface warning "Sensitive content will not leave your device" and disable cloud routing for that event automatically.
-
-### 9.5 Extension State Errors
-
-* **Extension disabled/crashed**
-
-  * Persistent notification: "NewName stopped working"
-  * One-click restart; option to reset settings
-  * Safe mode with minimal features only
-
-* **Browser compatibility issues**
-
-  * Graceful degradation for unsupported APIs
-  * Feature detection with clear messaging about limitations
-  * Alternative workflows for missing capabilities, including offering cloud assist when supported and consented.
+* Phase-1 still works; **Upgrade** button shows a small lock with tooltip: “Grant access to enable post-save renames.”
 
 ---
 
-## 10) Accessibility & i18n
+## 8) Accessibility & i18n
 
-* **Keyboard**:
+* **Keyboard**
 
-  * Undo last rename: `Alt+Ctrl+Z` (extension-specific, avoids browser conflicts)
-  * Edit last rename: `Alt+Ctrl+R` (R for Rename)
-  * Quick popup: `Alt+Ctrl+N` (N for NewName)
-  * Popup navigation: fully tabbable, ESC to close, Enter to activate primary
-  * Toast focus: `Tab` from active window reaches toast actions when visible
-* **Screen readers**:
-
-  * Toasts announce role=“status”
-  * Buttons have descriptive labels (“Undo rename to original filename”)
-* **High contrast / reduced motion**: respect OS settings
-* **Bidirectional & diacritics**: filenames render correctly; RTL support in UI
+  * Undo last: `Alt+Ctrl+Z`
+  * Edit last: `Alt+Ctrl+R`
+  * Open popup: `Alt+Ctrl+N`
+* **Screen readers**: toasts `role="status"`, buttons with descriptive labels.
+* **Reduced motion / high contrast** respected.
+* **RTL & diacritics**: filenames render correctly; test bidi separators.
 
 ---
 
-## 11) Metrics (privacy-respecting, opt-in)
+## 9) Visual Style
 
-* % Renamed vs Kept (split by on-device vs cloud assist)
-* Revert rate & edit rate
-* Time to first successful rename (onboarding success)
-* Per-type engagement (to refine defaults)
-* Cloud assist opt-in rate & per-user frequency (aggregate only, no content snippets)
-* No content snippets stored; only aggregate counters and anonymized events when user opts in.
-
----
-
-## 12) Visual style (quick spec)
-
-* **Typography**: System font stack; 14–15px base in popup; 16px in settings.
-* **Color**: Neutral UI; one accent color (success green for rename, warning amber for kept/low confidence).
-* **Elevation**: Light shadows for modals/toasts.
-* **Iconography**: Simple line icons per filetype; readable 16–20px.
-* **Spacing**: Comfortable (8px grid), dense in the popup, roomy in Settings.
+* **Type:** system font; 14–15px popup, 16px settings.
+* **Color:** neutral UI; success green for rename, amber for warnings/kept.
+* **Shadows:** light, unobtrusive.
+* **Icons:** simple line icons per file type + source badges.
+* **Spacing:** 8px grid; dense in popup, roomy in settings.
 
 ---
 
-## 13) Roadmap (UX)
+## 10) Roadmap (UX)
 
 **MVP**
 
-* First-run flow, Rename toast, Popup basics, Settings (General + Language/Format + Per-type), History (recent 50).
+* Onboarding (Mode, Cloud, Downloads access, AI activation)
+* Phase-1 toasts; basic History (50 items)
+* Settings (General, Language/Format, Per-type)
+* Phase-2 Upgrade Notification (PDFs + Images)
 
 **v1**
 
-* Confirm Mode modal, Metadata toggles UI, Better History filters, Series awareness (auto numbering), Live example preview in Settings.
+* Confirm Modal; richer History filters; Series awareness
+* Metadata toggles UI; Cloud fallback per type
+* Live example preview in Settings
 
 **v2**
 
-* Batch Review panel, Per-folder behaviors, Template builder UI, Desktop helper status drawer.
+* Batch Review panel (multi-file)
+* Per-folder behaviors & template builder
+* Desktop helper status drawer
 
 ---
 
-## 14) Sample user journeys by mode
+## 11) Example Journeys
 
-### A) "Hands-off pro" (Balanced Mode)
+**A. Hands-off pro (Balanced)**
 
-* Installs → selects "🔄 Balanced" → downloads regular PDF → toast: "Renamed to **Tutorial - React hooks**" → continues working. Downloads invoice → Review modal appears → confirms rename. Later opens History to copy a name.
+* Installs → chooses **Balanced** → grants Downloads → enables AI → downloads an invoice
+* Toast: “Renamed (On-device) to **Biedronka — Faktura — 2025-03-04 — 146,20 PLN**” → Undo available.
+* Later: ✨ Upgrade available on a PDF → Apply.
 
-### B) "Power user" (Silent Mode)
+**B. Power user (Silent)**
 
-* Installs → selects "🔇 Silent" → downloads 20 screenshots from design session → all renamed quietly in background → checks History later to see: "Figma - Component library", "Figma - Color tokens", etc. No interruptions during flow state.
+* Chooses **Silent**, cloud off → saves 30 screenshots → all renamed quietly.
+* Checks **History**: sees names + source badges, can Edit/Undo.
 
-### C) "Careful reviewer" (Careful Mode)
+**C. Careful reviewer**
 
-* Installs → selects "🛡️ Careful" → downloads any file → Review modal always appears → edits suggestions → builds personal naming preferences over time → consistent control.
+* Chooses **Careful** → Confirm Modal appears for every file.
+* Edits suggestions → sets “Always apply for PDFs from this site.”
 
-### D) "Custom workflow" (Custom Mode)
+---
 
-* Installs → selects "⚙️ Custom" → sets "Confirm PDFs only" + "Silent mode for images" + "Toast for everything else" → gets exactly the behavior they want.
+### Designer handoffs
+
+* Component specs: Toast, Upgrade card, Confirm modal, History rows, Badges.
+* Empty/error states for: model unavailable, permission missing, network fail.
+* Strings in i18n bundles for PL/EN/UK (with placeholders for {name}, {date}, etc.).
+* Icon set for file types + processing source (On-device/Cloud).

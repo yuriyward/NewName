@@ -1,244 +1,204 @@
-# PRD - Business Perspective — “NewName”
+# PRD — Business Perspective (v2) — “NewName”
 
 **Owner:** Yuriy Babyak
 **Date:** 22 Sep 2025
-**Platforms:** Chrome extension
+**Platforms:** Chrome extension (MV3). Optional desktop helper (later).
 
 ## 1) Summary
 
-NewName automatically gives files short, human-like names. It evaluates new files as they’re saved/downloaded, decides whether renaming adds value, then generates a concise, context-aware title using content snippets (e.g., first few pages of PDFs) and useful metadata (e.g., geolocation in photos). Everything runs locally by default, with an explicit, opt-in fallback to cloud AI when the device cannot execute on-device models.
+NewName automatically gives new files short, human-like names. It renames instantly using page/download context (Phase 1), then optionally upgrades the name using lightweight content analysis (Phase 2). Processing is **local-first** using Chrome’s **built-in AI** (Prompt, Summarizer, Language Detector). An **explicit, opt-in cloud fallback** (Firebase AI Logic → Gemini) is available. Users can **Undo** and **Upgrade** post-save thanks to one-time **Downloads folder** access via File System Access.
 
 ## 2) Problem & Opportunity
 
-* People accumulate poorly named files; finding anything later is slow and frustrating.
-* Existing filename “cleaners” use generic rules or unreliable tags—results feel robotic.
-* A lightweight assistant that titles “like a human” creates immediate value across personal and professional workflows without changing user habits.
+People accumulate poorly named files; retrieval is slow. Current renamers are rule-based and robotic. NewName provides **human-like titles** with **zero friction**, boosting personal and professional file hygiene without changing user habits.
 
-## 3) Target Users & Primary Jobs
+## 3) Target Users & Jobs
 
-* **Knowledge workers / Students / Researchers**: papers, forms, lecture notes, reports.
-* **Operations / HR / Finance**: invoices, contracts, statements, certificates.
-* **Creators / Engineers**: screenshots, design exports, recordings, tutorials, specs.
-* **Everyday users**: photos, travel docs, tickets, receipts.
+**Segments**
+
+* Knowledge workers / Students / Researchers: papers, forms, notes.
+* Operations / HR / Finance: invoices, contracts, statements.
+* Creators / Engineers: screenshots, design exports, specs, recordings.
+* Everyday users: photos, tickets, receipts.
 
 **Jobs-to-be-Done**
 
-* “When I download or save a file, I want it to have a clear, specific name so I can find it later without opening it.”
-* “When I review a folder, I want to quickly recognize items by their names alone.”
+* “When I download a file, I want a clear, specific name—without manual edits.”
+* “When scanning a folder, I want to recognize items by name alone.”
 
 ## 4) Goals & Non-Goals
 
 **Goals**
 
-* Accurate, human-like names in the **user’s language**, usually ≤ 60 characters.
-* **Local-first pipeline**: prefer built-in Chrome AI (Gemini Nano via Prompt/Summarizer APIs) or bundled models; degrade gracefully.
-* **Explicit cloud fallback** only when the user opts in and when local execution is unavailable or insufficient.
-* **Decision first**: rename only when it clearly improves the name.
-* **Deeper inspection** when helpful (e.g., first 2–5 pages of PDFs; keyframes + short transcript for videos).
-* Use **high-signal metadata** (e.g., geolocation, dates, duration, resolution) when it truly clarifies.
-* Privacy-first: default to on-device processing; no cloud by default.
+* Names feel **human**, localized, usually ≤ 60 chars.
+* **Local-first**: built-in Chrome AI; degrade gracefully to metadata-only.
+* **Explicit cloud fallback** (opt-in, per-type scope, data-minimized).
+* **Decision-first**: rename only when it clearly improves clarity.
+* **Undo/Upgrade** available after save (Downloads folder access).
+* **Privacy-forward** defaults; transparent when geo/site/date influence naming.
 
 **Non-Goals**
 
-* Full content processing/archiving; heavy document understanding.
-* Enforcing rigid, enterprise taxonomy (can come later as templates).
+* Heavy document understanding/archiving.
+* Rigid enterprise taxonomy (templates later).
+* Full media transcription/translation.
 
 ## 5) Core Principles
 
-1. **Human-first naming**: subject → qualifier (place/date/version) only if it adds clarity.
-2. **Minimal friction**: auto on new saves; 1-click revert or edit.
-3. **Just enough context**: inspect a **small but richer** slice (e.g., first few pages/keyframes)—not whole files.
-4. **Trust & privacy**: content stays local by default; metadata use is transparent and user-controlled.
+1. **Human-first naming** (Subject → optional Qualifiers that truly clarify).
+2. **Minimal friction** (auto on save; 1-click Undo/Upgrade).
+3. **Just enough context** (page/URL, first pages/keyframes only).
+4. **Trust & privacy** (on-device by default; explicit cloud consent).
+5. **Deterministic safety** (safe characters, length caps, one dot before extension).
 
-## 6) High-Level Flow (Context-First + Progressive Enhancement)
+## 6) High-Level Flow
 
-### 6.1 Phase 1: Instant Context Analysis (<1 second)
+### Phase 1 — Instant Context Analysis (<1s)
 
-1. **Intercept download**: Use `chrome.downloads.onDeterminingFilename` to capture download events.
-2. **Lightning-fast context analysis**:
-   * **Page context**: title, headings, domain, URL patterns
-   * **Download context**: link text, surrounding content, file path hints
-   * **User patterns**: recent downloads, folder preferences, naming habits
-   * **Metadata**: file type, size, source domain, timestamp
-3. **Smart guess generation**: Combine context signals for immediate intelligent name
-4. **Apply context-based name**: Call `suggest()` with smart guess; download completes instantly
+* **Trigger:** `chrome.downloads.onDeterminingFilename`.
+* **Signals:** page title/H1, link text/ARIA, domain/URL path, file type, timestamp, user language preference.
+* **Action:** Heuristic + optional micro Prompt formatting → `suggest()`; download completes instantly.
+* **Feedback:** Toast: “Renamed (On-device) to **…**” · Undo · Edit.
 
-### 6.2 Phase 2: Background AI Enhancement (10s-1min, optional)
+### Phase 2 — Background AI Enhancement (10s–1m, optional)
 
-5. **Capability check**: detect on-device model availability, hardware (NPU/GPU), and user consent flags for cloud fallback.
-6. **Background content analysis** (non-blocking):
-   * **Content snippets** by type (PDF: first 2–5 pages text; Image: caption/OCR; Audio/Video: short transcript + 1–2 keyframes).
-   * **Deep content understanding**: document structure, subjects, entities, language detection
-7. **AI-powered title generation**: Produce 1–3 content-based candidates
-8. **Quality comparison**: Score AI name vs. context-based name
-9. **Upgrade decision**: If AI name significantly better → offer upgrade to user
+* **Runtime:** Offscreen document hosts **Summarizer/Prompt/Language Detector** sessions.
+* **Content access:** Re-fetch original URL with **Range**; process first 2–5 PDF pages (text-first), or a small image/keyframe/audio slice for images/video/audio.
+* **PDF strategy:**
 
-### 6.3 Phase 3: User Choice & Learning
+  * **Born-digital:** extract text → **Summarizer(type:'headline')** → candidate(s).
+  * **Scanned/low-text:** MuPDF WASM rasterize first pages → Prompt (image) or OCR fallback.
+* **Compare & Decide:** If upgraded title scores higher → show **Upgrade** notification with reasoning and Apply/Details.
 
-10. **Upgrade notification**: "Found better name based on content: [AI name] • Apply • Details"
-11. **User feedback**: Accept, decline, or edit the AI suggestion
-12. **Learn & adapt**: Improve Phase 1 context analysis based on user preferences
+### Post-save Operations — Upgrade & Undo
 
-### 6.4 Hybrid AI Routing (Strategic Layer)
+* Onboarding requests one-time **Downloads** access (File System Access).
+* Store minimal history (original/final/path, processing source).
+* **Undo/Upgrade** move the file safely via `FileSystemHandle.move()`.
 
-* **On-device primary path**: use Chrome built-in Prompt/Summarizer APIs or packaged lightweight models for OCR/audio snippets when available.
-* **Cloud secondary path**: when the primary path is unavailable (unsupported browser/OS, insufficient hardware, or user-triggered re-analyze), call Gemini via Firebase AI Logic using a signed-in Google account or service key.
-* **User consent gate**: first-time fallback prompts detail data handling, retention, and cost; users can revoke later.
-* **Data minimization**: send only trimmed context packets (no raw files) to cloud; redact sensitive tokens flagged by heuristics before transmission.
+### Hybrid AI Routing
+
+* **Primary:** Chrome built-in AI (on-device).
+* **Fallback (opt-in):** Firebase AI Logic; send only trimmed snippets, never raw files; per-type scope.
 
 ## 7) Inspection Strategy (per type)
 
-* **PDF / Word / Slides**: Parse headings + first 2–5 pages (more reliable titles, form names, dates). If form, include form type/issuer + date.
-* **Images**:
+* **PDF/Docs:** First 2–5 pages text; if no text → render first pages to images. Include form type/issuer + date when helpful.
+* **Images:**
 
-  * Screenshots: window/app title via OCR.
-  * Photos: describe subject; **if geolocation present and helpful**, add place (city/landmark/venue).
-  * Scans: detect doc type (“dowód osobisty”, “paragon”, “umowa”) and side (front/back).
-* **Audio**: short intro transcript (first 30–120s) + duration; classify (meeting, lecture, memo).
-* **Video**: 1–2 informative keyframes + short intro transcript + duration/resolution; classify (screen recording, tutorial, call).
-* **Archives/Installers**: derive from top folder/product/version; add count if useful.
-* **Data/Code**: dataset shape (rows×cols) or project name\@version.
+  * Screenshots → OCR window/app title;
+  * Photos → subject; add place only if geolocation truly clarifies;
+  * Scans → detect doc type/side.
+* **Audio:** Brief intro transcript or short audio slice classification (meeting/memo/lecture).
+* **Video:** 1–2 keyframes + short intro audio; classify (screen recording/tutorial/call).
+* **Archives/Installers:** Top folder/product/version; add item count if useful.
+* **Data/Code:** dataset shape or project name\@version (lightweight).
 
-## 8) Decision Policy (Rename or Not)
+## 8) Decision Policy (Rename vs Keep)
 
-Score each file 0–100 across signals; rename if score ≥ threshold (e.g., 60).
+Score 0–100; rename if ≥ threshold (default 60).
 
-**Signals & Weighting (illustrative)**
+Illustrative weights:
 
-* Content Title/Heading confidence ………… +35
-* Recognized Document Type (form, invoice) … +20
-* Useful Metadata (geo/date/duration) ……… +15
-* URL/Site clarity (vendor name/model) …… +10
-* Existing name quality (penalty if already good) −30
-* Low confidence/ambiguous content ………… −20
+* Content title/heading confidence … +35
+* Recognized doc type (form/invoice/contract) … +20
+* Helpful metadata (geo/date/duration) … +15
+* Source clarity (site/vendor/model) … +10
+* Existing name already clear … −30
+* Low confidence/ambiguous … −20
 
-**Examples**
+## 9) Naming Rules (Human Style)
 
-* `IMG_4021.HEIC` with GPS near “Morskie Oko” at sunset → **Rename**.
-* `invoice_2025.pdf` with vendor + total on page 1 → **Rename** to specify vendor & date.
-* `Supabase_Edge_Functions_CORS.pdf` (already clear) → **Keep**.
+**Language**
 
-## 9) Naming Policy (Human Style)
+* Setting: Auto (detect) / Browser default / PL / EN / UK / …
+* Auto uses Language Detector; user can override per file in Confirm.
 
-### A) Language Policy
+**Characters & Separators**
 
-* **Setting**: "Filename language"
-  * **Default**: Browser UI language (e.g., `pl-PL`)
-  * **Options**: `Auto (detect from content)`, `Polski`, `English`, `Українська`, etc.
-* **Behavior**:
-  * If set to specific language → always title in that language
-  * If **Auto** → detect language from snippet; fall back to browser language if uncertain
-  * Changing this setting does **not** retro-rename past files unless explicitly triggered
+* Allowed: letters, numbers, spaces, dash `-`, underscore `_`, single dot before extension.
+* Disallow: shell-hostile chars `: * ? " < > | \ /` and extra dots.
+* Separator styles: **Clean** (default), **kebab-case**, **snake\_case**.
 
-### B) Characters & Separators (Cross-Platform Safe)
+**Order & Length**
 
-* **Allowed characters**:
-  * Letters, numbers, spaces, **dash** `-`, **underscore** `_`, and one **dot** before extension
-  * **Prohibited**: parentheses, brackets, emojis, extra dots, shell-hostile characters (`: * ? " < > | \ /`)
-* **Separator style (setting)**:
-  * **Clean (default)**: `Subject - Qualifier - ExtraTokens`
-  * **CLI-friendly**: `kebab-case` (e.g., `subject-qualifier-extra`)
-  * **Data-friendly**: `snake_case` (e.g., `subject_qualifier_extra`)
+* Subject → optional Qualifiers (date `YYYY-MM-DD`, place, version, duration/resolution).
+* Target length: 30–60 (configurable 40–80).
+* Fallback: `YYYY-MM-DD-topic-short-hash`.
 
-### C) Token Order & Inclusion Rules
+**Diacritics**
 
-* **Order**: `Subject` → optional `Qualifier(s)` → optional `Tokens`
-* **Include only if clarifying**:
-  * **Date** → `YYYY-MM-DD`
-  * **Place** → city/landmark (only when meaningful)
-  * **Version** → `v2`, `revA`
-  * **Duration** → `12m`
-  * **Resolution** (video) → `1080p`
-* **Length**: target 30–60 chars (user-configurable 40–80)
-* **Fallback**: `YYYY-MM-DD-topic-short-hash`
+* Preserve by default; optional **Transliterate to ASCII** toggle.
 
-### D) Formatting Rules
+## 10) Preferences & Controls (business-critical)
 
-* Collapse repeated separators (`" -  - "` → `" - "`)
-* Trim leading/trailing separators and spaces
-* Preserve diacritics by default; **Setting**: "Transliterate to ASCII" (off by default)
-* Keep extension intact; never add extra dots
-* No camera/codec/model noise unless user enables "power user" mode
+* **Mode:** Auto-rename / Confirm-before-apply / Silent / Custom.
+* **Per-type toggles:** PDFs, Images, Audio, Video, Archives.
+* **Filename language:** Browser / Auto / specific.
+* **Separator style:** Clean / kebab / snake.
+* **Metadata use:** Photo geo, Document date, Media duration/resolution, Source site hint (all toggles).
+* **Cloud assist:** Opt-in, per-type scope, provider disclosure, data minimization.
+* **History:** Recent actions with Undo/Redo/Edit; source badge (On-device/Cloud).
 
-**Examples (Clean format)**
+## 11) Architecture Notes (exec-level)
 
-* PDF (residence permit): `Wniosek o przedłużenie zezwolenia na pobyt - 2025-09-15`
-* Photo (geo): `Zachód słońca - Tatry - Morskie Oko - 2025-08-17`
-* Screenshot (app): `Figma - Navbar fix - dialog`
-* Meeting audio: `Waypass - Sprint planning - Q4 goals - 45m`
-* Video tutorial: `Supabase - CORS dla Edge Functions - 1080p - 12m`
-* Invoice: `Biedronka - Faktura - 2025-03-04 - 146,20 PLN`
+* **MV3 service worker**: listens for downloads; hands off work to offscreen page.
+* **Offscreen document**: hosts built-in AI sessions, PDF.js/MuPDF, OCR if needed.
+* **File System Access**: single user grant for **Downloads** enables reliable Upgrade/Undo.
+* **Range fetching**: partial content fetch of originals to avoid full downloads in Phase 2.
+* **Policy enforcement**: Prompt structured output schema guarantees safe filenames.
 
-**CLI-friendly versions (kebab-case)**
-
-* `wniosek-o-przedluzenie-zezwolenia-na-pobyt-2025-09-15`
-* `waypass-sprint-planning-q4-goals-45m`
-
-**Data-friendly versions (snake_case)**
-
-* `wniosek_o_przedluzenie_zezwolenia_na_pobyt_2025_09_15`
-* `waypass_sprint_planning_q4_goals_45m`
-
-## 10) Preferences & Controls
-
-* **Mode**: Auto-rename / Confirm-before-apply
-* **Per-type toggles**: PDFs, images, audio, video, archives
-* **Filename language**: Browser UI language / Auto (detect from content) / specific language
-* **Separator style**: Clean (spaces + dashes) / CLI-friendly (kebab-case) / Data-friendly (snake_case)
-* **Use helpful metadata** (opt-in clarity):
-  * **Geolocation (photos)**: Add meaningful location context
-  * **Date from content**: Extract and use document dates
-  * **Duration/Resolution (media)**: Include media specs when clarifying
-  * **Source site hint**: Use domain/site context for naming
-* **Hybrid AI routing**:
-  * **Allow cloud assist**: Opt-in toggle (off by default); shows expected providers + privacy summary
-  * **Cloud usage scope**: Per-type toggles (e.g., “Allow cloud for audio/video only”)
-  * **Data minimization mode**: Strip sensitive entities before upload (on by default)
-* **Character handling**:
-  * **Transliterate to ASCII**: Convert diacritics (off by default)
-  * **Max filename length**: 40–80 chars (default: 60)
-* **Templates** (later): per type, e.g., "Photo: `{date}_{place}_{subject}`"
-* **Revert & Edit**: quick undo; in-place edit with suggestions that teach preferences
-* **Privacy**: "Strip where-from/source after rename"
-
-## 11) Success Metrics
+## 12) Success Metrics (opt-in, privacy-respecting)
 
 * **Quality**: ≥ 80% of renamed files rated “clear & useful.”
-* **Time saved**: ≥ 50% reduction in manual renames over 2 weeks.
-* **Adoption**: ≥ 70% users keep Auto-rename on after first week.
-* **Trust**: < 5% revert rate on renamed items (opt-in telemetry).
-* **Coverage**: 70–90% of eligible files get renamed (others intentionally kept).
+* **Time saved**: ≥ 50% fewer manual renames after 2 weeks.
+* **Adoption**: ≥ 70% keep Auto-rename after week 1.
+* **Trust**: < 5% revert rate on renamed items.
+* **Coverage**: 70–90% of eligible files renamed (rest intentionally kept).
+* **Cloud usage**: % users enabling cloud assist; events per type (aggregate only).
 
-## 12) Rollout
+## 13) Rollout Plan
 
 **MVP (Weeks 1–3)**
 
-* PDFs (first 2–3 pages) + Images (screenshots, scans, photos w/ optional geo).
-* Auto-rename + Revert; simple settings; language auto-detect.
+* Phase 1 for PDFs + Images (screenshots/scans/photos).
+* Text-first PDF naming; scan fallback via MuPDF raster → Prompt image.
+* Onboarding with Mode selection + **Downloads** access; local-only by default.
+* Toast + Undo; basic Settings; History (recent 50).
 
 **v1**
 
-* Video (keyframes + short transcript), Audio (intro transcript), Archives/Installers.
-* Confirm mode, per-type toggles, metadata switches.
+* Audio/Video (keyframes + short intro audio), Archives/Installers.
+* Confirm mode & per-type behavior; metadata toggles UI.
+* Cloud fallback (opt-in) via Firebase AI Logic.
+* Series awareness & smart conflict resolution.
 
 **v2**
 
-* Series awareness (foto1/2/3, part-1/2/3), user templates, bulk re-title, small “learning” from user edits.
+* Batch Review panel; per-folder behaviors; template builder; desktop helper (file watcher + local LLMs).
 
-## 13) Risks & Mitigations
+## 14) Risks & Mitigations
 
-* **Incorrect titles** → Confirm Mode toggle; easy revert; conservative threshold.
-* **Privacy sensitivity (geo/URL)** → opt-in switches; clear labeling; local-only default.
-* **Performance on large files** → cap inspection (pages/seconds/keyframes); cache per-domain/site hints; offload heavy cases to cloud only with consent.
-* **Multilingual content** → language detection; keep UI language separate from filename language.
-* **Edge cases (scans/handwriting/no speech)** → fallbacks and conservative “keep original” decisions.
-* **Cloud fallback compliance** → document data-sharing terms, GDPR/CCPA alignment; ensure opt-in consent stored with timestamp.
+* **Incorrect titles** → Conservative threshold; Confirm mode; easy Undo.
+* **Privacy concerns** → On-device default; explicit cloud consent; data minimization; clear badges.
+* **Performance on large files** → Range fetch; cap pages/seconds; cache site hints; metadata-only fallback.
+* **Model not ready / user-activation** → Capture activation in onboarding; show model status; metadata-only mode until ready.
+* **Post-save renames** → Require Downloads access early; graceful path if user declines (Upgrade disabled; Undo limited to Phase 1).
 
-## 14) Open Questions
+## 15) Open Questions
 
-* Should “Confirm Mode” be the default for legal/financial documents?
-* Do we allow per-folder behaviors (e.g., “Work”, “Photos”, “Receipts”)?
-* What telemetry do we need to assure users about local vs. cloud usage without logging sensitive content?
-* ~~What's our default stance on diacritics (preserve vs. normalize) per OS?~~
+1. Default Confirm policy for **legal/financial** docs—on by default in Balanced?
+2. Per-folder rules (e.g., Photos/Work/Receipts) in v1 or v2?
+3. What minimal, aggregate telemetry convinces privacy-sensitive users while proving value?
+4. Should we surface a “never include geo” quick action on photo suggestions?
 
-  **Answer**: Preserve diacritics by default across all platforms (Windows NTFS, macOS HFS+/APFS, and modern Linux filesystems handle Unicode well). Provide optional "ASCII-safe mode" toggle for cross-platform sharing, legacy system compatibility, or command-line heavy workflows. This respects user language while offering technical escape hatches when needed.
+---
+
+### Appendix A — Examples
+
+* **PDF (residence permit):** `Wniosek o przedłużenie zezwolenia na pobyt - 2025-09-15`
+* **Invoice:** `Biedronka - Faktura - 2025-03-04 - 146,20 PLN`
+* **Screenshot:** `Figma - Navbar fix - dialog`
+* **Meeting audio:** `Waypass - Sprint planning - Q4 goals - 45m`
+* **Video tutorial:** `Supabase - CORS dla Edge Functions - 1080p - 12m`
+* **Photo:** `Zachód słońca - Tatry - Morskie Oko - 2025-08-17`
