@@ -137,8 +137,31 @@ function deriveDomainBrand(url: URL): string | null {
 
 function looksLikeHash(token: string): boolean {
   if (token.length < 8) return false;
-  if (/^[0-9a-f-]{8,}$/i.test(token)) return true;
-  if (/^[A-Za-z0-9+/_-]{12,}$/.test(token)) return true;
+
+  if (/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3,}[0-9a-f]{8}$/i.test(token)) {
+    return true;
+  }
+
+  if (/^[0-9a-f-]{8,}$/i.test(token)) {
+    return true;
+  }
+
+  if (/^[A-Za-z0-9+/=_-]{12,}={0,2}$/i.test(token)) {
+    return true;
+  }
+
+  if (/^[A-HJ-NP-Za-km-z1-9]{16,}$/.test(token)) {
+    return true;
+  }
+
+  const alphanumeric = token.replace(/[^A-Za-z0-9]/g, '');
+  if (alphanumeric.length >= 16) {
+    const uniqueChars = new Set(alphanumeric.toLowerCase());
+    if (uniqueChars.size >= Math.min(10, alphanumeric.length / 2)) {
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -294,52 +317,93 @@ function addCandidate(
   });
 }
 
-function deriveQualifiers(params: {
+interface QualifierState {
+  qualifiers: string[];
+  reasons: string[];
+  lowerCandidate: string;
+}
+
+interface DeriveQualifiersParams {
   signals: Phase1Signals;
   candidate: Candidate;
   brand: string | null;
   fileType: FileType;
   settings: SettingsV1;
-}): { qualifiers: string[]; reasonTags: string[] } {
-  const qualifiers: string[] = [];
-  const reasons: string[] = [];
-  const lowerCandidate = params.candidate.value.toLowerCase();
+}
 
-  if (params.settings.metadataToggles.docDate && params.signals.startTime) {
-    const date = new Date(params.signals.startTime);
-    if (!Number.isNaN(date.getTime())) {
-      const iso = date.toISOString().slice(0, 10);
-      if (!lowerCandidate.includes(date.getFullYear().toString())) {
-        qualifiers.push(iso);
-        reasons.push('Date');
-      }
-    }
+type QualifierRule = (
+  state: QualifierState,
+  params: DeriveQualifiersParams,
+) => void;
+
+function pushQualifier(
+  state: QualifierState,
+  qualifier: string,
+  reason: string,
+): void {
+  const trimmed = qualifier.trim();
+  if (trimmed.length === 0) return;
+  state.qualifiers.push(trimmed);
+  state.reasons.push(reason);
+}
+
+const applyDocumentDateQualifier: QualifierRule = (state, params) => {
+  if (!params.settings.metadataToggles.docDate) return;
+  if (!params.signals.startTime) return;
+
+  const date = new Date(params.signals.startTime);
+  if (Number.isNaN(date.getTime())) return;
+
+  const yearFragment = date.getFullYear().toString();
+  if (state.lowerCandidate.includes(yearFragment)) return;
+
+  const iso = date.toISOString().slice(0, 10);
+  pushQualifier(state, iso, 'Date');
+};
+
+const applySourceQualifier: QualifierRule = (state, params) => {
+  if (!params.settings.metadataToggles.sourceHint) return;
+  if (!params.brand) return;
+
+  const lowerBrand = params.brand.toLowerCase();
+  if (state.lowerCandidate.includes(lowerBrand)) return;
+
+  pushQualifier(state, params.brand, 'Source');
+};
+
+const applyMediaSpecQualifier: QualifierRule = (state, params) => {
+  if (params.fileType !== 'image') return;
+  if (!params.settings.metadataToggles.mediaSpecs) return;
+
+  const dimensionHint = extractResolutionFromFilename(params.signals.filename);
+  if (!dimensionHint) return;
+
+  if (state.lowerCandidate.includes(dimensionHint.toLowerCase())) return;
+
+  pushQualifier(state, dimensionHint, 'Spec');
+};
+
+const QUALIFIER_RULES: QualifierRule[] = [
+  applyDocumentDateQualifier,
+  applySourceQualifier,
+  applyMediaSpecQualifier,
+];
+
+function deriveQualifiers(params: DeriveQualifiersParams): {
+  qualifiers: string[];
+  reasonTags: string[];
+} {
+  const state: QualifierState = {
+    qualifiers: [],
+    reasons: [],
+    lowerCandidate: params.candidate.value.toLowerCase(),
+  };
+
+  for (const applyQualifier of QUALIFIER_RULES) {
+    applyQualifier(state, params);
   }
 
-  if (params.settings.metadataToggles.sourceHint && params.brand) {
-    if (!lowerCandidate.includes(params.brand)) {
-      qualifiers.push(params.brand);
-      reasons.push('Source');
-    }
-  }
-
-  if (
-    params.fileType === 'image' &&
-    params.settings.metadataToggles.mediaSpecs
-  ) {
-    const dimensionHint = extractResolutionFromFilename(
-      params.signals.filename,
-    );
-    if (
-      dimensionHint &&
-      !lowerCandidate.includes(dimensionHint.toLowerCase())
-    ) {
-      qualifiers.push(dimensionHint);
-      reasons.push('Spec');
-    }
-  }
-
-  return { qualifiers, reasonTags: reasons };
+  return { qualifiers: state.qualifiers, reasonTags: state.reasons };
 }
 
 function extractResolutionFromFilename(filename: string): string | null {
