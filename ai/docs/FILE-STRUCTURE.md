@@ -5,45 +5,45 @@
 ## Tree Overview
 
 ├── popup/ # 2 files
-│   ├── App.tsx # 1 export
-│   └── main.tsx # Module exports
+│   ├── App.tsx # Main popup interface and WXT React demo component
+│   └── main.tsx # React popup entry point and application bootstrapping
 ├── shared/ # 1 directory
 │   └── integrations/ # 1 file
-│       └── install-date.ts # 4 exports
-├── background.ts # 1 export
-└── content.ts # 1 export
+│       └── install-date.ts # Extension installation date tracking and storage utilities
+├── background.ts # Background service worker for extension lifecycle management
+└── content.ts # Content script for page integration and interaction
 
 ## File Details
 
 ### background.ts
-**Purpose**: 1 export
+**Purpose**: Background service worker for extension lifecycle management
 
 **Exports**:
-- `export default` - item implementation
+- `export default` - Background service worker for extension lifecycle management
 
 ### content.ts
-**Purpose**: 1 export
+**Purpose**: Content script for page integration and interaction
 
 **Exports**:
-- `export default` - item implementation
+- `export default` - Content script for page integration and interaction
 
 ### popup/App.tsx
-**Purpose**: 1 export
+**Purpose**: Main popup interface and WXT React demo component
 
 **Exports**:
-- `export default` - item implementation
+- `export default` - Main popup interface and WXT React demo component
 
 ### popup/main.tsx
-**Purpose**: Module exports
+**Purpose**: React popup entry point and application bootstrapping
 
 *No exports found*
 
 ### shared/integrations/install-date.ts
-**Purpose**: 4 exports
+**Purpose**: Extension installation date tracking and storage utilities
 
 **Exports**:
-- `export ensureInstallDate` - item implementation
-- `export getInstallDate` - item implementation
-- `export registerInstallDateListener` - item implementation
-- `export setInstallDate` - item implementation
+- `export ensureInstallDate` - Gets or creates extension installation date
+- `export getInstallDate` - Retrieves stored extension installation date
+- `export registerInstallDateListener` - Registers browser extension install event listener
+- `export setInstallDate` - Stores extension installation date to browser storage
 

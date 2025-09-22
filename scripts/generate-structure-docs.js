@@ -219,9 +219,14 @@ function getFileDescription(module) {
  * Get description from TypeDoc node
  */
 function getDescription(node) {
-  // Try TypeDoc comment first
-  if (node.comment?.summary) {
-    const text = node.comment.summary
+  // Try TypeDoc comment first - check both node and first signature
+  let comment = node.comment;
+  if (!comment && node.signatures?.[0]) {
+    comment = node.signatures[0].comment;
+  }
+
+  if (comment?.summary) {
+    const text = comment.summary
       .map((s) => s.text)
       .join('')
       .trim();

@@ -102,10 +102,13 @@ The `ai/` directory hosts both static and auto-generated docs.
 
 ```
 ├── popup/ # 2 files
-│   ├── App.tsx # 1 export
-│   └── main.tsx # Module exports
-├── background.ts # 1 export
-└── content.ts # 1 export
+│   ├── App.tsx # Main popup interface and WXT React demo component
+│   └── main.tsx # React popup entry point and application bootstrapping
+├── shared/ # 1 directory
+│   └── integrations/ # 1 file
+│       └── install-date.ts # Extension installation date tracking and storage utilities
+├── background.ts # Background service worker for extension lifecycle management
+└── content.ts # Content script for page integration and interaction
 ```
 
 <!-- AUTO-GENERATED TREE END -->
