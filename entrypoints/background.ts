@@ -1,6 +1,7 @@
 import { browser } from 'wxt/browser';
 import { addHistoryItem } from '@/entrypoints/shared/history/history';
-import { registerInstallDateListener } from '@/entrypoints/shared/integrations/install-date';
+import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
+import type { ContentToBackgroundMessage } from '@/entrypoints/shared/messaging/content-messages';
 import { computePhase1Outcome } from '@/entrypoints/shared/pipeline/phase1-coordinator';
 import {
   getLastKnownSettings,
@@ -8,13 +9,12 @@ import {
   type SettingsV1,
   subscribeSettings,
 } from '@/entrypoints/shared/settings/settings';
-import type { ContentToBackgroundMessage } from '@/entrypoints/shared/signals/messages';
 import {
   clearPageContext,
   getPageContext,
   pruneStaleContexts,
   updatePageContext,
-} from '@/entrypoints/shared/signals/page-context-store';
+} from '@/entrypoints/shared/state/page-context-store';
 
 let fallbackRandomSeed = 0;
 

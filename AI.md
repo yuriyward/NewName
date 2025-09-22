@@ -104,11 +104,33 @@ The `ai/` directory hosts both static and auto-generated docs.
 ├── popup/ # 2 files
 │   ├── App.tsx # Main popup interface and WXT React demo component
 │   └── main.tsx # React popup entry point and application bootstrapping
-├── shared/ # 1 directory
-│   └── integrations/ # 1 file
-│       └── install-date.ts # Extension installation date tracking and storage utilities
-├── background.ts # Background service worker for extension lifecycle management
-└── content.ts # Content script for page integration and interaction
+├── shared/ # 10 directories
+│   ├── analysis/ # 4 files
+│   │   ├── candidate-ranking.ts # 3 exports
+│   │   ├── content-filtering.ts # 14 exports
+│   │   ├── heuristics-orchestrator.ts # 2 exports
+│   │   └── qualifier-rules.ts # 9 exports
+│   ├── classification/ # 1 file
+│   │   └── file-types.ts # 1 export
+│   ├── context/ # 1 file
+│   │   └── page-analyzer.ts # 7 exports
+│   ├── history/ # 1 file
+│   │   └── history.ts # 4 exports
+│   ├── lifecycle/ # 1 file
+│   │   └── install-tracking.ts # Extension installation date tracking and storage utilities
+│   ├── messaging/ # 1 file
+│   │   └── content-messages.ts # 1 export
+│   ├── naming/ # 1 file
+│   │   └── policy-engine.ts # 3 exports
+│   ├── pipeline/ # 1 file
+│   │   └── phase1-coordinator.ts # 2 exports
+│   ├── settings/ # 2 files
+│   │   ├── settings.ts # 14 exports
+│   │   └── types.ts # 9 exports
+│   └── state/ # 1 file
+│       └── page-context-store.ts # 5 exports
+├── background.ts # 1 export
+└── content.ts # 1 export
 ```
 
 <!-- AUTO-GENERATED TREE END -->

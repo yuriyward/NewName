@@ -1,5 +1,5 @@
 import { browser } from 'wxt/browser';
-import type { ContentToBackgroundMessage } from '@/entrypoints/shared/signals/messages';
+import type { ContentToBackgroundMessage } from '@/entrypoints/shared/messaging/content-messages';
 
 function firstHeading(): string | undefined {
   const root = document.body ?? document.documentElement;
