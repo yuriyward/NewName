@@ -6,7 +6,7 @@
 
 ## 1) Summary
 
-NewName automatically gives files short, human-like names. It evaluates new files as they’re saved/downloaded, decides whether renaming adds value, then generates a concise, context-aware title using content snippets (e.g., first few pages of PDFs) and useful metadata (e.g., geolocation in photos). Everything runs locally by default.
+NewName automatically gives files short, human-like names. It evaluates new files as they’re saved/downloaded, decides whether renaming adds value, then generates a concise, context-aware title using content snippets (e.g., first few pages of PDFs) and useful metadata (e.g., geolocation in photos). Everything runs locally by default, with an explicit, opt-in fallback to cloud AI when the device cannot execute on-device models.
 
 ## 2) Problem & Opportunity
 
@@ -31,6 +31,8 @@ NewName automatically gives files short, human-like names. It evaluates new file
 **Goals**
 
 * Accurate, human-like names in the **user’s language**, usually ≤ 60 characters.
+* **Local-first pipeline**: prefer built-in Chrome AI (Gemini Nano via Prompt/Summarizer APIs) or bundled models; degrade gracefully.
+* **Explicit cloud fallback** only when the user opts in and when local execution is unavailable or insufficient.
 * **Decision first**: rename only when it clearly improves the name.
 * **Deeper inspection** when helpful (e.g., first 2–5 pages of PDFs; keyframes + short transcript for videos).
 * Use **high-signal metadata** (e.g., geolocation, dates, duration, resolution) when it truly clarifies.
@@ -51,23 +53,31 @@ NewName automatically gives files short, human-like names. It evaluates new file
 ## 6) High-Level Flow (Business Logic)
 
 1. **Capture event** (download/save/new file).
-2. **Quick triage** (milliseconds): check type, existing filename clarity, and file size/health.
-3. **Build Context Packet**
+2. **Capability check**: detect on-device model availability, hardware (NPU/GPU), and user consent flags for cloud fallback.
+3. **Quick triage** (milliseconds): check type, existing filename clarity, and file size/health.
+4. **Build Context Packet**
 
    * **Content snippets** by type (PDF: first 2–5 pages text; Image: caption/OCR; Audio/Video: short transcript + 1–2 keyframes).
    * **Useful metadata** (e.g., photo geolocation → city/landmark; document date on page; video duration/resolution; source site slug).
-4. **Decision: Rename?**
+5. **Decision: Rename?**
 
    * Score usefulness vs. current name. If low confidence or already good → keep as-is.
-5. **Title Generation**
+6. **Title Generation**
 
    * Produce 1–3 candidates; auto-pick best (or ask user in “Confirm Mode”).
-6. **Apply & Log**
+7. **Apply & Log**
 
    * Rename file; store tiny audit note for revert.
-7. **Learn** (optional)
+8. **Learn** (optional)
 
    * If user reverts/edits, adapt preferences (e.g., prefers dates at front, keeps diacritics).
+
+### 6.1 Hybrid AI Routing (Strategic Layer)
+
+* **On-device primary path**: use Chrome built-in Prompt/Summarizer APIs or packaged lightweight models for OCR/audio snippets when available.
+* **Cloud secondary path**: when the primary path is unavailable (unsupported browser/OS, insufficient hardware, or user-triggered re-analyze), call Gemini via Firebase AI Logic using a signed-in Google account or service key.
+* **User consent gate**: first-time fallback prompts detail data handling, retention, and cost; users can revoke later.
+* **Data minimization**: send only trimmed context packets (no raw files) to cloud; redact sensitive tokens flagged by heuristics before transmission.
 
 ## 7) Inspection Strategy (per type)
 
@@ -173,6 +183,10 @@ Score each file 0–100 across signals; rename if score ≥ threshold (e.g., 60)
   * **Date from content**: Extract and use document dates
   * **Duration/Resolution (media)**: Include media specs when clarifying
   * **Source site hint**: Use domain/site context for naming
+* **Hybrid AI routing**:
+  * **Allow cloud assist**: Opt-in toggle (off by default); shows expected providers + privacy summary
+  * **Cloud usage scope**: Per-type toggles (e.g., “Allow cloud for audio/video only”)
+  * **Data minimization mode**: Strip sensitive entities before upload (on by default)
 * **Character handling**:
   * **Transliterate to ASCII**: Convert diacritics (off by default)
   * **Max filename length**: 40–80 chars (default: 60)
@@ -208,14 +222,16 @@ Score each file 0–100 across signals; rename if score ≥ threshold (e.g., 60)
 
 * **Incorrect titles** → Confirm Mode toggle; easy revert; conservative threshold.
 * **Privacy sensitivity (geo/URL)** → opt-in switches; clear labeling; local-only default.
-* **Performance on large files** → cap inspection (pages/seconds/keyframes); cache per-domain/site hints.
+* **Performance on large files** → cap inspection (pages/seconds/keyframes); cache per-domain/site hints; offload heavy cases to cloud only with consent.
 * **Multilingual content** → language detection; keep UI language separate from filename language.
 * **Edge cases (scans/handwriting/no speech)** → fallbacks and conservative “keep original” decisions.
+* **Cloud fallback compliance** → document data-sharing terms, GDPR/CCPA alignment; ensure opt-in consent stored with timestamp.
 
 ## 14) Open Questions
 
 * Should “Confirm Mode” be the default for legal/financial documents?
 * Do we allow per-folder behaviors (e.g., “Work”, “Photos”, “Receipts”)?
+* What telemetry do we need to assure users about local vs. cloud usage without logging sensitive content?
 * ~~What's our default stance on diacritics (preserve vs. normalize) per OS?~~
 
   **Answer**: Preserve diacritics by default across all platforms (Windows NTFS, macOS HFS+/APFS, and modern Linux filesystems handle Unicode well). Provide optional "ASCII-safe mode" toggle for cross-platform sharing, legacy system compatibility, or command-line heavy workflows. This respects user language while offering technical escape hatches when needed.

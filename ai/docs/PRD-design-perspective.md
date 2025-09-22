@@ -9,10 +9,10 @@
 * **Invisible helper**: acts automatically, interrupts only when confidence is low or the user asked to confirm.
 * **Human-first clarity**: names are short, readable, localized.
 * **Control without clutter**: quick revert, clear settings, smart defaults.
-* **Privacy-forward**: visible cues when metadata (e.g., geolocation) influences naming.
+* **Privacy-forward**: visible cues when metadata (e.g., geolocation) influences naming and whether processing stayed on-device.
 
 Tone of voice: concise, friendly, non-cute.
-Examples: “Renamed to: **Wniosek o…**” / “Kept original name—already clear.”
+Examples: “Renamed (On-device) to: **Wniosek o…**” / “Kept original name—already clear.”
 
 ---
 
@@ -49,7 +49,16 @@ Optional (if you add desktop helper later): **Helper Status Drawer**.
     * **Separator style**: Clean / kebab-case / snake_case
     * **Smart metadata**: location, dates, source context (toggles)
   * Primary: **Get Started**
-* **Screen 2: Ready & Model Setup**
+* **Screen 2: Processing Preference**
+
+  * Headline: "Stay on device or allow cloud assist?"
+  * Copy: “We default to private, on-device naming. You can enable cloud fallback for better coverage when your device can’t process locally.”
+  * Controls:
+    * Toggle **"Allow cloud assist when needed"** (off by default) with tooltip summarizing provider (Firebase AI Logic → Gemini) and data minimization.
+    * Checkbox list per file type (disabled until toggle on): PDFs, Images, Audio, Video, Archives.
+    * Link: “Learn more about how we protect your data.”
+  * Primary: **Continue**; secondary: **Keep on-device only**.
+* **Screen 3: Ready & Model Setup**
 
   * "You're all set! Settings can be changed anytime."
   * If model downloading: Progress bar "Setting up intelligence..." (doesn't block, works in background)
@@ -93,7 +102,7 @@ Optional (if you add desktop helper later): **Helper Status Drawer**.
 
 * **Rename toast (bottom-right, Balanced mode only)**
 
-  * Icon + text: "Renamed to **Figma - Navbar fix - dialog**"
+  * Icon + text: "Renamed (On-device) to **Figma - Navbar fix - dialog**"; if cloud assist used, display "Renamed (Cloud assist) to …" with shield icon.
   * Language indicator (when auto-detected): small "🇵🇱" or "EN" badge
   * Actions: **Undo**, **Edit name…**, **Details**
   * Auto-dismiss (8–10s), hover to persist, accessible via History.
@@ -147,7 +156,8 @@ When multiple files land together (e.g., 10 images), a **Review panel** slides i
 * **Status**
 
   * Current mode badge: "🔄 Balanced" / "🔇 Silent" / "🛡️ Careful" / "⚙️ Custom"
-  * Last action: "Renamed: **…** · Undo"
+  * Last action: "Renamed (On-device): **…** · Undo" or "Renamed (Cloud assist): **…** · Undo"
+  * Processing chip showing current routing: **On-device** / **Cloud assist paused** / **Cloud assist active** (tap to manage).
 * **Quick actions**
 
   * **Rename current file** (if on a file tab or selected download)
@@ -176,6 +186,7 @@ Clean list; use platform font; 320–380 px width; icons for filetypes.
   * **⚙️ Custom**: Manual control over all settings below
 * **Max filename length** \[slider 40–80, default 60]
 * **Transliterate to ASCII** \[toggle] (off by default)
+* **Allow cloud assist when on-device fails** \[toggle] (off by default) + inline provider disclosure
 
 ### 6.1.1 Custom Mode Settings (shown only when Custom selected)
 
@@ -183,6 +194,7 @@ Clean list; use platform font; 320–380 px width; icons for filetypes.
 * **Confirm mode** \[toggle] (+ checkbox "Default for legal/finance docs")
 * **Toast notifications** \[toggle]
 * **Notify when keeping original** \[toggle]
+* **Cloud assist scope** \[chips]: PDFs / Images / Audio / Video / Archives (visible when cloud assist enabled)
 
 ### 6.2 Language & format
 
@@ -208,12 +220,14 @@ Each card: \[Auto-rename | Confirm | Off], plus small per-type notes:
 * Audio/Video: “Brief intro transcript only.”
 * Archives: “Top folder / product + count.”
 * Data/Code: “Dataset size / project name\@version.”
+* Cloud status pill when applicable: “On-device only” / “Cloud fallback allowed”.
 
 ### 6.5 History & safety
 
 * **Recent items** (list with search/filter)
 
   * Row: thumbnail/emoji, final name, original name (small), date/time, actions: Undo / Redo / Edit
+  * Processing source badge: "On-device" / "Cloud assist"
 * **Clear local logs** \[button] (confirm)
 * **Export settings** / **Import settings**
 
@@ -273,11 +287,12 @@ Empty state: “No recent items. New files will appear here.”
   * Button: **Set up now…** → opens model setup section in Settings.
   * Fallback behavior: keep original names; show gentle notice after first event.
   * **Metadata-only mode available**: Uses only file metadata (date, source domain, file type, size) without content analysis
+  * If cloud assist enabled and network available: auto-route to cloud after user consent reminder; toast clarifies "Used cloud assist while model downloads."
 
 * **Model download failed**
 
   * Error toast: "⚠️ Setup failed. Check network connection."
-  * Actions: **Retry**, **Use metadata-only mode** (date, source, file type patterns)
+  * Actions: **Retry**, **Use metadata-only mode** (date, source, file type patterns), **Temporarily allow cloud assist** (if not already enabled)
   * Settings shows offline fallback options
 
 **Metadata-only Mode Examples (when AI model unavailable):**
@@ -291,6 +306,7 @@ Empty state: “No recent items. New files will appear here.”
   * Progress bar shows "Paused - network issue"
   * Auto-retry with backoff; manual retry button
   * Graceful degradation to cached partial model if available
+  * Cloud assist banner warns when offline fallback is disabled and suggests enabling metadata-only mode.
 
 ### 9.2 File Operation Errors
 
@@ -323,7 +339,7 @@ Empty state: “No recent items. New files will appear here.”
 * **Low confidence**
 
   * Auto mode: keep original; toast: "Skipped — unsure."
-  * Confirm mode: show Review modal with context chips and 2 suggestions.
+  * Confirm mode: show Review modal with context chips and 2 suggestions; if user allowed cloud assist, offer "Ask cloud for another option" secondary button with privacy reminder.
 
 * **Conflicting filename**
 
@@ -353,6 +369,7 @@ Empty state: “No recent items. New files will appear here.”
   * Extra confirmation for detected personal info (SSN patterns, credit cards)
   * Option to exclude sensitive text from filename
   * "Keep completely original" quick action
+  * If cloud assist toggle is on, surface warning "Sensitive content will not leave your device" and disable cloud routing for that event automatically.
 
 ### 9.5 Extension State Errors
 
@@ -366,7 +383,7 @@ Empty state: “No recent items. New files will appear here.”
 
   * Graceful degradation for unsupported APIs
   * Feature detection with clear messaging about limitations
-  * Alternative workflows for missing capabilities
+  * Alternative workflows for missing capabilities, including offering cloud assist when supported and consented.
 
 ---
 
@@ -390,10 +407,11 @@ Empty state: “No recent items. New files will appear here.”
 
 ## 11) Metrics (privacy-respecting, opt-in)
 
-* % Renamed vs Kept
+* % Renamed vs Kept (split by on-device vs cloud assist)
 * Revert rate & edit rate
 * Time to first successful rename (onboarding success)
 * Per-type engagement (to refine defaults)
+* Cloud assist opt-in rate & per-user frequency (aggregate only, no content snippets)
 * No content snippets stored; only aggregate counters and anonymized events when user opts in.
 
 ---
