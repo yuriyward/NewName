@@ -7,6 +7,9 @@
 ├── popup/ # 2 files
 │   ├── App.tsx # 1 export
 │   └── main.tsx # Module exports
+├── shared/ # 1 directory
+│   └── integrations/ # 1 file
+│       └── install-date.ts # 4 exports
 ├── background.ts # 1 export
 └── content.ts # 1 export
 
@@ -34,4 +37,13 @@
 **Purpose**: Module exports
 
 *No exports found*
+
+### shared/integrations/install-date.ts
+**Purpose**: 4 exports
+
+**Exports**:
+- `export ensureInstallDate` - item implementation
+- `export getInstallDate` - item implementation
+- `export registerInstallDateListener` - item implementation
+- `export setInstallDate` - item implementation
 
