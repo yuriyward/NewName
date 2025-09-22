@@ -216,4 +216,6 @@ Score each file 0–100 across signals; rename if score ≥ threshold (e.g., 60)
 
 * Should “Confirm Mode” be the default for legal/financial documents?
 * Do we allow per-folder behaviors (e.g., “Work”, “Photos”, “Receipts”)?
-* What’s our default stance on diacritics (preserve vs. normalize) per OS?
+* ~~What's our default stance on diacritics (preserve vs. normalize) per OS?~~
+
+  **Answer**: Preserve diacritics by default across all platforms (Windows NTFS, macOS HFS+/APFS, and modern Linux filesystems handle Unicode well). Provide optional "ASCII-safe mode" toggle for cross-platform sharing, legacy system compatibility, or command-line heavy workflows. This respects user language while offering technical escape hatches when needed.
