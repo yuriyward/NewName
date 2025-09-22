@@ -1,3 +1,6 @@
+/**
+ * Page context extraction and URL analysis utilities
+ */
 export interface PageContextSnapshot {
   title?: string;
   heading?: string;

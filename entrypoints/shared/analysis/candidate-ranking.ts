@@ -1,3 +1,6 @@
+/**
+ * Content candidate scoring and ranking algorithms
+ */
 import type { CandidateReason } from '@/entrypoints/shared/analysis/content-filtering';
 import {
   computeGenericPenalty,

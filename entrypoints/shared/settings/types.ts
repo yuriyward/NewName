@@ -1,3 +1,6 @@
+/**
+ * Type definitions for application configuration and settings
+ */
 export type Mode = 'balanced' | 'silent' | 'careful' | 'custom';
 export type Separator = 'clean' | 'kebab' | 'snake';
 export type FileType =

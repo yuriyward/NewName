@@ -1,3 +1,6 @@
+/**
+ * File type detection from MIME and extensions
+ */
 import type { FileType } from '@/entrypoints/shared/settings/settings';
 
 const EXTENSION_MAP: Record<string, FileType> = {

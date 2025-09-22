@@ -1,3 +1,6 @@
+/**
+ * Content script for page context extraction and messaging
+ */
 import { browser } from 'wxt/browser';
 import type { ContentToBackgroundMessage } from '@/entrypoints/shared/messaging/content-messages';
 

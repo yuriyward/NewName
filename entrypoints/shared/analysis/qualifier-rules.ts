@@ -1,3 +1,6 @@
+/**
+ * Metadata qualification rules and enrichment logic
+ */
 import type { Candidate } from '@/entrypoints/shared/analysis/candidate-ranking';
 import type { Phase1Signals } from '@/entrypoints/shared/context/page-analyzer';
 import { extractResolutionFromFilename } from '@/entrypoints/shared/context/page-analyzer';

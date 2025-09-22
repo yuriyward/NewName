@@ -1,3 +1,6 @@
+/**
+ * Message type definitions for content-background communication
+ */
 export type ContentToBackgroundMessage =
   | {
       type: 'PAGE_CONTEXT';

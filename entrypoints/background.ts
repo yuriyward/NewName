@@ -1,3 +1,6 @@
+/**
+ * Background service worker for download interception and renaming
+ */
 import { browser } from 'wxt/browser';
 import { addHistoryItem } from '@/entrypoints/shared/history/history';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';

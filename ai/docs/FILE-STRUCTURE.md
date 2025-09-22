@@ -9,42 +9,42 @@
 │   └── main.tsx # React popup entry point and application bootstrapping
 ├── shared/ # 10 directories
 │   ├── analysis/ # 4 files
-│   │   ├── candidate-ranking.ts # 3 exports
-│   │   ├── content-filtering.ts # 14 exports
-│   │   ├── heuristics-orchestrator.ts # 2 exports
-│   │   └── qualifier-rules.ts # 9 exports
+│   │   ├── candidate-ranking.ts # Content candidate scoring and ranking algorithms
+│   │   ├── content-filtering.ts # Text filtering and content cleaning utilities
+│   │   ├── heuristics-orchestrator.ts # Phase 1 content analysis orchestration engine
+│   │   └── qualifier-rules.ts # Metadata qualification rules and enrichment logic
 │   ├── classification/ # 1 file
-│   │   └── file-types.ts # 1 export
+│   │   └── file-types.ts # File type detection from MIME and extensions
 │   ├── context/ # 1 file
-│   │   └── page-analyzer.ts # 7 exports
+│   │   └── page-analyzer.ts # Page context extraction and URL analysis utilities
 │   ├── history/ # 1 file
-│   │   └── history.ts # 4 exports
+│   │   └── history.ts # File renaming action history tracking and storage
 │   ├── lifecycle/ # 1 file
 │   │   └── install-tracking.ts # Extension installation date tracking and storage utilities
 │   ├── messaging/ # 1 file
-│   │   └── content-messages.ts # 1 export
+│   │   └── content-messages.ts # Message type definitions for content-background communication
 │   ├── naming/ # 1 file
-│   │   └── policy-engine.ts # 3 exports
+│   │   └── policy-engine.ts # Filename generation policies and formatting rules
 │   ├── pipeline/ # 1 file
-│   │   └── phase1-coordinator.ts # 2 exports
+│   │   └── phase1-coordinator.ts # Phase 1 renaming pipeline coordination and orchestration
 │   ├── settings/ # 2 files
-│   │   ├── settings.ts # 14 exports
-│   │   └── types.ts # 9 exports
+│   │   ├── settings.ts # Application settings persistence and state management
+│   │   └── types.ts # Type definitions for application configuration and settings
 │   └── state/ # 1 file
-│       └── page-context-store.ts # 5 exports
-├── background.ts # 1 export
-└── content.ts # 1 export
+│       └── page-context-store.ts # Runtime page context storage and management
+├── background.ts # Background service worker for download interception and renaming
+└── content.ts # Content script for page context extraction and messaging
 
 ## File Details
 
 ### background.ts
-**Purpose**: 1 export
+**Purpose**: Background service worker for download interception and renaming
 
 **Exports**:
 - `export default` - item implementation
 
 ### content.ts
-**Purpose**: 1 export
+**Purpose**: Content script for page context extraction and messaging
 
 **Exports**:
 - `export default` - item implementation
@@ -61,19 +61,19 @@
 *No exports found*
 
 ### shared/analysis/candidate-ranking.ts
-**Purpose**: 3 exports
+**Purpose**: Content candidate scoring and ranking algorithms
 
 **Exports**:
-- `export Candidate` - item implementation
+- `export Candidate` - Content candidate scoring and ranking algorithms
 - `export addCandidate` - item implementation
 - `export selectBestCandidate` - item implementation
 
 ### shared/analysis/content-filtering.ts
-**Purpose**: 14 exports
+**Purpose**: Text filtering and content cleaning utilities
 
 **Exports**:
 - `export CandidateReason` - item implementation
-- `export BASE_STOPWORDS` - item implementation
+- `export BASE_STOPWORDS` - Text filtering and content cleaning utilities
 - `export FILENAME_STOPWORDS` - item implementation
 - `export GENERIC_SUBJECT_TOKENS` - item implementation
 - `export LINK_STOPWORDS` - item implementation
@@ -88,14 +88,14 @@
 - `export trimLinkTokens` - item implementation
 
 ### shared/analysis/heuristics-orchestrator.ts
-**Purpose**: 2 exports
+**Purpose**: Phase 1 content analysis orchestration engine
 
 **Exports**:
 - `export Phase1HeuristicResult` - item implementation
 - `export runPhase1Heuristics` - item implementation
 
 ### shared/analysis/qualifier-rules.ts
-**Purpose**: 9 exports
+**Purpose**: Metadata qualification rules and enrichment logic
 
 **Exports**:
 - `export DeriveQualifiersParams` - item implementation
@@ -109,16 +109,16 @@
 - `export pushQualifier` - item implementation
 
 ### shared/classification/file-types.ts
-**Purpose**: 1 export
+**Purpose**: File type detection from MIME and extensions
 
 **Exports**:
 - `export detectFileType` - item implementation
 
 ### shared/context/page-analyzer.ts
-**Purpose**: 7 exports
+**Purpose**: Page context extraction and URL analysis utilities
 
 **Exports**:
-- `export PageContextSnapshot` - item implementation
+- `export PageContextSnapshot` - Page context extraction and URL analysis utilities
 - `export Phase1Signals` - item implementation
 - `export deriveDomainBrand` - item implementation
 - `export extractExtension` - item implementation
@@ -127,7 +127,7 @@
 - `export safeDecode` - item implementation
 
 ### shared/history/history.ts
-**Purpose**: 4 exports
+**Purpose**: File renaming action history tracking and storage
 
 **Exports**:
 - `export HistoryItem` - item implementation
@@ -145,28 +145,28 @@
 - `export setInstallDate` - Stores extension installation date to browser storage
 
 ### shared/messaging/content-messages.ts
-**Purpose**: 1 export
+**Purpose**: Message type definitions for content-background communication
 
 **Exports**:
-- `export ContentToBackgroundMessage` - item implementation
+- `export ContentToBackgroundMessage` - Message type definitions for content-background communica...
 
 ### shared/naming/policy-engine.ts
-**Purpose**: 3 exports
+**Purpose**: Filename generation policies and formatting rules
 
 **Exports**:
-- `export FilenamePolicyInput` - item implementation
+- `export FilenamePolicyInput` - Filename generation policies and formatting rules
 - `export FilenamePolicyResult` - item implementation
 - `export applyFilenamePolicy` - item implementation
 
 ### shared/pipeline/phase1-coordinator.ts
-**Purpose**: 2 exports
+**Purpose**: Phase 1 renaming pipeline coordination and orchestration
 
 **Exports**:
 - `export Phase1Outcome` - item implementation
 - `export computePhase1Outcome` - item implementation
 
 ### shared/settings/settings.ts
-**Purpose**: 14 exports
+**Purpose**: Application settings persistence and state management
 
 **Exports**:
 - `export getHistoryMax` - item implementation
@@ -185,24 +185,24 @@
 - `export SettingsV1` - item implementation
 
 ### shared/settings/types.ts
-**Purpose**: 9 exports
+**Purpose**: Type definitions for application configuration and settings
 
 **Exports**:
 - `export CloudSettings` - item implementation
 - `export MetadataToggles` - item implementation
 - `export PerTypeBehavior` - item implementation
 - `export SettingsV1` - item implementation
-- `export FileType` - item implementation
-- `export Mode` - item implementation
-- `export Separator` - item implementation
+- `export FileType` - Type definitions for application configuration and settings
+- `export Mode` - Type definitions for application configuration and settings
+- `export Separator` - Type definitions for application configuration and settings
 - `export DEFAULT_SETTINGS` - item implementation
 - `export isFileType` - item implementation
 
 ### shared/state/page-context-store.ts
-**Purpose**: 5 exports
+**Purpose**: Runtime page context storage and management
 
 **Exports**:
-- `export PageContext` - item implementation
+- `export PageContext` - Runtime page context storage and management
 - `export clearPageContext` - item implementation
 - `export getPageContext` - item implementation
 - `export pruneStaleContexts` - item implementation

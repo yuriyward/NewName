@@ -1,3 +1,6 @@
+/**
+ * File renaming action history tracking and storage
+ */
 import { browser } from 'wxt/browser';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
 import {

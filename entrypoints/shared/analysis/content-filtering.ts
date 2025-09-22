@@ -1,3 +1,6 @@
+/**
+ * Text filtering and content cleaning utilities
+ */
 export const BASE_STOPWORDS = new Set([
   'click',
   'here',

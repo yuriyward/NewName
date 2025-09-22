@@ -1,3 +1,6 @@
+/**
+ * Application settings persistence and state management
+ */
 import { browser } from 'wxt/browser';
 import type {
   CloudSettings,

@@ -1,3 +1,6 @@
+/**
+ * Runtime page context storage and management
+ */
 export interface PageContext {
   title?: string;
   heading?: string;

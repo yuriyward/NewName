@@ -1,3 +1,6 @@
+/**
+ * Phase 1 content analysis orchestration engine
+ */
 import {
   addCandidate,
   type Candidate,

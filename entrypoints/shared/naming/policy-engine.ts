@@ -1,3 +1,6 @@
+/**
+ * Filename generation policies and formatting rules
+ */
 import type { Separator } from '@/entrypoints/shared/settings/settings';
 
 export interface FilenamePolicyInput {

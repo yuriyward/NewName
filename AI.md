@@ -106,31 +106,31 @@ The `ai/` directory hosts both static and auto-generated docs.
 │   └── main.tsx # React popup entry point and application bootstrapping
 ├── shared/ # 10 directories
 │   ├── analysis/ # 4 files
-│   │   ├── candidate-ranking.ts # 3 exports
-│   │   ├── content-filtering.ts # 14 exports
-│   │   ├── heuristics-orchestrator.ts # 2 exports
-│   │   └── qualifier-rules.ts # 9 exports
+│   │   ├── candidate-ranking.ts # Content candidate scoring and ranking algorithms
+│   │   ├── content-filtering.ts # Text filtering and content cleaning utilities
+│   │   ├── heuristics-orchestrator.ts # Phase 1 content analysis orchestration engine
+│   │   └── qualifier-rules.ts # Metadata qualification rules and enrichment logic
 │   ├── classification/ # 1 file
-│   │   └── file-types.ts # 1 export
+│   │   └── file-types.ts # File type detection from MIME and extensions
 │   ├── context/ # 1 file
-│   │   └── page-analyzer.ts # 7 exports
+│   │   └── page-analyzer.ts # Page context extraction and URL analysis utilities
 │   ├── history/ # 1 file
-│   │   └── history.ts # 4 exports
+│   │   └── history.ts # File renaming action history tracking and storage
 │   ├── lifecycle/ # 1 file
 │   │   └── install-tracking.ts # Extension installation date tracking and storage utilities
 │   ├── messaging/ # 1 file
-│   │   └── content-messages.ts # 1 export
+│   │   └── content-messages.ts # Message type definitions for content-background communication
 │   ├── naming/ # 1 file
-│   │   └── policy-engine.ts # 3 exports
+│   │   └── policy-engine.ts # Filename generation policies and formatting rules
 │   ├── pipeline/ # 1 file
-│   │   └── phase1-coordinator.ts # 2 exports
+│   │   └── phase1-coordinator.ts # Phase 1 renaming pipeline coordination and orchestration
 │   ├── settings/ # 2 files
-│   │   ├── settings.ts # 14 exports
-│   │   └── types.ts # 9 exports
+│   │   ├── settings.ts # Application settings persistence and state management
+│   │   └── types.ts # Type definitions for application configuration and settings
 │   └── state/ # 1 file
-│       └── page-context-store.ts # 5 exports
-├── background.ts # 1 export
-└── content.ts # 1 export
+│       └── page-context-store.ts # Runtime page context storage and management
+├── background.ts # Background service worker for download interception and renaming
+└── content.ts # Content script for page context extraction and messaging
 ```
 
 <!-- AUTO-GENERATED TREE END -->

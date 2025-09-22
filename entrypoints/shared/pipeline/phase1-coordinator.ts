@@ -1,3 +1,6 @@
+/**
+ * Phase 1 renaming pipeline coordination and orchestration
+ */
 import { runPhase1Heuristics } from '@/entrypoints/shared/analysis/heuristics-orchestrator';
 import type { Phase1Signals } from '@/entrypoints/shared/context/page-analyzer';
 import { applyFilenamePolicy } from '@/entrypoints/shared/naming/policy-engine';
