@@ -6,5 +6,6 @@ export default defineConfig({
     mockReset: true,
     restoreMocks: true,
   },
+  // @ts-expect-error - WxtVitest plugin has Vite version mismatch with Vitest's bundled Vite
   plugins: [WxtVitest()],
 });

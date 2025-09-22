@@ -1,0 +1,58 @@
+version: 2
+updates:
+  # npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    assignees:
+      - "yuriyward"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      # Group React-related updates
+      react:
+        patterns:
+          - "react*"
+          - "@types/react*"
+      # Group TypeScript and build tools
+      build-tools:
+        patterns:
+          - "typescript"
+          - "@biomejs/biome"
+          - "wxt"
+          - "@wxt-dev/*"
+          - "vitest"
+      # Group Tailwind and UI dependencies
+      ui:
+        patterns:
+          - "tailwindcss*"
+          - "@tailwindcss/*"
+          - "tw-animate-css"
+      # Group documentation tools
+      docs:
+        patterns:
+          - "typedoc*"
+      # Group commit tools
+      commit-tools:
+        patterns:
+          - "commitizen"
+          - "cz-conventional-changelog"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    assignees:
+      - "yuriyward"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

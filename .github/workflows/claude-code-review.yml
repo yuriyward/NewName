@@ -1,0 +1,118 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    # Optional: Only run on specific file changes
+    # paths:
+    #   - "entrypoints/**/*.ts"
+    #   - "entrypoints/**/*.tsx"
+    #   - "entrypoints/**/*.js"
+    #   - "entrypoints/**/*.jsx"
+
+jobs:
+  claude-review:
+    # Optional: Filter by PR author
+    # if: |
+    #   github.event.pull_request.user.login == 'external-contributor' ||
+    #   github.event.pull_request.user.login == 'new-developer' ||
+    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Assemble review context
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          mkdir -p .claude/ci
+          ctx=.claude/review_context.md
+          echo "# Review Context" > "$ctx"
+          echo >> "$ctx"
+          echo "## PR Metadata" >> "$ctx"
+          echo "Number: #${PR_NUMBER}" >> "$ctx"
+          echo "Title: $(gh pr view "$PR_NUMBER" --json title -q .title)" >> "$ctx"
+          echo >> "$ctx"
+          echo "### Description" >> "$ctx"
+          gh pr view "$PR_NUMBER" --json body -q .body >> "$ctx" || true
+          echo >> "$ctx"
+          echo "### Branches" >> "$ctx"
+          echo "From: $(gh pr view "$PR_NUMBER" --json headRefName -q .headRefName)" >> "$ctx"
+          echo "Into: $(gh pr view "$PR_NUMBER" --json baseRefName -q .baseRefName)" >> "$ctx"
+          echo >> "$ctx"
+          echo "## Linked Issues (title + body)" >> "$ctx"
+          for n in $(gh pr view "$PR_NUMBER" --json closingIssuesReferences -q '.closingIssuesReferences[].number' || true); do
+            echo >> "$ctx"
+            echo "### Issue #$n - $(gh issue view $n --json title -q .title)" >> "$ctx"
+            gh issue view "$n" --json body -q .body >> "$ctx" || true
+          done
+          echo >> "$ctx"
+          echo "## Changed Files" >> "$ctx"
+          gh pr diff "$PR_NUMBER" --name-only >> "$ctx" || true
+
+      - name: Optional verify (type-check/build)
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          echo "Starting verify run..." | tee .claude/ci/verify.log
+          echo "(Lightweight mode: dependency install disabled)" | tee -a .claude/ci/verify.log
+          # To enable full verification, uncomment below:
+          # echo "Installing Bun and dependencies..." | tee -a .claude/ci/verify.log
+          # bun --version || (curl -fsSL https://bun.sh/install | bash && export BUN_INSTALL="$HOME/.bun" && export PATH="$BUN_INSTALL/bin:$PATH")
+          # bun install --frozen-lockfile 2>&1 | tee -a .claude/ci/verify.log
+          # echo "Running bun run fix..." | tee -a .claude/ci/verify.log
+          # bun run fix 2>&1 | tee -a .claude/ci/verify.log
+          # echo "Running bun run verify..." | tee -a .claude/ci/verify.log
+          # bun run verify 2>&1 | tee -a .claude/ci/verify.log
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Objective: Deliver a high-signal code review that captures intent and business value.
+
+            1) Establish intent and context
+            - Read .claude/review_context.md to extract: goal, scope, linked issues, acceptance criteria, user impact.
+            - Read CLAUDE.md to internalize conventions and architecture.
+            - Skim key files if useful: README.md, wxt.config.ts, package.json, vitest.config.ts.
+
+            2) Evaluate against repo standards and risk
+            - Code quality: TypeScript strictness, React 19 patterns, WXT framework usage, Tailwind v4 conventions, Biome formatting.
+            - Security & privacy: extension permissions/hosts; message validation; DOM safety; storage/data handling.
+            - Performance: bundle size considerations, lazy loading, content script efficiency, background script optimization.
+            - Maintainability: naming conventions, modularity, error handling, testing coverage.
+
+            3) Business perspective
+            - Summarize the inferred business objective in 1–3 sentences.
+            - List concrete acceptance criteria implied by the PR/issue; note gaps.
+            - Call out UX impacts and edge cases that affect browser extension users.
+
+            4) Actionable feedback
+            - Prioritize: P0 blockers, P1 important, P2 nits.
+            - Include concise rationale and tiny code snippets where helpful.
+            - Keep feedback constructive; avoid noisy, low-value nits.
+
+            5) How to operate
+            - Use `gh pr diff/view` for diffs/context.
+            - If present, read .claude/ci/verify.log and note failures with likely fixes.
+            - Post a single PR comment with your full review using `gh pr comment`.
+
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://docs.claude.com/en/docs/claude-code/sdk#command-line for available options
+          claude_args: '--allowed-tools "Read(*),ListFiles(*),Search(*),Bash(gh api:*),Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+
