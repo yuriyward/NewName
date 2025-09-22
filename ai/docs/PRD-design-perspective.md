@@ -86,19 +86,48 @@ Optional (if you add desktop helper later): **Helper Status Drawer**.
 
 **Behavior**: Always confirm before renaming + detailed review modals
 
-### 4.4 Auto-rename flow (Balanced & Silent modes)
+### 4.4 Context-First Auto-rename flow (All modes)
 
-**Trigger**: Browser finishes a download / user saves a file.
+**Trigger**: User initiates download (save/download action).
 
-**Steps (behind the scenes)**
+**Phase 1: Instant Smart Naming (<1 second)**
 
-1. Quick triage → build context → generate title.
-2. If score ≥ threshold → rename. Else keep original.
+1. **Lightning analysis**: Page context + metadata + user patterns
+2. **Immediate download**: File saves instantly with context-based smart name
+3. **Success feedback**: Brief toast showing applied name
 
-**User feedback**
+**Phase 2: Background AI Enhancement (optional)**
 
-* **Balanced Mode**: Show rename toasts as below
-* **Silent Mode**: No toasts, add to history silently
+4. **Background processing**: Content analysis starts after download completes
+5. **AI upgrade available**: Show notification when better name found
+
+**User experience flow**
+
+* **Instant**: File downloads immediately with smart name (no delay)
+* **Background**: Subtle indicator "🧠 Analyzing content for better name..."
+* **Upgrade offer**: "✨ Found better name: **[AI name]** • Apply • Details"
+
+### 4.5 AI Upgrade Notification Patterns
+
+**Upgrade notification (appears 10s-1min after download)**
+
+* **Location**: Same position as download completion toast
+* **Design**:
+  * Icon: ✨ or 🔄 to indicate upgrade/improvement
+  * **Before/After preview**: "Document.pdf" → "**Wniosek o przedłużenie zezwolenia - 2025-09-15.pdf**"
+  * **Confidence indicator**: "High confidence" / "Suggested" / "Alternative option"
+  * **Reasoning snippet**: "Found form title and date on page 1"
+
+* **Actions**:
+  * **Apply** (primary button)
+  * **Details** (shows reasoning + alternatives)
+  * **Not now** (dismiss)
+  * **Always apply for [PDF/this site]** (learning option)
+
+* **Mode-specific behavior**:
+  * **Balanced Mode**: Show upgrade notifications with reasoning
+  * **Silent Mode**: Auto-apply high-confidence upgrades, show others in History
+  * **Careful Mode**: Always show upgrade notifications with full details
 
 * **Rename toast (bottom-right, Balanced mode only)**
 
@@ -258,16 +287,33 @@ Empty state: “No recent items. New files will appear here.”
 
 ## 8) Micro-interactions & copy
 
+**Background processing messages (subtle, non-blocking)**
+
+* **Initial**: "🧠 Analyzing content for better name..."
+* **Content analysis**: "📖 Reading document structure..."
+* **Language detection**: "🌍 Detecting language and context..."
+* **Finalizing**: "⚡ Almost ready with upgrade..."
+* **Cloud processing**: "☁️ Using cloud assist for deeper analysis..."
+
+**AI upgrade messages**
+
+* **High confidence**: "✨ Found better name: **[new name]**"
+* **Moderate confidence**: "🔄 Suggested improvement: **[new name]**"
+* **Alternative**: "💡 Alternative name found: **[new name]**"
+* **Applied**: "✅ Applied smarter name: **[new name]**"
+* **Learning**: "📚 Thanks! Learning your preferences..."
+
 **Rename toast**
 
-* Success: “Renamed to **{name}**” · **Undo** · **Edit name…**
-* Kept: “Kept original name — already clear.”
+* Success: "Renamed to **{name}**" · **Undo** · **Edit name…**
+* Kept: "Kept original name — already clear."
+* Processing complete: "✨ Smart name applied: **{name}**" · **Undo** · **Details**
 
 **Confirm modal**
 
-* Title: “Review filename”
-* Field placeholder: “Enter a short, clear name”
-* Helper text: “Aim for 30–60 characters. We’ll keep the extension.”
+* Title: "Review filename"
+* Field placeholder: "Enter a short, clear name"
+* Helper text: "Aim for 30–60 characters. We'll keep the extension."
 
 **Settings hints**
 
@@ -301,12 +347,19 @@ Empty state: “No recent items. New files will appear here.”
 - Image download → `Image - reddit.com - 2025-09-22 - 2MB`
 - Generic file → `Document - domain.com - 2025-09-22`
 
-* **Network issues during download**
+* **Processing timeout / errors**
 
-  * Progress bar shows "Paused - network issue"
+  * Processing spinner shows timeout: "Taking longer than expected... using basic name"
+  * Auto-fallback to metadata-only naming after 90 seconds
+  * Error toast: "⚠️ Analysis failed - saved with basic name • Retry"
+  * Manual retry available from History or popup
+
+* **Network issues during processing**
+
+  * Processing indicator shows "Analyzing offline..." (for on-device processing)
+  * If cloud assist needed: "⚠️ Analysis paused - no connection • Continue offline"
   * Auto-retry with backoff; manual retry button
   * Graceful degradation to cached partial model if available
-  * Cloud assist banner warns when offline fallback is disabled and suggests enabling metadata-only mode.
 
 ### 9.2 File Operation Errors
 

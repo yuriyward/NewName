@@ -50,29 +50,36 @@ NewName automatically gives files short, human-like names. It evaluates new file
 3. **Just enough context**: inspect a **small but richer** slice (e.g., first few pages/keyframes)—not whole files.
 4. **Trust & privacy**: content stays local by default; metadata use is transparent and user-controlled.
 
-## 6) High-Level Flow (Business Logic)
+## 6) High-Level Flow (Context-First + Progressive Enhancement)
 
-1. **Capture event** (download/save/new file).
-2. **Capability check**: detect on-device model availability, hardware (NPU/GPU), and user consent flags for cloud fallback.
-3. **Quick triage** (milliseconds): check type, existing filename clarity, and file size/health.
-4. **Build Context Packet**
+### 6.1 Phase 1: Instant Context Analysis (<1 second)
 
+1. **Intercept download**: Use `chrome.downloads.onDeterminingFilename` to capture download events.
+2. **Lightning-fast context analysis**:
+   * **Page context**: title, headings, domain, URL patterns
+   * **Download context**: link text, surrounding content, file path hints
+   * **User patterns**: recent downloads, folder preferences, naming habits
+   * **Metadata**: file type, size, source domain, timestamp
+3. **Smart guess generation**: Combine context signals for immediate intelligent name
+4. **Apply context-based name**: Call `suggest()` with smart guess; download completes instantly
+
+### 6.2 Phase 2: Background AI Enhancement (10s-1min, optional)
+
+5. **Capability check**: detect on-device model availability, hardware (NPU/GPU), and user consent flags for cloud fallback.
+6. **Background content analysis** (non-blocking):
    * **Content snippets** by type (PDF: first 2–5 pages text; Image: caption/OCR; Audio/Video: short transcript + 1–2 keyframes).
-   * **Useful metadata** (e.g., photo geolocation → city/landmark; document date on page; video duration/resolution; source site slug).
-5. **Decision: Rename?**
+   * **Deep content understanding**: document structure, subjects, entities, language detection
+7. **AI-powered title generation**: Produce 1–3 content-based candidates
+8. **Quality comparison**: Score AI name vs. context-based name
+9. **Upgrade decision**: If AI name significantly better → offer upgrade to user
 
-   * Score usefulness vs. current name. If low confidence or already good → keep as-is.
-6. **Title Generation**
+### 6.3 Phase 3: User Choice & Learning
 
-   * Produce 1–3 candidates; auto-pick best (or ask user in “Confirm Mode”).
-7. **Apply & Log**
+10. **Upgrade notification**: "Found better name based on content: [AI name] • Apply • Details"
+11. **User feedback**: Accept, decline, or edit the AI suggestion
+12. **Learn & adapt**: Improve Phase 1 context analysis based on user preferences
 
-   * Rename file; store tiny audit note for revert.
-8. **Learn** (optional)
-
-   * If user reverts/edits, adapt preferences (e.g., prefers dates at front, keeps diacritics).
-
-### 6.1 Hybrid AI Routing (Strategic Layer)
+### 6.4 Hybrid AI Routing (Strategic Layer)
 
 * **On-device primary path**: use Chrome built-in Prompt/Summarizer APIs or packaged lightweight models for OCR/audio snippets when available.
 * **Cloud secondary path**: when the primary path is unavailable (unsupported browser/OS, insufficient hardware, or user-triggered re-analyze), call Gemini via Firebase AI Logic using a signed-in Google account or service key.
