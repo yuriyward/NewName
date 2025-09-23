@@ -3,6 +3,7 @@
  */
 export type Mode = 'balanced' | 'silent' | 'careful' | 'custom';
 export type Separator = 'clean' | 'kebab' | 'snake';
+export type DebugLevel = 'basic' | 'detailed' | 'verbose';
 export type FileType =
   | 'pdf'
   | 'image'
@@ -29,6 +30,11 @@ export interface CloudSettings {
   dataMinimize: boolean;
 }
 
+export interface DebugSettings {
+  enabled: boolean;
+  level: DebugLevel;
+}
+
 export interface SettingsV1 {
   version: 1;
   mode: Mode;
@@ -39,6 +45,7 @@ export interface SettingsV1 {
   perType: Record<FileType, PerTypeBehavior>;
   metadataToggles: MetadataToggles;
   cloud: CloudSettings;
+  debug: DebugSettings;
   notifyOnKeep: boolean;
 }
 
@@ -68,6 +75,10 @@ export const DEFAULT_SETTINGS: SettingsV1 = {
     enabled: false,
     scope: [],
     dataMinimize: true,
+  },
+  debug: {
+    enabled: false,
+    level: 'basic',
   },
   notifyOnKeep: false,
 };

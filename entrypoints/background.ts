@@ -2,10 +2,17 @@
  * Background service worker for download interception and renaming
  */
 import { browser } from 'wxt/browser';
+import { initializeBackgroundDebug } from '@/entrypoints/shared/debug/console-helpers';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import type { DebugContext } from '@/entrypoints/shared/debug/types';
 import { addHistoryItem } from '@/entrypoints/shared/history/history';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
 import type { ContentToBackgroundMessage } from '@/entrypoints/shared/messaging/content-messages';
-import { computePhase1Outcome } from '@/entrypoints/shared/pipeline/phase1-coordinator';
+import {
+  computePhase1Outcome,
+  computePhase1OutcomeDebug,
+  type Phase1Outcome,
+} from '@/entrypoints/shared/pipeline/phase1-coordinator';
 import {
   getLastKnownSettings,
   getSettings,
@@ -45,8 +52,8 @@ const randomId = (() => {
 })();
 
 function basename(path: string): string {
-  const normalised = path.replace(/\\/g, '/');
-  const parts = normalised.split('/');
+  const normalized = path.replace(/\\/g, '/');
+  const parts = normalized.split('/');
   return parts.pop() ?? path;
 }
 
@@ -68,11 +75,20 @@ function fallbackNameFromUrl(rawUrl: string): string {
 
 function ensureSettingsCache() {
   let current: SettingsV1 = getLastKnownSettings();
+
+  // Initialize debug logger with current settings
+  debugLogger.setEnabled(current.debug.enabled);
+  debugLogger.setLevel(current.debug.level);
+
   void getSettings().then((settings) => {
     current = settings;
+    debugLogger.setEnabled(settings.debug.enabled);
+    debugLogger.setLevel(settings.debug.level);
   });
   subscribeSettings((settings) => {
     current = settings;
+    debugLogger.setEnabled(settings.debug.enabled);
+    debugLogger.setLevel(settings.debug.level);
   });
   return () => current;
 }
@@ -197,19 +213,39 @@ async function processDeterminingFilename(
         : undefined;
     const pageContext = getPageContext(initiatingTabId);
 
-    const outcome = computePhase1Outcome(
-      {
-        url,
-        referrer: item.referrer,
-        filename,
-        mime: item.mime,
-        startTime: item.startTime,
-        page: pageContext,
-      },
-      settings,
-    );
+    const signals = {
+      url,
+      referrer: item.referrer,
+      filename,
+      mime: item.mime,
+      startTime: item.startTime,
+      page: pageContext,
+    };
 
-    if (shouldRenameType(settings, outcome.fileType)) {
+    let outcome: Phase1Outcome;
+    let debugContext: DebugContext | null = null;
+
+    if (debugLogger.isEnabled()) {
+      const downloadId = debugLogger.createDownloadId();
+      debugContext = computePhase1OutcomeDebug(signals, settings, downloadId);
+      debugLogger.startContext(debugContext.downloadId, debugContext);
+      outcome = debugContext.finalOutcome;
+    } else {
+      outcome = computePhase1Outcome(signals, settings);
+    }
+
+    const shouldRename = shouldRenameType(settings, outcome.fileType);
+
+    if (debugContext) {
+      debugContext.renamed = shouldRename;
+      debugContext.decision = {
+        shouldRename,
+        reason: shouldRename ? 'file type enabled' : 'file type disabled',
+      };
+      debugLogger.finishContext(debugContext.downloadId, debugContext);
+    }
+
+    if (shouldRename) {
       const submitted = controller.trySuggest({ filename: outcome.path });
       if (!submitted) {
         return;
@@ -253,6 +289,7 @@ const handleDeterminingFilename: DeterminingListener = (item, suggest) => {
 
 export default defineBackground(() => {
   registerInstallDateListener();
+  initializeBackgroundDebug();
 
   browser.runtime.onMessage.addListener(handleContentMessage);
   browser.tabs.onRemoved.addListener((tabId) => {

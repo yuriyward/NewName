@@ -104,7 +104,7 @@ The `ai/` directory hosts both static and auto-generated docs.
 ├── popup/ # 2 files
 │   ├── App.tsx # Main popup interface and WXT React demo component
 │   └── main.tsx # React popup entry point and application bootstrapping
-├── shared/ # 10 directories
+├── shared/ # 11 directories
 │   ├── analysis/ # 4 files
 │   │   ├── candidate-ranking.ts # Content candidate scoring and ranking algorithms
 │   │   ├── content-filtering.ts # Text filtering and content cleaning utilities
@@ -114,6 +114,11 @@ The `ai/` directory hosts both static and auto-generated docs.
 │   │   └── file-types.ts # File type detection from MIME and extensions
 │   ├── context/ # 1 file
 │   │   └── page-analyzer.ts # Page context extraction and URL analysis utilities
+│   ├── debug/ # 4 files
+│   │   ├── console-helpers.ts # Console helper functions for debugging
+│   │   ├── logger.ts # Debug logging utilities for troubleshooting rename decisions
+│   │   ├── types.ts # Debug types and interfaces for troubleshooting rename decisions
+│   │   └── verbose-formatter.ts # Verbose debug formatting utilities
 │   ├── history/ # 1 file
 │   │   └── history.ts # File renaming action history tracking and storage
 │   ├── lifecycle/ # 1 file

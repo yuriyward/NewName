@@ -1,9 +1,16 @@
 /**
  * Phase 1 renaming pipeline coordination and orchestration
  */
-import { runPhase1Heuristics } from '@/entrypoints/shared/analysis/heuristics-orchestrator';
+import {
+  runPhase1Heuristics,
+  runPhase1HeuristicsDebug,
+} from '@/entrypoints/shared/analysis/heuristics-orchestrator';
 import type { Phase1Signals } from '@/entrypoints/shared/context/page-analyzer';
-import { applyFilenamePolicy } from '@/entrypoints/shared/naming/policy-engine';
+import type { DebugContext } from '@/entrypoints/shared/debug/types';
+import {
+  applyFilenamePolicy,
+  applyFilenamePolicyDebug,
+} from '@/entrypoints/shared/naming/policy-engine';
 import type {
   FileType,
   SettingsV1,
@@ -19,8 +26,8 @@ export interface Phase1Outcome {
 }
 
 function splitPath(path: string): { directory: string; name: string } {
-  const normalised = path.replace(/\\/g, '/');
-  const parts = normalised.split('/');
+  const normalized = path.replace(/\\/g, '/');
+  const parts = normalized.split('/');
   const name = parts.pop() ?? path;
   const directory = parts.join('/');
   return { directory, name };
@@ -52,5 +59,53 @@ export function computePhase1Outcome(
     source: heuristics.source,
     originalPath: signals.filename,
     fileType: heuristics.fileType,
+  };
+}
+
+export function computePhase1OutcomeDebug(
+  signals: Phase1Signals,
+  settings: SettingsV1,
+  downloadId: string,
+): DebugContext {
+  const startTime = performance.now();
+  const heuristics = runPhase1HeuristicsDebug(signals, settings);
+  const { directory } = splitPath(signals.filename);
+
+  const policy = applyFilenamePolicyDebug({
+    subject: heuristics.subject,
+    qualifiers: heuristics.qualifiers,
+    extension: heuristics.extension,
+    maxLength: settings.maxLen,
+    separator: settings.separator,
+    transliterateAscii: settings.transliterateAscii,
+  });
+
+  const filename = policy.filename;
+  const path = directory ? `${directory}/${filename}` : filename;
+
+  const outcome: Phase1Outcome = {
+    path,
+    filename,
+    reasonTags: heuristics.reasonTags,
+    source: heuristics.source,
+    originalPath: signals.filename,
+    fileType: heuristics.fileType,
+  };
+
+  const processingTime = performance.now() - startTime;
+
+  return {
+    downloadId,
+    timestamp: Date.now(),
+    signals,
+    heuristicResult: heuristics,
+    policyResult: policy,
+    finalOutcome: outcome,
+    processingTime,
+    renamed: false, // Will be set by caller
+    decision: {
+      shouldRename: false, // Will be set by caller
+      reason: 'pending',
+    },
   };
 }

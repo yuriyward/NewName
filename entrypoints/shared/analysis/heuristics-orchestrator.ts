@@ -3,8 +3,10 @@
  */
 import {
   addCandidate,
+  addDebugCandidate,
   type Candidate,
   selectBestCandidate,
+  selectBestDebugCandidate,
 } from '@/entrypoints/shared/analysis/candidate-ranking';
 import { normaliseCandidate } from '@/entrypoints/shared/analysis/content-filtering';
 import { deriveQualifiers } from '@/entrypoints/shared/analysis/qualifier-rules';
@@ -16,6 +18,10 @@ import {
   extractFileName,
   safeDecode,
 } from '@/entrypoints/shared/context/page-analyzer';
+import type {
+  DebugCandidate,
+  DebugHeuristicResult,
+} from '@/entrypoints/shared/debug/types';
 import type {
   FileType,
   SettingsV1,
@@ -104,5 +110,99 @@ export function runPhase1Heuristics(
     fileType,
     extension,
     source: chosen.source,
+  };
+}
+
+export function runPhase1HeuristicsDebug(
+  signals: Phase1Signals,
+  settings: SettingsV1,
+): DebugHeuristicResult {
+  const startTime = performance.now();
+  const url = new URL(signals.url);
+  const brand = deriveDomainBrand(url);
+  const downloadName = extractFileName(signals.filename);
+  const extension =
+    extractExtension(downloadName) ?? extractExtension(url.pathname);
+  const fileType = detectFileType({ mime: signals.mime, extension });
+
+  const baseName = normaliseCandidate(downloadName, brand, 'Filename');
+  const debugCandidates: DebugCandidate[] = [];
+
+  addDebugCandidate(debugCandidates, signals.page?.linkText, {
+    reason: 'Link',
+    baseScore: SCORE_LINK_BASE,
+    brand,
+    source: 'on-device',
+  });
+
+  addDebugCandidate(debugCandidates, signals.page?.heading, {
+    reason: 'Heading',
+    baseScore: SCORE_HEADING_BASE,
+    brand,
+    source: 'on-device',
+  });
+
+  addDebugCandidate(debugCandidates, signals.page?.title, {
+    reason: 'Title',
+    baseScore: SCORE_TITLE_BASE,
+    brand,
+    source: 'on-device',
+  });
+
+  addDebugCandidate(
+    debugCandidates,
+    safeDecode(url.pathname.split('/').pop() ?? ''),
+    {
+      reason: 'URL',
+      baseScore: SCORE_URL_BASE,
+      brand,
+      source: 'metadata',
+    },
+  );
+
+  addDebugCandidate(
+    debugCandidates,
+    baseName ?? extractFileName(signals.filename),
+    {
+      reason: 'Filename',
+      baseScore: SCORE_FILENAME_BASE,
+      brand,
+      source: 'metadata',
+    },
+  );
+
+  const chosen = selectBestDebugCandidate(debugCandidates);
+
+  const { qualifiers, reasonTags } = deriveQualifiers({
+    signals,
+    candidate: chosen,
+    brand,
+    fileType,
+    settings,
+  });
+
+  const combinedReasons = new Set<string>([chosen.reason, ...reasonTags]);
+  const processingTime = performance.now() - startTime;
+
+  return {
+    subject: chosen.value,
+    qualifiers,
+    reasonTags: Array.from(combinedReasons),
+    fileType,
+    extension,
+    source: chosen.source,
+    debug: {
+      candidateEvaluation: debugCandidates,
+      selectedCandidate: chosen,
+      qualifierAnalysis: {
+        qualifiers,
+        reasonTags,
+        debug: {
+          metadata: {},
+          appliedRules: [],
+        },
+      },
+      processingTime,
+    },
   };
 }

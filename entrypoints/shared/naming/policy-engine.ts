@@ -1,6 +1,7 @@
 /**
  * Filename generation policies and formatting rules
  */
+import type { DebugPolicyResult } from '@/entrypoints/shared/debug/types';
 import type { Separator } from '@/entrypoints/shared/settings/settings';
 
 export interface FilenamePolicyInput {
@@ -273,5 +274,119 @@ export function applyFilenamePolicy(
     base: safeBase,
     extension,
     filename,
+  };
+}
+
+export function applyFilenamePolicyDebug(
+  input: FilenamePolicyInput,
+): DebugPolicyResult {
+  const { subject, qualifiers } = prepareTokens(
+    input.subject,
+    input.qualifiers,
+    input.transliterateAscii,
+  );
+  const formattedSubject = formatTokens(subject, input.separator);
+  const formattedQualifiers = formatTokens(qualifiers, input.separator);
+  const separatorChar =
+    input.separator === 'clean' ? ' ' : input.separator === 'kebab' ? '-' : '_';
+  const extension = input.extension
+    ? input.extension.replace(/^\.+/, '').toLowerCase()
+    : null;
+
+  const allowance = extension
+    ? Math.max(1, input.maxLength - (extension.length + 1))
+    : Math.max(1, input.maxLength);
+
+  const effectiveAllowance = allowance > 50 ? allowance + 10 : allowance;
+
+  interface TokenEntry {
+    value: string;
+    type: 'subject' | 'qualifier';
+  }
+
+  const seenTokens = new Set<string>();
+  const entries: TokenEntry[] = [];
+
+  for (const token of formattedSubject) {
+    const key = token.toLowerCase();
+    if (seenTokens.has(key) || token.length === 0) continue;
+    seenTokens.add(key);
+    entries.push({ value: token, type: 'subject' });
+  }
+
+  for (const token of formattedQualifiers) {
+    const key = token.toLowerCase();
+    if (seenTokens.has(key) || token.length === 0) continue;
+    seenTokens.add(key);
+    entries.push({ value: token, type: 'qualifier' });
+  }
+
+  function calculateLength(items: TokenEntry[]): number {
+    return items.reduce((total, item, index) => {
+      if (item.value.length === 0) return total;
+      return (
+        total + item.value.length + (index === 0 ? 0 : separatorChar.length)
+      );
+    }, 0);
+  }
+
+  let included: TokenEntry[] = [];
+
+  for (const entry of entries) {
+    if (entry.value.length === 0) continue;
+    const tentative = [...included, entry];
+    if (calculateLength(tentative) <= effectiveAllowance) {
+      included = tentative;
+      continue;
+    }
+
+    if (entry.type === 'qualifier') {
+    }
+  }
+
+  let usableEntries = included
+    .map((entry) => ({ ...entry, value: entry.value.trim() }))
+    .filter((entry) => entry.value.length > 0);
+
+  if (usableEntries.length === 0) {
+    const fallback = entries.find((entry) => entry.value.trim().length > 0);
+    if (fallback) {
+      const trimmedFallback = fallback.value.trim().slice(0, allowance);
+      if (trimmedFallback.length > 0) {
+        usableEntries = [{ value: trimmedFallback, type: 'subject' }];
+      }
+    }
+  }
+
+  if (usableEntries.length === 0) {
+    usableEntries = [{ value: 'file', type: 'subject' }];
+  }
+
+  const base = usableEntries
+    .map((item) => item.value)
+    .join(separatorChar)
+    .trim();
+  const safeBase = base.length > 0 ? base : 'file';
+  const filename = extension ? `${safeBase}.${extension}` : safeBase;
+
+  return {
+    base: safeBase,
+    extension,
+    filename,
+    debug: {
+      input,
+      tokenProcessing: {
+        subjectTokens: subject,
+        qualifierTokens: qualifiers,
+        formattedSubject,
+        formattedQualifiers,
+        includedEntries: usableEntries,
+      },
+      lengthCalculation: {
+        allowance,
+        effectiveAllowance,
+        finalLength: filename.length,
+      },
+    },
   };
 }
