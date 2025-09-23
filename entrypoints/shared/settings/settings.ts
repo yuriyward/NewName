@@ -4,6 +4,8 @@
 import { browser } from 'wxt/browser';
 import type {
   CloudSettings,
+  DebugLevel,
+  DebugSettings,
   FileType,
   MetadataToggles,
   Mode,
@@ -18,6 +20,8 @@ import {
 
 export type {
   CloudSettings,
+  DebugLevel,
+  DebugSettings,
   FileType,
   MetadataToggles,
   Mode,
@@ -58,6 +62,10 @@ function coerceSettings(data: unknown): SettingsV1 {
       scope: Array.isArray(raw.cloud?.scope)
         ? raw.cloud.scope.filter(isFileType)
         : DEFAULT_SETTINGS.cloud.scope,
+    },
+    debug: {
+      ...DEFAULT_SETTINGS.debug,
+      ...(raw.debug ?? {}),
     },
   };
 

@@ -60,7 +60,9 @@ describe('content-filtering utilities', () => {
     it('applies penalties for generic subjects', () => {
       expect(computeGenericPenalty('download portal', 'Title')).toBe(40);
       expect(computeGenericPenalty('portal update', 'Title')).toBe(20);
-      expect(computeGenericPenalty('Quarterly financial report', 'Title')).toBe(0);
+      expect(computeGenericPenalty('Quarterly financial report', 'Title')).toBe(
+        0,
+      );
       expect(computeGenericPenalty('download portal', 'Filename')).toBe(0);
     });
   });
@@ -85,7 +87,11 @@ describe('content-filtering utilities', () => {
     });
 
     it('returns null when everything is filtered out', () => {
-      const result = normaliseCandidate('Click here to download', 'example', 'Link');
+      const result = normaliseCandidate(
+        'Click here to download',
+        'example',
+        'Link',
+      );
       expect(result).toBeNull();
     });
   });

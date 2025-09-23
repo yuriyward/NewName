@@ -3,12 +3,12 @@ import type { Candidate } from '@/entrypoints/shared/analysis/candidate-ranking'
 import type { Phase1Signals } from '@/entrypoints/shared/context/page-analyzer';
 import { DEFAULT_SETTINGS } from '@/entrypoints/shared/settings/types';
 import {
-  QUALIFIER_RULES,
   applyDocumentDateQualifier,
   applyMediaSpecQualifier,
   applySourceQualifier,
   deriveQualifiers,
   pushQualifier,
+  QUALIFIER_RULES,
 } from './qualifier-rules';
 
 describe('qualifier-rules', () => {
@@ -26,7 +26,11 @@ describe('qualifier-rules', () => {
 
   describe('pushQualifier', () => {
     it('trims input and ignores empty strings', () => {
-      const state = { qualifiers: [] as string[], reasons: [] as string[], lowerCandidate: 'quarterly report' };
+      const state = {
+        qualifiers: [] as string[],
+        reasons: [] as string[],
+        lowerCandidate: 'quarterly report',
+      };
 
       pushQualifier(state, '  2024-03-01  ', 'Date');
       pushQualifier(state, '   ', 'Empty');
@@ -38,7 +42,11 @@ describe('qualifier-rules', () => {
 
   describe('applyDocumentDateQualifier', () => {
     it('adds ISO date when enabled and absent from candidate', () => {
-      const state = { qualifiers: [] as string[], reasons: [] as string[], lowerCandidate: 'quarterly report' };
+      const state = {
+        qualifiers: [] as string[],
+        reasons: [] as string[],
+        lowerCandidate: 'quarterly report',
+      };
       const params = {
         signals: { ...baseSignals, startTime: '2024-03-01T12:00:00Z' },
         candidate: baseCandidate,
@@ -60,7 +68,11 @@ describe('qualifier-rules', () => {
     });
 
     it('skips when year already present in subject', () => {
-      const state = { qualifiers: [] as string[], reasons: [] as string[], lowerCandidate: 'report 2024 summary' };
+      const state = {
+        qualifiers: [] as string[],
+        reasons: [] as string[],
+        lowerCandidate: 'report 2024 summary',
+      };
       const params = {
         signals: { ...baseSignals, startTime: '2024-03-01T12:00:00Z' },
         candidate: { ...baseCandidate, value: 'Report 2024 Summary' },
@@ -84,7 +96,11 @@ describe('qualifier-rules', () => {
 
   describe('applySourceQualifier', () => {
     it('adds brand when enabled and absent from candidate', () => {
-      const state = { qualifiers: [] as string[], reasons: [] as string[], lowerCandidate: 'quarterly report' };
+      const state = {
+        qualifiers: [] as string[],
+        reasons: [] as string[],
+        lowerCandidate: 'quarterly report',
+      };
       const params = {
         signals: baseSignals,
         candidate: baseCandidate,
@@ -106,7 +122,11 @@ describe('qualifier-rules', () => {
     });
 
     it('skips when brand missing or already present', () => {
-      const state = { qualifiers: [] as string[], reasons: [] as string[], lowerCandidate: 'example quarterly report' };
+      const state = {
+        qualifiers: [] as string[],
+        reasons: [] as string[],
+        lowerCandidate: 'example quarterly report',
+      };
       const params = {
         signals: baseSignals,
         candidate: baseCandidate,
@@ -131,7 +151,11 @@ describe('qualifier-rules', () => {
 
   describe('applyMediaSpecQualifier', () => {
     it('adds resolution qualifiers for images when enabled', () => {
-      const state = { qualifiers: [] as string[], reasons: [] as string[], lowerCandidate: 'app screenshot' };
+      const state = {
+        qualifiers: [] as string[],
+        reasons: [] as string[],
+        lowerCandidate: 'app screenshot',
+      };
       const params = {
         signals: { ...baseSignals, filename: 'screenshot_1920x1080.png' },
         candidate: baseCandidate,
@@ -153,7 +177,11 @@ describe('qualifier-rules', () => {
     });
 
     it('skips when resolution already in subject or toggle disabled', () => {
-      const state = { qualifiers: [] as string[], reasons: [] as string[], lowerCandidate: 'screenshot 1920x1080' };
+      const state = {
+        qualifiers: [] as string[],
+        reasons: [] as string[],
+        lowerCandidate: 'screenshot 1920x1080',
+      };
       const params = {
         signals: { ...baseSignals, filename: 'screenshot_1920x1080.png' },
         candidate: baseCandidate,
@@ -188,7 +216,11 @@ describe('qualifier-rules', () => {
   describe('deriveQualifiers', () => {
     it('runs registered rules and returns qualifiers with reasons', () => {
       const params = {
-        signals: { ...baseSignals, startTime: '2024-03-01T12:00:00Z', filename: 'screenshot_1920x1080.png' },
+        signals: {
+          ...baseSignals,
+          startTime: '2024-03-01T12:00:00Z',
+          filename: 'screenshot_1920x1080.png',
+        },
         candidate: baseCandidate,
         brand: 'Example',
         fileType: 'image' as const,
