@@ -20,10 +20,9 @@
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "fix": "bun run check:fix && bun run check",
-    "verify": "bun run check && bun run compile && bun run build",
-    "test": "vitest",
+    "verify": "bun run check && bun run compile && bun run test && bun run build",
+    "test": "vitest run",
     "test:watch": "vitest --watch",
-    "test:run": "vitest run",
     "coverage": "vitest run --coverage",
     "docs": "node scripts/generate-structure-docs.js",
     "commit": "git-cz"

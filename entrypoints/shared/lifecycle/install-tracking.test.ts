@@ -8,7 +8,7 @@ import {
   getInstallDate,
   registerInstallDateListener,
   setInstallDate,
-} from './install-date';
+} from './install-tracking';
 
 describe('install date storage', () => {
   beforeEach(() => {

@@ -56,7 +56,7 @@ Built with WXT framework and React 19, using Tailwind CSS v4. Entry points live 
 - After each change, choose the lightest effective check:
   - Small fixes (docs, style-only, non-behavioral refactors, test-only): run `bun run fix`.
   - New behavior, new files/entrypoints, storage/background/manifest changes, or new dependencies: run `bun run verify`.
-  - For behavior changes, also run tests: `bun run test:run` (or `bun run coverage`).
+  - For behavior changes, also run tests: `bun run test` (or `bun run coverage`).
 - If `verify` fails due to formatting/lints, run `bun run fix` then re-run `bun run verify`.
 - Prefer `fix` before commit and `verify` before push.
 
@@ -104,11 +104,33 @@ The `ai/` directory hosts both static and auto-generated docs.
 ├── popup/ # 2 files
 │   ├── App.tsx # Main popup interface and WXT React demo component
 │   └── main.tsx # React popup entry point and application bootstrapping
-├── shared/ # 1 directory
-│   └── integrations/ # 1 file
-│       └── install-date.ts # Extension installation date tracking and storage utilities
-├── background.ts # Background service worker for extension lifecycle management
-└── content.ts # Content script for page integration and interaction
+├── shared/ # 10 directories
+│   ├── analysis/ # 4 files
+│   │   ├── candidate-ranking.ts # Content candidate scoring and ranking algorithms
+│   │   ├── content-filtering.ts # Text filtering and content cleaning utilities
+│   │   ├── heuristics-orchestrator.ts # Phase 1 content analysis orchestration engine
+│   │   └── qualifier-rules.ts # Metadata qualification rules and enrichment logic
+│   ├── classification/ # 1 file
+│   │   └── file-types.ts # File type detection from MIME and extensions
+│   ├── context/ # 1 file
+│   │   └── page-analyzer.ts # Page context extraction and URL analysis utilities
+│   ├── history/ # 1 file
+│   │   └── history.ts # File renaming action history tracking and storage
+│   ├── lifecycle/ # 1 file
+│   │   └── install-tracking.ts # Extension installation date tracking and storage utilities
+│   ├── messaging/ # 1 file
+│   │   └── content-messages.ts # Message type definitions for content-background communication
+│   ├── naming/ # 1 file
+│   │   └── policy-engine.ts # Filename generation policies and formatting rules
+│   ├── pipeline/ # 1 file
+│   │   └── phase1-coordinator.ts # Phase 1 renaming pipeline coordination and orchestration
+│   ├── settings/ # 2 files
+│   │   ├── settings.ts # Application settings persistence and state management
+│   │   └── types.ts # Type definitions for application configuration and settings
+│   └── state/ # 1 file
+│       └── page-context-store.ts # Runtime page context storage and management
+├── background.ts # Background service worker for download interception and renaming
+└── content.ts # Content script for page context extraction and messaging
 ```
 
 <!-- AUTO-GENERATED TREE END -->
