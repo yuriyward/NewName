@@ -7,7 +7,7 @@
 ├── popup/ # 2 files
 │   ├── App.tsx # Main popup interface and WXT React demo component
 │   └── main.tsx # React popup entry point and application bootstrapping
-├── shared/ # 10 directories
+├── shared/ # 11 directories
 │   ├── analysis/ # 4 files
 │   │   ├── candidate-ranking.ts # Content candidate scoring and ranking algorithms
 │   │   ├── content-filtering.ts # Text filtering and content cleaning utilities
@@ -17,6 +17,11 @@
 │   │   └── file-types.ts # File type detection from MIME and extensions
 │   ├── context/ # 1 file
 │   │   └── page-analyzer.ts # Page context extraction and URL analysis utilities
+│   ├── debug/ # 4 files
+│   │   ├── console-helpers.ts # Console helper functions for debugging
+│   │   ├── logger.ts # Debug logging utilities for troubleshooting rename decisions
+│   │   ├── types.ts # Debug types and interfaces for troubleshooting rename decisions
+│   │   └── verbose-formatter.ts # Verbose debug formatting utilities
 │   ├── history/ # 1 file
 │   │   └── history.ts # File renaming action history tracking and storage
 │   ├── lifecycle/ # 1 file
@@ -64,9 +69,11 @@
 **Purpose**: Content candidate scoring and ranking algorithms
 
 **Exports**:
-- `export Candidate` - Content candidate scoring and ranking algorithms
+- `export Candidate` - item implementation
 - `export addCandidate` - item implementation
+- `export addDebugCandidate` - item implementation
 - `export selectBestCandidate` - item implementation
+- `export selectBestDebugCandidate` - item implementation
 
 ### shared/analysis/content-filtering.ts
 **Purpose**: Text filtering and content cleaning utilities
@@ -93,6 +100,7 @@
 **Exports**:
 - `export Phase1HeuristicResult` - item implementation
 - `export runPhase1Heuristics` - item implementation
+- `export runPhase1HeuristicsDebug` - item implementation
 
 ### shared/analysis/qualifier-rules.ts
 **Purpose**: Metadata qualification rules and enrichment logic
@@ -126,6 +134,37 @@
 - `export extractResolutionFromFilename` - item implementation
 - `export safeDecode` - item implementation
 
+### shared/debug/console-helpers.ts
+**Purpose**: Console helper functions for debugging
+
+**Exports**:
+- `export attachConsoleHelpers` - Global debug helpers attached to window for easy console ...
+- `export initializeBackgroundDebug` - Initialize debug helpers in background script
+
+### shared/debug/logger.ts
+**Purpose**: Debug logging utilities for troubleshooting rename decisions
+
+**Exports**:
+- `export debugLogger` - item implementation
+
+### shared/debug/types.ts
+**Purpose**: Debug types and interfaces for troubleshooting rename decisions
+
+**Exports**:
+- `export DebugCandidate` - item implementation
+- `export DebugContext` - item implementation
+- `export DebugEvent` - item implementation
+- `export DebugHeuristicResult` - item implementation
+- `export DebugPolicyResult` - item implementation
+- `export DebugQualifierResult` - item implementation
+- `export DebugLevel` - item implementation
+
+### shared/debug/verbose-formatter.ts
+**Purpose**: Verbose debug formatting utilities
+
+**Exports**:
+- `export logVerboseContext` - Verbose debug formatting utilities
+
 ### shared/history/history.ts
 **Purpose**: File renaming action history tracking and storage
 
@@ -157,6 +196,7 @@
 - `export FilenamePolicyInput` - Filename generation policies and formatting rules
 - `export FilenamePolicyResult` - item implementation
 - `export applyFilenamePolicy` - item implementation
+- `export applyFilenamePolicyDebug` - item implementation
 
 ### shared/pipeline/phase1-coordinator.ts
 **Purpose**: Phase 1 renaming pipeline coordination and orchestration
@@ -164,6 +204,7 @@
 **Exports**:
 - `export Phase1Outcome` - item implementation
 - `export computePhase1Outcome` - item implementation
+- `export computePhase1OutcomeDebug` - item implementation
 
 ### shared/settings/settings.ts
 **Purpose**: Application settings persistence and state management
@@ -175,6 +216,8 @@
 - `export subscribeSettings` - item implementation
 - `export updateSettings` - item implementation
 - `export CloudSettings` - item implementation
+- `export DebugLevel` - item implementation
+- `export DebugSettings` - item implementation
 - `export DEFAULT_SETTINGS` - item implementation
 - `export FileType` - item implementation
 - `export isFileType` - item implementation
@@ -189,9 +232,11 @@
 
 **Exports**:
 - `export CloudSettings` - item implementation
+- `export DebugSettings` - item implementation
 - `export MetadataToggles` - item implementation
 - `export PerTypeBehavior` - item implementation
 - `export SettingsV1` - item implementation
+- `export DebugLevel` - Type definitions for application configuration and settings
 - `export FileType` - Type definitions for application configuration and settings
 - `export Mode` - Type definitions for application configuration and settings
 - `export Separator` - Type definitions for application configuration and settings
