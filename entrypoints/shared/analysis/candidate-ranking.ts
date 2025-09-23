@@ -7,6 +7,14 @@ import {
   normaliseCandidate,
 } from '@/entrypoints/shared/analysis/content-filtering';
 
+// Heuristic scoring stays on a 0–100 scale so Phase 1 can make the
+// “rename vs keep” decision (threshold 60 per PRD). Base weights come from
+// `heuristics-orchestrator` and reflect the order of importance described in
+// the business/technical PRDs (link text > headings > titles > URL > filename).
+// Modifiers below document why we nudge scores up or down:
+// - Length bonus rewards informative human phrases without overshooting.
+// - Heading bonus breaks ties when a page provides both title/headings.
+// - Fallback score ensures we always return a value even if no signal scores.
 const SCORE_LENGTH_BONUS_CAP = 20;
 const SCORE_LENGTH_BONUS_START = 12;
 const SCORE_HEADING_PRIORITY_BONUS = 6;
@@ -41,6 +49,8 @@ export function addCandidate(
   if (info.reason === 'Heading') {
     score += SCORE_HEADING_PRIORITY_BONUS;
   }
+  // Penalty kicks in for generic or one-word fragments so we avoid
+  // over-valuing boilerplate like “download page”.
   const penalty = computeGenericPenalty(cleaned, info.reason);
   if (penalty > 0) {
     score = Math.max(0, score - penalty);
