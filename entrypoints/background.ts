@@ -228,6 +228,7 @@ async function processDeterminingFilename(
     if (debugLogger.isEnabled()) {
       const downloadId = debugLogger.createDownloadId();
       debugContext = computePhase1OutcomeDebug(signals, settings, downloadId);
+      debugLogger.startContext(debugContext.downloadId, debugContext);
       outcome = debugContext.finalOutcome;
     } else {
       outcome = computePhase1Outcome(signals, settings);
