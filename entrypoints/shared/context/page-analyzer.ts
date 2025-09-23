@@ -44,6 +44,12 @@ export function deriveDomainBrand(url: URL): string | null {
   const last = parts[parts.length - 1];
   const secondLast = parts.length >= 2 ? parts[parts.length - 2] : null;
   if (last.length <= 3 && secondLast) {
+    if (secondLast.length <= 3 && parts.length >= 3) {
+      const thirdLast = parts[parts.length - 3];
+      if (thirdLast) {
+        return thirdLast.toLowerCase();
+      }
+    }
     return secondLast.toLowerCase();
   }
   return last.toLowerCase();

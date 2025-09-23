@@ -56,7 +56,7 @@ Built with WXT framework and React 19, using Tailwind CSS v4. Entry points live 
 - After each change, choose the lightest effective check:
   - Small fixes (docs, style-only, non-behavioral refactors, test-only): run `bun run fix`.
   - New behavior, new files/entrypoints, storage/background/manifest changes, or new dependencies: run `bun run verify`.
-  - For behavior changes, also run tests: `bun run test:run` (or `bun run coverage`).
+  - For behavior changes, also run tests: `bun run test` (or `bun run coverage`).
 - If `verify` fails due to formatting/lints, run `bun run fix` then re-run `bun run verify`.
 - Prefer `fix` before commit and `verify` before push.
 

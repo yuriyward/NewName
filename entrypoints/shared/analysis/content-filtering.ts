@@ -112,11 +112,28 @@ export function pickBestSegment(value: string, brand: string | null): string {
     ? segments.filter((segment) => !segment.toLowerCase().includes(brand))
     : segments;
   const pool = brandFiltered.length > 0 ? brandFiltered : segments;
-  return pool.reduce((longest, segment) => {
-    if (segment.length > longest.length) {
-      return segment;
+  const scoreSegment = (segment: string): number => {
+    const tokens = segment.toLowerCase().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return 0;
+    const informativeCount = tokens.filter(
+      (token) => !GENERIC_SUBJECT_TOKENS.has(token),
+    ).length;
+    let score = segment.length;
+    if (informativeCount === 0) {
+      score -= GENERIC_PENALTY_EMPTY;
+    } else if (tokens.length <= 2 && informativeCount === 1) {
+      score -= GENERIC_PENALTY_PARTIAL;
     }
-    return longest;
+    return score;
+  };
+
+  return pool.reduce((best, segment) => {
+    const currentScore = scoreSegment(segment);
+    const bestScore = scoreSegment(best);
+    if (currentScore === bestScore) {
+      return segment.length > best.length ? segment : best;
+    }
+    return currentScore > bestScore ? segment : best;
   }, pool[0]);
 }
 
