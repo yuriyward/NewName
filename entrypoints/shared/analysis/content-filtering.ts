@@ -69,6 +69,9 @@ export const GENERIC_SUBJECT_TOKENS = new Set([
 export const SEGMENT_SPLIT_REGEX =
   /(?:\s*\|\s*|\s*•\s*|\s*·\s*|\s*[—–]\s*|\s*::\s*)/;
 
+const GENERIC_PENALTY_EMPTY = 40;
+const GENERIC_PENALTY_PARTIAL = 20;
+
 export function looksLikeHash(token: string): boolean {
   if (token.length < 8) return false;
 
@@ -167,10 +170,10 @@ export function computeGenericPenalty(
     (token) => !GENERIC_SUBJECT_TOKENS.has(token),
   );
   if (informative.length === 0) {
-    return 40;
+    return GENERIC_PENALTY_EMPTY;
   }
   if (tokens.length <= 2 && informative.length === 1) {
-    return 20;
+    return GENERIC_PENALTY_PARTIAL;
   }
   return 0;
 }

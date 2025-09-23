@@ -7,6 +7,11 @@ import {
   normaliseCandidate,
 } from '@/entrypoints/shared/analysis/content-filtering';
 
+const SCORE_LENGTH_BONUS_CAP = 20;
+const SCORE_LENGTH_BONUS_START = 12;
+const SCORE_HEADING_PRIORITY_BONUS = 6;
+const SCORE_FALLBACK_DEFAULT = 10;
+
 export interface Candidate {
   value: string;
   reason: CandidateReason;
@@ -28,10 +33,13 @@ export function addCandidate(
   const cleaned = normaliseCandidate(raw, info.brand, info.reason);
   if (!cleaned) return;
   let score = info.baseScore;
-  const lengthBoost = Math.min(20, Math.max(0, cleaned.length - 12));
+  const lengthBoost = Math.min(
+    SCORE_LENGTH_BONUS_CAP,
+    Math.max(0, cleaned.length - SCORE_LENGTH_BONUS_START),
+  );
   score += lengthBoost;
   if (info.reason === 'Heading') {
-    score += 6;
+    score += SCORE_HEADING_PRIORITY_BONUS;
   }
   const penalty = computeGenericPenalty(cleaned, info.reason);
   if (penalty > 0) {
@@ -51,7 +59,7 @@ export function selectBestCandidate(candidates: Candidate[]): Candidate {
     best ?? {
       value: 'downloaded file',
       reason: 'Filename',
-      score: 10,
+      score: SCORE_FALLBACK_DEFAULT,
       source: 'metadata' as const,
     }
   );

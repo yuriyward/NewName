@@ -21,6 +21,12 @@ import type {
   SettingsV1,
 } from '@/entrypoints/shared/settings/settings';
 
+const SCORE_LINK_BASE = 95;
+const SCORE_HEADING_BASE = 82;
+const SCORE_TITLE_BASE = 80;
+const SCORE_URL_BASE = 60;
+const SCORE_FILENAME_BASE = 55;
+
 export interface Phase1HeuristicResult {
   subject: string;
   qualifiers: string[];
@@ -46,35 +52,35 @@ export function runPhase1Heuristics(
 
   addCandidate(candidates, signals.page?.linkText, {
     reason: 'Link',
-    baseScore: 95,
+    baseScore: SCORE_LINK_BASE,
     brand,
     source: 'on-device',
   });
 
   addCandidate(candidates, signals.page?.heading, {
     reason: 'Heading',
-    baseScore: 82,
+    baseScore: SCORE_HEADING_BASE,
     brand,
     source: 'on-device',
   });
 
   addCandidate(candidates, signals.page?.title, {
     reason: 'Title',
-    baseScore: 80,
+    baseScore: SCORE_TITLE_BASE,
     brand,
     source: 'on-device',
   });
 
   addCandidate(candidates, safeDecode(url.pathname.split('/').pop() ?? ''), {
     reason: 'URL',
-    baseScore: 60,
+    baseScore: SCORE_URL_BASE,
     brand,
     source: 'metadata',
   });
 
   addCandidate(candidates, baseName ?? extractFileName(signals.filename), {
     reason: 'Filename',
-    baseScore: 55,
+    baseScore: SCORE_FILENAME_BASE,
     brand,
     source: 'metadata',
   });

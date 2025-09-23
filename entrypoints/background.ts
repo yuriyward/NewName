@@ -19,28 +19,30 @@ import {
   updatePageContext,
 } from '@/entrypoints/shared/state/page-context-store';
 
-let fallbackRandomSeed = 0;
+const randomId = (() => {
+  let fallbackRandomSeed = 0;
 
-function randomId(): string {
-  if (typeof crypto !== 'undefined') {
-    if (typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID();
+  return function randomId(): string {
+    if (typeof crypto !== 'undefined') {
+      if (typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+      }
+      if (typeof crypto.getRandomValues === 'function') {
+        const buffer = new Uint32Array(4);
+        crypto.getRandomValues(buffer);
+        return Array.from(buffer, (value) =>
+          value.toString(16).padStart(8, '0'),
+        ).join('');
+      }
     }
-    if (typeof crypto.getRandomValues === 'function') {
-      const buffer = new Uint32Array(4);
-      crypto.getRandomValues(buffer);
-      return Array.from(buffer, (value) =>
-        value.toString(16).padStart(8, '0'),
-      ).join('');
-    }
-  }
 
-  fallbackRandomSeed = (fallbackRandomSeed + 1) & 0xffff;
-  const timeHex = Date.now().toString(16);
-  const seedHex = fallbackRandomSeed.toString(16).padStart(4, '0');
-  const randomHex = Math.random().toString(16).slice(2, 10);
-  return `${timeHex}-${seedHex}-${randomHex}`;
-}
+    fallbackRandomSeed = (fallbackRandomSeed + 1) & 0xffff;
+    const timeHex = Date.now().toString(16);
+    const seedHex = fallbackRandomSeed.toString(16).padStart(4, '0');
+    const randomHex = Math.random().toString(16).slice(2, 10);
+    return `${timeHex}-${seedHex}-${randomHex}`;
+  };
+})();
 
 function basename(path: string): string {
   const normalised = path.replace(/\\/g, '/');
@@ -77,6 +79,73 @@ function ensureSettingsCache() {
 
 const readSettings = ensureSettingsCache();
 
+const SUGGEST_TIMEOUT_MS = 400;
+const PAGE_CONTEXT_PRUNE_INTERVAL_MS = 5 * 60_000;
+
+type DeterminingListener = Parameters<
+  typeof browser.downloads.onDeterminingFilename.addListener
+>[0];
+
+type DeterminingItem = Parameters<DeterminingListener>[0];
+type SuggestCallback = Parameters<DeterminingListener>[1];
+type SuggestPayload = Parameters<SuggestCallback>[0];
+
+function createSuggestController(suggest: SuggestCallback) {
+  let resolved = false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined = setTimeout(() => {
+    if (resolved) return;
+    resolved = true;
+    try {
+      suggest();
+    } catch (error) {
+      console.warn('Suggest callback failed after timeout', error);
+    }
+  }, SUGGEST_TIMEOUT_MS);
+
+  function clearTimer() {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+      timeoutId = undefined;
+    }
+  }
+
+  return {
+    trySuggest(payload?: SuggestPayload): boolean {
+      if (resolved) return false;
+      try {
+        if (payload) {
+          suggest(payload);
+        } else {
+          suggest();
+        }
+        resolved = true;
+        clearTimer();
+        return true;
+      } catch (error) {
+        resolved = true;
+        clearTimer();
+        throw error;
+      }
+    },
+    ensureDefault(): void {
+      if (resolved) return;
+      try {
+        suggest();
+      } catch (error) {
+        console.warn('Suggest callback failed during fallback', error);
+      } finally {
+        resolved = true;
+        clearTimer();
+      }
+    },
+    finish(): void {
+      if (resolved) return;
+      resolved = true;
+      clearTimer();
+    },
+  };
+}
+
 const handleContentMessage: Parameters<
   typeof browser.runtime.onMessage.addListener
 >[0] = (message, sender) => {
@@ -110,17 +179,11 @@ function shouldRenameType(
   return true;
 }
 
-type DeterminingListener = Parameters<
-  typeof browser.downloads.onDeterminingFilename.addListener
->[0];
-
-type DeterminingItem = Parameters<DeterminingListener>[0];
-type SuggestCallback = Parameters<DeterminingListener>[1];
-
 async function processDeterminingFilename(
   item: DeterminingItem,
   suggest: SuggestCallback,
 ): Promise<void> {
+  const controller = createSuggestController(suggest);
   let suggestionIssued = false;
   try {
     pruneStaleContexts();
@@ -147,10 +210,16 @@ async function processDeterminingFilename(
     );
 
     if (shouldRenameType(settings, outcome.fileType)) {
-      suggest({ filename: outcome.path });
+      const submitted = controller.trySuggest({ filename: outcome.path });
+      if (!submitted) {
+        return;
+      }
       suggestionIssued = true;
     } else {
-      suggest();
+      const submitted = controller.trySuggest();
+      if (!submitted) {
+        return;
+      }
       suggestionIssued = true;
       return;
     }
@@ -169,12 +238,10 @@ async function processDeterminingFilename(
   } catch (error) {
     console.error('Phase-1 rename failed', error);
     if (!suggestionIssued) {
-      try {
-        suggest();
-      } catch {
-        // Suggestion may have already been sent; ignore secondary errors.
-      }
+      controller.ensureDefault();
     }
+  } finally {
+    controller.finish();
   }
 }
 
@@ -197,7 +264,7 @@ export default defineBackground(() => {
 
   setInterval(() => {
     pruneStaleContexts();
-  }, 60_000);
+  }, PAGE_CONTEXT_PRUNE_INTERVAL_MS);
 
   console.log('NewName background ready', { id: browser.runtime.id });
 });
