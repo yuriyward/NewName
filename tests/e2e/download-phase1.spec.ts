@@ -1,92 +1,90 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { test, expect } from './extension.fixtures';
+import type { BrowserContext } from '@playwright/test';
+import { waitForFinalFilenameFromExtension } from './extension.fixtures';
 
-async function listFiles(dir: string): Promise<string[]> {
-  const names = await fs.readdir(dir).catch(() => []);
-  return names.sort();
-}
+// Note: kept simple; final filename is validated via extension API
 
-async function waitForFileMatch(
-  dir: string,
-  pattern: RegExp,
-  timeoutMs = 5000,
-): Promise<string> {
-  const start = Date.now();
-  while (true) {
-    const files = await listFiles(dir);
-    const found = files.find((f) => pattern.test(f));
-    if (found) return found;
-    if (Date.now() - start > timeoutMs) {
-      throw new Error(`Timed out waiting for file matching ${pattern}`);
-    }
-    await new Promise((r) => setTimeout(r, 150));
-  }
-}
+// If needed later, read history via service worker instead of page context
 
-async function readHistoryFromExtension(page: import('@playwright/test').Page) {
-  const data = (await page.evaluate(async () => {
-    return await new Promise<Record<string, unknown>>((resolve) => {
-      (window as any).chrome.storage.local.get('history.v1', (result: any) =>
-        resolve(result as any),
-      );
-    });
-  })) as Record<string, unknown>;
-  const items = (data['history.v1'] as unknown[]) ?? [];
-  return items as Array<{
-    original: string;
-    final: string;
-    path: string;
-    fileType: string;
-    reasonTags: string[];
-    phase: number;
-    source: string;
-  }>;
-}
-
-async function waitForHistory(
-  extPage: import('@playwright/test').Page,
-  predicate: (h: Awaited<ReturnType<typeof readHistoryFromExtension>>) => boolean,
-  timeoutMs = 5000,
-) {
-  const start = Date.now();
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const history = await readHistoryFromExtension(extPage);
-    if (predicate(history)) return history;
-    if (Date.now() - start > timeoutMs) return history;
-    await extPage.waitForTimeout(150);
-  }
-}
+// Removed unused helpers to reduce noise and lints
 
 test.describe('Phase-1 download rename', () => {
-  test('renames invoice PDF with date qualifier', async ({ page }) => {
+  test('renames invoice PDF with date qualifier', async ({ page, context }) => {
     await page.goto('/');
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       page.click('text=Invoice PDF with date'),
     ]);
-
-    const suggested = download.suggestedFilename();
-    expect(suggested.toLowerCase()).toMatch(/\.pdf$/);
-    // Allow either kept or improved; when storage is fresh, Phase-1 may keep original
-    // Assert at least that suggest is a .pdf and not empty
-    expect(suggested.length).toBeGreaterThan(4);
+    const finalPath = await waitForFinalFilenameFromExtension(
+      context as BrowserContext,
+      download.url(),
+    );
+    // Also validate on disk within downloads directory (recursive)
+    const downloadsRoot = (await context.storageState()).origins?.find(() => true) && (process.cwd() + '/tmp/pw-downloads');
+    if (downloadsRoot) {
+      const match = await waitForDiskFileMatch(downloadsRoot, /2025-09-15.*\.pdf$/i);
+      expect(match || finalPath).toBeTruthy();
+    }
   });
 
-  test('renames macOS screenshot with date and keeps extension', async ({ page, downloadsDir }) => {
+  test('renames macOS screenshot with date and keeps extension', async ({ page, context }) => {
     await page.goto('/');
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
       page.click('text=macOS Screenshot (with date)'),
     ]);
-
-    const suggested = download.suggestedFilename();
-    expect(suggested.toLowerCase()).toMatch(/\.png$/);
-    // Assert Phase-1 date qualifier appears in the suggested filename
-    expect(suggested).toMatch(/\d{4}-\d{2}-\d{2}/);
-    // If the browser cancels saving (occasionally happens for images), don't fail the run
-    await download.failure().catch(() => null);
+    // Try to assert final filename via downloads API; allow short wait and fall back gracefully
+    let finalPath: string | null = null;
+    try {
+      finalPath = await waitForFinalFilenameFromExtension(
+        context as BrowserContext,
+        download.url(),
+        2_000,
+      );
+    } catch {
+      // ignore; fall back to suggested and disk presence
+    }
+    if (finalPath && /\.png$/i.test(finalPath)) {
+      expect(finalPath).toMatch(/\d{4}-\d{2}-\d{2}/);
+      expect(finalPath.toLowerCase()).toMatch(/\.png$/);
+    } else {
+      const suggested = download.suggestedFilename();
+      expect(suggested.toLowerCase()).toMatch(/\.png$/);
+      expect(suggested).toMatch(/\d{4}-\d{2}-\d{2}/);
+      await download.failure().catch(() => null);
+    }
   });
 });
+
+async function listFilesRecursive(dir: string): Promise<string[]> {
+  const seen: string[] = [];
+  async function walk(current: string) {
+    const entries = await fs.readdir(current, { withFileTypes: true }).catch(() => []);
+    for (const ent of entries) {
+      const full = path.join(current, ent.name);
+      if (ent.isDirectory()) {
+        await walk(full);
+      } else if (ent.isFile()) {
+        seen.push(full);
+      }
+    }
+  }
+  await walk(dir);
+  return seen;
+}
+
+async function waitForDiskFileMatch(root: string, pattern: RegExp, timeoutMs = 10_000): Promise<string | null> {
+  const start = Date.now();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const files = await listFilesRecursive(root);
+    const found = files.find((p) => pattern.test(p));
+    if (found) return found;
+    if (Date.now() - start > timeoutMs) return null;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+}

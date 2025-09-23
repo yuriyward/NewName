@@ -7,4 +7,8 @@ export default defineConfig({
     ['list'],
     ['html', { open: 'always' }],
   ],
+  use: {
+    ...baseConfig.use,
+    headless: process.env.CI ? true : baseConfig.use?.headless ?? false,
+  },
 });

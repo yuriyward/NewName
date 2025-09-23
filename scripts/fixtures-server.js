@@ -21,6 +21,11 @@ const MIME = new Map([
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host}`);
   let requestedPath = url.pathname;
+  try {
+    requestedPath = decodeURIComponent(requestedPath);
+  } catch {
+    // ignore malformed encodings; serve 404 later if path doesn't exist
+  }
   if (requestedPath === '/') requestedPath = '/index.html';
   const safePath = path.normalize(requestedPath).replace(/^\.\.+/g, '');
   const filePath = path.join(ROOT, safePath);
@@ -36,6 +41,11 @@ const server = http.createServer((req, res) => {
     const type = MIME.get(ext) ?? 'application/octet-stream';
     res.statusCode = 200;
     res.setHeader('content-type', type);
+    // Force download for common test types so Chrome won't inline viewers
+    if (['.pdf', '.png', '.jpg', '.jpeg', '.txt'].includes(ext)) {
+      const base = path.basename(filePath);
+      res.setHeader('content-disposition', `attachment; filename="${base}"`);
+    }
     fs.createReadStream(filePath).pipe(res);
   });
 });

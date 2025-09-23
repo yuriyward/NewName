@@ -25,12 +25,12 @@ export const test = base.extend<Fixtures>({
     }
 
     const context = await chromium.launchPersistentContext('', {
-      headless: false,
+      channel: 'chromium',
+      headless: process.env.CI ? true : false,
       args: [
         `--disable-extensions-except=${extensionPath}`,
         `--load-extension=${extensionPath}`,
       ],
-      acceptDownloads: true,
       downloadsPath: downloadsDir,
     });
     await use(context);
@@ -43,10 +43,6 @@ export const test = base.extend<Fixtures>({
     const url = new URL(worker.url());
     // chrome-extension://<id>/_generated_background_page.html (or service_worker.js)
     const id = url.host;
-    // Warm up extension pages (ensures storage/init happens before first download)
-    const warmup = await context.newPage();
-    await warmup.goto(`chrome-extension://${id}/popup.html`);
-    await warmup.close();
     await use(id);
   },
 
@@ -57,3 +53,76 @@ export const test = base.extend<Fixtures>({
 });
 
 export { expect };
+
+export async function queryFinalFilenameFromExtension(
+  context: BrowserContext,
+  finalUrl: string,
+): Promise<string | undefined> {
+  const sw = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
+  const result = await sw.evaluate(async (url: string) => {
+    const chromeApi = (globalThis as unknown as { chrome: { downloads: { search: (q: { finalUrl: string; state: string }) => Promise<Array<{ filename?: string }>> } } }).chrome;
+    const [res] = await chromeApi.downloads.search({ finalUrl: url, state: 'complete' });
+    return res?.filename ?? null;
+  }, finalUrl);
+  return (result as string | null) ?? undefined;
+}
+
+export async function waitForFinalFilenameFromExtension(
+  context: BrowserContext,
+  finalUrl: string,
+  timeoutMs = 6_000,
+): Promise<string> {
+  const start = Date.now();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const path = await queryFinalFilenameFromExtension(context, finalUrl);
+    if (path) return path;
+    if (Date.now() - start > timeoutMs) throw new Error('Timed out waiting for download to complete');
+    await new Promise((r) => setTimeout(r, 150));
+  }
+}
+
+export type HistoryItem = {
+  id: string;
+  ts: number;
+  path: string;
+  original: string;
+  final: string;
+  source: string;
+  fileType: string;
+  phase: number;
+  reasonTags: string[];
+};
+
+export async function readHistoryFromExtension(
+  context: BrowserContext,
+): Promise<HistoryItem[]> {
+  const sw = context.serviceWorkers()[0] ?? (await context.waitForEvent('serviceworker'));
+  const result = await sw.evaluate(async () => {
+    const chromeApi = (globalThis as unknown as { chrome: { storage: { local: { get: (keys: string[], cb: (res: Record<string, unknown>) => void) => void } } } }).chrome;
+    return await new Promise<HistoryItem[]>((resolve) => {
+      chromeApi.storage.local.get(['history.v1'], (res: Record<string, unknown>) => {
+        resolve((res['history.v1'] as HistoryItem[]) ?? []);
+      });
+    });
+  });
+  return result as HistoryItem[];
+}
+
+export async function waitForHistoryEntry(
+  context: BrowserContext,
+  predicate: (item: HistoryItem) => boolean,
+  timeoutMs = 10_000,
+): Promise<HistoryItem> {
+  const start = Date.now();
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const items = await readHistoryFromExtension(context);
+    const found = items.find(predicate);
+    if (found) return found;
+    if (Date.now() - start > timeoutMs) {
+      throw new Error('Timed out waiting for history entry');
+    }
+    await new Promise((r) => setTimeout(r, 150));
+  }
+}

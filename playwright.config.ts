@@ -6,7 +6,7 @@ export default defineConfig({
   reporter: 'html',
   timeout: 90_000,
   use: {
-    headless: false, // Chromium extensions require headed mode
+    headless: process.env.CI ? true : false,
     viewport: { width: 1280, height: 900 },
     trace: 'retain-on-failure',
     video: 'retain-on-failure',
@@ -16,7 +16,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], channel: 'chromium' },
     },
   ],
   webServer: {
