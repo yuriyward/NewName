@@ -7,7 +7,7 @@ test.describe('PRD-Compliant Naming Tests', () => {
       page,
       context,
     }) => {
-      await page.goto('/scenarios/business/polish-invoice.html');
+      await page.goto('/scenarios/business/biedronka-receipt.html');
 
       const [download] = await Promise.all([
         page.waitForEvent('download'),
@@ -43,6 +43,89 @@ test.describe('PRD-Compliant Naming Tests', () => {
       // Should be in Polish (language detection from page)
       expect(finalName.toLowerCase()).toContain('faktura');
       expect(finalName).not.toContain('invoice'); // English should not appear
+    });
+
+    test('Biedronka receipt should use transaction-specific naming', async ({
+      page,
+      context,
+    }) => {
+      await page.goto('/scenarios/business/biedronka-receipt.html');
+
+      const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        page.click('text=Pobierz historię transakcji (PDF)'),
+      ]);
+
+      const finalName = await resolveFinalName({
+        context,
+        download,
+        historyPredicate: (item) =>
+          item.original === 'historia_transakcji_2509238693113130.pdf' && item.phase === 1,
+        timeoutMs: 5000,
+      });
+
+      // Expected format: Biedronka Historia Transakcji 2025-09-23 24,09 PLN
+      // Using real data from the PDF: date 23.09.2025, amount 24,09 PLN
+      const acceptablePatterns = [
+        /^Biedronka.*Historia.*Transakcji.*2025-09-23.*24[,.]09.*PLN.*\.pdf$/i,
+        /^Historia.*Transakcji.*Biedronka.*2025-09-23.*\.pdf$/i,
+        /^Biedronka.*2025-09-23.*Historia.*\.pdf$/i,
+        /^Biedronka.*24[,.]09.*PLN.*2025-09-23.*\.pdf$/i, // Amount + Date
+      ];
+
+      const isAcceptable = acceptablePatterns.some((pattern) =>
+        pattern.test(finalName),
+      );
+      expect(isAcceptable).toBe(true);
+
+      // Should contain key elements from real receipt
+      expect(finalName.toLowerCase()).toMatch(/historia|transakcji/);
+      expect(finalName).toContain('Biedronka');
+      expect(finalName).toMatch(/2025-09-23/); // Real date from PDF
+
+      // Should not contain the cryptic original filename elements
+      expect(finalName).not.toContain('2509238693113130');
+    });
+
+    test('arXiv paper should use academic naming with title and authors', async ({
+      page,
+      context,
+    }) => {
+      await page.goto('/scenarios/academic/arxiv-paper.html');
+
+      const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        page.click('text=Download PDF'),
+      ]);
+
+      const finalName = await resolveFinalName({
+        context,
+        download,
+        historyPredicate: (item) =>
+          item.original === '2405.19261v2.pdf' && item.phase === 1,
+        timeoutMs: 5000,
+      });
+
+      // Expected format: Faster Cascades Via Speculative Decoding 2024-10-23
+      // Using real data from the PDF: academic paper with clear title and date
+      const acceptablePatterns = [
+        /^Faster.*Cascades.*Speculative.*Decoding.*2024-10-23.*\.pdf$/i,
+        /^Faster.*Cascades.*Speculative.*Decoding.*ArXiv.*\.pdf$/i,
+        /^ArXiv.*Faster.*Cascades.*Decoding.*\.pdf$/i,
+        /^Google.*Research.*Faster.*Cascades.*\.pdf$/i, // Institution + Title
+      ];
+
+      const isAcceptable = acceptablePatterns.some((pattern) =>
+        pattern.test(finalName),
+      );
+      expect(isAcceptable).toBe(true);
+
+      // Should contain key elements from academic paper
+      expect(finalName.toLowerCase()).toMatch(/faster|cascades|speculative|decoding/);
+      expect(finalName).toMatch(/2024/); // Publication year
+
+      // Should not contain the cryptic original filename elements
+      expect(finalName).not.toContain('2405.19261v2');
     });
 
     test('Figma design export should include app context and feature name', async ({
@@ -189,7 +272,7 @@ test.describe('PRD-Compliant Naming Tests', () => {
     }) => {
       // Test various pages to ensure filename safety
       const testPages = [
-        '/scenarios/business/polish-invoice.html',
+        '/scenarios/business/biedronka-receipt.html',
         '/scenarios/design/figma-component.html',
         '/scenarios/business/sprint-planning.html',
       ];
@@ -241,7 +324,7 @@ test.describe('PRD-Compliant Naming Tests', () => {
     test('should detect and preserve Polish language content', async ({
       page,
     }) => {
-      await page.goto('/scenarios/business/polish-invoice.html');
+      await page.goto('/scenarios/business/biedronka-receipt.html');
 
       const htmlLang = await page.getAttribute('html', 'lang');
       expect(htmlLang).toBe('pl');
@@ -285,7 +368,7 @@ test.describe('PRD-Compliant Naming Tests', () => {
       page,
     }) => {
       // High-confidence scenarios should always rename
-      await page.goto('/scenarios/business/polish-invoice.html');
+      await page.goto('/scenarios/business/biedronka-receipt.html');
 
       // This page has:
       // - Clear content title/heading (+35)

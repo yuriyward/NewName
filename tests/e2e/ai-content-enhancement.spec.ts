@@ -7,7 +7,7 @@ test.describe('Phase 2 - AI Enhancement Pipeline (Future)', () => {
       page,
       context,
     }) => {
-      await page.goto('/scenarios/business/polish-invoice.html');
+      await page.goto('/scenarios/business/biedronka-receipt.html');
 
       const [download] = await Promise.all([
         page.waitForEvent('download'),
@@ -65,7 +65,7 @@ test.describe('Phase 2 - AI Enhancement Pipeline (Future)', () => {
     test('should demonstrate AI text extraction from PDF content', async ({
       page,
     }) => {
-      await page.goto('/scenarios/business/polish-invoice.html');
+      await page.goto('/scenarios/business/biedronka-receipt.html');
 
       // This test documents what Phase 2 should extract from PDF content
       // PRD Technical Section 5.3: PDF.js text extraction → Summarizer

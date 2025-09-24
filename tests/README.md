@@ -60,7 +60,7 @@ tests/
 ## 📋 Test Scenarios
 
 ### Business Documents (`/scenarios/business/`)
-- **Polish Invoice** (`polish-invoice.html`): Tests vendor extraction, Polish language, VAT recognition
+- **Biedronka Receipt** (`biedronka-receipt.html`): Tests vendor extraction, Polish language, transaction history recognition
 - **Sprint Planning** (`sprint-planning.html`): Tests meeting context, company names, duration
 
 ### Design Tools (`/scenarios/design/`)
@@ -69,6 +69,9 @@ tests/
 ### Media Content (`/scenarios/media/`)
 - **Tutorial Video** (`tutorial-video.html`): Tests video classification, tech content, Polish language
 - **Landscape Photo** (`landscape-photo.html`): Tests photo metadata, location extraction, nature subjects
+
+### Academic Content (`/scenarios/academic/`)
+- **arXiv Paper** (`arxiv-paper.html`): Tests academic paper recognition, arXiv ID extraction, author parsing
 
 ## 🚀 Running Tests
 
@@ -117,11 +120,12 @@ Failing tests provide clear implementation targets:
 
 | File Type | Language | Phase 1 Tests | Phase 2 Tests | Scenarios |
 |-----------|----------|---------------|---------------|-----------|
-| PDF Invoice | Polish | ✅ Context extraction | ✅ Content analysis | Business |
+| PDF Receipt | Polish | ✅ Context extraction | ✅ Content analysis | Business |
 | PNG Screenshot | English | ✅ App detection | ✅ OCR analysis | Design |
 | TXT Notes | English | ✅ Page context | ✅ Topic extraction | Business |
 | Video Tutorial | Polish | ✅ Metadata | ✅ Keyframe analysis | Media |
 | Photo JPEG | Polish | ✅ Location hints | ✅ EXIF data | Media |
+| PDF arXiv Paper | English | ✅ Academic metadata | ✅ Content analysis | Academic |
 
 ## 🛠 Development Workflow
 

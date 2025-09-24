@@ -7,7 +7,7 @@ test.describe('Phase 1 - Instant Context Analysis (PRD Ideal Behavior)', () => {
     context,
   }) => {
     // Test Phase 1 context extraction from a real business invoice page
-    await page.goto('/scenarios/business/polish-invoice.html');
+    await page.goto('/scenarios/business/biedronka-receipt.html');
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
