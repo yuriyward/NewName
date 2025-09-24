@@ -1,7 +1,7 @@
 #!/usr/bin/env node
+import fs from 'node:fs';
 // Lightweight static server for tests/fixtures on a fixed port
 import http from 'node:http';
-import fs from 'node:fs';
 import path from 'node:path';
 
 const HOST = '127.0.0.1';
