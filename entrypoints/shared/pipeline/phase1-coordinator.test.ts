@@ -384,14 +384,16 @@ describe('computePhase1Outcome', () => {
       );
     });
 
-    it('produces expected filename for Biedronka invoice', () => {
+    it('produces expected filename for Biedronka receipt', () => {
       const signals: Phase1Signals = {
-        url: 'https://biedronka.pl/receipts/download?id=789',
-        filename: 'Downloads/receipt.pdf',
+        url: 'https://biedronka.pl/historia-transakcji/download',
+        filename: 'Downloads/historia_transakcji_2509238693113130.pdf',
         mime: 'application/pdf',
-        startTime: '2025-03-04T16:45:00Z',
+        startTime: '2025-09-23T19:59:00Z',
         page: {
-          linkText: 'Biedronka - Faktura - 146,20 PLN',
+          title: 'Biedronka - Historia Transakcji - Moje Konto',
+          heading: 'Historia Transakcji',
+          linkText: 'Pobierz historię transakcji (PDF)',
           capturedAt: Date.now(),
         },
       };
@@ -407,11 +409,51 @@ describe('computePhase1Outcome', () => {
       });
 
       expect(result.filename).toBe(
-        'Biedronka Faktura 146,20 PLN 2025-03-04.pdf',
+        'Biedronka Historia Transakcji 2025-09-23.pdf',
       );
       expect(result.path).toBe(
-        'Downloads/Biedronka Faktura 146,20 PLN 2025-03-04.pdf',
+        'Downloads/Biedronka Historia Transakcji 2025-09-23.pdf',
       );
+      expect(result.reasonTags).toContain('Title');
+      expect(result.reasonTags).toContain('Date');
+      expect(result.fileType).toBe('pdf');
+      expect(result.originalPath).toBe('Downloads/historia_transakcji_2509238693113130.pdf');
+    });
+
+    it('produces expected filename for arXiv paper', () => {
+      const signals: Phase1Signals = {
+        url: 'https://arxiv.org/pdf/2405.19261',
+        filename: 'Downloads/2405.19261v2.pdf',
+        mime: 'application/pdf',
+        startTime: '2024-10-23T00:00:00Z',
+        page: {
+          title: 'arXiv.org - Faster Cascades via Speculative Decoding',
+          heading: 'Faster Cascades via Speculative Decoding',
+          linkText: 'Download PDF',
+          capturedAt: Date.now(),
+        },
+      };
+
+      const result = computePhase1Outcome(signals, {
+        ...DEFAULT_SETTINGS,
+        metadataToggles: {
+          ...DEFAULT_SETTINGS.metadataToggles,
+          docDate: true,
+          sourceHint: false, // Disable to match PRD example
+        },
+        maxLen: 80,
+      });
+
+      expect(result.filename).toBe(
+        'Faster Cascades Via Speculative Decoding 2024-10-23.pdf',
+      );
+      expect(result.path).toBe(
+        'Downloads/Faster Cascades Via Speculative Decoding 2024-10-23.pdf',
+      );
+      expect(result.reasonTags).toContain('Title');
+      expect(result.reasonTags).toContain('Date');
+      expect(result.fileType).toBe('pdf');
+      expect(result.originalPath).toBe('Downloads/2405.19261v2.pdf');
     });
 
     it('produces expected filename for Figma screenshot', () => {

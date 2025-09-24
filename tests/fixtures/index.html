@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>NewName E2E Test Scenarios</title>
+    <meta name="description" content="Comprehensive test scenarios for NewName download renaming" />
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+      .scenario-group { margin: 2rem 0; padding: 1rem; border: 1px solid #e0e0e0; border-radius: 8px; }
+      .scenario-group h2 { color: #333; margin-top: 0; }
+      .scenario-list { list-style: none; padding: 0; }
+      .scenario-list li { margin: 0.5rem 0; padding: 0.5rem; background: #f5f5f5; border-radius: 4px; }
+      .scenario-list a { text-decoration: none; color: #0066cc; font-weight: 500; }
+      .scenario-list a:hover { color: #0052a3; }
+      .description { color: #666; font-size: 0.9em; margin-top: 0.25rem; }
+      .legacy { opacity: 0.7; }
+    </style>
+  </head>
+  <body>
+    <h1>NewName E2E Test Scenarios</h1>
+    <p>This page provides test scenarios for validating NewName's download renaming capabilities according to the PRD specifications.</p>
+
+    <div class="scenario-group">
+      <h2>🏢 Business Documents</h2>
+      <ul class="scenario-list">
+        <li>
+          <a href="/scenarios/business/biedronka-receipt.html">Biedronka Receipt</a>
+          <div class="description">Tests: Polish language, vendor extraction, VAT invoice recognition, amount parsing</div>
+        </li>
+        <li>
+          <a href="/scenarios/business/sprint-planning.html">Sprint Planning Meeting</a>
+          <div class="description">Tests: Company context, meeting type recognition, duration, business terminology</div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="scenario-group">
+      <h2>🎨 Design & Development</h2>
+      <ul class="scenario-list">
+        <li>
+          <a href="/scenarios/design/figma-component.html">Figma Component Export</a>
+          <div class="description">Tests: Design tool recognition, component naming, UI context extraction</div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="scenario-group">
+      <h2>📸 Media & Content</h2>
+      <ul class="scenario-list">
+        <li>
+          <a href="/scenarios/media/tutorial-video.html">Supabase Tutorial (Polish)</a>
+          <div class="description">Tests: Video classification, tech content, Polish language, duration/quality metadata</div>
+        </li>
+        <li>
+          <a href="/scenarios/media/landscape-photo.html">Landscape Photography</a>
+          <div class="description">Tests: Photo metadata, location extraction, Polish place names, nature subjects</div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="scenario-group">
+      <h2>📚 Academic & Research</h2>
+      <ul class="scenario-list">
+        <li>
+          <a href="/scenarios/academic/arxiv-paper.html">arXiv Research Paper (Google)</a>
+          <div class="description">Tests: Academic content, author extraction, arXiv ID recognition, technical paper classification</div>
+        </li>
+        <li>
+          <a href="/scenarios/academic/research-paper.html">AI Ethics Research Paper</a>
+          <div class="description">Tests: Academic content, author extraction, journal context, technical terminology</div>
+        </li>
+      </ul>
+    </div>
+
+
+    <div class="scenario-group">
+      <h2>🧪 Test Coverage Matrix</h2>
+      <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+        <thead>
+          <tr style="background: #f0f0f0;">
+            <th>File Type</th>
+            <th>Language</th>
+            <th>Phase 1 Features</th>
+            <th>Phase 2 Features</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>PDF Invoice</td>
+            <td>Polish</td>
+            <td>Page title, domain, date</td>
+            <td>PDF text extraction, amount, vendor</td>
+          </tr>
+          <tr>
+            <td>PNG Screenshot</td>
+            <td>English</td>
+            <td>Page context, app detection</td>
+            <td>OCR, UI element recognition</td>
+          </tr>
+          <tr>
+            <td>TXT Meeting Notes</td>
+            <td>English</td>
+            <td>Page title, business context</td>
+            <td>Content analysis, topic extraction</td>
+          </tr>
+          <tr>
+            <td>Video Tutorial</td>
+            <td>Polish</td>
+            <td>Page metadata, tech context</td>
+            <td>Keyframe analysis, audio transcription</td>
+          </tr>
+          <tr>
+            <td>JPEG Photo</td>
+            <td>Polish</td>
+            <td>Page context, location hints</td>
+            <td>EXIF data, subject recognition</td>
+          </tr>
+          <tr>
+            <td>PDF arXiv Paper</td>
+            <td>English</td>
+            <td>arXiv ID, title, author metadata</td>
+            <td>Author extraction, topic analysis</td>
+          </tr>
+          <tr>
+            <td>PDF Research Paper</td>
+            <td>English</td>
+            <td>Journal context, academic metadata</td>
+            <td>Author extraction, topic analysis</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

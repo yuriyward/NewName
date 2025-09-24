@@ -14,6 +14,16 @@ stats-*.json
 .wxt
 web-ext.config.ts
 
+# Playwright
+playwright-report/
+test-results/
+playwright/.cache/
+playwright/.auth/
+
+# Temporary files
+tmp/
+*.tmp
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

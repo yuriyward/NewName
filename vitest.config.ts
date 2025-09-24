@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     mockReset: true,
     restoreMocks: true,
+    exclude: ['tests/e2e/**', '**/node_modules/**'],
   },
   // Providing an explicit dev server port avoids sandbox failures when Vitest boots WXT helpers
   // inside restricted environments (e.g. CI without network permissions).
