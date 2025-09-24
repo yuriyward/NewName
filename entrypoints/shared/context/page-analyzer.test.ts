@@ -55,6 +55,19 @@ describe('page-analyzer utilities', () => {
         'localhost',
       );
     });
+
+    it('returns null for numeric-only hostnames', () => {
+      expect(deriveDomainBrand(new URL('http://127.0.0.1:8080/download'))).toBe(
+        null,
+      );
+    });
+
+    it('allows alphanumeric brands', () => {
+      expect(deriveDomainBrand(new URL('https://v0.dev/home'))).toBe('v0');
+      expect(deriveDomainBrand(new URL('https://1337x.to/search'))).toBe(
+        '1337x',
+      );
+    });
   });
 
   describe('extractResolutionFromFilename', () => {

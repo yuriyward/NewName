@@ -2,6 +2,7 @@
  * File renaming action history tracking and storage
  */
 import { browser } from 'wxt/browser';
+import type { InstantBaselineDecision } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
 import {
   getHistoryMax,
@@ -16,9 +17,10 @@ export interface HistoryItem {
   final: string;
   source: 'on-device' | 'cloud' | 'metadata';
   fileType: FileType;
-  phase: 1 | 2;
+  phase: 'instant-baseline' | 'contextual-upgrade';
   reasonTags: string[];
   undone?: boolean;
+  decision?: InstantBaselineDecision;
 }
 
 const HISTORY_KEY = 'history.v1';
@@ -29,10 +31,47 @@ function isHistorySource(value: unknown): value is HistoryItem['source'] {
   return value === 'on-device' || value === 'cloud' || value === 'metadata';
 }
 
+function isHistoryPhase(value: unknown): value is HistoryItem['phase'] {
+  return value === 'instant-baseline' || value === 'contextual-upgrade';
+}
+
 function isStringArray(value: unknown): value is string[] {
   return (
     Array.isArray(value) && value.every((entry) => typeof entry === 'string')
   );
+}
+
+function isInstantBaselineDecision(
+  value: unknown,
+): value is InstantBaselineDecision {
+  if (!value || typeof value !== 'object') return false;
+  const maybe = value as Partial<InstantBaselineDecision>;
+  if (maybe.outcome !== 'rename' && maybe.outcome !== 'keep') return false;
+  if (
+    maybe.strategy !== 'keep-original' &&
+    maybe.strategy !== 'original-with-date' &&
+    maybe.strategy !== 'page-title' &&
+    maybe.strategy !== 'page-title-with-date'
+  ) {
+    return false;
+  }
+  if (maybe.confidence !== 0 && maybe.confidence !== 100) return false;
+  if (
+    maybe.guardrail !== 'strategy-applied' &&
+    maybe.guardrail !== 'strategy-unavailable'
+  ) {
+    return false;
+  }
+  if (!Array.isArray(maybe.reasons)) return false;
+  if (
+    !maybe.signals ||
+    typeof maybe.signals !== 'object' ||
+    !Array.isArray((maybe.signals as { inputsUsed?: unknown }).inputsUsed) ||
+    !Array.isArray((maybe.signals as { missingInputs?: unknown }).missingInputs)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 function isValidHistoryItem(entry: unknown): entry is HistoryItem {
@@ -45,7 +84,7 @@ function isValidHistoryItem(entry: unknown): entry is HistoryItem {
     typeof maybe.path !== 'string' ||
     typeof maybe.original !== 'string' ||
     typeof maybe.final !== 'string' ||
-    (maybe.phase !== 1 && maybe.phase !== 2) ||
+    !isHistoryPhase(maybe.phase) ||
     !isHistorySource(maybe.source) ||
     !isFileType(maybe.fileType) ||
     !isStringArray(maybe.reasonTags)
@@ -53,6 +92,12 @@ function isValidHistoryItem(entry: unknown): entry is HistoryItem {
     return false;
   }
   if (maybe.undone !== undefined && typeof maybe.undone !== 'boolean') {
+    return false;
+  }
+  if (
+    maybe.decision !== undefined &&
+    !isInstantBaselineDecision(maybe.decision)
+  ) {
     return false;
   }
   return true;
@@ -86,12 +131,4 @@ async function writeHistory(items: HistoryItem[]): Promise<void> {
 export async function addHistoryItem(item: HistoryItem): Promise<void> {
   const history = await readHistory();
   await writeHistory([item, ...history]);
-}
-
-export async function listHistory(): Promise<HistoryItem[]> {
-  return readHistory();
-}
-
-export async function clearHistory(): Promise<void> {
-  await browser.storage.local.remove(HISTORY_KEY);
 }

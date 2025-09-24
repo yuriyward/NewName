@@ -1,6 +1,8 @@
 /**
  * Extension installation date tracking and storage utilities
  */
+import { browser } from 'wxt/browser';
+
 const INSTALL_DATE_STORAGE_KEY = 'install.date.iso';
 
 /** Retrieves stored extension installation date */

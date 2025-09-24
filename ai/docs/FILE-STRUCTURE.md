@@ -5,14 +5,9 @@
 ## Tree Overview
 
 ├── popup/ # 2 files
-│   ├── App.tsx # Main popup interface and WXT React demo component
+│   ├── App.tsx # Settings popup for configuring deterministic Instant Baseline strategies
 │   └── main.tsx # React popup entry point and application bootstrapping
-├── shared/ # 11 directories
-│   ├── analysis/ # 4 files
-│   │   ├── candidate-ranking.ts # Content candidate scoring and ranking algorithms
-│   │   ├── content-filtering.ts # Text filtering and content cleaning utilities
-│   │   ├── heuristics-orchestrator.ts # Phase 1 content analysis orchestration engine
-│   │   └── qualifier-rules.ts # Metadata qualification rules and enrichment logic
+├── shared/ # 10 directories
 │   ├── classification/ # 1 file
 │   │   └── file-types.ts # File type detection from MIME and extensions
 │   ├── context/ # 1 file
@@ -30,8 +25,9 @@
 │   │   └── content-messages.ts # Message type definitions for content-background communication
 │   ├── naming/ # 1 file
 │   │   └── policy-engine.ts # Filename generation policies and formatting rules
-│   ├── pipeline/ # 1 file
-│   │   └── phase1-coordinator.ts # Phase 1 renaming pipeline coordination and orchestration
+│   ├── pipeline/ # 2 files
+│   │   ├── instant-baseline-strategy.ts # Instant Baseline deterministic strategy evaluator
+│   │   └── instant-baseline-types.ts # Shared Instant Baseline decision types
 │   ├── settings/ # 2 files
 │   │   ├── settings.ts # Application settings persistence and state management
 │   │   └── types.ts # Type definitions for application configuration and settings
@@ -55,66 +51,15 @@
 - `export default` - item implementation
 
 ### popup/App.tsx
-**Purpose**: Main popup interface and WXT React demo component
+**Purpose**: Settings popup for configuring deterministic Instant Baseline strategies
 
 **Exports**:
-- `export default` - Main popup interface and WXT React demo component
+- `export default` - item implementation
 
 ### popup/main.tsx
 **Purpose**: React popup entry point and application bootstrapping
 
 *No exports found*
-
-### shared/analysis/candidate-ranking.ts
-**Purpose**: Content candidate scoring and ranking algorithms
-
-**Exports**:
-- `export Candidate` - item implementation
-- `export addCandidate` - item implementation
-- `export addDebugCandidate` - item implementation
-- `export selectBestCandidate` - item implementation
-- `export selectBestDebugCandidate` - item implementation
-
-### shared/analysis/content-filtering.ts
-**Purpose**: Text filtering and content cleaning utilities
-
-**Exports**:
-- `export CandidateReason` - item implementation
-- `export BASE_STOPWORDS` - Text filtering and content cleaning utilities
-- `export FILENAME_STOPWORDS` - item implementation
-- `export GENERIC_SUBJECT_TOKENS` - item implementation
-- `export LINK_STOPWORDS` - item implementation
-- `export LINK_TRAILING_STOPWORDS` - item implementation
-- `export SEGMENT_SPLIT_REGEX` - item implementation
-- `export URL_STOPWORDS` - item implementation
-- `export computeGenericPenalty` - item implementation
-- `export looksLikeHash` - item implementation
-- `export normaliseCandidate` - item implementation
-- `export pickBestSegment` - item implementation
-- `export shouldKeepToken` - item implementation
-- `export trimLinkTokens` - item implementation
-
-### shared/analysis/heuristics-orchestrator.ts
-**Purpose**: Phase 1 content analysis orchestration engine
-
-**Exports**:
-- `export Phase1HeuristicResult` - item implementation
-- `export runPhase1Heuristics` - item implementation
-- `export runPhase1HeuristicsDebug` - item implementation
-
-### shared/analysis/qualifier-rules.ts
-**Purpose**: Metadata qualification rules and enrichment logic
-
-**Exports**:
-- `export DeriveQualifiersParams` - item implementation
-- `export QualifierState` - item implementation
-- `export QualifierRule` - item implementation
-- `export applyDocumentDateQualifier` - item implementation
-- `export applyMediaSpecQualifier` - item implementation
-- `export applySourceQualifier` - item implementation
-- `export QUALIFIER_RULES` - item implementation
-- `export deriveQualifiers` - item implementation
-- `export pushQualifier` - item implementation
 
 ### shared/classification/file-types.ts
 **Purpose**: File type detection from MIME and extensions
@@ -126,8 +71,8 @@
 **Purpose**: Page context extraction and URL analysis utilities
 
 **Exports**:
+- `export InstantBaselineSignals` - item implementation
 - `export PageContextSnapshot` - Page context extraction and URL analysis utilities
-- `export Phase1Signals` - item implementation
 - `export deriveDomainBrand` - item implementation
 - `export extractExtension` - item implementation
 - `export extractFileName` - item implementation
@@ -151,13 +96,11 @@
 **Purpose**: Debug types and interfaces for troubleshooting rename decisions
 
 **Exports**:
-- `export DebugCandidate` - item implementation
 - `export DebugContext` - item implementation
 - `export DebugEvent` - item implementation
-- `export DebugHeuristicResult` - item implementation
 - `export DebugPolicyResult` - item implementation
-- `export DebugQualifierResult` - item implementation
-- `export DebugLevel` - item implementation
+- `export InstantBaselineStrategyDebugSnapshot` - item implementation
+- `export DebugLevel` - Debug types and interfaces for troubleshooting rename dec...
 
 ### shared/debug/verbose-formatter.ts
 **Purpose**: Verbose debug formatting utilities
@@ -171,8 +114,6 @@
 **Exports**:
 - `export HistoryItem` - item implementation
 - `export addHistoryItem` - item implementation
-- `export clearHistory` - item implementation
-- `export listHistory` - item implementation
 
 ### shared/lifecycle/install-tracking.ts
 **Purpose**: Extension installation date tracking and storage utilities
@@ -196,15 +137,25 @@
 - `export FilenamePolicyInput` - Filename generation policies and formatting rules
 - `export FilenamePolicyResult` - item implementation
 - `export applyFilenamePolicy` - item implementation
-- `export applyFilenamePolicyDebug` - item implementation
 
-### shared/pipeline/phase1-coordinator.ts
-**Purpose**: Phase 1 renaming pipeline coordination and orchestration
+### shared/pipeline/instant-baseline-strategy.ts
+**Purpose**: Instant Baseline deterministic strategy evaluator
 
 **Exports**:
-- `export Phase1Outcome` - item implementation
-- `export computePhase1Outcome` - item implementation
-- `export computePhase1OutcomeDebug` - item implementation
+- `export InstantBaselineComputation` - item implementation
+- `export evaluateInstantBaseline` - item implementation
+- `export evaluateInstantBaselineDebug` - item implementation
+
+### shared/pipeline/instant-baseline-types.ts
+**Purpose**: Shared Instant Baseline decision types
+
+**Exports**:
+- `export InstantBaselineDecision` - item implementation
+- `export InstantBaselineDecisionSignals` - item implementation
+- `export InstantBaselineEvaluation` - item implementation
+- `export InstantBaselineRenameProposal` - item implementation
+- `export InstantBaselineStrategyInputs` - item implementation
+- `export InstantBaselineGuardrail` - Shared Instant Baseline decision types
 
 ### shared/settings/settings.ts
 **Purpose**: Application settings persistence and state management
@@ -220,6 +171,7 @@
 - `export DebugSettings` - item implementation
 - `export DEFAULT_SETTINGS` - item implementation
 - `export FileType` - item implementation
+- `export InstantBaselineStrategy` - item implementation
 - `export isFileType` - item implementation
 - `export MetadataToggles` - item implementation
 - `export Mode` - item implementation
@@ -238,10 +190,12 @@
 - `export SettingsV1` - item implementation
 - `export DebugLevel` - Type definitions for application configuration and settings
 - `export FileType` - Type definitions for application configuration and settings
+- `export InstantBaselineStrategy` - item implementation
 - `export Mode` - Type definitions for application configuration and settings
 - `export Separator` - Type definitions for application configuration and settings
 - `export DEFAULT_SETTINGS` - item implementation
 - `export isFileType` - item implementation
+- `export isInstantBaselineStrategy` - item implementation
 
 ### shared/state/page-context-store.ts
 **Purpose**: Runtime page context storage and management

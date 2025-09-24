@@ -7,6 +7,7 @@ import type {
   DebugLevel,
   DebugSettings,
   FileType,
+  InstantBaselineStrategy,
   MetadataToggles,
   Mode,
   PerTypeBehavior,
@@ -16,6 +17,7 @@ import type {
 import {
   DEFAULT_SETTINGS,
   isFileType,
+  isInstantBaselineStrategy,
 } from '@/entrypoints/shared/settings/types';
 
 export type {
@@ -27,6 +29,7 @@ export type {
   Mode,
   PerTypeBehavior,
   Separator,
+  InstantBaselineStrategy,
   SettingsV1,
 };
 export { DEFAULT_SETTINGS, isFileType };
@@ -72,6 +75,10 @@ function coerceSettings(data: unknown): SettingsV1 {
   merged.maxLen = Number.isFinite(merged.maxLen)
     ? Math.min(Math.max(40, Math.trunc(merged.maxLen)), 120)
     : DEFAULT_SETTINGS.maxLen;
+
+  if (!isInstantBaselineStrategy(merged.instantBaselineStrategy)) {
+    merged.instantBaselineStrategy = DEFAULT_SETTINGS.instantBaselineStrategy;
+  }
 
   return merged;
 }

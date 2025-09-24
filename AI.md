@@ -102,14 +102,9 @@ The `ai/` directory hosts both static and auto-generated docs.
 
 ```
 ├── popup/ # 2 files
-│   ├── App.tsx # Main popup interface and WXT React demo component
+│   ├── App.tsx # Settings popup for configuring deterministic Instant Baseline strategies
 │   └── main.tsx # React popup entry point and application bootstrapping
-├── shared/ # 11 directories
-│   ├── analysis/ # 4 files
-│   │   ├── candidate-ranking.ts # Content candidate scoring and ranking algorithms
-│   │   ├── content-filtering.ts # Text filtering and content cleaning utilities
-│   │   ├── heuristics-orchestrator.ts # Phase 1 content analysis orchestration engine
-│   │   └── qualifier-rules.ts # Metadata qualification rules and enrichment logic
+├── shared/ # 10 directories
 │   ├── classification/ # 1 file
 │   │   └── file-types.ts # File type detection from MIME and extensions
 │   ├── context/ # 1 file
@@ -127,8 +122,9 @@ The `ai/` directory hosts both static and auto-generated docs.
 │   │   └── content-messages.ts # Message type definitions for content-background communication
 │   ├── naming/ # 1 file
 │   │   └── policy-engine.ts # Filename generation policies and formatting rules
-│   ├── pipeline/ # 1 file
-│   │   └── phase1-coordinator.ts # Phase 1 renaming pipeline coordination and orchestration
+│   ├── pipeline/ # 2 files
+│   │   ├── instant-baseline-strategy.ts # Instant Baseline deterministic strategy evaluator
+│   │   └── instant-baseline-types.ts # Shared Instant Baseline decision types
 │   ├── settings/ # 2 files
 │   │   ├── settings.ts # Application settings persistence and state management
 │   │   └── types.ts # Type definitions for application configuration and settings

@@ -7,6 +7,7 @@ import {
   expect,
   type Page,
 } from '@playwright/test';
+import type { HistoryItem } from '@/entrypoints/shared/history/history';
 
 type Fixtures = {
   context: BrowserContext;
@@ -121,18 +122,6 @@ export async function waitForFinalFilenameFromExtension(
     await new Promise((r) => setTimeout(r, 150));
   }
 }
-
-export type HistoryItem = {
-  id: string;
-  ts: number;
-  path: string;
-  original: string;
-  final: string;
-  source: string;
-  fileType: string;
-  phase: number;
-  reasonTags: string[];
-};
 
 export async function readHistoryFromExtension(
   context: BrowserContext,

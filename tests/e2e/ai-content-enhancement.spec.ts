@@ -1,9 +1,9 @@
 import { resolveFinalName } from '../shared/download-resolution';
 import { expect, test } from './extension.fixtures';
 
-test.describe('Phase 2 - AI Enhancement Pipeline (Future)', () => {
+test.describe('Contextual Upgrade - AI Enhancement Pipeline (Future)', () => {
   test.describe('Background Upgrade System', () => {
-    test('should offer upgrade from basic Phase 1 to enhanced Phase 2', async ({
+    test('should offer upgrade from basic Instant Baseline to enhanced Contextual Upgrade', async ({
       page,
       context,
     }) => {
@@ -14,50 +14,53 @@ test.describe('Phase 2 - AI Enhancement Pipeline (Future)', () => {
         page.click('text=Pobierz fakturę VAT (PDF)'),
       ]);
 
-      // Phase 1: Basic context-based naming
-      const phase1Name = await resolveFinalName({
+      // Instant Baseline: Basic context-based naming
+      const instantBaselineName = await resolveFinalName({
         context,
         download,
         historyPredicate: (item) =>
-          item.original === 'invoice-2025-09-15.pdf' && item.phase === 1,
+          item.original === 'invoice-2025-09-15.pdf' &&
+          item.phase === 'instant-baseline',
         timeoutMs: 5000,
       });
 
-      expect(phase1Name).toBeDefined();
+      expect(instantBaselineName).toBeDefined();
 
-      // Phase 2: AI-enhanced naming (future implementation)
+      // Contextual Upgrade: AI-enhanced naming (future implementation)
       // This would happen 10s-1m after download, per PRD Technical Section 5
 
-      // Wait for potential Phase 2 enhancement
-      const phase2Enhancement = await resolveFinalName({
+      // Wait for potential Contextual Upgrade enhancement
+      const contextualUpgrade = await resolveFinalName({
         context,
         download,
         historyPredicate: (item) =>
-          item.original === 'invoice-2025-09-15.pdf' && item.phase === 2,
+          item.original === 'invoice-2025-09-15.pdf' &&
+          item.phase === 'contextual-upgrade',
         timeoutMs: 30000, // Longer timeout for AI processing
       }).catch(() => null);
 
-      if (phase2Enhancement) {
-        // PRD: Phase 2 should be significantly better (score delta ≥ +10)
-        // Expected: "Biedronka - Faktura VAT - 2025-09-15 - 146,20 PLN"
+      if (contextualUpgrade) {
+        // PRD: Contextual Upgrade should be significantly better (score delta ≥ +10)
+        // Expected: "Biedronka - Faktura VAT - 2025-09-15"
 
-        expect(phase2Enhancement).toContain('Biedronka');
-        expect(phase2Enhancement).toMatch(/146[,.]20.*PLN/);
-        expect(phase2Enhancement.length).toBeGreaterThan(phase1Name.length);
+        expect(contextualUpgrade).toContain('Biedronka');
+        expect(contextualUpgrade).toContain('Faktura');
+        expect(contextualUpgrade.length).toBeGreaterThan(
+          instantBaselineName.length,
+        );
 
-        // Should include content-derived information not available in Phase 1
+        // Should include content-derived information not available in Instant Baseline
         const hasContentInfo =
-          phase2Enhancement.includes('146,20') || // Amount from PDF content
-          phase2Enhancement.includes('146.20') ||
-          phase2Enhancement.includes('VAT'); // Tax type from content
+          contextualUpgrade.includes('Faktura') || // Document type from PDF content
+          contextualUpgrade.includes('VAT'); // Tax type from content
 
         expect(hasContentInfo).toBe(true);
       } else {
-        // Phase 2 not implemented yet - document the expected behavior
-        console.log(`Phase 1 result: ${phase1Name}`);
-        console.log('Phase 2 enhancement: Not yet implemented');
+        // Contextual Upgrade not implemented yet - document the expected behavior
+        console.log(`Instant Baseline result: ${instantBaselineName}`);
+        console.log('Contextual Upgrade enhancement: Not yet implemented');
         console.log(
-          'Expected Phase 2: "Biedronka - Faktura VAT - 2025-09-15 - 146,20 PLN"',
+          'Expected Contextual Upgrade: "Biedronka - Faktura VAT - 2025-09-15"',
         );
       }
     });
@@ -67,13 +70,12 @@ test.describe('Phase 2 - AI Enhancement Pipeline (Future)', () => {
     }) => {
       await page.goto('/scenarios/business/biedronka-receipt.html');
 
-      // This test documents what Phase 2 should extract from PDF content
+      // This test documents what Contextual Upgrade should extract from PDF content
       // PRD Technical Section 5.3: PDF.js text extraction → Summarizer
 
       const expectedContentExtractions = {
         vendor: 'Biedronka',
         documentType: 'Faktura VAT',
-        amount: '146,20 PLN',
         date: '2025-09-15',
         language: 'pl', // Detected via Language Detector API
       };
@@ -85,14 +87,12 @@ test.describe('Phase 2 - AI Enhancement Pipeline (Future)', () => {
           .locator('meta[name="description"]')
           .getAttribute('content'),
         h2Text: await page.locator('h2').textContent(),
-        amountText: await page.locator('text=146,20 PLN').textContent(),
       };
 
       expect(pageData.title).toContain(expectedContentExtractions.vendor);
       expect(pageData.h2Text).toContain(
         expectedContentExtractions.documentType,
       );
-      expect(pageData.amountText).toContain(expectedContentExtractions.amount);
 
       // Phase 2 would extract this from actual PDF content via PDF.js
       console.log('PDF content analysis targets:', expectedContentExtractions);

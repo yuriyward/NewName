@@ -17,72 +17,31 @@ export function logVerboseContext(context: DebugContext): void {
     MIME: context.signals.mime,
     Referrer: context.signals.referrer || 'none',
     'Page Title': context.signals.page?.title || 'none',
-    'Page Heading': context.signals.page?.heading || 'none',
-    'Link Text': context.signals.page?.linkText || 'none',
   });
 
-  if (context.heuristicResult?.debug) {
-    console.log('');
-    console.log('=== Candidate Evaluation ===');
-    console.table(
-      context.heuristicResult.debug.candidateEvaluation.map((c) => ({
-        Value: c.value,
-        Reason: c.reason,
-        Score: c.score,
-        'Base Score': c.debug.scoreBreakdown.base,
-        'Length Bonus': c.debug.scoreBreakdown.length,
-        Penalty: c.debug.scoreBreakdown.penalty,
-      })),
-    );
-
-    console.log('');
-    console.log('=== Selected Candidate ===');
-    const selected = context.heuristicResult.debug.selectedCandidate;
-    console.table({
-      Value: selected.value,
-      Reason: selected.reason,
-      'Final Score': selected.score,
-      Source: selected.source,
-    });
-
-    if (context.heuristicResult.debug.qualifierAnalysis?.debug) {
-      console.log('');
-      console.log('=== Qualifier Analysis ===');
-      const qa = context.heuristicResult.debug.qualifierAnalysis;
-      console.log('Applied qualifiers:', qa.qualifiers);
-      console.log('Reason tags:', qa.reasonTags);
-      console.table(qa.debug.appliedRules);
-    }
-  }
-
-  if (context.policyResult?.debug) {
-    console.log('');
-    console.log('=== Policy Application ===');
-    const pd = context.policyResult.debug;
-    console.log('Subject tokens:', pd.tokenProcessing.subjectTokens);
-    console.log('Qualifier tokens:', pd.tokenProcessing.qualifierTokens);
-    console.log('Formatted subject:', pd.tokenProcessing.formattedSubject);
-    console.log(
-      'Formatted qualifiers:',
-      pd.tokenProcessing.formattedQualifiers,
-    );
-    console.table({
-      Allowance: pd.lengthCalculation.allowance,
-      'Effective Allowance': pd.lengthCalculation.effectiveAllowance,
-      'Final Length': pd.lengthCalculation.finalLength,
-    });
-  }
+  console.log('');
+  console.log('=== Strategy ===');
+  console.table({
+    Strategy: context.strategy.selected,
+    'Original Base': context.strategy.inputs.originalBase,
+    'Page Title': context.strategy.inputs.pageTitle || 'none',
+    'ISO Date': context.strategy.inputs.isoDate || 'none',
+    Output:
+      context.strategy.generatedFilename ||
+      context.evaluation.originalPath.split(/\\|\//).pop() ||
+      context.evaluation.originalPath,
+  });
 
   console.log('');
-  console.log('=== Final Decision ===');
+  console.log('=== Decision ===');
   console.table({
-    'Should Rename': context.decision.shouldRename,
-    Reason: context.decision.reason,
-    Threshold: context.decision.threshold || 'N/A',
-    Score: context.decision.score || 'N/A',
-    'Final Path': context.finalOutcome.path,
-    'File Type': context.finalOutcome.fileType,
-    Source: context.finalOutcome.source,
+    Outcome: context.evaluation.decision.outcome,
+    Strategy: context.evaluation.decision.strategy,
+    Confidence: context.evaluation.decision.confidence,
+    Guardrail: context.evaluation.decision.guardrail,
+    Reasons: context.evaluation.decision.reasons.join(', ') || 'none',
+    'Inputs Used': context.evaluation.inputsUsed.join(', ') || 'none',
+    'Inputs Missing': context.evaluation.missingInputs.join(', ') || 'none',
   });
 
   console.log('=== End Debug Context ===');

@@ -12,6 +12,11 @@ export type FileType =
   | 'archive'
   | 'office'
   | 'data';
+export type InstantBaselineStrategy =
+  | 'keep-original'
+  | 'original-with-date'
+  | 'page-title'
+  | 'page-title-with-date';
 
 export interface PerTypeBehavior {
   behavior: 'auto' | 'confirm' | 'off';
@@ -42,6 +47,7 @@ export interface SettingsV1 {
   separator: Separator;
   maxLen: number;
   transliterateAscii: boolean;
+  instantBaselineStrategy: InstantBaselineStrategy;
   perType: Record<FileType, PerTypeBehavior>;
   metadataToggles: MetadataToggles;
   cloud: CloudSettings;
@@ -56,6 +62,7 @@ export const DEFAULT_SETTINGS: SettingsV1 = {
   separator: 'clean',
   maxLen: 60,
   transliterateAscii: false,
+  instantBaselineStrategy: 'original-with-date',
   perType: {
     pdf: { behavior: 'auto' },
     image: { behavior: 'auto' },
@@ -92,5 +99,16 @@ export function isFileType(value: unknown): value is FileType {
     value === 'office' ||
     value === 'archive' ||
     value === 'data'
+  );
+}
+
+export function isInstantBaselineStrategy(
+  value: unknown,
+): value is InstantBaselineStrategy {
+  return (
+    value === 'keep-original' ||
+    value === 'original-with-date' ||
+    value === 'page-title' ||
+    value === 'page-title-with-date'
   );
 }
