@@ -28,7 +28,8 @@
     "commit": "git-cz",
     "e2e": "bun run build && playwright test -c playwright.config.noopen.ts",
     "e2e:report": "bun run build && playwright test -c playwright.config.report.ts",
-    "e2e:install": "playwright install chromium"
+    "e2e:install": "playwright install chromium",
+    "test:manual": "node scripts/fixtures-server.mjs"
   },
   "dependencies": {
     "react": "^19.1.1",
