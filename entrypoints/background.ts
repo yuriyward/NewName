@@ -23,6 +23,7 @@ import {
 import {
   clearPageContext,
   getPageContext,
+  getPageContextByUrl,
   pruneStaleContexts,
   updatePageContext,
 } from '@/entrypoints/shared/state/page-context-store';
@@ -172,18 +173,26 @@ const handleContentMessage: Parameters<
   if (tabId === null) return;
 
   if (typed.type === 'PAGE_CONTEXT') {
-    updatePageContext(tabId, {
-      title: typed.payload.title,
-      heading: typed.payload.heading,
-    });
+    updatePageContext(
+      tabId,
+      {
+        title: typed.payload.title,
+        heading: typed.payload.heading,
+      },
+      sender.url,
+    );
     return;
   }
 
   if (typed.type === 'LINK_CONTEXT') {
-    updatePageContext(tabId, {
-      linkText: typed.payload.linkText,
-      linkRel: typed.payload.linkRel ?? undefined,
-    });
+    updatePageContext(
+      tabId,
+      {
+        linkText: typed.payload.linkText,
+        linkRel: typed.payload.linkRel ?? undefined,
+      },
+      sender.url,
+    );
   }
 };
 
@@ -212,7 +221,8 @@ async function processDeterminingFilename(
       typeof (item as { tabId?: number }).tabId === 'number'
         ? (item as { tabId?: number }).tabId
         : undefined;
-    const pageContext = getPageContext(initiatingTabId);
+    const pageContext =
+      getPageContext(initiatingTabId) ?? getPageContextByUrl(item.referrer);
 
     const signals = {
       url,
