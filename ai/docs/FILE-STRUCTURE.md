@@ -204,6 +204,7 @@
 - `export PageContext` - Runtime page context storage and management
 - `export clearPageContext` - item implementation
 - `export getPageContext` - item implementation
+- `export getPageContextByUrl` - item implementation
 - `export pruneStaleContexts` - item implementation
 - `export updatePageContext` - item implementation
 
