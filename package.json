@@ -44,6 +44,7 @@
     "@heroui/system": "2.4.22",
     "@heroui/theme": "2.4.22",
     "@heroui/toast": "^2.0.16",
+    "@heroui/use-theme": "^2.1.10",
     "framer-motion": "12.23.22",
     "react": "19.1.1",
     "react-dom": "19.1.1",

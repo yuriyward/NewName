@@ -2,53 +2,25 @@
  * Settings popup for configuring deterministic Instant Baseline strategies
  */
 
-import {
-  Alert,
-  Chip,
-  Divider,
-  Radio,
-  RadioGroup,
-  Skeleton,
-} from '@heroui/react';
+import { Alert } from '@heroui/alert';
+import { Chip } from '@heroui/chip';
+import { Divider } from '@heroui/divider';
+import { Radio, RadioGroup } from '@heroui/radio';
+import { Skeleton } from '@heroui/skeleton';
+import { useTheme } from '@heroui/use-theme';
 import type { JSX } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import { STRATEGY_OPTIONS } from '@/entrypoints/shared/pipeline/strategy-options';
 import {
   getSettings,
   type InstantBaselineStrategy,
   subscribeSettings,
   updateSettings,
 } from '@/entrypoints/shared/settings/settings';
-
-type StrategyOption = {
-  value: InstantBaselineStrategy;
-  title: string;
-  description: string;
-};
-
-const STRATEGY_OPTIONS: StrategyOption[] = [
-  {
-    value: 'keep-original',
-    title: 'Keep original name',
-    description: 'Never rename downloads.',
-  },
-  {
-    value: 'original-with-date',
-    title: 'Original name + date',
-    description: 'Add download date to filename.',
-  },
-  {
-    value: 'page-title',
-    title: 'Page title only',
-    description: 'Use the page title as filename.',
-  },
-  {
-    value: 'page-title-with-date',
-    title: 'Page title + date',
-    description: 'Combine page title with download date.',
-  },
-];
+import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 
 function App(): JSX.Element {
+  const { theme, setTheme } = useTheme();
   const [strategy, setStrategy] = useState<InstantBaselineStrategy | null>(
     null,
   );
@@ -93,6 +65,14 @@ function App(): JSX.Element {
     return () => window.clearTimeout(timeout);
   }, [savedAt]);
 
+  // Auto-detect system theme on first load and daily reset
+  useEffect(() => {
+    const appropriateTheme = getAppropriateTheme(theme);
+    if (appropriateTheme !== theme) {
+      setTheme(appropriateTheme);
+    }
+  }, [theme, setTheme]);
+
   const options = useMemo(() => STRATEGY_OPTIONS, []);
 
   const handleChange = async (value: InstantBaselineStrategy) => {
@@ -116,13 +96,23 @@ function App(): JSX.Element {
 
   return (
     <div className="w-80 p-3 bg-background text-foreground relative">
+      {/* Dark Mode Toggle */}
+      <button
+        type="button"
+        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-default-600 hover:text-default-900 transition-colors cursor-pointer"
+        title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+      >
+        {theme === 'dark' ? '☀️' : '🌙'}
+      </button>
+
       {/* Floating Saved Chip */}
       {!saving && savedAt !== null && (
         <Chip
           color="success"
           variant="flat"
           size="sm"
-          className="absolute top-2 right-2 z-10 text-xs animate-in fade-in slide-in-from-top-2 duration-300"
+          className="absolute top-2 right-10 z-10 text-xs animate-in fade-in slide-in-from-top-2 duration-300"
         >
           Saved
         </Chip>
