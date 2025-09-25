@@ -31,10 +31,7 @@ test.describe('Instant Baseline — Filename Sanitization', () => {
     expect(finalName).toContain('_'); // Original underscores preserved in fallback
   });
 
-  test('maintains filesystem-safe filenames', async ({
-    page,
-    context,
-  }) => {
+  test('maintains filesystem-safe filenames', async ({ page, context }) => {
     await page.goto('/scenarios/business/sprint-planning.html');
 
     const [download] = await Promise.all([
@@ -204,7 +201,9 @@ test.describe('Instant Baseline — Filename Sanitization', () => {
     });
 
     // Should sanitize underscores and append date (clean separator capitalizes tokens)
-    expect(finalName).toMatch(/^Historia Transakcji 2509238693113130 \d{4}-\d{2}-\d{2}\.pdf$/);
+    expect(finalName).toMatch(
+      /^Historia Transakcji 2509238693113130 \d{4}-\d{2}-\d{2}\.pdf$/,
+    );
     expect(finalName).not.toContain('_');
   });
 
@@ -330,7 +329,9 @@ test.describe('Instant Baseline — Filename Sanitization', () => {
     });
 
     // Should combine sanitized page title with current date (clean separator)
-    expect(finalName).toMatch(/^Navbar Fix Dialog Component Figma \d{4}-\d{2}-\d{2}\.png$/);
+    expect(finalName).toMatch(
+      /^Navbar Fix Dialog Component Figma \d{4}-\d{2}-\d{2}\.png$/,
+    );
     expect(finalName).toContain('Figma');
   });
 

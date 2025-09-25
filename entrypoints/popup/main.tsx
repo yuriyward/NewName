@@ -1,6 +1,8 @@
 /**
  * React popup entry point and application bootstrapping
  */
+
+import { HeroUIProvider } from '@heroui/react';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
@@ -13,6 +15,8 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <App />
+    <HeroUIProvider>
+      <App />
+    </HeroUIProvider>
   </React.StrictMode>,
 );

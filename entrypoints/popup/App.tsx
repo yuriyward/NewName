@@ -2,6 +2,14 @@
  * Settings popup for configuring deterministic Instant Baseline strategies
  */
 
+import {
+  Alert,
+  Chip,
+  Divider,
+  Radio,
+  RadioGroup,
+  Skeleton,
+} from '@heroui/react';
 import type { JSX } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -21,26 +29,22 @@ const STRATEGY_OPTIONS: StrategyOption[] = [
   {
     value: 'keep-original',
     title: 'Keep original name',
-    description:
-      'Leave downloads untouched in Phase 1. Use Phase 2 when you want an upgraded suggestion.',
+    description: 'Never rename downloads.',
   },
   {
     value: 'original-with-date',
-    title: 'Original name + download date',
-    description:
-      'Sanitize the original filename and append the YYYY-MM-DD download date when available.',
+    title: 'Original name + date',
+    description: 'Add download date to filename.',
   },
   {
     value: 'page-title',
     title: 'Page title only',
-    description:
-      'Use the page title captured at download time. Falls back to the original name if no title was available.',
+    description: 'Use the page title as filename.',
   },
   {
     value: 'page-title-with-date',
-    title: 'Page title + download date',
-    description:
-      'Combine the page title with the download date. If either input is missing the original filename is kept.',
+    title: 'Page title + date',
+    description: 'Combine page title with download date.',
   },
 ];
 
@@ -111,91 +115,76 @@ function App(): JSX.Element {
   };
 
   return (
-    <section
-      className="flex flex-col gap-4 p-5 bg-white text-slate-900 w-[360px] max-w-full m-0 dark:bg-slate-900 dark:text-slate-200"
-      aria-label="Phase 1 strategy settings"
-    >
-      <header className="space-y-1">
-        <h1 className="m-0 text-xl font-semibold text-slate-900 dark:text-slate-50">
-          Phase 1 strategy
-        </h1>
-        <p className="mt-1 mb-0 text-sm leading-relaxed text-slate-600 dark:text-blue-300">
-          Choose how NewName handles downloads instantly. These options only use
-          deterministic metadata—semantic upgrades stay in Phase 2.
+    <div className="w-80 p-3 bg-background text-foreground relative">
+      {/* Floating Saved Chip */}
+      {!saving && savedAt !== null && (
+        <Chip
+          color="success"
+          variant="flat"
+          size="sm"
+          className="absolute top-2 right-2 z-10 text-xs animate-in fade-in slide-in-from-top-2 duration-300"
+        >
+          Saved
+        </Chip>
+      )}
+
+      <header className="mb-3">
+        <h1 className="text-lg font-semibold mb-1">Rename Strategy</h1>
+        <p className="text-xs text-default-600 leading-relaxed">
+          Choose how to rename downloads automatically.
         </p>
       </header>
 
       {loading ? (
-        <div
-          className="text-center text-sm text-slate-600 dark:text-blue-300"
-          aria-live="polite"
-        >
-          Loading…
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-2/3" />
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-12 w-full rounded-lg" />
         </div>
       ) : (
         <>
           {error && (
-            <div
-              className="rounded-xl border border-red-200 bg-red-50 text-red-700 px-3 py-2.5 text-sm dark:border-red-800 dark:bg-red-900 dark:text-red-200"
-              role="alert"
-            >
+            <Alert color="danger" variant="flat" className="mb-3 text-xs">
               {error}
-            </div>
+            </Alert>
           )}
 
-          <fieldset className="border-0 m-0 p-0 flex flex-col gap-3">
-            <legend className="text-xs font-semibold text-slate-500 mb-1 uppercase tracking-wide">
-              Strategies
-            </legend>
-            {options.map((option) => {
-              const checked = strategy === option.value;
-              return (
-                <label
-                  key={option.value}
-                  className={`flex items-start gap-3 p-3 rounded-xl border transition-all duration-200 ease-in-out cursor-pointer ${checked ? 'border-blue-600 bg-blue-50 shadow-[0_0_0_2px_rgba(37,99,235,0.15)] dark:border-blue-400 dark:bg-blue-900 dark:shadow-[0_0_0_2px_rgba(96,165,250,0.2)]' : 'border-slate-200 bg-slate-50 hover:border-blue-300 dark:border-slate-700 dark:bg-gray-800 dark:hover:border-blue-600'}`}
-                >
-                  <input
-                    type="radio"
-                    name="instant-baseline-strategy"
-                    value={option.value}
-                    checked={checked}
-                    onChange={() => handleChange(option.value)}
-                    disabled={saving}
-                    className="mt-1 accent-blue-600"
-                  />
-                  <div className="flex flex-col gap-1">
-                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
-                      {option.title}
-                    </span>
-                    <span className="text-sm leading-relaxed text-slate-600 dark:text-blue-300">
-                      {option.description}
-                    </span>
-                  </div>
-                </label>
-              );
-            })}
-          </fieldset>
+          <RadioGroup
+            value={strategy || ''}
+            onValueChange={(value) =>
+              handleChange(value as InstantBaselineStrategy)
+            }
+            isDisabled={saving}
+            className="mb-3"
+          >
+            {options.map((option) => (
+              <Radio
+                key={option.value}
+                value={option.value}
+                description={option.description}
+                classNames={{
+                  base: 'max-w-full m-0 bg-content1 hover:bg-content2 items-start cursor-pointer rounded-lg gap-3 p-2 border border-transparent data-[selected=true]:border-primary data-[selected=true]:bg-primary-50',
+                  wrapper: 'mt-0.5',
+                  labelWrapper: 'ml-0',
+                  label: 'text-sm font-medium',
+                  description: 'text-xs text-default-500 mt-0.5',
+                }}
+              >
+                {option.title}
+              </Radio>
+            ))}
+          </RadioGroup>
 
-          <footer className="flex flex-col gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
-            <div
-              className="min-h-[1em] text-xs text-slate-500"
-              aria-live="polite"
-            >
-              {saving && <span>Saving…</span>}
-              {!saving && savedAt !== null && (
-                <span className="text-green-600 font-semibold dark:text-green-400">
-                  Saved
-                </span>
-              )}
-            </div>
-            <p className="m-0 text-xs leading-relaxed text-slate-500">
-              Missing inputs (e.g. no page title) automatically fall back to the
-              original filename, so Phase 1 never makes unsafe guesses.
+          <Divider className="mb-2" />
+
+          <footer>
+            <p className="text-xs text-default-500 leading-relaxed">
+              If it can't rename, saves with original name.
             </p>
           </footer>
         </>
       )}
-    </section>
+    </div>
   );
 }
 
