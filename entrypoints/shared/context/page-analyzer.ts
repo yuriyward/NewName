@@ -9,7 +9,7 @@ export interface PageContextSnapshot {
   capturedAt: number;
 }
 
-export interface Phase1Signals {
+export interface InstantBaselineSignals {
   url: string;
   referrer?: string;
   filename: string;
@@ -41,18 +41,32 @@ export function deriveDomainBrand(url: URL): string | null {
     .split('.')
     .filter((segment) => segment && segment !== 'www' && segment !== 'm');
   if (parts.length === 0) return null;
-  const last = parts[parts.length - 1];
-  const secondLast = parts.length >= 2 ? parts[parts.length - 2] : null;
-  if (last.length <= 3 && secondLast) {
-    if (secondLast.length <= 3 && parts.length >= 3) {
-      const thirdLast = parts[parts.length - 3];
-      if (thirdLast) {
-        return thirdLast.toLowerCase();
+  const normalized = parts.map((segment) => segment.toLowerCase());
+
+  const pickIndex = (): number => {
+    const lastIndex = normalized.length - 1;
+    const last = normalized[lastIndex];
+    if (last.length <= 3 && lastIndex > 0) {
+      const secondLastIndex = lastIndex - 1;
+      const secondLast = normalized[secondLastIndex];
+      if (secondLast.length <= 3 && secondLastIndex > 0) {
+        return secondLastIndex - 1;
       }
+      return secondLastIndex;
     }
-    return secondLast.toLowerCase();
+    return lastIndex;
+  };
+
+  let index = pickIndex();
+  while (index >= 0) {
+    const candidate = normalized[index];
+    if (!/^\d+$/.test(candidate)) {
+      return candidate;
+    }
+    index -= 1;
   }
-  return last.toLowerCase();
+
+  return null;
 }
 
 export function extractResolutionFromFilename(filename: string): string | null {

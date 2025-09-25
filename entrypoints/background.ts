@@ -9,10 +9,11 @@ import { addHistoryItem } from '@/entrypoints/shared/history/history';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
 import type { ContentToBackgroundMessage } from '@/entrypoints/shared/messaging/content-messages';
 import {
-  computePhase1Outcome,
-  computePhase1OutcomeDebug,
-  type Phase1Outcome,
-} from '@/entrypoints/shared/pipeline/phase1-coordinator';
+  evaluateInstantBaseline,
+  evaluateInstantBaselineDebug,
+  type InstantBaselineComputation,
+} from '@/entrypoints/shared/pipeline/instant-baseline-strategy';
+import type { InstantBaselineEvaluation } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import {
   getLastKnownSettings,
   getSettings,
@@ -22,6 +23,7 @@ import {
 import {
   clearPageContext,
   getPageContext,
+  getPageContextByUrl,
   pruneStaleContexts,
   updatePageContext,
 } from '@/entrypoints/shared/state/page-context-store';
@@ -171,18 +173,26 @@ const handleContentMessage: Parameters<
   if (tabId === null) return;
 
   if (typed.type === 'PAGE_CONTEXT') {
-    updatePageContext(tabId, {
-      title: typed.payload.title,
-      heading: typed.payload.heading,
-    });
+    updatePageContext(
+      tabId,
+      {
+        title: typed.payload.title,
+        heading: typed.payload.heading,
+      },
+      sender.url,
+    );
     return;
   }
 
   if (typed.type === 'LINK_CONTEXT') {
-    updatePageContext(tabId, {
-      linkText: typed.payload.linkText,
-      linkRel: typed.payload.linkRel ?? undefined,
-    });
+    updatePageContext(
+      tabId,
+      {
+        linkText: typed.payload.linkText,
+        linkRel: typed.payload.linkRel ?? undefined,
+      },
+      sender.url,
+    );
   }
 };
 
@@ -211,7 +221,8 @@ async function processDeterminingFilename(
       typeof (item as { tabId?: number }).tabId === 'number'
         ? (item as { tabId?: number }).tabId
         : undefined;
-    const pageContext = getPageContext(initiatingTabId);
+    const pageContext =
+      getPageContext(initiatingTabId) ?? getPageContextByUrl(item.referrer);
 
     const signals = {
       url,
@@ -222,31 +233,33 @@ async function processDeterminingFilename(
       page: pageContext,
     };
 
-    let outcome: Phase1Outcome;
+    let computation: InstantBaselineComputation;
     let debugContext: DebugContext | null = null;
 
     if (debugLogger.isEnabled()) {
       const downloadId = debugLogger.createDownloadId();
-      debugContext = computePhase1OutcomeDebug(signals, settings, downloadId);
-      debugLogger.startContext(debugContext.downloadId, debugContext);
-      outcome = debugContext.finalOutcome;
-    } else {
-      outcome = computePhase1Outcome(signals, settings);
-    }
-
-    const shouldRename = shouldRenameType(settings, outcome.fileType);
-
-    if (debugContext) {
-      debugContext.renamed = shouldRename;
-      debugContext.decision = {
-        shouldRename,
-        reason: shouldRename ? 'file type enabled' : 'file type disabled',
+      debugContext = evaluateInstantBaselineDebug(
+        signals,
+        settings,
+        downloadId,
+      );
+      debugLogger.startContext(downloadId, debugContext);
+      computation = {
+        evaluation: debugContext.evaluation,
+        inputs: debugContext.strategy.inputs,
       };
-      debugLogger.finishContext(debugContext.downloadId, debugContext);
+    } else {
+      computation = evaluateInstantBaseline(signals, settings);
     }
 
-    if (shouldRename) {
-      const submitted = controller.trySuggest({ filename: outcome.path });
+    const evaluation: InstantBaselineEvaluation = computation.evaluation;
+    const typeEnabled = shouldRenameType(settings, evaluation.fileType);
+    const renameCandidate = typeEnabled ? evaluation.rename : undefined;
+
+    if (renameCandidate) {
+      const submitted = controller.trySuggest({
+        filename: renameCandidate.path,
+      });
       if (!submitted) {
         return;
       }
@@ -260,19 +273,43 @@ async function processDeterminingFilename(
       return;
     }
 
+    const historyDecision: InstantBaselineEvaluation['decision'] =
+      renameCandidate
+        ? evaluation.decision
+        : {
+            ...evaluation.decision,
+            outcome: 'keep',
+            reasons:
+              evaluation.decision.outcome === 'rename' && !typeEnabled
+                ? [...evaluation.decision.reasons, 'file-type-disabled']
+                : evaluation.decision.reasons,
+          };
+
     await addHistoryItem({
       id: randomId(),
       ts: Date.now(),
-      path: outcome.path,
+      path: renameCandidate ? renameCandidate.path : evaluation.originalPath,
       original: basename(filename),
-      final: outcome.filename,
-      source: outcome.source,
-      fileType: outcome.fileType,
-      phase: 1,
-      reasonTags: outcome.reasonTags,
+      final: renameCandidate ? renameCandidate.filename : basename(filename),
+      source: renameCandidate ? renameCandidate.source : evaluation.source,
+      fileType: evaluation.fileType,
+      phase: 'instant-baseline',
+      reasonTags: evaluation.reasonTags,
+      decision: historyDecision,
     });
+
+    if (debugContext) {
+      debugLogger.finishContext(debugContext.downloadId, {
+        evaluation: renameCandidate
+          ? evaluation
+          : {
+              ...evaluation,
+              decision: historyDecision,
+            },
+      });
+    }
   } catch (error) {
-    console.error('Phase-1 rename failed', error);
+    console.error('Instant Baseline rename failed', error);
     if (!suggestionIssued) {
       controller.ensureDefault();
     }
@@ -283,7 +320,7 @@ async function processDeterminingFilename(
 
 const handleDeterminingFilename: DeterminingListener = (item, suggest) => {
   void processDeterminingFilename(item, suggest).catch((error) => {
-    console.error('Phase-1 rename unhandled failure', error);
+    console.error('Instant Baseline rename unhandled failure', error);
   });
 };
 

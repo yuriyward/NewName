@@ -6,7 +6,7 @@
 
 ## 1) Summary
 
-NewName automatically gives new files short, human-like names. It renames instantly using page/download context (Phase 1), then optionally upgrades the name using lightweight content analysis (Phase 2). Processing is **local-first** using Chrome’s **built-in AI** (Prompt, Summarizer, Language Detector). An **explicit, opt-in cloud fallback** (Firebase AI Logic → Gemini) is available. Users can **Undo** and **Upgrade** post-save thanks to one-time **Downloads folder** access via File System Access.
+NewName automatically gives new files short, human-like names. The Instant Baseline stage now applies **deterministic strategies** (keep original, append date, reuse page title) selected by the user, with automatic fallbacks to the original name when inputs are missing. Anything more ambitious is deferred to the Contextual Upgrade stage, which the user can opt into via “Upgrade”. Processing is **local-first** using Chrome’s **built-in AI** (Prompt, Summarizer, Language Detector). An **explicit, opt-in cloud fallback** (Firebase AI Logic → Gemini) is available. Users can **Undo** and **Upgrade** post-save thanks to one-time **Downloads folder** access via File System Access.
 
 ## 2) Problem & Opportunity
 
@@ -33,7 +33,7 @@ People accumulate poorly named files; retrieval is slow. Current renamers are ru
 * Names feel **human**, localized, usually ≤ 60 chars.
 * **Local-first**: built-in Chrome AI; degrade gracefully to metadata-only.
 * **Explicit cloud fallback** (opt-in, per-type scope, data-minimized).
-* **Decision-first**: rename only when it clearly improves clarity.
+* **Decision-first**: apply only deterministic strategies in the Instant Baseline stage; anything uncertain stays as the original name for the optional Contextual Upgrade stage.
 * **Undo/Upgrade** available after save (Downloads folder access).
 * **Privacy-forward** defaults; transparent when geo/site/date influence naming.
 
@@ -53,14 +53,15 @@ People accumulate poorly named files; retrieval is slow. Current renamers are ru
 
 ## 6) High-Level Flow
 
-### Phase 1 — Instant Context Analysis (<1s)
+### Instant Baseline — Deterministic Stage (<1s)
 
 * **Trigger:** `chrome.downloads.onDeterminingFilename`.
-* **Signals:** page title/H1, link text/ARIA, domain/URL path, file type, timestamp, user language preference.
-* **Action:** Heuristic + optional micro Prompt formatting → `suggest()`; download completes instantly.
-* **Feedback:** Toast: “Renamed (On-device) to **…**” · Undo · Edit.
+* **Signals:** original filename, download timestamp, and page title (when provided by the content script). No heuristics, scoring, or AI.
+* **Decision:** Apply the user-selected strategy (`keep-original`, `original-with-date`, `page-title`, `page-title-with-date`). If required inputs (title/date) are missing, gracefully fall back to the original filename.
+* **Action:** Generate the deterministic name with the Filename Policy (safe characters, separators) and call `suggest()`. When falling back, keep the original name and record the reason so the Contextual Upgrade stage can offer upgrades.
+* **Feedback:** Toasts differentiate outcomes: “Renamed (Strategy)” with Undo/Edit, or “Kept original (Upgrade available)” when inputs were insufficient.
 
-### Phase 2 — Background AI Enhancement (10s–1m, optional)
+### Contextual Upgrade — Background AI Enhancement (10s–1m, optional)
 
 * **Runtime:** Offscreen document hosts **Summarizer/Prompt/Language Detector** sessions.
 * **Content access:** Re-fetch original URL with **Range**; process first 2–5 PDF pages (text-first), or a small image/keyframe/audio slice for images/video/audio.
@@ -96,16 +97,14 @@ People accumulate poorly named files; retrieval is slow. Current renamers are ru
 
 ## 8) Decision Policy (Rename vs Keep)
 
-Score 0–100; rename if ≥ threshold (default 60).
+The Instant Baseline stage is purely deterministic. Users choose one of four strategies, and the extension either applies it or keeps the download untouched if the required inputs are missing.
 
-Illustrative weights:
+* `keep-original` — never rename; the Instant Baseline stage logs “strategy-unavailable” for traceability.
+* `original-with-date` — append the download date (`YYYY-MM-DD`) to the sanitized original basename. If no timestamp is provided by Chrome, fall back to the original name.
+* `page-title` — use the page title (sanitized) when present; otherwise keep the original name. No attempt is made to infer subject matter.
+* `page-title-with-date` — combine the sanitized page title with the download date, degrading to whichever inputs are available.
 
-* Content title/heading confidence … +35
-* Recognized doc type (form/invoice/contract) … +20
-* Helpful metadata (geo/date/duration) … +15
-* Source clarity (site/vendor/model) … +10
-* Existing name already clear … −30
-* Low confidence/ambiguous … −20
+Any richer understanding or vendor-specific logic is deferred to the Contextual Upgrade “Upgrade”, where on-device or opt-in cloud AI can inspect the file itself.
 
 ## 9) Naming Rules (Human Style)
 
@@ -145,7 +144,7 @@ Illustrative weights:
 * **MV3 service worker**: listens for downloads; hands off work to offscreen page.
 * **Offscreen document**: hosts built-in AI sessions, PDF.js/MuPDF, OCR if needed.
 * **File System Access**: single user grant for **Downloads** enables reliable Upgrade/Undo.
-* **Range fetching**: partial content fetch of originals to avoid full downloads in Phase 2.
+* **Range fetching**: partial content fetch of originals to avoid full downloads during the Contextual Upgrade stage.
 * **Policy enforcement**: Prompt structured output schema guarantees safe filenames.
 
 ## 12) Success Metrics (opt-in, privacy-respecting)
@@ -154,14 +153,15 @@ Illustrative weights:
 * **Time saved**: ≥ 50% fewer manual renames after 2 weeks.
 * **Adoption**: ≥ 70% keep Auto-rename after week 1.
 * **Trust**: < 5% revert rate on renamed items.
-* **Coverage**: 70–90% of eligible files renamed (rest intentionally kept).
+* **Coverage**: Share of downloads renamed by the configured strategy vs. kept (e.g., % of files with title/date available).
+* **Guardrail health**: Track “Strategy applied” vs “Strategy unavailable” to ensure fallbacks work as expected.
 * **Cloud usage**: % users enabling cloud assist; events per type (aggregate only).
 
 ## 13) Rollout Plan
 
 **MVP (Weeks 1–3)**
 
-* Phase 1 for PDFs + Images (screenshots/scans/photos).
+* Instant Baseline coverage for PDFs + Images (screenshots/scans/photos).
 * Text-first PDF naming; scan fallback via MuPDF raster → Prompt image.
 * Onboarding with Mode selection + **Downloads** access; local-only by default.
 * Toast + Undo; basic Settings; History (recent 50).
@@ -179,11 +179,11 @@ Illustrative weights:
 
 ## 14) Risks & Mitigations
 
-* **Incorrect titles** → Conservative threshold; Confirm mode; easy Undo.
+* **Incorrect titles** → Deterministic strategies only use raw inputs (title/date/original). Users can always revert via Undo; richer inference is deferred to the Contextual Upgrade stage.
 * **Privacy concerns** → On-device default; explicit cloud consent; data minimization; clear badges.
 * **Performance on large files** → Range fetch; cap pages/seconds; cache site hints; metadata-only fallback.
 * **Model not ready / user-activation** → Capture activation in onboarding; show model status; metadata-only mode until ready.
-* **Post-save renames** → Require Downloads access early; graceful path if user declines (Upgrade disabled; Undo limited to Phase 1).
+* **Post-save renames** → Require Downloads access early; graceful path if user declines (Upgrade disabled; Undo limited to the Instant Baseline stage).
 
 ## 15) Open Questions
 
@@ -197,7 +197,7 @@ Illustrative weights:
 ### Appendix A — Examples
 
 * **PDF (residence permit):** `Wniosek o przedłużenie zezwolenia na pobyt - 2025-09-15`
-* **Invoice:** `Biedronka - Faktura - 2025-03-04 - 146,20 PLN`
+* **Invoice:** `Biedronka - Faktura - 2025-03-04`
 * **Screenshot:** `Figma - Navbar fix - dialog`
 * **Meeting audio:** `Waypass - Sprint planning - Q4 goals - 45m`
 * **Video tutorial:** `Supabase - CORS dla Edge Functions - 1080p - 12m`

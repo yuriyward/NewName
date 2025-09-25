@@ -1,12 +1,7 @@
 /**
  * Debug logging utilities for troubleshooting rename decisions
  */
-import type {
-  DebugCandidate,
-  DebugContext,
-  DebugEvent,
-  DebugLevel,
-} from './types';
+import type { DebugContext, DebugEvent, DebugLevel } from './types';
 import { logVerboseContext } from './verbose-formatter';
 
 class DebugLogger {
@@ -38,9 +33,8 @@ class DebugLogger {
     if (!this.enabled) return;
     if (
       !initialData.signals ||
-      !initialData.heuristicResult ||
-      !initialData.policyResult ||
-      !initialData.finalOutcome
+      !initialData.evaluation ||
+      !initialData.strategy
     ) {
       return;
     }
@@ -49,21 +43,21 @@ class DebugLogger {
       downloadId,
       timestamp: Date.now(),
       signals: initialData.signals,
-      heuristicResult: initialData.heuristicResult,
-      policyResult: initialData.policyResult,
-      finalOutcome: initialData.finalOutcome,
+      evaluation: initialData.evaluation,
+      strategy: initialData.strategy,
       processingTime: 0,
-      renamed: false,
-      decision: { shouldRename: false, reason: 'unknown' },
       ...initialData,
     };
 
     this.contexts.set(downloadId, context);
     this.logEvent({
-      type: 'phase1-start',
+      type: 'instant-baseline-start',
       timestamp: Date.now(),
       downloadId,
-      data: { signals: context.signals },
+      data: {
+        signals: context.signals,
+        strategy: context.strategy.selected,
+      },
     });
   }
 
@@ -83,7 +77,7 @@ class DebugLogger {
     const context = this.contexts.get(downloadId);
     if (!context) return;
 
-    const finalContext = {
+    const finalContext: DebugContext = {
       ...context,
       ...finalData,
       processingTime: Date.now() - context.timestamp,
@@ -92,11 +86,11 @@ class DebugLogger {
     this.contexts.set(downloadId, finalContext);
     this.logFinalResult(finalContext);
     this.logEvent({
-      type: 'phase1-complete',
+      type: 'instant-baseline-complete',
       timestamp: Date.now(),
       downloadId,
       data: {
-        outcome: finalContext.finalOutcome,
+        evaluation: finalContext.evaluation,
         processingTime: finalContext.processingTime,
       },
     });
@@ -121,6 +115,16 @@ class DebugLogger {
     return Array.from(this.contexts.values()).sort(
       (a, b) => b.timestamp - a.timestamp,
     );
+  }
+
+  logDecision(downloadId: string, data: Record<string, unknown>): void {
+    if (!this.enabled) return;
+    this.logEvent({
+      type: 'decision',
+      timestamp: Date.now(),
+      downloadId,
+      data,
+    });
   }
 
   private logEvent(event: DebugEvent): void {
@@ -171,11 +175,13 @@ class DebugLogger {
   }
 
   private logBasicContext(context: DebugContext): void {
+    const finalName = this.getFinalFilename(context);
+    const renamed = context.evaluation.decision.outcome === 'rename';
     console.log(`[NewName Debug] ${context.downloadId}:`, {
       original: context.signals.filename,
-      final: context.finalOutcome.filename,
-      renamed: context.renamed,
-      reason: context.decision.reason,
+      final: finalName,
+      renamed,
+      strategy: context.strategy.selected,
       time: `${context.processingTime}ms`,
     });
   }
@@ -183,64 +189,22 @@ class DebugLogger {
   private logDetailedContext(context: DebugContext): void {
     console.group(`[NewName Debug] ${context.downloadId}`);
     console.log('Original filename:', context.signals.filename);
-    console.log('Final filename:', context.finalOutcome.filename);
-    console.log('Renamed:', context.renamed);
-    console.log('Decision:', context.decision);
+    console.log('Strategy:', context.strategy.selected);
+    console.log('Inputs:', context.strategy.inputs);
+    console.log('Generated filename:', this.getFinalFilename(context));
+    console.log('Decision:', context.evaluation.decision);
     console.log('Processing time:', `${context.processingTime}ms`);
-    console.log('File type:', context.finalOutcome.fileType);
-    console.log('Source:', context.finalOutcome.source);
-    console.log('Reason tags:', context.finalOutcome.reasonTags);
-
-    if (context.heuristicResult?.debug) {
-      console.log('Selected candidate:', {
-        value: context.heuristicResult.debug.selectedCandidate.value,
-        reason: context.heuristicResult.debug.selectedCandidate.reason,
-        score: context.heuristicResult.debug.selectedCandidate.score,
-      });
-    }
+    console.log('Reason tags:', context.evaluation.reasonTags);
     console.groupEnd();
   }
 
-  logCandidateEvaluation(
-    downloadId: string,
-    candidates: DebugCandidate[],
-  ): void {
-    if (!this.enabled || this.level === 'basic') return;
-
-    this.logEvent({
-      type: 'candidate-evaluation',
-      timestamp: Date.now(),
-      downloadId,
-      data: { candidates: candidates.slice(0, 5) }, // Limit for performance
-    });
-  }
-
-  logPolicyApplication(
-    downloadId: string,
-    policyData: Record<string, unknown>,
-  ): void {
-    if (!this.enabled || this.level === 'basic') return;
-
-    this.logEvent({
-      type: 'policy-application',
-      timestamp: Date.now(),
-      downloadId,
-      data: { policy: policyData },
-    });
-  }
-
-  logDecision(
-    downloadId: string,
-    decision: { shouldRename: boolean; reason: string },
-  ): void {
-    if (!this.enabled) return;
-
-    this.logEvent({
-      type: 'decision',
-      timestamp: Date.now(),
-      downloadId,
-      data: { decision },
-    });
+  private getFinalFilename(context: DebugContext): string {
+    if (context.evaluation.rename) {
+      return context.evaluation.rename.filename;
+    }
+    const normalized = context.evaluation.originalPath.replace(/\\/g, '/');
+    const parts = normalized.split('/');
+    return parts.pop() ?? context.evaluation.originalPath;
   }
 }
 

@@ -1,12 +1,14 @@
 /**
  * Extension installation date tracking and storage utilities
  */
-const INSTALL_DATE_STORAGE_KEY = 'install.date.iso';
+import { browser } from 'wxt/browser';
+import { storage } from '#imports';
+
+const INSTALL_DATE_STORAGE_KEY = 'local:install.date.iso';
 
 /** Retrieves stored extension installation date */
 export async function getInstallDate(): Promise<Date | null> {
-  const data = await browser.storage.local.get(INSTALL_DATE_STORAGE_KEY);
-  const value = data[INSTALL_DATE_STORAGE_KEY] as string | undefined;
+  const value = await storage.getItem<string>(INSTALL_DATE_STORAGE_KEY);
   if (!value) return null;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
@@ -14,9 +16,7 @@ export async function getInstallDate(): Promise<Date | null> {
 
 /** Stores extension installation date to browser storage */
 export async function setInstallDate(date: Date): Promise<void> {
-  await browser.storage.local.set({
-    [INSTALL_DATE_STORAGE_KEY]: date.toISOString(),
-  });
+  await storage.setItem(INSTALL_DATE_STORAGE_KEY, date.toISOString());
 }
 
 /** Gets or creates extension installation date */

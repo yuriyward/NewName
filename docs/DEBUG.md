@@ -1,6 +1,6 @@
 # Debug Mode for NewName
 
-The debug mode provides comprehensive logging for troubleshooting rename decisions in the Phase 1 pipeline.
+The debug mode provides comprehensive logging for troubleshooting rename decisions in the Instant Baseline pipeline.
 
 ## Enabling Debug Mode
 
@@ -48,7 +48,7 @@ await updateSettings({
 
 ## What Gets Logged
 
-### Phase 1 Processing
+### Instant Baseline Processing
 - **Input signals**: URL, filename, MIME type, page context
 - **Candidate evaluation**: All candidates with scores and reasoning
 - **Selected candidate**: Best candidate with score breakdown
@@ -95,12 +95,10 @@ newNameDebug.exportDebugData();
 Each debug context contains:
 - **downloadId**: Unique identifier
 - **timestamp**: Processing start time
-- **signals**: Input data (URL, filename, page context)
-- **heuristicResult**: Candidate analysis and selection
-- **policyResult**: Filename policy application
-- **finalOutcome**: Generated filename and metadata
+- **signals**: Input data (URL, filename, page title)
+- **strategy**: Selected Instant Baseline strategy + the inputs we had (original base, page title, ISO date) and the generated filename if any
+- **evaluation**: Deterministic decision (`rename` / `keep`), guardrail (`strategy-applied` / `strategy-unavailable`), confidence (0 or 100), and inputs used/missing
 - **processingTime**: Total execution time
-- **decision**: Rename decision and reasoning
 
 ## Performance Impact
 

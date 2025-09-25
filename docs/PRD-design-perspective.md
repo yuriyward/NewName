@@ -13,8 +13,8 @@
 
 **UX principles**
 
-1. **Instant value, zero drag** — phase-1 rename never blocks the download longer than necessary.
-2. **Upgrade, don’t nag** — phase-2 suggestions appear briefly and are easy to accept, ignore, or undo.
+1. **Instant value, zero drag** — the Instant Baseline rename never blocks the download longer than necessary.
+2. **Upgrade, don’t nag** — Contextual Upgrade suggestions appear briefly and are easy to accept, ignore, or undo.
 3. **Trust at a glance** — clear “On-device” vs “Cloud assist” badges; reason tags (Title/Date/Geo).
 4. **Deterministic safety** — filenames are validated inline; we never propose unsafe chars or double dots.
 5. **Respect agency** — Undo everywhere, per-type controls, explicit cloud consent.
@@ -32,8 +32,8 @@ Sample copy:
 **Primary surfaces**
 
 1. **First-Run / Onboarding** (mode + permissions + AI session activation)
-2. **Rename Toast** (phase-1 results; one-click Undo)
-3. **Upgrade Notification** (phase-2 suggestion with reasoning)
+2. **Rename Toast** (Instant Baseline results; one-click Undo)
+3. **Upgrade Notification** (Contextual Upgrade suggestion with reasoning)
 4. **Confirm Modal** (Careful mode & sensitive docs)
 5. **Extension Popup** (status + quick actions)
 6. **Settings Page** (full preferences)
@@ -93,32 +93,32 @@ Sample copy:
 
 ### 4.1 Balanced (default)
 
-* Phase-1 auto-rename + toast.
+* Instant Baseline stage auto-renames + toast.
 * Sensitive docs (auto-detected) go through Confirm Modal.
-* Phase-2 shows Upgrade Notification with reason tags.
+* Contextual Upgrade surface shows Upgrade Notification with reason tags.
 
 ### 4.2 Silent
 
 * No toasts; quiet auto-apply.
-* Phase-2: only auto-apply when **High confidence**, log the rest to History.
+* Contextual Upgrade stage: only auto-apply when **High confidence**, log the rest to History.
 * Badge in History indicates “Auto-applied (Silent).”
 
 ### 4.3 Careful
 
 * Always show Confirm Modal before any rename.
-* Phase-2 suggestions also open the Confirm Modal, not a toast.
+* Contextual Upgrade suggestions also open the Confirm Modal, not a toast.
 
-### 4.4 Context-First Auto-rename (All modes)
+### 4.4 Deterministic Auto-rename (All modes)
 
 * Trigger: download starts.
-* **Phase-1**: context heuristics → instant `suggest()`; show toast per mode.
-* **Phase-2** (offscreen): text-first for PDFs (Summarizer “headline”); image/scan fallback (MuPDF raster → Prompt image or OCR); keyframe+audio for media; Language Detector if Auto language.
+* **Instant Baseline stage**: apply the configured deterministic strategy (keep original, original + download date, page title, or page title + date). Missing inputs automatically fall back to the original filename, and toasts reflect the outcome per mode.
+* **Contextual Upgrade stage** (offscreen): text-first for PDFs (Summarizer “headline”); image/scan fallback (MuPDF raster → Prompt image or OCR); keyframe+audio for media; Language Detector if Auto language.
 
 ---
 
 ## 5) UI Patterns (updated)
 
-### 5.1 Rename Toast (phase-1)
+### 5.1 Rename Toast (Instant Baseline)
 
 * Location: bottom-right (desktop).
 * Content:
@@ -132,7 +132,7 @@ Sample copy:
 
 * “Kept original name — already clear.”
 
-### 5.2 Upgrade Notification (phase-2)
+### 5.2 Upgrade Notification (Contextual Upgrade)
 
 * Icon: ✨
 * Before/After: `Original.pdf` → **New name**
@@ -159,20 +159,10 @@ Sample copy:
 
 ### 5.4 Extension Popup
 
-* **Status**
-
-  * Mode badge: 🔄/🔇/🛡️/⚙️
-  * Last action: “Renamed (On-device): **…** · Undo”
-  * Processing pill: **On-device** / **Cloud assist paused** / **Cloud assist active**
-* **Quick actions**
-
-  * Rename current file
-  * Revert last
-  * Open History
-* **Shortcuts**
-
-  * Pause 30 min
-* Footer: **Settings** | What’s new
+* **Instant Baseline strategy selector** (radio list covering the four deterministic options with brief explanations).
+* **Status hint**: Copy reminding users that the Instant Baseline stage stays deterministic and that richer upgrades live in the Contextual Upgrade stage.
+* **Save feedback**: Inline “Saving…” / “Saved” microcopy; errors surface inline when storage fails.
+* Future quick actions (Rename current file, Undo, History) migrate to a dedicated settings view once the deterministic baseline matures.
 
 ### 5.5 Settings Page
 
@@ -273,7 +263,7 @@ Sample copy:
 
 **No Downloads permission**
 
-* Phase-1 still works; **Upgrade** button shows a small lock with tooltip: “Grant access to enable post-save renames.”
+* The Instant Baseline stage still works; **Upgrade** button shows a small lock with tooltip: “Grant access to enable post-save renames.”
 
 ---
 
@@ -305,9 +295,9 @@ Sample copy:
 **MVP**
 
 * Onboarding (Mode, Cloud, Downloads access, AI activation)
-* Phase-1 toasts; basic History (50 items)
+* Instant Baseline toasts; basic History (50 items)
 * Settings (General, Language/Format, Per-type)
-* Phase-2 Upgrade Notification (PDFs + Images)
+* Contextual Upgrade notification (PDFs + Images)
 
 **v1**
 
@@ -328,7 +318,7 @@ Sample copy:
 **A. Hands-off pro (Balanced)**
 
 * Installs → chooses **Balanced** → grants Downloads → enables AI → downloads an invoice
-* Toast: “Renamed (On-device) to **Biedronka — Faktura — 2025-03-04 — 146,20 PLN**” → Undo available.
+* Toast: "Renamed (On-device) to **Biedronka — Faktura — 2025-03-04**" → Undo available.
 * Later: ✨ Upgrade available on a PDF → Apply.
 
 **B. Power user (Silent)**
