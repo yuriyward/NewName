@@ -11,7 +11,7 @@ test.describe('Contextual Upgrade - AI Enhancement Pipeline (Future)', () => {
 
       const [download] = await Promise.all([
         page.waitForEvent('download'),
-        page.click('text=Pobierz fakturę VAT (PDF)'),
+        page.click('text=Pobierz historię transakcji (PDF)'),
       ]);
 
       // Instant Baseline: Basic context-based naming
@@ -21,7 +21,7 @@ test.describe('Contextual Upgrade - AI Enhancement Pipeline (Future)', () => {
         historyPredicate: (item) =>
           item.original === 'invoice-2025-09-15.pdf' &&
           item.phase === 'instant-baseline',
-        timeoutMs: 5000,
+        timeoutMs: 300,
       });
 
       expect(instantBaselineName).toBeDefined();
@@ -94,7 +94,7 @@ test.describe('Contextual Upgrade - AI Enhancement Pipeline (Future)', () => {
         expectedContentExtractions.documentType,
       );
 
-      // Phase 2 would extract this from actual PDF content via PDF.js
+      // Contextual Upgrade would extract this from actual PDF content via PDF.js
       console.log('PDF content analysis targets:', expectedContentExtractions);
     });
 
@@ -130,12 +130,12 @@ test.describe('Contextual Upgrade - AI Enhancement Pipeline (Future)', () => {
     }) => {
       await page.goto('/scenarios/design/figma-component.html');
 
-      // PRD: Score 0-100; upgrade if best.score - phase1Score >= +10
+      // PRD: Score 0-100; upgrade if best.score - instantBaselineScore >= +10
 
-      const phase1Score = 45; // Hypothetical: basic context only
-      const phase2Score = 75; // Hypothetical: with AI content analysis
+      const instantBaselineScore = 45; // Hypothetical: basic context only
+      const contextualUpgradeScore = 75; // Hypothetical: with AI content analysis
 
-      const scoreDelta = phase2Score - phase1Score;
+      const scoreDelta = contextualUpgradeScore - instantBaselineScore;
       const shouldOfferUpgrade = scoreDelta >= 10;
 
       expect(shouldOfferUpgrade).toBe(true);
@@ -157,7 +157,7 @@ test.describe('Contextual Upgrade - AI Enhancement Pipeline (Future)', () => {
 
       expect(calculatedScore).toBe(35); // Should be above threshold for renaming
 
-      console.log('Phase 2 scoring breakdown:', scoringFactors);
+      console.log('Contextual Upgrade scoring breakdown:', scoringFactors);
       console.log('Calculated score:', calculatedScore);
     });
 

@@ -1,7 +1,7 @@
 import path from 'node:path';
 import type { BrowserContext, Download } from '@playwright/test';
+import type { HistoryItem } from '@/entrypoints/shared/history/history';
 import {
-  type HistoryItem,
   waitForFinalFilenameFromExtension,
   waitForHistoryEntry,
 } from '../e2e/extension.fixtures';

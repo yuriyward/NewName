@@ -25,7 +25,7 @@
       <ul class="scenario-list">
         <li>
           <a href="/scenarios/business/biedronka-receipt.html">Biedronka Receipt</a>
-          <div class="description">Tests: Polish language, vendor extraction, VAT invoice recognition, amount parsing</div>
+          <div class="description">Tests: Polish language, vendor extraction, VAT invoice recognition, document type detection</div>
         </li>
         <li>
           <a href="/scenarios/business/sprint-planning.html">Sprint Planning Meeting</a>
@@ -72,6 +72,27 @@
       </ul>
     </div>
 
+    <div class="scenario-group">
+      <h2>🗂️ External File Sample Resources</h2>
+      <p>For testing with various file types, you can download samples from these external resources:</p>
+      <ul class="scenario-list">
+        <li>
+          <a href="https://filesamples.com/" target="_blank" rel="noopener">FileSamples.com</a>
+          <div class="description">
+            Comprehensive collection of sample files in various formats including PDF, Office documents, images, audio, and video files.
+            Great for testing document processing and media analysis features.
+          </div>
+        </li>
+        <li>
+          <a href="https://getsamplefiles.com/" target="_blank" rel="noopener">GetSampleFiles.com</a>
+          <div class="description">
+            Large variety of sample files with different sizes and formats. Includes business documents, presentations, spreadsheets,
+            and media files perfect for testing file type detection and content extraction.
+          </div>
+        </li>
+      </ul>
+      <p><strong>Note:</strong> These external resources provide real-world file samples to test NewName's Instant Baseline and Contextual Upgrade capabilities across different file types, languages, and content structures.</p>
+    </div>
 
     <div class="scenario-group">
       <h2>🧪 Test Coverage Matrix</h2>
@@ -80,8 +101,8 @@
           <tr style="background: #f0f0f0;">
             <th>File Type</th>
             <th>Language</th>
-            <th>Phase 1 Features</th>
-            <th>Phase 2 Features</th>
+            <th>Instant Baseline Features</th>
+            <th>Contextual Upgrade Features</th>
           </tr>
         </thead>
         <tbody>
@@ -89,7 +110,7 @@
             <td>PDF Invoice</td>
             <td>Polish</td>
             <td>Page title, domain, date</td>
-            <td>PDF text extraction, amount, vendor</td>
+            <td>PDF text extraction, document type, vendor</td>
           </tr>
           <tr>
             <td>PNG Screenshot</td>
@@ -101,31 +122,31 @@
             <td>TXT Meeting Notes</td>
             <td>English</td>
             <td>Page title, business context</td>
-            <td>Content analysis, topic extraction</td>
+            <td>Content structure analysis, key topics</td>
           </tr>
           <tr>
             <td>Video Tutorial</td>
             <td>Polish</td>
             <td>Page metadata, tech context</td>
-            <td>Keyframe analysis, audio transcription</td>
+            <td>Keyframe analysis, basic content classification</td>
           </tr>
           <tr>
             <td>JPEG Photo</td>
             <td>Polish</td>
             <td>Page context, location hints</td>
-            <td>EXIF data, subject recognition</td>
+            <td>EXIF metadata, location data, basic subject</td>
           </tr>
           <tr>
             <td>PDF arXiv Paper</td>
             <td>English</td>
-            <td>arXiv ID, title, author metadata</td>
-            <td>Author extraction, topic analysis</td>
+            <td>arXiv ID, page title, domain context</td>
+            <td>Author names, document type, publication info</td>
           </tr>
           <tr>
             <td>PDF Research Paper</td>
             <td>English</td>
-            <td>Journal context, academic metadata</td>
-            <td>Author extraction, topic analysis</td>
+            <td>Journal context, page title, date</td>
+            <td>Author names, document type, journal info</td>
           </tr>
         </tbody>
       </table>

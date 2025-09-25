@@ -1,7 +1,7 @@
 /**
  * Application settings persistence and state management
  */
-import { browser } from 'wxt/browser';
+import { storage } from '#imports';
 import type {
   CloudSettings,
   DebugLevel,
@@ -34,7 +34,7 @@ export type {
 };
 export { DEFAULT_SETTINGS, isFileType };
 
-const SETTINGS_KEY = 'settings.v1';
+const SETTINGS_KEY = 'local:settings.v1';
 const HISTORY_MAX = 50;
 
 let cache: SettingsV1 | null = null;
@@ -84,15 +84,14 @@ function coerceSettings(data: unknown): SettingsV1 {
 }
 
 async function readSettingsFromStorage(): Promise<SettingsV1> {
-  const stored = await browser.storage.local.get(SETTINGS_KEY);
-  const value = stored[SETTINGS_KEY];
+  const value = await storage.getItem<SettingsV1>(SETTINGS_KEY);
   if (!value) {
-    await browser.storage.local.set({ [SETTINGS_KEY]: DEFAULT_SETTINGS });
+    await storage.setItem(SETTINGS_KEY, DEFAULT_SETTINGS);
     return DEFAULT_SETTINGS;
   }
   const settings = coerceSettings(value);
   if (settings.version !== DEFAULT_SETTINGS.version) {
-    await browser.storage.local.set({ [SETTINGS_KEY]: settings });
+    await storage.setItem(SETTINGS_KEY, settings);
   }
   return settings;
 }
@@ -112,11 +111,8 @@ async function ensureInitialized(): Promise<SettingsV1> {
 function ensureListener(): void {
   if (initialized) return;
   initialized = true;
-  browser.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local') return;
-    const update = changes[SETTINGS_KEY];
-    if (!update) return;
-    const next = coerceSettings(update.newValue);
+  storage.watch<SettingsV1>(SETTINGS_KEY, (newValue) => {
+    const next = coerceSettings(newValue);
     cache = next;
     listeners.forEach((listener) => {
       listener(next);
@@ -139,7 +135,7 @@ export async function updateSettings(
   const current = await getSettings();
   const next = coerceSettings({ ...current, ...partial });
   cache = next;
-  await browser.storage.local.set({ [SETTINGS_KEY]: next });
+  await storage.setItem(SETTINGS_KEY, next);
 }
 
 export function subscribeSettings(

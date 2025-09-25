@@ -6,14 +6,90 @@ import {
   chromium,
   expect,
   type Page,
+  type Worker,
 } from '@playwright/test';
 import type { HistoryItem } from '@/entrypoints/shared/history/history';
+
+const SERVICE_WORKER_WAIT_TIMEOUT = 2_000;
+
+let cachedExtensionId: string | undefined;
+
+async function wakeServiceWorker(
+  context: BrowserContext,
+  extensionId: string,
+  timeoutMs: number,
+): Promise<void> {
+  const page = await context.newPage();
+  try {
+    await page.goto(`chrome-extension://${extensionId}/popup.html`, {
+      waitUntil: 'domcontentloaded',
+      timeout: Math.max(250, Math.min(timeoutMs, 1_000)),
+    });
+  } catch {
+    // Ignore navigation failures; the attempt is enough to nudge the worker.
+  } finally {
+    if (!page.isClosed()) {
+      await page.close().catch(() => {
+        /* noop */
+      });
+    }
+  }
+}
+
+async function waitForServiceWorker(
+  context: BrowserContext,
+  options: {
+    timeoutMs?: number;
+    extensionId?: string;
+    retryOnTimeout?: boolean;
+  } = {},
+): Promise<Worker> {
+  const {
+    timeoutMs = SERVICE_WORKER_WAIT_TIMEOUT,
+    extensionId = cachedExtensionId,
+    retryOnTimeout = true,
+  } = options;
+
+  const existing = context.serviceWorkers()[0];
+  if (existing) return existing;
+
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      context.waitForEvent('serviceworker'),
+      new Promise<Worker>((_, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error('Service worker did not become available in time'));
+        }, timeoutMs);
+      }),
+    ]);
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      error.message !== 'Service worker did not become available in time' ||
+      !retryOnTimeout ||
+      !extensionId
+    ) {
+      throw error;
+    }
+
+    await wakeServiceWorker(context, extensionId, timeoutMs);
+    return await waitForServiceWorker(context, {
+      timeoutMs,
+      extensionId,
+      retryOnTimeout: false,
+    });
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 type Fixtures = {
   context: BrowserContext;
   page: Page;
   downloadsDir: string;
   extensionId: string;
+  serviceWorker: Worker;
 };
 
 export const test = base.extend<Fixtures>({
@@ -56,13 +132,25 @@ export const test = base.extend<Fixtures>({
 
   extensionId: async ({ context }, use) => {
     // Wait for the MV3 service worker to be ready and extract extension id from its URL
-    const worker =
-      context.serviceWorkers()[0] ??
-      (await context.waitForEvent('serviceworker'));
+    const worker = await waitForServiceWorker(context, {
+      timeoutMs: SERVICE_WORKER_WAIT_TIMEOUT,
+      retryOnTimeout: true,
+    });
     const url = new URL(worker.url());
     // chrome-extension://<id>/_generated_background_page.html (or service_worker.js)
     const id = url.host;
+    cachedExtensionId = id;
     await use(id);
+  },
+
+  serviceWorker: async ({ context }, use) => {
+    const existing = context.serviceWorkers()[0];
+    if (existing) {
+      await use(existing);
+      return;
+    }
+    const sw = await context.waitForEvent('serviceworker');
+    await use(sw);
   },
 
   page: async ({ context }, use) => {
@@ -75,13 +163,33 @@ export const test = base.extend<Fixtures>({
 
 export { expect };
 
+export async function setSettingsInExtension(
+  worker: Worker,
+  settings: Record<string, unknown>,
+): Promise<void> {
+  await worker.evaluate(async (payload) => {
+    const chromeApi = (
+      globalThis as unknown as {
+        chrome: {
+          storage: { local: { set: (obj: unknown, cb: () => void) => void } };
+          runtime: { lastError?: unknown };
+        };
+      }
+    ).chrome;
+    await new Promise<void>((resolve, reject) => {
+      chromeApi.storage.local.set({ 'local:settings.v1': payload }, () => {
+        if (chromeApi.runtime.lastError) reject(chromeApi.runtime.lastError);
+        else resolve();
+      });
+    });
+  }, settings);
+}
+
 export async function queryFinalFilenameFromExtension(
   context: BrowserContext,
   finalUrl: string,
 ): Promise<string | undefined> {
-  const sw =
-    context.serviceWorkers()[0] ??
-    (await context.waitForEvent('serviceworker'));
+  const sw = await waitForServiceWorker(context);
   const result = await sw.evaluate(async (url: string) => {
     const chromeApi = (
       globalThis as unknown as {
@@ -115,10 +223,14 @@ export async function waitForFinalFilenameFromExtension(
 ): Promise<string> {
   const start = Date.now();
   while (true) {
-    const path = await queryFinalFilenameFromExtension(context, finalUrl);
-    if (path) return path;
-    if (Date.now() - start > timeoutMs)
+    const elapsed = Date.now() - start;
+    if (elapsed > timeoutMs) {
       throw new Error('Timed out waiting for download to complete');
+    }
+    const path = await queryFinalFilenameFromExtension(context, finalUrl).catch(
+      () => undefined,
+    );
+    if (path) return path;
     await new Promise((r) => setTimeout(r, 150));
   }
 }
@@ -126,9 +238,7 @@ export async function waitForFinalFilenameFromExtension(
 export async function readHistoryFromExtension(
   context: BrowserContext,
 ): Promise<HistoryItem[]> {
-  const sw =
-    context.serviceWorkers()[0] ??
-    (await context.waitForEvent('serviceworker'));
+  const sw = await waitForServiceWorker(context);
   const result = await sw.evaluate(async () => {
     const chromeApi = (
       globalThis as unknown as {
@@ -163,12 +273,13 @@ export async function waitForHistoryEntry(
 ): Promise<HistoryItem> {
   const start = Date.now();
   while (true) {
-    const items = await readHistoryFromExtension(context);
-    const found = items.find(predicate);
-    if (found) return found;
-    if (Date.now() - start > timeoutMs) {
+    const elapsed = Date.now() - start;
+    if (elapsed > timeoutMs) {
       throw new Error('Timed out waiting for history entry');
     }
+    const items = await readHistoryFromExtension(context).catch(() => []);
+    const found = items.find(predicate);
+    if (found) return found;
     await new Promise((r) => setTimeout(r, 150));
   }
 }

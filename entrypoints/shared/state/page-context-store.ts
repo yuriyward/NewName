@@ -112,7 +112,9 @@ export function pruneStaleContexts(): void {
   }
 }
 
-export function getPageContextByUrl(url: string | undefined | null): PageContext | null {
+export function getPageContextByUrl(
+  url: string | undefined | null,
+): PageContext | null {
   const normalized = normalizeUrl(url);
   if (!normalized) return null;
   const context = URL_CONTEXT_CACHE.get(normalized);
