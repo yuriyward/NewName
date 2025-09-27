@@ -26,16 +26,39 @@ function splitPath(path: string): { directory: string; name: string } {
   return { directory, name };
 }
 
+const MULTI_PART_ARCHIVE_EXTENSIONS = [
+  'tar.gz',
+  'tar.bz2',
+  'tar.xz',
+  'tar.zst',
+  'tar.lz',
+  'tar.lz4',
+  'tar.sz',
+  'tar.br',
+];
+
 function stripExtension(filename: string): {
   base: string;
   extension: string | null;
 } {
+  const lower = filename.toLowerCase();
+  for (const multi of MULTI_PART_ARCHIVE_EXTENSIONS) {
+    const suffix = `.${multi}`;
+    if (lower.endsWith(suffix)) {
+      const cutoff = filename.length - suffix.length;
+      const base = filename.slice(0, cutoff).replace(/\.+$/, '');
+      return { base, extension: multi };
+    }
+  }
+
   const match = /^(.*?)(?:\.([A-Za-z0-9]{1,8}))?$/.exec(filename);
   if (!match) {
     return { base: filename, extension: null };
   }
   const [, rawBase, rawExt] = match;
-  return { base: rawBase ?? filename, extension: rawExt ?? null };
+  const base = (rawBase ?? filename).replace(/\.+$/, '');
+  const extension = rawExt ? rawExt.toLowerCase() : null;
+  return { base, extension };
 }
 
 function sanitizeBaseName(base: string): string {

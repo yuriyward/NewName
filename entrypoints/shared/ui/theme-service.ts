@@ -33,12 +33,15 @@ export function markThemeReset(): void {
 /**
  * Get appropriate theme (system detection + daily reset logic)
  */
-export function getAppropriateTheme(currentTheme?: Theme | null): Theme {
+export function getAppropriateTheme(currentTheme?: string | null): Theme {
+  const normalized =
+    currentTheme === 'light' || currentTheme === 'dark' ? currentTheme : null;
+
   // Reset to system theme if it's a new day or first visit
-  if (!currentTheme || shouldResetTheme()) {
+  if (!normalized || shouldResetTheme()) {
     markThemeReset();
     return detectSystemTheme();
   }
 
-  return currentTheme;
+  return normalized;
 }

@@ -35,4 +35,21 @@ describe('detectFileType', () => {
       }),
     ).toBe('pdf');
   });
+
+  it('detects archive formats from MIME and multi-part extensions', () => {
+    expect(detectFileType({ mime: 'application/x-7z-compressed' })).toBe(
+      'archive',
+    );
+    expect(detectFileType({ mime: 'application/x-tar' })).toBe('archive');
+    expect(detectFileType({ mime: 'application/x-gzip' })).toBe('archive');
+    expect(detectFileType({ extension: 'tar.gz' })).toBe('archive');
+    expect(detectFileType({ extension: 'tar.xz' })).toBe('archive');
+  });
+
+  it('handles media MIME hints with parameters', () => {
+    expect(
+      detectFileType({ mime: 'video/x-matroska; codecs="avc1.640028"' }),
+    ).toBe('video');
+    expect(detectFileType({ mime: 'audio/ogg; codecs=opus' })).toBe('audio');
+  });
 });
