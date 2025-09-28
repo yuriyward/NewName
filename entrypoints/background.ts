@@ -300,7 +300,7 @@ function createDeterminingListener(
   };
 }
 
-export default defineBackground(() => {
+function initializeBackground(): void {
   registerInstallDateListener();
   initializeBackgroundDebug();
 
@@ -323,5 +323,12 @@ export default defineBackground(() => {
     void pageContextService.prune();
   }, PAGE_CONTEXT_PRUNE_INTERVAL_MS);
 
-  console.log('NewName background ready', { id: browser.runtime.id });
+  const settings = readSettings();
+  if (settings.debug.enabled) {
+    console.log('[NewName Debug] Background ready', { id: browser.runtime.id });
+  }
+}
+
+export default defineBackground(() => {
+  initializeBackground();
 });
