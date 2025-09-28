@@ -5,70 +5,92 @@
 ## Tree Overview
 
 ├── popup/ # 2 files
-│   ├── App.tsx # Settings popup for configuring deterministic Instant Baseline strategies
-│   └── main.tsx # React popup entry point and application bootstrapping
-├── shared/ # 10 directories
+│   ├── App.tsx # 1 export
+│   └── main.tsx # Module exports
+├── shared/ # 12 directories
 │   ├── classification/ # 1 file
-│   │   └── file-types.ts # File type detection from MIME and extensions
+│   │   └── file-types.ts # 1 export
+│   ├── constants/ # 1 file
+│   │   └── file-constants.ts # 8 exports
 │   ├── context/ # 1 file
-│   │   └── page-analyzer.ts # Page context extraction and URL analysis utilities
+│   │   └── page-analyzer.ts # 7 exports
 │   ├── debug/ # 4 files
-│   │   ├── console-helpers.ts # Console helper functions for debugging
-│   │   ├── logger.ts # Debug logging utilities for troubleshooting rename decisions
-│   │   ├── types.ts # Debug types and interfaces for troubleshooting rename decisions
-│   │   └── verbose-formatter.ts # Verbose debug formatting utilities
+│   │   ├── console-helpers.ts # 2 exports
+│   │   ├── logger.ts # 1 export
+│   │   ├── types.ts # 5 exports
+│   │   └── verbose-formatter.ts # 1 export
 │   ├── history/ # 1 file
-│   │   └── history.ts # File renaming action history tracking and storage
+│   │   └── history.ts # 2 exports
 │   ├── lifecycle/ # 1 file
-│   │   └── install-tracking.ts # Extension installation date tracking and storage utilities
+│   │   └── install-tracking.ts # 4 exports
 │   ├── messaging/ # 1 file
-│   │   └── content-messages.ts # Message type definitions for content-background communication
+│   │   └── extension-messaging.ts # 3 exports
 │   ├── naming/ # 1 file
-│   │   └── policy-engine.ts # Filename generation policies and formatting rules
-│   ├── pipeline/ # 2 files
-│   │   ├── instant-baseline-strategy.ts # Instant Baseline deterministic strategy evaluator
-│   │   └── instant-baseline-types.ts # Shared Instant Baseline decision types
+│   │   └── policy-engine.ts # 3 exports
+│   ├── pipeline/ # 6 files
+│   │   ├── filename-composer.ts # 2 exports
+│   │   ├── instant-baseline-strategy.ts # 3 exports
+│   │   ├── instant-baseline-types.ts # 8 exports
+│   │   ├── path-utils.ts # 5 exports
+│   │   ├── strategy-evaluator.ts # 3 exports
+│   │   └── strategy-options.ts # 4 exports
 │   ├── settings/ # 2 files
-│   │   ├── settings.ts # Application settings persistence and state management
-│   │   └── types.ts # Type definitions for application configuration and settings
-│   └── state/ # 1 file
-│       └── page-context-store.ts # Runtime page context storage and management
-├── background.ts # Background service worker for download interception and renaming
-└── content.ts # Content script for page context extraction and messaging
+│   │   ├── settings.ts # 17 exports
+│   │   └── types.ts # 13 exports
+│   ├── state/ # 2 files
+│   │   ├── page-context-service.ts # 5 exports
+│   │   └── page-context-store.ts # 7 exports
+│   └── ui/ # 1 file
+│       └── theme-service.ts # 5 exports
+├── background.ts # 1 export
+└── content.ts # 1 export
 
 ## File Details
 
 ### background.ts
-**Purpose**: Background service worker for download interception and renaming
+**Purpose**: 1 export
 
 **Exports**:
 - `export default` - item implementation
 
 ### content.ts
-**Purpose**: Content script for page context extraction and messaging
+**Purpose**: 1 export
 
 **Exports**:
 - `export default` - item implementation
 
 ### popup/App.tsx
-**Purpose**: Settings popup for configuring deterministic Instant Baseline strategies
+**Purpose**: 1 export
 
 **Exports**:
 - `export default` - item implementation
 
 ### popup/main.tsx
-**Purpose**: React popup entry point and application bootstrapping
+**Purpose**: Module exports
 
 *No exports found*
 
 ### shared/classification/file-types.ts
-**Purpose**: File type detection from MIME and extensions
+**Purpose**: 1 export
 
 **Exports**:
 - `export detectFileType` - item implementation
 
+### shared/constants/file-constants.ts
+**Purpose**: 8 exports
+
+**Exports**:
+- `export MultiPartArchiveExtension` - item implementation
+- `export OriginalDelimiterCandidate` - item implementation
+- `export EXTENSION_MAP` - item implementation
+- `export FORBIDDEN_FILENAME_CHARS` - item implementation
+- `export MIME_PREFIX_MAP` - item implementation
+- `export MIME_TYPE_MAP` - item implementation
+- `export MULTI_PART_ARCHIVE_EXTENSIONS` - item implementation
+- `export ORIGINAL_DELIMITER_CANDIDATES` - item implementation
+
 ### shared/context/page-analyzer.ts
-**Purpose**: Page context extraction and URL analysis utilities
+**Purpose**: 7 exports
 
 **Exports**:
 - `export InstantBaselineSignals` - item implementation
@@ -80,43 +102,43 @@
 - `export safeDecode` - item implementation
 
 ### shared/debug/console-helpers.ts
-**Purpose**: Console helper functions for debugging
+**Purpose**: 2 exports
 
 **Exports**:
 - `export attachConsoleHelpers` - Global debug helpers attached to window for easy console ...
 - `export initializeBackgroundDebug` - Initialize debug helpers in background script
 
 ### shared/debug/logger.ts
-**Purpose**: Debug logging utilities for troubleshooting rename decisions
+**Purpose**: 1 export
 
 **Exports**:
 - `export debugLogger` - item implementation
 
 ### shared/debug/types.ts
-**Purpose**: Debug types and interfaces for troubleshooting rename decisions
+**Purpose**: 5 exports
 
 **Exports**:
 - `export DebugContext` - item implementation
 - `export DebugEvent` - item implementation
 - `export DebugPolicyResult` - item implementation
 - `export InstantBaselineStrategyDebugSnapshot` - item implementation
-- `export DebugLevel` - Debug types and interfaces for troubleshooting rename dec...
+- `export DebugLevel` - item implementation
 
 ### shared/debug/verbose-formatter.ts
-**Purpose**: Verbose debug formatting utilities
+**Purpose**: 1 export
 
 **Exports**:
-- `export logVerboseContext` - Verbose debug formatting utilities
+- `export logVerboseContext` - item implementation
 
 ### shared/history/history.ts
-**Purpose**: File renaming action history tracking and storage
+**Purpose**: 2 exports
 
 **Exports**:
 - `export HistoryItem` - item implementation
 - `export addHistoryItem` - item implementation
 
 ### shared/lifecycle/install-tracking.ts
-**Purpose**: Extension installation date tracking and storage utilities
+**Purpose**: 4 exports
 
 **Exports**:
 - `export ensureInstallDate` - Gets or creates extension installation date
@@ -124,22 +146,31 @@
 - `export registerInstallDateListener` - Registers browser extension install event listener
 - `export setInstallDate` - Stores extension installation date to browser storage
 
-### shared/messaging/content-messages.ts
-**Purpose**: Message type definitions for content-background communication
+### shared/messaging/extension-messaging.ts
+**Purpose**: 3 exports
 
 **Exports**:
-- `export ContentToBackgroundMessage` - Message type definitions for content-background communica...
+- `export ExtensionMessagingProtocol` - item implementation
+- `export onExtensionMessage` - item implementation
+- `export sendExtensionMessage` - item implementation
 
 ### shared/naming/policy-engine.ts
-**Purpose**: Filename generation policies and formatting rules
+**Purpose**: 3 exports
 
 **Exports**:
-- `export FilenamePolicyInput` - Filename generation policies and formatting rules
+- `export FilenamePolicyInput` - item implementation
 - `export FilenamePolicyResult` - item implementation
 - `export applyFilenamePolicy` - item implementation
 
+### shared/pipeline/filename-composer.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export buildOriginalWithDateRename` - item implementation
+- `export buildRenameProposal` - item implementation
+
 ### shared/pipeline/instant-baseline-strategy.ts
-**Purpose**: Instant Baseline deterministic strategy evaluator
+**Purpose**: 3 exports
 
 **Exports**:
 - `export InstantBaselineComputation` - item implementation
@@ -147,7 +178,7 @@
 - `export evaluateInstantBaselineDebug` - item implementation
 
 ### shared/pipeline/instant-baseline-types.ts
-**Purpose**: Shared Instant Baseline decision types
+**Purpose**: 8 exports
 
 **Exports**:
 - `export InstantBaselineDecision` - item implementation
@@ -155,10 +186,39 @@
 - `export InstantBaselineEvaluation` - item implementation
 - `export InstantBaselineRenameProposal` - item implementation
 - `export InstantBaselineStrategyInputs` - item implementation
-- `export InstantBaselineGuardrail` - Shared Instant Baseline decision types
+- `export InstantBaselineGuardrail` - item implementation
+- `export InstantBaselineStrategy` - item implementation
+- `export isInstantBaselineStrategy` - item implementation
+
+### shared/pipeline/path-utils.ts
+**Purpose**: 5 exports
+
+**Exports**:
+- `export detectOriginalDelimiter` - item implementation
+- `export sanitizeBaseName` - item implementation
+- `export sanitizeLiteralSegment` - item implementation
+- `export splitPath` - item implementation
+- `export stripExtension` - item implementation
+
+### shared/pipeline/strategy-evaluator.ts
+**Purpose**: 3 exports
+
+**Exports**:
+- `export createDecision` - item implementation
+- `export determineFileType` - item implementation
+- `export evaluateStrategy` - item implementation
+
+### shared/pipeline/strategy-options.ts
+**Purpose**: 4 exports
+
+**Exports**:
+- `export StrategyOption` - item implementation
+- `export STRATEGY_OPTIONS` - Available strategy options with user-friendly description...
+- `export getAvailableStrategies` - Get all available strategy values
+- `export getStrategyOption` - Get strategy option by value
 
 ### shared/settings/settings.ts
-**Purpose**: Application settings persistence and state management
+**Purpose**: 17 exports
 
 **Exports**:
 - `export getHistoryMax` - item implementation
@@ -180,7 +240,7 @@
 - `export SettingsV1` - item implementation
 
 ### shared/settings/types.ts
-**Purpose**: Type definitions for application configuration and settings
+**Purpose**: 13 exports
 
 **Exports**:
 - `export CloudSettings` - item implementation
@@ -188,17 +248,27 @@
 - `export MetadataToggles` - item implementation
 - `export PerTypeBehavior` - item implementation
 - `export SettingsV1` - item implementation
-- `export DebugLevel` - Type definitions for application configuration and settings
-- `export FileType` - Type definitions for application configuration and settings
-- `export InstantBaselineStrategy` - item implementation
-- `export Mode` - Type definitions for application configuration and settings
-- `export Separator` - Type definitions for application configuration and settings
+- `export DebugLevel` - item implementation
+- `export FileType` - item implementation
+- `export Mode` - item implementation
+- `export Separator` - item implementation
 - `export DEFAULT_SETTINGS` - item implementation
 - `export isFileType` - item implementation
+- `export InstantBaselineStrategy` - item implementation
 - `export isInstantBaselineStrategy` - item implementation
 
+### shared/state/page-context-service.ts
+**Purpose**: 5 exports
+
+**Exports**:
+- `export PageContextPublishRequest` - item implementation
+- `export PageContextReadRequest` - item implementation
+- `export PageContextService` - item implementation
+- `export getPageContextService` - item implementation
+- `export registerPageContextService` - item implementation
+
 ### shared/state/page-context-store.ts
-**Purpose**: Runtime page context storage and management
+**Purpose**: 7 exports
 
 **Exports**:
 - `export PageContext` - Runtime page context storage and management
@@ -207,4 +277,16 @@
 - `export getPageContextByUrl` - item implementation
 - `export pruneStaleContexts` - item implementation
 - `export updatePageContext` - item implementation
+- `export updatePageContextByUrl` - item implementation
+
+### shared/ui/theme-service.ts
+**Purpose**: 5 exports
+
+**Exports**:
+- `export Theme` - Theme management application service
+Handles automatic th...
+- `export detectSystemTheme` - Detect system theme preference
+- `export getAppropriateTheme` - Get appropriate theme (system detection + daily reset logic)
+- `export markThemeReset` - Mark theme as reset for today
+- `export shouldResetTheme` - Check if theme should be reset (new day)
 
