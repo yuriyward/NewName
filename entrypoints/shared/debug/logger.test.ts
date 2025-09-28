@@ -72,6 +72,8 @@ describe('DebugLogger', () => {
         selected: evaluation.strategy,
         inputs: {
           originalBase: 'report',
+          rawOriginalBase: 'report',
+          originalDelimiter: ' ',
           pageTitle: 'Example Corp — Q2 Report',
           isoDate: '2025-04-01',
         },
@@ -131,6 +133,8 @@ describe('DebugLogger', () => {
           selected: 'page-title-with-date',
           inputs: {
             originalBase: 'report',
+            rawOriginalBase: 'report',
+            originalDelimiter: ' ',
             isoDate: '2025-04-01',
           },
         },

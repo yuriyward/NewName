@@ -1,36 +1,79 @@
 /**
  * Content script for page context extraction and messaging
  */
-import { browser } from 'wxt/browser';
-import type { ContentToBackgroundMessage } from '@/entrypoints/shared/messaging/content-messages';
+import { sendExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
+import type { PageContextPublishRequest } from '@/entrypoints/shared/state/page-context-service';
+import { getPageContextService } from '@/entrypoints/shared/state/page-context-service';
 
 const MAX_IMMEDIATE_SEND_ATTEMPTS = 3;
 const MAX_TOTAL_SEND_ATTEMPTS = 6;
 const RETRY_BASE_DELAY_MS = 75;
 const QUEUED_RETRY_DELAY_MS = 1_000;
 
-interface PendingMessage {
-  message: ContentToBackgroundMessage;
+type ContextUpdate =
+  | {
+      type: 'PAGE_CONTEXT';
+      payload: {
+        title?: string;
+        heading?: string;
+      };
+    }
+  | {
+      type: 'LINK_CONTEXT';
+      payload: {
+        linkText?: string;
+        linkRel?: string | null;
+      };
+    };
+
+interface PendingUpdate {
+  update: ContextUpdate;
   attempts: number;
 }
 
-let pendingMessages: PendingMessage[] = [];
+let pendingUpdates: PendingUpdate[] = [];
 let pendingFlushTimer: ReturnType<typeof setTimeout> | undefined;
+
+interface RuntimeContext {
+  tabId?: number;
+  frameId?: number;
+  url?: string | null;
+}
+
+let resolvedRuntimeContext: RuntimeContext | null = null;
+let runtimeContextPromise: Promise<RuntimeContext> | null = null;
+
+async function ensureRuntimeContext(): Promise<RuntimeContext> {
+  if (resolvedRuntimeContext) return resolvedRuntimeContext;
+  if (!runtimeContextPromise) {
+    runtimeContextPromise = sendExtensionMessage('resolveRuntimeContext')
+      .then((context) => {
+        resolvedRuntimeContext = context;
+        runtimeContextPromise = null;
+        return context;
+      })
+      .catch((error) => {
+        runtimeContextPromise = null;
+        throw error;
+      });
+  }
+  return runtimeContextPromise;
+}
 
 function schedulePendingFlush(): void {
   if (pendingFlushTimer !== undefined) return;
   pendingFlushTimer = setTimeout(() => {
     pendingFlushTimer = undefined;
-    flushPendingMessages();
+    flushPendingUpdates();
   }, QUEUED_RETRY_DELAY_MS);
 }
 
-function flushPendingMessages(): void {
-  if (pendingMessages.length === 0) return;
-  const queue = pendingMessages;
-  pendingMessages = [];
+function flushPendingUpdates(): void {
+  if (pendingUpdates.length === 0) return;
+  const queue = pendingUpdates;
+  pendingUpdates = [];
   for (const entry of queue) {
-    sendMessageWithRetry(entry.message, entry.attempts);
+    sendUpdateWithRetry(entry.update, entry.attempts);
   }
 }
 
@@ -77,15 +120,40 @@ function truncate(
   return `${trimmed.slice(0, max - 1)}…`;
 }
 
-function sendMessageWithRetry(
-  message: ContentToBackgroundMessage,
-  attempts = 0,
-): void {
+async function performContextUpdate(update: ContextUpdate): Promise<void> {
+  const runtimeContext = await ensureRuntimeContext();
+  const tabId =
+    typeof runtimeContext.tabId === 'number' ? runtimeContext.tabId : null;
+  const url = document.location.href;
+
+  const request: PageContextPublishRequest =
+    update.type === 'PAGE_CONTEXT'
+      ? {
+          tabId,
+          url,
+          context: {
+            title: update.payload.title,
+            heading: update.payload.heading,
+          },
+        }
+      : {
+          tabId,
+          url,
+          context: {
+            linkText: update.payload.linkText,
+            linkRel: update.payload.linkRel ?? undefined,
+          },
+        };
+
+  await getPageContextService().publish(request);
+}
+
+function sendUpdateWithRetry(update: ContextUpdate, attempts = 0): void {
   const nextAttempt = attempts + 1;
-  void browser.runtime.sendMessage(message).catch((error) => {
+  void performContextUpdate(update).catch((error) => {
     if (nextAttempt >= MAX_TOTAL_SEND_ATTEMPTS) {
-      console.warn('Dropping message after repeated failures', {
-        message,
+      console.warn('Dropping page context update after repeated failures', {
+        update,
         error,
       });
       return;
@@ -94,19 +162,19 @@ function sendMessageWithRetry(
     if (nextAttempt < MAX_IMMEDIATE_SEND_ATTEMPTS) {
       const delay = RETRY_BASE_DELAY_MS * 2 ** (nextAttempt - 1);
       setTimeout(() => {
-        sendMessageWithRetry(message, nextAttempt);
+        sendUpdateWithRetry(update, nextAttempt);
       }, delay);
       return;
     }
 
-    pendingMessages.push({ message, attempts: nextAttempt });
+    pendingUpdates.push({ update, attempts: nextAttempt });
     schedulePendingFlush();
   });
 }
 
-function sendMessage(message: ContentToBackgroundMessage): void {
-  flushPendingMessages();
-  sendMessageWithRetry(message);
+function dispatchUpdate(update: ContextUpdate): void {
+  flushPendingUpdates();
+  sendUpdateWithRetry(update);
 }
 
 interface PageContextSnapshot {
@@ -135,7 +203,7 @@ function publishPageContext(force = false): void {
 
   lastPublishedContext = { ...snapshot };
 
-  sendMessage({
+  dispatchUpdate({
     type: 'PAGE_CONTEXT',
     payload: snapshot,
   });
@@ -147,7 +215,7 @@ function handleLinkInteraction(event: Event): void {
   if (!anchor) return;
   const linkText = truncate(anchor.textContent);
   const rel = anchor.getAttribute('rel');
-  sendMessage({
+  dispatchUpdate({
     type: 'LINK_CONTEXT',
     payload: {
       linkText,
@@ -177,6 +245,9 @@ export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
   main() {
+    void ensureRuntimeContext().catch(() => {
+      // Resolution will be retried by individual updates on demand.
+    });
     publishPageContext(true);
     observeTitle();
     window.addEventListener('click', handleLinkInteraction, true);

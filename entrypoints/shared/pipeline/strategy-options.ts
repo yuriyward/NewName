@@ -2,7 +2,7 @@
  * Strategy option definitions for the Instant Baseline domain
  */
 
-import type { InstantBaselineStrategy } from './instant-baseline-types';
+import type { InstantBaselineStrategy } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 
 export type StrategyOption = {
   value: InstantBaselineStrategy;

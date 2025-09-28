@@ -10,7 +10,7 @@ Phase 2 extends the MVP deterministic renaming flow (Phase 1) into a more expres
 
 **Primary work.**
 - Extend file-type classification to audio/video/archive formats; expose new types end-to-end (downloads metadata → policy engine → settings/per-type UI → history telemetry badges).
-- Implement deterministic baseline handling per new type (e.g., duration-aware suffixes, installer product/version extraction) that respects safe filename policy and separator preferences.
+- Implement deterministic Instant Baseline handling per new type by reading container metadata with mediainfo.js (duration, resolution, sample rate, channels, codecs), generating helpful suffixes that respect the safe filename policy and separator preferences; avoid filename-derived heuristics for media.
 - Build offscreen extraction for Phase 2 upgrades: first keyframes, short intro audio slices, lightweight container metadata, and archive manifest inspection.
 - Update upgrade scoring/guardrails to compare new media signals against Phase 1 decisions; never regress keep outcomes when context is weak.
 - Expand unit/integration coverage and add media-focused Playwright scenarios, including Undo/Upgrade behaviour.
@@ -137,3 +137,29 @@ Phase 2 extends the MVP deterministic renaming flow (Phase 1) into a more expres
 4. **Series & Observability (Weeks 5–7).** Deliver Epic D (conflict resolution) and Epic E (telemetry/testing); include dedicated accessibility QA pass for confirm modal and notifications.
 5. **Beta Launch Readiness (Week 8).** Conduct cross-epic regression suite, finalize localization, update help center, and sign off on design QA checklist (“Trust at a glance” badges, copy polish) before staged rollout.
 
+## Incremental Implementation Tasks
+
+### Epic A — Multi-Media Instant Baseline & Upgrade Coverage
+- [ ] Extend file-type classifier and policy engine to recognise audio, video, and archive formats end-to-end (downloads metadata → settings toggles → history badges) with unit tests.
+- [ ] Implement deterministic Instant Baseline naming helpers that consume mediainfo.js results (duration, resolution, sample rate, channels, codecs) to add relevant qualifiers; do not rely on filename parsing; respect separator preferences and length caps.
+- [ ] Prototype offscreen media upgrade pipelines (keyframes, intro audio slices, archive manifest peek) with timeout guards and Playwright coverage for Upgrade/Undo paths.
+
+### Epic B — Confirm Modal, Mode Flows & Per-Type Controls
+- [ ] Ship settings schema v2 with per-type behaviour flags and metadata toggles, plus migration tests and localisation hooks.
+- [ ] Build accessible Confirm Modal UI shell, wire it to Balanced/Careful flows, and exercise keyboard + screen reader interactions in automated tests.
+- [ ] Implement onboarding screens (Mode, Cloud, Downloads access, AI activation) with persistent storage integration and smoke tests for mode-specific behaviours.
+
+### Epic C — Cloud Assist Launch & Transparent Routing
+- [ ] Add routing evaluator that chooses on-device, cloud, or metadata-only pipelines based on availability, consent, and file type while logging history annotations.
+- [ ] Integrate Firebase AI Logic client with redaction safeguards, structured response validation, and retry/fallback logic covered by unit mocks.
+- [ ] Surface processing badges and reason tags (“On-device”, “Cloud assist”) across toasts, upgrade notifications, confirm modal, and history rows using shared components.
+
+### Epic D — Series Awareness & Conflict Resolution UX
+- [ ] Enhance history store to capture recent-download context for series detection and expose it to conflict handlers.
+- [ ] Replace Chrome default conflict naming with deterministic suffix generator that respects length caps and separator styles, including concurrency safeguards.
+- [ ] Update toast/modal/history copy to explain auto-numbered outcomes and verify Undo/Upgrade maintains coherent sequencing.
+
+### Epic E — Observability, Telemetry & QA Expansion
+- [ ] Instrument opt-in telemetry events for confirm flows, cloud routing, media upgrades, and conflict resolution while honouring privacy settings.
+- [ ] Expand Vitest and Playwright suites to cover new reducers, routing helpers, accessibility assertions, and cloud/series scenarios.
+- [ ] Build developer diagnostics panel that surfaces routing decisions, badge states, and exportable logs aligned with the design diagnostics spec.

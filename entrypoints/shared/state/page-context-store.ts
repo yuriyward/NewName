@@ -60,6 +60,20 @@ export function updatePageContext(
   }
 }
 
+export function updatePageContextByUrl(
+  url: string,
+  context: Partial<PageContext>,
+): void {
+  const normalizedUrl = normalizeUrl(url);
+  if (!normalizedUrl) return;
+  const existing = URL_CONTEXT_CACHE.get(normalizedUrl);
+  const merged = mergeContext(existing, {
+    ...context,
+    url: normalizedUrl,
+  });
+  URL_CONTEXT_CACHE.set(normalizedUrl, merged);
+}
+
 export function getPageContext(
   tabId: number | undefined | null,
 ): PageContext | null {

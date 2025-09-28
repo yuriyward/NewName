@@ -1,54 +1,48 @@
 /**
  * File type detection from MIME and extensions
  */
+
+import {
+  EXTENSION_MAP,
+  MIME_PREFIX_MAP,
+  MIME_TYPE_MAP,
+} from '@/entrypoints/shared/constants/file-constants';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
 
-const EXTENSION_MAP: Record<string, FileType> = {
-  pdf: 'pdf',
-  jpg: 'image',
-  jpeg: 'image',
-  png: 'image',
-  gif: 'image',
-  webp: 'image',
-  avif: 'image',
-  bmp: 'image',
-  tif: 'image',
-  tiff: 'image',
-  svg: 'image',
-  heic: 'image',
-  heif: 'image',
-  mp3: 'audio',
-  wav: 'audio',
-  aac: 'audio',
-  flac: 'audio',
-  ogg: 'audio',
-  m4a: 'audio',
-  opus: 'audio',
-  mp4: 'video',
-  mov: 'video',
-  mkv: 'video',
-  webm: 'video',
-  avi: 'video',
-  mpeg: 'video',
-  mpg: 'video',
-  m4v: 'video',
-  zip: 'archive',
-  rar: 'archive',
-  '7z': 'archive',
-  gz: 'archive',
-  tar: 'archive',
-  bz2: 'archive',
-  xz: 'archive',
-  csv: 'data',
-  json: 'data',
-  txt: 'data',
-  xlsx: 'office',
-  xls: 'office',
-  doc: 'office',
-  docx: 'office',
-  ppt: 'office',
-  pptx: 'office',
-};
+function normalizeMime(mime?: string): string | undefined {
+  if (!mime) return undefined;
+  const [raw] = mime.split(';', 1);
+  const cleaned = raw?.trim().toLowerCase();
+  return cleaned && cleaned.length > 0 ? cleaned : undefined;
+}
+
+function normalizeExtension(extension?: string | null): string | undefined {
+  if (!extension) return undefined;
+  const cleaned = extension.replace(/^\.+/, '').trim().toLowerCase();
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
+function lookupExtension(normalized: string): FileType | undefined {
+  if (normalized in EXTENSION_MAP) {
+    return EXTENSION_MAP[normalized];
+  }
+
+  // Optimized multi-part extension lookup - O(n) instead of O(n²)
+  if (normalized.includes('.')) {
+    let dotIndex = normalized.indexOf('.');
+    while (dotIndex !== -1 && dotIndex < normalized.length - 1) {
+      const candidate = normalized.slice(dotIndex + 1);
+      const match = EXTENSION_MAP[candidate];
+      if (match) {
+        return match;
+      }
+      // Find next dot after current position
+      dotIndex = normalized.indexOf('.', dotIndex + 1);
+    }
+  }
+
+  return undefined;
+}
 
 export function detectFileType({
   mime,
@@ -57,33 +51,23 @@ export function detectFileType({
   mime?: string;
   extension?: string | null;
 }): FileType {
-  if (mime) {
-    if (mime === 'application/pdf') return 'pdf';
-    if (mime.startsWith('image/')) return 'image';
-    if (mime.startsWith('audio/')) return 'audio';
-    if (mime.startsWith('video/')) return 'video';
-    if (mime === 'application/zip' || mime === 'application/x-zip-compressed') {
-      return 'archive';
-    }
-    if (
-      mime === 'application/msword' ||
-      mime === 'application/vnd.ms-powerpoint' ||
-      mime === 'application/vnd.ms-excel' ||
-      mime ===
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      mime ===
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
-      mime ===
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ) {
-      return 'office';
+  const normalizedMime = normalizeMime(mime);
+  if (normalizedMime) {
+    const direct = MIME_TYPE_MAP[normalizedMime];
+    if (direct) return direct;
+
+    for (const { prefix, type } of MIME_PREFIX_MAP) {
+      if (normalizedMime.startsWith(prefix)) {
+        return type;
+      }
     }
   }
 
-  if (extension) {
-    const normalized = extension.replace(/^\./, '').toLowerCase();
-    if (normalized in EXTENSION_MAP) {
-      return EXTENSION_MAP[normalized];
+  const normalizedExtension = normalizeExtension(extension);
+  if (normalizedExtension) {
+    const match = lookupExtension(normalizedExtension);
+    if (match) {
+      return match;
     }
   }
 

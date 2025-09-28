@@ -1,6 +1,11 @@
 /**
  * Type definitions for application configuration and settings
  */
+import type { InstantBaselineStrategy } from '@/entrypoints/shared/pipeline/instant-baseline-types';
+import { isInstantBaselineStrategy } from '@/entrypoints/shared/pipeline/instant-baseline-types';
+
+export type { InstantBaselineStrategy };
+export { isInstantBaselineStrategy };
 export type Mode = 'balanced' | 'silent' | 'careful' | 'custom';
 export type Separator = 'clean' | 'kebab' | 'snake';
 export type DebugLevel = 'basic' | 'detailed' | 'verbose';
@@ -12,11 +17,6 @@ export type FileType =
   | 'archive'
   | 'office'
   | 'data';
-export type InstantBaselineStrategy =
-  | 'keep-original'
-  | 'original-with-date'
-  | 'page-title'
-  | 'page-title-with-date';
 
 export interface PerTypeBehavior {
   behavior: 'auto' | 'confirm' | 'off';
@@ -99,16 +99,5 @@ export function isFileType(value: unknown): value is FileType {
     value === 'office' ||
     value === 'archive' ||
     value === 'data'
-  );
-}
-
-export function isInstantBaselineStrategy(
-  value: unknown,
-): value is InstantBaselineStrategy {
-  return (
-    value === 'keep-original' ||
-    value === 'original-with-date' ||
-    value === 'page-title' ||
-    value === 'page-title-with-date'
   );
 }
