@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { InstantBaselineSignals } from '@/entrypoints/shared/context/page-analyzer';
-import type { SettingsV1 } from '@/entrypoints/shared/settings/types';
-import { DEFAULT_SETTINGS } from '@/entrypoints/shared/settings/types';
+import type { SettingsV1 } from '@/entrypoints/shared/settings/settings';
+import { DEFAULT_SETTINGS } from '@/entrypoints/shared/settings/settings';
 import { evaluateInstantBaseline } from './instant-baseline-strategy';
 
 describe('evaluateInstantBaseline (deterministic strategies)', () => {

@@ -24,11 +24,14 @@ function composeOriginalWithDateBase({
   maxLength,
 }: ComposeLiteralBaseParams): string {
   const extensionAllowance = extension ? extension.length + 1 : 0;
-  const allowance = Math.max(1, maxLength - extensionAllowance);
+  const rawAllowance = maxLength - extensionAllowance;
 
-  if (allowance <= 0) {
+  // If there's no room even for 1 character, just return the date
+  if (rawAllowance <= 0) {
     return isoDate;
   }
+
+  const allowance = rawAllowance;
 
   const isoLength = isoDate.length;
   if (isoLength >= allowance) {

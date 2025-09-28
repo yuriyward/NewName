@@ -295,7 +295,9 @@ function createDeterminingListener(
         console.error('Instant Baseline rename unhandled failure', error);
       },
     );
-    // Returning true keeps the determining callback alive for async suggest() calls.
+    // Always return true since this implementation always calls suggest() asynchronously
+    // via processDeterminingFilename. According to Chrome's downloads API, returning true
+    // indicates that suggest() will be called asynchronously.
     return true;
   };
 }

@@ -1,10 +1,24 @@
 /**
  * Shared Instant Baseline decision types
  */
-import type {
-  FileType,
-  InstantBaselineStrategy,
-} from '@/entrypoints/shared/settings/settings';
+import type { FileType } from '@/entrypoints/shared/settings/settings';
+
+export type InstantBaselineStrategy =
+  | 'keep-original'
+  | 'original-with-date'
+  | 'page-title'
+  | 'page-title-with-date';
+
+export function isInstantBaselineStrategy(
+  value: unknown,
+): value is InstantBaselineStrategy {
+  return (
+    value === 'keep-original' ||
+    value === 'original-with-date' ||
+    value === 'page-title' ||
+    value === 'page-title-with-date'
+  );
+}
 
 export type InstantBaselineGuardrail =
   | 'strategy-applied'

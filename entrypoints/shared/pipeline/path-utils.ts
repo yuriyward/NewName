@@ -30,7 +30,7 @@ export function stripExtension(filename: string): {
     }
   }
 
-  const match = /^(.*?)(?:\.([A-Za-z0-9]{1,8}))?$/.exec(filename);
+  const match = /^(.*?)(?:\.([A-Za-z0-9]{1,20}))?$/.exec(filename);
   if (!match) {
     return { base: filename, extension: null };
   }

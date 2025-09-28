@@ -7,12 +7,10 @@ import type {
   InstantBaselineDecision,
   InstantBaselineDecisionSignals,
   InstantBaselineRenameProposal,
+  InstantBaselineStrategy,
   InstantBaselineStrategyInputs,
 } from '@/entrypoints/shared/pipeline/instant-baseline-types';
-import type {
-  InstantBaselineStrategy,
-  SettingsV1,
-} from '@/entrypoints/shared/settings/settings';
+import type { SettingsV1 } from '@/entrypoints/shared/settings/settings';
 import {
   buildOriginalWithDateRename,
   buildRenameProposal,
