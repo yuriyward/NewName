@@ -7,7 +7,7 @@ import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { DebugContext } from '@/entrypoints/shared/debug/types';
 import { addHistoryItem } from '@/entrypoints/shared/history/history';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
-import type { ContentToBackgroundMessage } from '@/entrypoints/shared/messaging/content-messages';
+import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import {
   evaluateInstantBaseline,
   evaluateInstantBaselineDebug,
@@ -21,12 +21,9 @@ import {
   subscribeSettings,
 } from '@/entrypoints/shared/settings/settings';
 import {
-  clearPageContext,
-  getPageContext,
-  getPageContextByUrl,
-  pruneStaleContexts,
-  updatePageContext,
-} from '@/entrypoints/shared/state/page-context-store';
+  type PageContextService,
+  registerPageContextService,
+} from '@/entrypoints/shared/state/page-context-service';
 
 const randomId = (() => {
   let fallbackRandomSeed = 0;
@@ -164,38 +161,6 @@ function createSuggestController(suggest: SuggestCallback) {
   };
 }
 
-const handleContentMessage: Parameters<
-  typeof browser.runtime.onMessage.addListener
->[0] = (message, sender) => {
-  if (!message || typeof message !== 'object') return;
-  const typed = message as ContentToBackgroundMessage;
-  const tabId = typeof sender.tab?.id === 'number' ? sender.tab.id : null;
-  if (tabId === null) return;
-
-  if (typed.type === 'PAGE_CONTEXT') {
-    updatePageContext(
-      tabId,
-      {
-        title: typed.payload.title,
-        heading: typed.payload.heading,
-      },
-      sender.url,
-    );
-    return;
-  }
-
-  if (typed.type === 'LINK_CONTEXT') {
-    updatePageContext(
-      tabId,
-      {
-        linkText: typed.payload.linkText,
-        linkRel: typed.payload.linkRel ?? undefined,
-      },
-      sender.url,
-    );
-  }
-};
-
 function shouldRenameType(
   settings: SettingsV1,
   fileType: keyof SettingsV1['perType'],
@@ -208,11 +173,12 @@ function shouldRenameType(
 async function processDeterminingFilename(
   item: DeterminingItem,
   suggest: SuggestCallback,
+  pageContextService: PageContextService,
 ): Promise<void> {
   const controller = createSuggestController(suggest);
   let suggestionIssued = false;
   try {
-    pruneStaleContexts();
+    await pageContextService.prune();
 
     const settings = readSettings();
     const url = item.finalUrl ?? item.url;
@@ -221,8 +187,10 @@ async function processDeterminingFilename(
       typeof (item as { tabId?: number }).tabId === 'number'
         ? (item as { tabId?: number }).tabId
         : undefined;
-    const pageContext =
-      getPageContext(initiatingTabId) ?? getPageContextByUrl(item.referrer);
+    const pageContext = await pageContextService.read({
+      tabId: initiatingTabId,
+      url: item.referrer,
+    });
 
     const signals = {
       url,
@@ -318,26 +286,41 @@ async function processDeterminingFilename(
   }
 }
 
-const handleDeterminingFilename: DeterminingListener = (item, suggest) => {
-  void processDeterminingFilename(item, suggest).catch((error) => {
-    console.error('Instant Baseline rename unhandled failure', error);
-  });
-};
+function createDeterminingListener(
+  pageContextService: PageContextService,
+): DeterminingListener {
+  return (item, suggest) => {
+    void processDeterminingFilename(item, suggest, pageContextService).catch(
+      (error) => {
+        console.error('Instant Baseline rename unhandled failure', error);
+      },
+    );
+    // Returning true keeps the determining callback alive for async suggest() calls.
+    return true;
+  };
+}
 
 export default defineBackground(() => {
   registerInstallDateListener();
   initializeBackgroundDebug();
 
-  browser.runtime.onMessage.addListener(handleContentMessage);
+  const pageContextService = registerPageContextService();
+
+  onExtensionMessage('resolveRuntimeContext', ({ sender }) => ({
+    tabId: sender.tab?.id ?? undefined,
+    frameId: sender.frameId,
+    url: sender.url ?? sender.tab?.url ?? null,
+  }));
+
   browser.tabs.onRemoved.addListener((tabId) => {
-    clearPageContext(tabId);
+    void pageContextService.clear(tabId);
   });
   browser.downloads.onDeterminingFilename.addListener(
-    handleDeterminingFilename,
+    createDeterminingListener(pageContextService),
   );
 
   setInterval(() => {
-    pruneStaleContexts();
+    void pageContextService.prune();
   }, PAGE_CONTEXT_PRUNE_INTERVAL_MS);
 
   console.log('NewName background ready', { id: browser.runtime.id });

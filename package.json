@@ -45,7 +45,10 @@
     "@heroui/theme": "2.4.22",
     "@heroui/toast": "^2.0.16",
     "@heroui/use-theme": "^2.1.10",
+    "@webext-core/messaging": "^2.3.0",
+    "@webext-core/proxy-service": "^1.2.1",
     "framer-motion": "12.23.22",
+    "mediainfo.js": "^0.3.6",
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "tw-animate-css": "^1.3.8"

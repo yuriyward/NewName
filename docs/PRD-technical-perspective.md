@@ -41,7 +41,8 @@
 
 ### 1.2 Messaging
 
-* SW ↔ OSD via `chrome.runtime.sendMessage` / `chrome.runtime.onMessage`.
+* SW ↔ OSD via `@webext-core/messaging` (typed protocol on top of runtime messaging).
+* Background-only logic is exposed through `@webext-core/proxy-service` (e.g. page-context state access).
 * Message types (TypeScript discriminated unions):
 
 ```ts

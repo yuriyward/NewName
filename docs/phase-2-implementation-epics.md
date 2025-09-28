@@ -10,7 +10,7 @@ Phase 2 extends the MVP deterministic renaming flow (Phase 1) into a more expres
 
 **Primary work.**
 - Extend file-type classification to audio/video/archive formats; expose new types end-to-end (downloads metadata → policy engine → settings/per-type UI → history telemetry badges).
-- Implement deterministic baseline handling per new type (e.g., duration-aware suffixes, installer product/version extraction) that respects safe filename policy and separator preferences.
+- Implement deterministic Instant Baseline handling per new type by reading container metadata with mediainfo.js (duration, resolution, sample rate, channels, codecs), generating helpful suffixes that respect the safe filename policy and separator preferences; avoid filename-derived heuristics for media.
 - Build offscreen extraction for Phase 2 upgrades: first keyframes, short intro audio slices, lightweight container metadata, and archive manifest inspection.
 - Update upgrade scoring/guardrails to compare new media signals against Phase 1 decisions; never regress keep outcomes when context is weak.
 - Expand unit/integration coverage and add media-focused Playwright scenarios, including Undo/Upgrade behaviour.
@@ -141,7 +141,7 @@ Phase 2 extends the MVP deterministic renaming flow (Phase 1) into a more expres
 
 ### Epic A — Multi-Media Instant Baseline & Upgrade Coverage
 - [ ] Extend file-type classifier and policy engine to recognise audio, video, and archive formats end-to-end (downloads metadata → settings toggles → history badges) with unit tests.
-- [ ] Implement deterministic Instant Baseline naming helpers for each new media type, including duration/resolution-aware suffixing that respects separator preferences.
+- [ ] Implement deterministic Instant Baseline naming helpers that consume mediainfo.js results (duration, resolution, sample rate, channels, codecs) to add relevant qualifiers; do not rely on filename parsing; respect separator preferences and length caps.
 - [ ] Prototype offscreen media upgrade pipelines (keyframes, intro audio slices, archive manifest peek) with timeout guards and Playwright coverage for Upgrade/Undo paths.
 
 ### Epic B — Confirm Modal, Mode Flows & Per-Type Controls
