@@ -65,6 +65,229 @@ function sanitizeBaseName(base: string): string {
   return base.replace(/[_]+/g, ' ').trim();
 }
 
+const ORIGINAL_DELIMITER_CANDIDATES = ['_', '-', ' ', '.'];
+const FORBIDDEN_FILENAME_CHARS = /[\\/:*?"<>|]/g;
+
+function countOccurrences(source: string, token: string): number {
+  if (!token || source.length === 0) {
+    return 0;
+  }
+  let count = 0;
+  let index = source.indexOf(token);
+  while (index !== -1) {
+    count += 1;
+    index = source.indexOf(token, index + token.length);
+  }
+  return count;
+}
+
+function detectOriginalDelimiter(base: string): string {
+  const ranked = ORIGINAL_DELIMITER_CANDIDATES.map((separator) => ({
+    separator,
+    count: countOccurrences(base, separator),
+    firstIndex: base.indexOf(separator),
+  }))
+    .filter((entry) => entry.count > 0 && entry.firstIndex !== -1)
+    .sort((a, b) => {
+      if (b.count !== a.count) {
+        return b.count - a.count;
+      }
+      return a.firstIndex - b.firstIndex;
+    });
+
+  return ranked[0]?.separator ?? ' ';
+}
+
+function stripControlCharacters(value: string): string {
+  let result = '';
+  for (const char of value) {
+    const codePoint = char.codePointAt(0);
+    if (codePoint === undefined) {
+      continue;
+    }
+    if ((codePoint >= 0 && codePoint < 32) || codePoint === 127) {
+      continue;
+    }
+    result += char;
+  }
+  return result;
+}
+
+function sanitizeLiteralSegment(value: string): string {
+  if (!value) {
+    return '';
+  }
+  const normalisedWhitespace = value.replace(/\r|\n|\t/g, ' ');
+  return stripControlCharacters(normalisedWhitespace).replace(
+    FORBIDDEN_FILENAME_CHARS,
+    ' ',
+  );
+}
+
+interface ComposeLiteralBaseParams {
+  base: string;
+  delimiter: string;
+  isoDate: string;
+  extension: string | null;
+  maxLength: number;
+}
+
+function composeOriginalWithDateBase({
+  base,
+  delimiter,
+  isoDate,
+  extension,
+  maxLength,
+}: ComposeLiteralBaseParams): string {
+  const extensionAllowance = extension ? extension.length + 1 : 0;
+  const allowance = Math.max(1, maxLength - extensionAllowance);
+
+  if (allowance <= 0) {
+    return isoDate;
+  }
+
+  const isoLength = isoDate.length;
+  if (isoLength >= allowance) {
+    return isoDate.slice(isoLength - allowance);
+  }
+
+  let workingBase = base;
+  const baseEndsWithDelimiter =
+    delimiter.length > 0 && workingBase.endsWith(delimiter);
+
+  let joiner = '';
+  if (workingBase.length > 0) {
+    joiner = baseEndsWithDelimiter ? '' : delimiter;
+  }
+
+  let maxBaseLength = allowance - isoLength - joiner.length;
+  if (maxBaseLength < 0) {
+    joiner = '';
+    maxBaseLength = allowance - isoLength;
+  }
+
+  if (maxBaseLength < 0) {
+    return isoDate.slice(isoLength - allowance);
+  }
+
+  if (workingBase.length > maxBaseLength) {
+    workingBase = workingBase.slice(0, maxBaseLength);
+  }
+
+  if (baseEndsWithDelimiter) {
+    if (!workingBase.endsWith(delimiter)) {
+      if (maxBaseLength >= delimiter.length) {
+        const keep = Math.max(0, maxBaseLength - delimiter.length);
+        workingBase = `${workingBase.slice(0, keep)}${delimiter}`;
+      } else {
+        workingBase = '';
+      }
+    }
+    joiner = '';
+  } else if (joiner.length > 0 && workingBase.endsWith(delimiter)) {
+    joiner = '';
+  }
+
+  if (workingBase.length === 0) {
+    return isoDate.slice(isoLength - allowance);
+  }
+
+  let candidate = `${workingBase}${joiner}${isoDate}`;
+  if (candidate.length <= allowance) {
+    return candidate;
+  }
+
+  const overflow = candidate.length - allowance;
+  if (overflow >= workingBase.length) {
+    return isoDate.slice(isoLength - allowance);
+  }
+
+  workingBase = workingBase.slice(0, workingBase.length - overflow);
+
+  if (baseEndsWithDelimiter) {
+    if (!workingBase.endsWith(delimiter)) {
+      if (workingBase.length >= delimiter.length) {
+        workingBase = `${workingBase.slice(
+          0,
+          workingBase.length - delimiter.length,
+        )}${delimiter}`;
+      } else {
+        workingBase = '';
+      }
+    }
+    joiner = '';
+  } else {
+    joiner =
+      delimiter.length > 0 &&
+      workingBase.length > 0 &&
+      !workingBase.endsWith(delimiter)
+        ? delimiter
+        : '';
+  }
+
+  if (workingBase.length === 0) {
+    return isoDate.slice(isoLength - allowance);
+  }
+
+  candidate = `${workingBase}${joiner}${isoDate}`;
+  if (candidate.length <= allowance) {
+    return candidate;
+  }
+
+  return candidate.slice(candidate.length - allowance);
+}
+
+function buildOriginalWithDateRename(
+  rawBase: string,
+  fallbackBase: string,
+  delimiter: string,
+  isoDate: string,
+  extension: string | null,
+  directory: string,
+  originalPath: string,
+  fileType: ReturnType<typeof detectFileType>,
+  settings: SettingsV1,
+): InstantBaselineRenameProposal {
+  const sanitizedRaw = sanitizeLiteralSegment(rawBase);
+  const sanitizedFallback = sanitizeLiteralSegment(fallbackBase);
+
+  const baseCandidate = (() => {
+    const trimmedRaw = sanitizedRaw.trim();
+    if (trimmedRaw.length > 0) {
+      return sanitizedRaw;
+    }
+    const trimmedFallback = sanitizedFallback.trim();
+    if (trimmedFallback.length > 0) {
+      return sanitizedFallback;
+    }
+    return 'file';
+  })();
+
+  const effectiveDelimiter = delimiter.length > 0 ? delimiter : ' ';
+  const baseWithDate = composeOriginalWithDateBase({
+    base: baseCandidate,
+    delimiter: effectiveDelimiter,
+    isoDate,
+    extension,
+    maxLength: settings.maxLen,
+  });
+
+  const normalizedBase = baseWithDate.length > 0 ? baseWithDate : isoDate;
+  const filename = extension
+    ? `${normalizedBase}.${extension}`
+    : normalizedBase;
+  const path = directory ? `${directory}/${filename}` : filename;
+
+  return {
+    path,
+    filename,
+    reasonTags: ['Original', 'Date'],
+    source: 'metadata',
+    originalPath,
+    fileType,
+  };
+}
+
 function parseIsoDate(startTime?: string): string | null {
   if (!startTime) return null;
   const date = new Date(startTime);
@@ -85,6 +308,8 @@ function determineStrategyInputs(
   const { base } = stripExtension(name);
   return {
     originalBase: sanitizeBaseName(base),
+    rawOriginalBase: base,
+    originalDelimiter: detectOriginalDelimiter(base),
     pageTitle: sanitizePageTitle(signals.page?.title ?? undefined) ?? undefined,
     isoDate: parseIsoDate(signals.startTime) ?? undefined,
   };
@@ -171,20 +396,24 @@ function evaluateStrategy(
           signals,
         };
       }
-      const subject =
-        inputs.originalBase.length > 0 ? inputs.originalBase : 'file';
-      const rename = buildRenameProposal(
-        subject,
-        [inputs.isoDate],
+      const rename = buildOriginalWithDateRename(
+        inputs.rawOriginalBase,
+        inputs.originalBase,
+        inputs.originalDelimiter,
+        inputs.isoDate,
         extension,
         directory,
         originalPath,
         fileType,
         settings,
-        ['Original', 'Date'],
       );
       signals.inputsUsed.push('original', 'date');
-      return { rename, subject, reasonTags: ['Original', 'Date'], signals };
+      return {
+        rename,
+        subject: inputs.originalBase.length > 0 ? inputs.originalBase : 'file',
+        reasonTags: ['Original', 'Date'],
+        signals,
+      };
     }
     case 'page-title': {
       if (!inputs.pageTitle) {

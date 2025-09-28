@@ -39,7 +39,7 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
 
     expect(evaluation.decision.outcome).toBe('rename');
     expect(evaluation.decision.guardrail).toBe('strategy-applied');
-    expect(evaluation.rename?.filename).toBe('Report 2025-04-01.pdf');
+    expect(evaluation.rename?.filename).toBe('report 2025-04-01.pdf');
     expect(evaluation.reasonTags).toEqual(['Original', 'Date']);
   });
 
@@ -59,6 +59,104 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
     expect(evaluation.decision.guardrail).toBe('strategy-unavailable');
     expect(evaluation.rename).toBeUndefined();
     expect(evaluation.decision.reasons).toContain('missing:date');
+  });
+
+  it('preserves underscores when appending date for original-with-date', () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'original-with-date',
+    } as const;
+
+    const signals = {
+      ...baseSignals,
+      filename: 'Downloads/meeting_notes.txt',
+    };
+
+    const { evaluation } = evaluateInstantBaseline(signals, settings);
+
+    expect(evaluation.rename?.filename).toBe('meeting_notes_2025-04-01.txt');
+  });
+
+  it('preserves hyphenated names when appending date for original-with-date', () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'original-with-date',
+    } as const;
+
+    const signals = {
+      ...baseSignals,
+      filename: 'Downloads/release-notes.md',
+    };
+
+    const { evaluation } = evaluateInstantBaseline(signals, settings);
+
+    expect(evaluation.rename?.filename).toBe('release-notes-2025-04-01.md');
+  });
+
+  it('preserves space-delimited names when appending date for original-with-date', () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'original-with-date',
+    } as const;
+
+    const signals = {
+      ...baseSignals,
+      filename: 'Downloads/My project plan.docx',
+    };
+
+    const { evaluation } = evaluateInstantBaseline(signals, settings);
+
+    expect(evaluation.rename?.filename).toBe('My project plan 2025-04-01.docx');
+  });
+
+  it('preserves dotted names when appending date for original-with-date', () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'original-with-date',
+    } as const;
+
+    const signals = {
+      ...baseSignals,
+      filename: 'Downloads/release.notes.txt',
+    };
+
+    const { evaluation } = evaluateInstantBaseline(signals, settings);
+
+    expect(evaluation.rename?.filename).toBe('release.notes.2025-04-01.txt');
+  });
+
+  it('prefers the most frequent delimiter when multiple styles are present', () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'original-with-date',
+    } as const;
+
+    const signals = {
+      ...baseSignals,
+      filename: 'Downloads/project_overview-v2 final.docx',
+    };
+
+    const { evaluation } = evaluateInstantBaseline(signals, settings);
+
+    expect(evaluation.rename?.filename).toBe(
+      'project_overview-v2 final_2025-04-01.docx',
+    );
+  });
+
+  it('handles trailing delimiters when appending date for original-with-date', () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'original-with-date',
+    } as const;
+
+    const signals = {
+      ...baseSignals,
+      filename: 'Downloads/report-.txt',
+    };
+
+    const { evaluation } = evaluateInstantBaseline(signals, settings);
+
+    expect(evaluation.rename?.filename).toBe('report-2025-04-01.txt');
   });
 
   it('uses page title when strategy is page-title-with-date', () => {
