@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  detectOriginalDelimiter,
+  sanitizeBaseName,
+  sanitizeLiteralSegment,
   splitPath,
   stripExtension,
-  sanitizeBaseName,
-  detectOriginalDelimiter,
-  sanitizeLiteralSegment
 } from './path-utils';
 
 describe('path-utils', () => {
@@ -133,7 +133,9 @@ describe('path-utils', () => {
 
   describe('detectOriginalDelimiter', () => {
     it('prefers most frequent delimiter', () => {
-      const result = detectOriginalDelimiter('file-name-with-many-dashes_and_one_underscore');
+      const result = detectOriginalDelimiter(
+        'file-name-with-many-dashes_and_one_underscore',
+      );
       expect(result).toBe('-');
     });
 
@@ -180,7 +182,7 @@ describe('path-utils', () => {
     });
 
     it('handles null input', () => {
-      const result = sanitizeLiteralSegment(null as any);
+      const result = sanitizeLiteralSegment(null as unknown as string);
       expect(result).toBe('');
     });
 

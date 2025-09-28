@@ -31,127 +31,141 @@ export function evaluateStrategy(
   reasonTags: string[];
   signals: InstantBaselineDecisionSignals;
 } {
-  const reasonTags: string[] = [];
-  const signals: InstantBaselineDecisionSignals = {
-    inputsUsed: [],
-    missingInputs: [],
-  };
+  try {
+    const reasonTags: string[] = [];
+    const signals: InstantBaselineDecisionSignals = {
+      inputsUsed: [],
+      missingInputs: [],
+    };
 
-  const _useOriginal = () => {
-    const subject =
-      inputs.originalBase.length > 0 ? inputs.originalBase : 'file';
-    return buildRenameProposal(
-      subject,
-      [],
-      extension,
-      directory,
-      originalPath,
-      fileType,
-      settings,
-      ['Original'],
-    );
-  };
-
-  switch (strategy) {
-    case 'keep-original':
-      signals.missingInputs.push('strategy:keep-original');
-      return { subject: inputs.originalBase, reasonTags, signals };
-    case 'original-with-date': {
-      if (!inputs.isoDate) {
-        signals.inputsUsed.push('original');
-        signals.missingInputs.push('date');
-        return {
-          subject: inputs.originalBase,
-          reasonTags,
-          signals,
-        };
-      }
-      const rename = buildOriginalWithDateRename(
-        inputs.rawOriginalBase,
-        inputs.originalBase,
-        inputs.originalDelimiter,
-        inputs.isoDate,
-        extension,
-        directory,
-        originalPath,
-        fileType,
-        settings,
-      );
-      signals.inputsUsed.push('original', 'date');
-      return {
-        rename,
-        subject: inputs.originalBase.length > 0 ? inputs.originalBase : 'file',
-        reasonTags: ['Original', 'Date'],
-        signals,
-      };
-    }
-    case 'page-title': {
-      if (!inputs.pageTitle) {
-        signals.inputsUsed.push('original');
-        signals.missingInputs.push('title');
-        return {
-          subject: inputs.originalBase,
-          reasonTags,
-          signals,
-        };
-      }
-      const rename = buildRenameProposal(
-        inputs.pageTitle,
+    const _useOriginal = () => {
+      const subject =
+        inputs.originalBase.length > 0 ? inputs.originalBase : 'file';
+      return buildRenameProposal(
+        subject,
         [],
         extension,
         directory,
         originalPath,
         fileType,
         settings,
-        ['PageTitle'],
+        ['Original'],
       );
-      signals.inputsUsed.push('title');
-      return {
-        rename,
-        subject: inputs.pageTitle,
-        reasonTags: ['PageTitle'],
-        signals,
-      };
-    }
-    case 'page-title-with-date': {
-      if (!inputs.pageTitle) {
-        signals.inputsUsed.push('original');
-        signals.missingInputs.push('title');
+    };
+
+    switch (strategy) {
+      case 'keep-original':
+        signals.missingInputs.push('strategy:keep-original');
+        return { subject: inputs.originalBase, reasonTags, signals };
+      case 'original-with-date': {
+        if (!inputs.isoDate) {
+          signals.inputsUsed.push('original');
+          signals.missingInputs.push('date');
+          return {
+            subject: inputs.originalBase,
+            reasonTags,
+            signals,
+          };
+        }
+        const rename = buildOriginalWithDateRename(
+          inputs.rawOriginalBase,
+          inputs.originalBase,
+          inputs.originalDelimiter,
+          inputs.isoDate,
+          extension,
+          directory,
+          originalPath,
+          fileType,
+          settings,
+        );
+        signals.inputsUsed.push('original', 'date');
         return {
-          subject: inputs.originalBase,
-          reasonTags,
+          rename,
+          subject:
+            inputs.originalBase.length > 0 ? inputs.originalBase : 'file',
+          reasonTags: ['Original', 'Date'],
           signals,
         };
       }
-      const qualifiers: string[] = [];
-      if (inputs.isoDate) {
-        qualifiers.push(inputs.isoDate);
-        signals.inputsUsed.push('date');
-      } else {
-        signals.missingInputs.push('date');
+      case 'page-title': {
+        if (!inputs.pageTitle) {
+          signals.inputsUsed.push('original');
+          signals.missingInputs.push('title');
+          return {
+            subject: inputs.originalBase,
+            reasonTags,
+            signals,
+          };
+        }
+        const rename = buildRenameProposal(
+          inputs.pageTitle,
+          [],
+          extension,
+          directory,
+          originalPath,
+          fileType,
+          settings,
+          ['PageTitle'],
+        );
+        signals.inputsUsed.push('title');
+        return {
+          rename,
+          subject: inputs.pageTitle,
+          reasonTags: ['PageTitle'],
+          signals,
+        };
       }
-      signals.inputsUsed.push('title');
-      const rename = buildRenameProposal(
-        inputs.pageTitle,
-        qualifiers,
-        extension,
-        directory,
-        originalPath,
-        fileType,
-        settings,
-        qualifiers.length > 0 ? ['PageTitle', 'Date'] : ['PageTitle'],
-      );
-      return {
-        rename,
-        subject: inputs.pageTitle,
-        reasonTags:
+      case 'page-title-with-date': {
+        if (!inputs.pageTitle) {
+          signals.inputsUsed.push('original');
+          signals.missingInputs.push('title');
+          return {
+            subject: inputs.originalBase,
+            reasonTags,
+            signals,
+          };
+        }
+        const qualifiers: string[] = [];
+        if (inputs.isoDate) {
+          qualifiers.push(inputs.isoDate);
+          signals.inputsUsed.push('date');
+        } else {
+          signals.missingInputs.push('date');
+        }
+        signals.inputsUsed.push('title');
+        const rename = buildRenameProposal(
+          inputs.pageTitle,
+          qualifiers,
+          extension,
+          directory,
+          originalPath,
+          fileType,
+          settings,
           qualifiers.length > 0 ? ['PageTitle', 'Date'] : ['PageTitle'],
-        signals,
-      };
+        );
+        return {
+          rename,
+          subject: inputs.pageTitle,
+          reasonTags:
+            qualifiers.length > 0 ? ['PageTitle', 'Date'] : ['PageTitle'],
+          signals,
+        };
+      }
+      default:
+        signals.missingInputs.push('strategy:unknown');
+        return { subject: inputs.originalBase, reasonTags, signals };
     }
-    default:
-      signals.missingInputs.push('strategy:unknown');
-      return { subject: inputs.originalBase, reasonTags, signals };
+  } catch (error) {
+    // Fallback if strategy evaluation fails
+    console.warn('Strategy evaluation failed, using fallback', error);
+    return {
+      subject: inputs.originalBase || 'file',
+      reasonTags: ['Error'],
+      signals: {
+        inputsUsed: [],
+        missingInputs: ['strategy-evaluation-failed'],
+      },
+    };
   }
 }
 
@@ -160,31 +174,51 @@ export function createDecision(
   rename: InstantBaselineRenameProposal | undefined,
   signals: InstantBaselineDecisionSignals,
 ): InstantBaselineDecision {
-  if (rename) {
+  try {
+    if (rename) {
+      return {
+        outcome: 'rename',
+        strategy,
+        confidence: 100,
+        guardrail: 'strategy-applied',
+        reasons: [`strategy:${strategy}`],
+        signals,
+      };
+    }
+
     return {
-      outcome: 'rename',
+      outcome: 'keep',
       strategy,
-      confidence: 100,
-      guardrail: 'strategy-applied',
-      reasons: [`strategy:${strategy}`],
+      confidence: 0,
+      guardrail: 'strategy-unavailable',
+      reasons: [
+        `strategy:${strategy}`,
+        ...signals.missingInputs.map((input) => `missing:${input}`),
+      ],
       signals,
     };
+  } catch (error) {
+    // Fallback decision if creation fails
+    console.warn('Decision creation failed, using fallback', error);
+    return {
+      outcome: 'keep',
+      strategy,
+      confidence: 0,
+      guardrail: 'decision-creation-failed',
+      reasons: ['decision-creation-error'],
+      signals: {
+        inputsUsed: [],
+        missingInputs: ['decision-creation-failed'],
+      },
+    };
   }
-
-  return {
-    outcome: 'keep',
-    strategy,
-    confidence: 0,
-    guardrail: 'strategy-unavailable',
-    reasons: [
-      `strategy:${strategy}`,
-      ...signals.missingInputs.map((input) => `missing:${input}`),
-    ],
-    signals,
-  };
 }
 
 export function determineFileType(filename: string, mime?: string) {
-  const { extension } = stripExtension(filename);
-  return detectFileType({ mime, extension });
+  try {
+    const { extension } = stripExtension(filename || '');
+    return detectFileType({ mime, extension });
+  } catch {
+    return 'data' as const;
+  }
 }

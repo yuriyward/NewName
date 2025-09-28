@@ -16,6 +16,10 @@ export const MULTI_PART_ARCHIVE_EXTENSIONS = [
   'tar.br',
 ] as const;
 
+// Type-safe multi-part extension type
+export type MultiPartArchiveExtension =
+  (typeof MULTI_PART_ARCHIVE_EXTENSIONS)[number];
+
 // MIME type to file type mappings
 export const MIME_TYPE_MAP: Record<string, FileType> = {
   'application/pdf': 'pdf',
@@ -140,6 +144,8 @@ export const EXTENSION_MAP: Record<string, FileType> = {
   'tar.zst': 'archive',
   'tar.lz': 'archive',
   'tar.lz4': 'archive',
+  'tar.sz': 'archive',
+  'tar.br': 'archive',
   tgz: 'archive',
   tbz: 'archive',
   tbz2: 'archive',
@@ -177,14 +183,18 @@ export const EXTENSION_MAP: Record<string, FileType> = {
 };
 
 // MIME prefix mappings for broader categorization
-export const MIME_PREFIX_MAP: Array<{ prefix: string; type: FileType }> = [
+export const MIME_PREFIX_MAP = [
   { prefix: 'image/', type: 'image' },
   { prefix: 'audio/', type: 'audio' },
   { prefix: 'video/', type: 'video' },
-];
+] as const satisfies ReadonlyArray<{ prefix: string; type: FileType }>;
 
 // Filename delimiter candidates for parsing original filenames
 export const ORIGINAL_DELIMITER_CANDIDATES = ['_', '-', ' ', '.'] as const;
+
+// Type-safe delimiter type
+export type OriginalDelimiterCandidate =
+  (typeof ORIGINAL_DELIMITER_CANDIDATES)[number];
 
 // Characters forbidden in filenames
 export const FORBIDDEN_FILENAME_CHARS = /[\\/:*?"<>|]/g;

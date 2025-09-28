@@ -27,14 +27,17 @@ function lookupExtension(normalized: string): FileType | undefined {
     return EXTENSION_MAP[normalized];
   }
 
+  // Optimized multi-part extension lookup - O(n) instead of O(n²)
   if (normalized.includes('.')) {
-    const parts = normalized.split('.');
-    for (let index = 1; index < parts.length; index += 1) {
-      const candidate = parts.slice(index).join('.');
+    let dotIndex = normalized.indexOf('.');
+    while (dotIndex !== -1 && dotIndex < normalized.length - 1) {
+      const candidate = normalized.slice(dotIndex + 1);
       const match = EXTENSION_MAP[candidate];
       if (match) {
         return match;
       }
+      // Find next dot after current position
+      dotIndex = normalized.indexOf('.', dotIndex + 1);
     }
   }
 

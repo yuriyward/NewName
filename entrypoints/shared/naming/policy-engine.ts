@@ -197,7 +197,14 @@ export function applyFilenamePolicy(
     ? Math.max(1, input.maxLength - (extension.length + 1))
     : Math.max(1, input.maxLength);
 
-  const effectiveAllowance = allowance > 50 ? allowance + 10 : allowance;
+  // For longer filenames (>50 chars), add small buffer to improve token inclusion
+  // This threshold balances filename readability vs completeness for longer names
+  const LONG_FILENAME_THRESHOLD = 50;
+  const LONG_FILENAME_BUFFER = 10;
+  const effectiveAllowance =
+    allowance > LONG_FILENAME_THRESHOLD
+      ? allowance + LONG_FILENAME_BUFFER
+      : allowance;
 
   interface TokenEntry {
     value: string;

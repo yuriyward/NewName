@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { buildOriginalWithDateRename, buildRenameProposal } from './filename-composer';
+import type { SettingsV1 } from '@/entrypoints/shared/settings/settings';
+import {
+  buildOriginalWithDateRename,
+  buildRenameProposal,
+} from './filename-composer';
 
 describe('filename-composer', () => {
   describe('buildOriginalWithDateRename', () => {
@@ -13,7 +17,7 @@ describe('filename-composer', () => {
         '',
         'original.txt',
         'data',
-        { maxLen: 3 } as any // Only 3 chars total - less than extension
+        { maxLen: 3 } as SettingsV1, // Only 3 chars total - less than extension
       );
 
       // Should return the date with extension when no room for base
@@ -30,7 +34,7 @@ describe('filename-composer', () => {
         '',
         'original.txt',
         'data',
-        { maxLen: 4 } as any // Exactly .txt length
+        { maxLen: 4 } as SettingsV1, // Exactly .txt length
       );
 
       // Should return the date with extension when no room for base
@@ -47,7 +51,7 @@ describe('filename-composer', () => {
         '',
         'original.verylongextension',
         'data',
-        { maxLen: 10 } as any // Much shorter than extension
+        { maxLen: 10 } as SettingsV1, // Much shorter than extension
       );
 
       // Should return the date with extension
@@ -64,7 +68,7 @@ describe('filename-composer', () => {
         '',
         'original.txt',
         'data',
-        { maxLen: 30 } as any
+        { maxLen: 30 } as SettingsV1,
       );
 
       expect(result.filename).toBe('fallback-name_2025-01-01.txt');
@@ -80,7 +84,7 @@ describe('filename-composer', () => {
         '',
         'original.txt',
         'data',
-        { maxLen: 30 } as any
+        { maxLen: 30 } as SettingsV1,
       );
 
       expect(result.filename).toBe('file_2025-01-01.txt');
@@ -96,7 +100,7 @@ describe('filename-composer', () => {
         '',
         'original',
         'data',
-        { maxLen: 30 } as any
+        { maxLen: 30 } as SettingsV1,
       );
 
       expect(result.filename).toBe('document_2025-01-01');
@@ -113,7 +117,7 @@ describe('filename-composer', () => {
         '',
         'original.txt',
         'data',
-        { maxLen: 25 } as any
+        { maxLen: 25 } as SettingsV1,
       );
 
       expect(result.filename).toMatch(/\.txt$/);
@@ -131,8 +135,12 @@ describe('filename-composer', () => {
         '',
         'original.txt',
         'data',
-        { maxLen: 30, separator: 'clean', transliterateAscii: false } as any,
-        ['test']
+        {
+          maxLen: 30,
+          separator: 'clean',
+          transliterateAscii: false,
+        } as SettingsV1,
+        ['test'],
       );
 
       // Should handle empty subject gracefully
@@ -148,8 +156,12 @@ describe('filename-composer', () => {
         '',
         'original.txt',
         'data',
-        { maxLen: 20, separator: 'clean', transliterateAscii: false } as any,
-        ['test']
+        {
+          maxLen: 20,
+          separator: 'clean',
+          transliterateAscii: false,
+        } as SettingsV1,
+        ['test'],
       );
 
       expect(result.filename.length).toBeLessThanOrEqual(20);
@@ -164,8 +176,12 @@ describe('filename-composer', () => {
         'folder',
         'folder/original.txt',
         'data',
-        { maxLen: 30, separator: 'clean', transliterateAscii: false } as any,
-        ['test']
+        {
+          maxLen: 30,
+          separator: 'clean',
+          transliterateAscii: false,
+        } as SettingsV1,
+        ['test'],
       );
 
       expect(result.filename).toBe('Document.txt');
@@ -180,8 +196,12 @@ describe('filename-composer', () => {
         '',
         'original',
         'data',
-        { maxLen: 30, separator: 'clean', transliterateAscii: false } as any,
-        ['test']
+        {
+          maxLen: 30,
+          separator: 'clean',
+          transliterateAscii: false,
+        } as SettingsV1,
+        ['test'],
       );
 
       expect(result.filename).not.toContain('.');

@@ -22,7 +22,10 @@ export function isInstantBaselineStrategy(
 
 export type InstantBaselineGuardrail =
   | 'strategy-applied'
-  | 'strategy-unavailable';
+  | 'strategy-unavailable'
+  | 'evaluation-failed'
+  | 'debug-evaluation-failed'
+  | 'decision-creation-failed';
 
 export interface InstantBaselineDecisionSignals {
   inputsUsed: string[];
