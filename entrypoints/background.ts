@@ -7,6 +7,7 @@ import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { DebugContext } from '@/entrypoints/shared/debug/types';
 import {
   addHistoryItem,
+  type UpgradeProposal,
   updateHistoryItem,
 } from '@/entrypoints/shared/history/history';
 import type { MediaDebugSettings } from '@/entrypoints/shared/integrations/mediainfo/debug';
@@ -18,6 +19,7 @@ import type {
 } from '@/entrypoints/shared/integrations/mediainfo/messages';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
+import { generateMediaEnhancedFilename } from '@/entrypoints/shared/naming/policy-engine';
 import {
   evaluateInstantBaseline,
   evaluateInstantBaselineDebug,
@@ -173,9 +175,48 @@ async function applyMediaAnalysisResponse(
               details: response.details,
             };
 
+      // Generate upgrade proposal if media analysis succeeded
+      let upgrade: UpgradeProposal | undefined;
+      if (
+        response.status === 'success' &&
+        (item.fileType === 'audio' || item.fileType === 'video')
+      ) {
+        const settings = readSettings();
+        const enhanced = generateMediaEnhancedFilename(
+          item.final,
+          response.summary,
+          item.fileType,
+          {
+            maxLength: settings.maxLen,
+            separator: settings.separator,
+            transliterateAscii: settings.transliterateAscii,
+          },
+        );
+
+        // Only propose upgrade if the enhanced name is meaningfully different
+        if (enhanced.filename !== item.final) {
+          const pathDir = item.path.slice(0, item.path.lastIndexOf('/') + 1);
+          upgrade = {
+            proposedFilename: enhanced.filename,
+            proposedPath: pathDir + enhanced.filename,
+            confidence: 'suggested',
+            reasonTags: ['media-specs', 'contextual-upgrade'],
+            generatedAt: analyzedAt,
+          };
+
+          logMediaDebug(debug, 'upgrade-proposed', {
+            historyId,
+            requestId,
+            currentName: item.final,
+            proposedName: enhanced.filename,
+          });
+        }
+      }
+
       return {
         ...item,
         media,
+        upgrade,
       };
     });
 

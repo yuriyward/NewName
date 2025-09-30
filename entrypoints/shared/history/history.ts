@@ -10,6 +10,14 @@ import {
   isFileType,
 } from '@/entrypoints/shared/settings/settings';
 
+export interface UpgradeProposal {
+  proposedFilename: string;
+  proposedPath: string;
+  confidence: 'high' | 'suggested' | 'alternative';
+  reasonTags: string[];
+  generatedAt: number;
+}
+
 export interface HistoryItem {
   id: string;
   ts: number;
@@ -23,6 +31,7 @@ export interface HistoryItem {
   undone?: boolean;
   decision?: InstantBaselineDecision;
   media?: HistoryMediaMetadata;
+  upgrade?: UpgradeProposal;
 }
 
 export interface HistoryMediaMetadata {
@@ -158,6 +167,40 @@ function isInstantBaselineDecision(
   return true;
 }
 
+function isUpgradeProposal(value: unknown): value is UpgradeProposal {
+  if (!isPlainObject(value)) return false;
+  const maybe = value as Partial<UpgradeProposal>;
+  if (
+    typeof maybe.proposedFilename !== 'string' ||
+    maybe.proposedFilename.length === 0
+  ) {
+    return false;
+  }
+  if (
+    typeof maybe.proposedPath !== 'string' ||
+    maybe.proposedPath.length === 0
+  ) {
+    return false;
+  }
+  if (
+    maybe.confidence !== 'high' &&
+    maybe.confidence !== 'suggested' &&
+    maybe.confidence !== 'alternative'
+  ) {
+    return false;
+  }
+  if (!isStringArray(maybe.reasonTags)) {
+    return false;
+  }
+  if (
+    typeof maybe.generatedAt !== 'number' ||
+    !Number.isFinite(maybe.generatedAt)
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function isValidHistoryItem(entry: unknown): entry is HistoryItem {
   if (!entry || typeof entry !== 'object') return false;
   const maybe = entry as Partial<HistoryItem>;
@@ -185,6 +228,9 @@ function isValidHistoryItem(entry: unknown): entry is HistoryItem {
     return false;
   }
   if (maybe.media !== undefined && !isHistoryMediaMetadata(maybe.media)) {
+    return false;
+  }
+  if (maybe.upgrade !== undefined && !isUpgradeProposal(maybe.upgrade)) {
     return false;
   }
   return true;
@@ -243,4 +289,8 @@ export async function updateHistoryItem(
   history[index] = updated;
   await writeHistory(history);
   return updated;
+}
+
+export async function getHistory(): Promise<HistoryItem[]> {
+  return readHistory();
 }

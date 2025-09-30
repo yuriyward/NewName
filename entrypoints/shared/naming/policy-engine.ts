@@ -1,7 +1,12 @@
 /**
  * Filename generation policies and formatting rules
  */
-import type { Separator } from '@/entrypoints/shared/settings/settings';
+import type { MediaMetadataSummary } from '@/entrypoints/shared/integrations/mediainfo/media-summary';
+import type {
+  FileType,
+  Separator,
+} from '@/entrypoints/shared/settings/settings';
+import { extractMediaQualifiers } from './media-qualifiers';
 
 export interface FilenamePolicyInput {
   subject: string;
@@ -281,4 +286,48 @@ export function applyFilenamePolicy(
     extension,
     filename,
   };
+}
+
+/**
+ * Generate enhanced filename with media metadata qualifiers
+ */
+export function generateMediaEnhancedFilename(
+  baseFilename: string,
+  summary: MediaMetadataSummary,
+  fileType: Extract<FileType, 'audio' | 'video'>,
+  settings: {
+    maxLength: number;
+    separator: Separator;
+    transliterateAscii: boolean;
+  },
+): FilenamePolicyResult {
+  // Extract extension from base filename
+  const lastDot = baseFilename.lastIndexOf('.');
+  const hasExtension = lastDot > 0 && lastDot < baseFilename.length - 1;
+  const extension = hasExtension ? baseFilename.slice(lastDot + 1) : null;
+  const baseWithoutExt = hasExtension
+    ? baseFilename.slice(0, lastDot)
+    : baseFilename;
+
+  // Extract media qualifiers
+  const mediaQuals = extractMediaQualifiers(summary, fileType);
+
+  // Build qualifiers list: specs + optional duration + optional format
+  const qualifiers: string[] = [...mediaQuals.specs];
+  if (mediaQuals.duration) {
+    qualifiers.push(mediaQuals.duration);
+  }
+  if (mediaQuals.format && mediaQuals.format.length <= 8) {
+    qualifiers.push(mediaQuals.format);
+  }
+
+  // Apply policy with media qualifiers
+  return applyFilenamePolicy({
+    subject: baseWithoutExt,
+    qualifiers,
+    extension,
+    maxLength: settings.maxLength,
+    separator: settings.separator,
+    transliterateAscii: settings.transliterateAscii,
+  });
 }
