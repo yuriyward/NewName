@@ -2,6 +2,7 @@
  * Filename generation policies and formatting rules
  */
 import type { MediaMetadataSummary } from '@/entrypoints/shared/integrations/mediainfo/media-summary';
+import { detectOriginalDelimiter } from '@/entrypoints/shared/pipeline/path-utils';
 import type {
   FileType,
   Separator,
@@ -317,12 +318,9 @@ export function generateMediaEnhancedFilename(
   if (mediaQuals.duration) {
     qualifiers.push(mediaQuals.duration);
   }
-  if (mediaQuals.format && mediaQuals.format.length <= 8) {
-    qualifiers.push(mediaQuals.format);
-  }
 
   // Apply policy with media qualifiers
-  return applyFilenamePolicy({
+  const policy = applyFilenamePolicy({
     subject: baseWithoutExt,
     qualifiers,
     extension,
@@ -330,4 +328,23 @@ export function generateMediaEnhancedFilename(
     separator: settings.separator,
     transliterateAscii: settings.transliterateAscii,
   });
+
+  if (settings.separator === 'clean') {
+    const originalDelimiter = detectOriginalDelimiter(baseWithoutExt);
+    const replacement =
+      originalDelimiter === ' ' ? undefined : originalDelimiter;
+    if (replacement && replacement.length > 0) {
+      const adjustedBase = policy.base.replace(/ /g, replacement);
+      const adjustedFilename = policy.extension
+        ? `${adjustedBase}.${policy.extension}`
+        : adjustedBase;
+      return {
+        ...policy,
+        base: adjustedBase,
+        filename: adjustedFilename,
+      };
+    }
+  }
+
+  return policy;
 }

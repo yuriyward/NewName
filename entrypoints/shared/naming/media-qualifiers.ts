@@ -101,11 +101,15 @@ function shortenCodec(codec: string | undefined): string | undefined {
   if (lower.includes('opus')) return 'Opus';
   if (lower.includes('vorbis')) return 'Vorbis';
   if (lower.includes('flac')) return 'FLAC';
-  // Return first word if it's short
-  const firstWord = codec.split(/[\s/]+/)[0];
-  if (firstWord && firstWord.length <= 6) {
-    return firstWord;
+  if (lower.includes('xvid')) return 'Xvid';
+  if (lower.includes('divx')) return 'DivX';
+  if (lower.includes('prores')) return 'ProRes';
+  if (lower.includes('dnxhr')) return 'DNxHR';
+  if (lower.includes('dnxhd')) return 'DNxHD';
+  if (lower.includes('mpeg-4') || lower.includes('mpeg4')) {
+    return undefined;
   }
+  // Return first word if it's short
   return undefined;
 }
 

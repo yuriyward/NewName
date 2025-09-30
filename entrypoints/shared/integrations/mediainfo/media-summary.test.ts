@@ -88,4 +88,40 @@ describe('summariseMediaInfo', () => {
     expect(summary.audio).toEqual([]);
     expect(summary.general.durationMs).toBeUndefined();
   });
+
+  it('parses colon-formatted duration strings as milliseconds', () => {
+    const result = {
+      media: {
+        '@ref': 'colon',
+        track: [
+          {
+            '@type': 'General',
+            Duration_String3: '00:00:28.237',
+          } satisfies GeneralTrack,
+        ],
+      },
+    } satisfies MediaInfoResult;
+
+    const summary = summariseMediaInfo(result);
+
+    expect(summary.general.durationMs).toBe(28_237);
+  });
+
+  it('parses tokenized duration strings with units', () => {
+    const result = {
+      media: {
+        '@ref': 'tokens',
+        track: [
+          {
+            '@type': 'General',
+            Duration_String: '1 min 30 s 250 ms',
+          } satisfies GeneralTrack,
+        ],
+      },
+    } satisfies MediaInfoResult;
+
+    const summary = summariseMediaInfo(result);
+
+    expect(summary.general.durationMs).toBe(90_250);
+  });
 });
