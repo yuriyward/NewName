@@ -34,6 +34,7 @@ let processing = false;
 let ensureOffscreenPromise: Promise<void> | null = null;
 let readyPromise: Promise<void> | null = null;
 let readySignalTimestamp: number | null = null;
+const readySignalWaiters = new Set<() => void>();
 
 // Listen for offscreenReady signals from offscreen document
 onExtensionMessage('offscreenReady', ({ data }) => {
@@ -41,8 +42,33 @@ onExtensionMessage('offscreenReady', ({ data }) => {
   logMediaDebug(undefined, 'offscreen-ready-signal', {
     ts: readySignalTimestamp,
   });
+  for (const notify of readySignalWaiters) {
+    notify();
+  }
+  readySignalWaiters.clear();
   return { ok: true as const };
 });
+
+function waitForReadySignal(timeoutMs: number): Promise<void> {
+  if (readySignalTimestamp !== null) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const timeout = setTimeout(
+      () => {
+        readySignalWaiters.delete(onSignal);
+        resolve();
+      },
+      Math.max(0, timeoutMs),
+    );
+    const onSignal = () => {
+      clearTimeout(timeout);
+      readySignalWaiters.delete(onSignal);
+      resolve();
+    };
+    readySignalWaiters.add(onSignal);
+  });
+}
 
 async function ensureOffscreenDocument(
   debug?: MediaAnalysisRequest['debug'],
@@ -121,20 +147,10 @@ async function ensureOffscreenReady(
   if (readyPromise) return readyPromise;
 
   const MAX_RETRIES = 3;
-  const BACKOFF_MS = 200;
+  const BACKOFF_MS = 20;
 
   readyPromise = (async () => {
     await ensureOffscreenDocument(debug);
-
-    // Wait longer for the offscreen document to fully initialize and load scripts
-    // This is especially important in dev mode where modules load from dev server
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    // If we never saw a ready signal, wait longer for it
-    if (readySignalTimestamp === null) {
-      logMediaDebug(debug, 'offscreen-ready-signal-wait');
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
 
     logMediaDebug(debug, 'offscreen-handshake-loop-start', {
       maxRetries: MAX_RETRIES + 1,
@@ -192,7 +208,7 @@ async function ensureOffscreenReady(
           nextAttemptIn: delay,
           queueLength: queue.length,
         });
-        await new Promise((r) => setTimeout(r, delay));
+        await waitForReadySignal(delay);
       }
     }
   })().catch((error) => {
@@ -283,4 +299,6 @@ export function resetMediaAnalysisQueueForTesting(): void {
   processing = false;
   ensureOffscreenPromise = null;
   readyPromise = null;
+  readySignalTimestamp = null;
+  readySignalWaiters.clear();
 }
