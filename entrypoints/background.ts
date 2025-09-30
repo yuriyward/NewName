@@ -5,7 +5,17 @@ import { browser } from 'wxt/browser';
 import { initializeBackgroundDebug } from '@/entrypoints/shared/debug/console-helpers';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { DebugContext } from '@/entrypoints/shared/debug/types';
-import { addHistoryItem } from '@/entrypoints/shared/history/history';
+import {
+  addHistoryItem,
+  updateHistoryItem,
+} from '@/entrypoints/shared/history/history';
+import type { MediaDebugSettings } from '@/entrypoints/shared/integrations/mediainfo/debug';
+import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
+import { enqueueMediaAnalysis } from '@/entrypoints/shared/integrations/mediainfo/media-analysis-queue';
+import type {
+  MediaAnalysisRequest,
+  MediaAnalysisResponse,
+} from '@/entrypoints/shared/integrations/mediainfo/messages';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import {
@@ -15,6 +25,7 @@ import {
 } from '@/entrypoints/shared/pipeline/instant-baseline-strategy';
 import type { InstantBaselineEvaluation } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import {
+  type FileType,
   getLastKnownSettings,
   getSettings,
   type SettingsV1,
@@ -69,6 +80,116 @@ function fallbackNameFromUrl(rawUrl: string): string {
     }
   } catch {
     return 'download';
+  }
+}
+
+function toMediaDebugSettings(
+  settings: SettingsV1,
+): MediaDebugSettings | undefined {
+  if (!settings.debug.enabled) {
+    return undefined;
+  }
+  return {
+    enabled: true,
+    level: settings.debug.level,
+  };
+}
+
+function isMediaFileType(
+  fileType: FileType,
+): fileType is Extract<FileType, 'audio' | 'video'> {
+  return fileType === 'audio' || fileType === 'video';
+}
+
+function scheduleMediaMetadataAnalysis(
+  request: MediaAnalysisRequest,
+  debug: MediaDebugSettings | undefined,
+  historyId: string,
+  url: string,
+): void {
+  logMediaDebug(debug, 'queue-request', {
+    requestId: request.requestId,
+    historyId,
+    url,
+  });
+
+  void enqueueMediaAnalysis(request)
+    .then((response) => {
+      logMediaDebug(debug, 'queue-response', {
+        requestId: request.requestId,
+        status: response.status,
+      });
+      return applyMediaAnalysisResponse(
+        historyId,
+        url,
+        request.requestId,
+        debug,
+        response,
+        request.downloadId,
+      );
+    })
+    .catch((error: unknown) => {
+      logMediaDebug(debug, 'queue-failure', {
+        requestId: request.requestId,
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Unknown media analysis error',
+      });
+    });
+}
+
+async function applyMediaAnalysisResponse(
+  historyId: string,
+  url: string,
+  requestId: string,
+  debug: MediaDebugSettings | undefined,
+  response: MediaAnalysisResponse,
+  downloadId?: string,
+): Promise<void> {
+  const analyzedAt = Date.now();
+
+  try {
+    const updated = await updateHistoryItem(historyId, (item) => {
+      const media =
+        response.status === 'success'
+          ? {
+              status: 'success' as const,
+              analyzedAt,
+              requestId,
+              url,
+              downloadId,
+              summary: response.summary,
+              metrics: response.metrics,
+            }
+          : {
+              status: 'error' as const,
+              analyzedAt,
+              requestId,
+              url,
+              downloadId,
+              metrics: response.metrics,
+              error: response.error,
+              details: response.details,
+            };
+
+      return {
+        ...item,
+        media,
+      };
+    });
+
+    if (!updated) {
+      logMediaDebug(debug, 'history-missing', {
+        historyId,
+        requestId,
+      });
+    }
+  } catch (error) {
+    logMediaDebug(debug, 'history-update-failed', {
+      requestId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 }
 
@@ -183,6 +304,10 @@ async function processDeterminingFilename(
     const settings = readSettings();
     const url = item.finalUrl ?? item.url;
     const filename = item.filename ?? fallbackNameFromUrl(url);
+    const downloadId =
+      typeof (item as { id?: number }).id === 'number'
+        ? String((item as { id: number }).id)
+        : undefined;
     const initiatingTabId =
       typeof (item as { tabId?: number }).tabId === 'number'
         ? (item as { tabId?: number }).tabId
@@ -253,8 +378,10 @@ async function processDeterminingFilename(
                 : evaluation.decision.reasons,
           };
 
+    const historyId = randomId();
+
     await addHistoryItem({
-      id: randomId(),
+      id: historyId,
       ts: Date.now(),
       path: renameCandidate ? renameCandidate.path : evaluation.originalPath,
       original: basename(filename),
@@ -275,6 +402,29 @@ async function processDeterminingFilename(
               decision: historyDecision,
             },
       });
+    }
+
+    const debugSettings = toMediaDebugSettings(settings);
+    if (
+      isMediaFileType(evaluation.fileType) &&
+      url &&
+      settings.metadataToggles.mediaSpecs &&
+      typeEnabled &&
+      !url.startsWith('data:')
+    ) {
+      const mediaType = evaluation.fileType;
+      const request: MediaAnalysisRequest = {
+        requestId: randomId(),
+        historyId,
+        downloadId,
+        url,
+        originalFilename: renameCandidate
+          ? renameCandidate.filename
+          : basename(filename),
+        fileType: mediaType,
+        debug: debugSettings,
+      };
+      scheduleMediaMetadataAnalysis(request, debugSettings, historyId, url);
     }
   } catch (error) {
     console.error('Instant Baseline rename failed', error);

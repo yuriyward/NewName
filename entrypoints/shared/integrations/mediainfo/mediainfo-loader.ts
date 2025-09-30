@@ -1,5 +1,5 @@
 import mediaInfoFactory, { type MediaInfo } from 'mediainfo.js';
-import wasmUrl from 'mediainfo.js/dist/MediaInfoModule.wasm?url';
+import wasmUrl from 'mediainfo.js/MediaInfoModule.wasm?url';
 
 export type MediaInfoInstance = MediaInfo<'object'>;
 

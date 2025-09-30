@@ -20,6 +20,23 @@ export interface AnalyzeMediaFromBlobResult {
   readonly summary: MediaMetadataSummary;
 }
 
+export class MediaAnalysisError extends Error {
+  readonly metrics: {
+    readonly bytesFetched: number;
+    readonly requests: number;
+  };
+
+  constructor(
+    message: string,
+    metrics: { bytesFetched: number; requests: number },
+    options?: ErrorOptions,
+  ) {
+    super(message, options);
+    this.name = 'MediaAnalysisError';
+    this.metrics = metrics;
+  }
+}
+
 async function analyzeWithMediaInfo(
   sizeArg: number | (() => Promise<number>),
   readChunk: ReadChunkFunc,
@@ -39,21 +56,34 @@ export async function analyzeMediaFromUrl(
   });
 
   const sizePromise = reader.ensureSize();
-  const raw = await analyzeWithMediaInfo(
-    () => sizePromise,
-    (size, offset) => reader.read(size, offset),
-  );
+  try {
+    const raw = await analyzeWithMediaInfo(
+      () => sizePromise,
+      (size, offset) => reader.read(size, offset),
+    );
 
-  const summary = summariseMediaInfo(raw);
-  const fileSize = await sizePromise;
+    const summary = summariseMediaInfo(raw);
+    const fileSize = await sizePromise;
 
-  return {
-    raw,
-    summary,
-    fileSize,
-    bytesFetched: reader.bytesFetched,
-    requests: reader.requests,
-  };
+    return {
+      raw,
+      summary,
+      fileSize,
+      bytesFetched: reader.bytesFetched,
+      requests: reader.requests,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Media analysis failed';
+    throw new MediaAnalysisError(
+      message,
+      {
+        bytesFetched: reader.bytesFetched,
+        requests: reader.requests,
+      },
+      error instanceof Error ? { cause: error } : undefined,
+    );
+  }
 }
 
 export async function analyzeMediaFromBlob(
