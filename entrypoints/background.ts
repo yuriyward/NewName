@@ -114,6 +114,19 @@ async function applyMediaAnalysisResponse(
   const analyzedAt = Date.now();
 
   try {
+    const analysisMetrics = {
+      historyId,
+      requestId,
+      status: response.status,
+      bytesFetched: response.metrics.bytesFetched,
+      requests: response.metrics.requests,
+      elapsedMs: response.metrics.elapsedMs,
+      fileSize:
+        response.status === 'success' ? response.metrics.fileSize : undefined,
+    };
+    logMediaDebug(debug, 'analysis-metrics', analysisMetrics);
+    console.log('[NewName] analysis-metrics', analysisMetrics);
+
     const updated = await updateHistoryItem(historyId, (item) => {
       const media =
         response.status === 'success'
@@ -218,9 +231,18 @@ function ensureSettingsCache() {
 
 const readSettings = ensureSettingsCache();
 
-const MEDIA_ANALYSIS_MAX_WAIT_MS = 2100;
+const MEDIA_ANALYSIS_MAX_WAIT_MS = 1800;
 const SUGGEST_TIMEOUT_MS = MEDIA_ANALYSIS_MAX_WAIT_MS + 400;
 const PAGE_CONTEXT_PRUNE_INTERVAL_MS = 5 * 60_000;
+
+interface DownloadTrackingEntry {
+  historyId: string;
+  debug?: MediaDebugSettings;
+  url: string;
+  filename: string;
+}
+
+const downloadTracking = new Map<number, DownloadTrackingEntry>();
 
 type DeterminingListener = Parameters<
   typeof browser.downloads.onDeterminingFilename.addListener
@@ -308,10 +330,12 @@ async function processDeterminingFilename(
     const settings = readSettings();
     const url = item.finalUrl ?? item.url;
     const filename = item.filename ?? fallbackNameFromUrl(url);
-    const downloadId =
+    const rawDownloadId =
       typeof (item as { id?: number }).id === 'number'
-        ? String((item as { id: number }).id)
+        ? (item as { id: number }).id
         : undefined;
+    const downloadId =
+      rawDownloadId !== undefined ? String(rawDownloadId) : undefined;
     const initiatingTabId =
       typeof (item as { tabId?: number }).tabId === 'number'
         ? (item as { tabId?: number }).tabId
@@ -351,97 +375,9 @@ async function processDeterminingFilename(
 
     const evaluation: InstantBaselineEvaluation = computation.evaluation;
     const typeEnabled = shouldRenameType(settings, evaluation.fileType);
-    let renameCandidate = typeEnabled ? evaluation.rename : undefined;
+    const renameCandidate = typeEnabled ? evaluation.rename : undefined;
 
     const historyId = randomId();
-    const debugSettings = toMediaDebugSettings(settings);
-    let mediaAnalysisPromise: Promise<MediaAnalysisResponse> | null = null;
-    let mediaRequest: MediaAnalysisRequest | null = null;
-
-    if (
-      renameCandidate &&
-      isMediaFileType(evaluation.fileType) &&
-      url &&
-      settings.metadataToggles.mediaSpecs &&
-      typeEnabled &&
-      !url.startsWith('data:')
-    ) {
-      mediaRequest = {
-        requestId: randomId(),
-        historyId,
-        downloadId,
-        url,
-        originalFilename: renameCandidate.filename,
-        fileType: evaluation.fileType,
-        debug: debugSettings,
-      };
-
-      logMediaDebug(debugSettings, 'queue-request', {
-        requestId: mediaRequest.requestId,
-        historyId,
-        url,
-      });
-
-      mediaAnalysisPromise = enqueueMediaAnalysis(mediaRequest);
-
-      const timeoutToken = Symbol('media-analysis-timeout');
-      try {
-        const quickResult = await Promise.race<
-          MediaAnalysisResponse | typeof timeoutToken
-        >([
-          mediaAnalysisPromise,
-          new Promise<typeof timeoutToken>((resolve) =>
-            setTimeout(() => resolve(timeoutToken), MEDIA_ANALYSIS_MAX_WAIT_MS),
-          ),
-        ]);
-
-        if (quickResult === timeoutToken) {
-          logMediaDebug(debugSettings, 'queue-wait-timeout', {
-            requestId: mediaRequest.requestId,
-            timeoutMs: MEDIA_ANALYSIS_MAX_WAIT_MS,
-          });
-        } else if (quickResult.status === 'success') {
-          const enhanced = generateMediaEnhancedFilename(
-            renameCandidate.filename,
-            quickResult.summary,
-            evaluation.fileType,
-            {
-              maxLength: settings.maxLen,
-              separator: settings.separator,
-              transliterateAscii: settings.transliterateAscii,
-            },
-          );
-
-          if (enhanced.filename !== renameCandidate.filename) {
-            const slashIndex = renameCandidate.path.lastIndexOf('/');
-            const directory =
-              slashIndex >= 0
-                ? renameCandidate.path.slice(0, slashIndex + 1)
-                : '';
-            const reasonTags = Array.from(
-              new Set([...renameCandidate.reasonTags, 'media-specs']),
-            );
-            renameCandidate = {
-              ...renameCandidate,
-              filename: enhanced.filename,
-              path: directory
-                ? `${directory}${enhanced.filename}`
-                : enhanced.filename,
-              reasonTags,
-            };
-          }
-        }
-      } catch (error) {
-        logMediaDebug(debugSettings, 'queue-wait-error', {
-          requestId: mediaRequest.requestId,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
-    if (renameCandidate) {
-      evaluation.rename = renameCandidate;
-    }
 
     if (renameCandidate) {
       const submitted = controller.trySuggest({
@@ -472,24 +408,32 @@ async function processDeterminingFilename(
                 : evaluation.decision.reasons,
           };
 
-    const historyReasonTags = renameCandidate
-      ? Array.from(
-          new Set([...evaluation.reasonTags, ...renameCandidate.reasonTags]),
-        )
-      : evaluation.reasonTags;
+    const finalFilename = renameCandidate
+      ? renameCandidate.filename
+      : basename(filename);
+    const debugSettings = toMediaDebugSettings(settings);
 
     await addHistoryItem({
       id: historyId,
       ts: Date.now(),
       path: renameCandidate ? renameCandidate.path : evaluation.originalPath,
       original: basename(filename),
-      final: renameCandidate ? renameCandidate.filename : basename(filename),
+      final: finalFilename,
       source: renameCandidate ? renameCandidate.source : evaluation.source,
       fileType: evaluation.fileType,
       phase: 'instant-baseline',
-      reasonTags: historyReasonTags,
+      reasonTags: evaluation.reasonTags,
       decision: historyDecision,
     });
+
+    if (rawDownloadId !== undefined) {
+      downloadTracking.set(rawDownloadId, {
+        historyId,
+        debug: debugSettings,
+        url,
+        filename: finalFilename,
+      });
+    }
 
     if (debugContext) {
       debugLogger.finishContext(debugContext.downloadId, {
@@ -502,8 +446,32 @@ async function processDeterminingFilename(
       });
     }
 
-    if (mediaAnalysisPromise && mediaRequest) {
-      void mediaAnalysisPromise
+    // Schedule media metadata analysis in background (non-blocking)
+    if (
+      isMediaFileType(evaluation.fileType) &&
+      url &&
+      settings.metadataToggles.mediaSpecs &&
+      typeEnabled &&
+      !url.startsWith('data:')
+    ) {
+      const mediaRequest: MediaAnalysisRequest = {
+        requestId: randomId(),
+        historyId,
+        downloadId,
+        url,
+        originalFilename: finalFilename,
+        fileType: evaluation.fileType,
+        debug: debugSettings,
+      };
+
+      logMediaDebug(debugSettings, 'queue-request', {
+        requestId: mediaRequest.requestId,
+        historyId,
+        url,
+      });
+
+      // Fire and forget - don't block the download
+      void enqueueMediaAnalysis(mediaRequest)
         .then((response) => {
           logMediaDebug(debugSettings, 'queue-response', {
             requestId: mediaRequest.requestId,
@@ -569,6 +537,45 @@ function initializeBackground(): void {
   browser.tabs.onRemoved.addListener((tabId) => {
     void pageContextService.clear(tabId);
   });
+
+  browser.downloads.onChanged.addListener((delta) => {
+    const info = downloadTracking.get(delta.id);
+    if (!info) return;
+
+    const state = delta.state?.current;
+    if (state === 'complete' || state === 'interrupted') {
+      downloadTracking.delete(delta.id);
+
+      void browser.downloads
+        .search({ id: delta.id })
+        .then(([item]) => {
+          if (!item) {
+            console.warn('[NewName] download info missing for id', delta.id);
+            return;
+          }
+
+          const payload = {
+            downloadId: delta.id,
+            historyId: info.historyId,
+            state,
+            totalBytes:
+              item.totalBytes !== undefined && item.totalBytes >= 0
+                ? item.totalBytes
+                : undefined,
+            bytesReceived: item.bytesReceived,
+            filename: item.filename ?? info.filename,
+            url: info.url,
+          };
+
+          logMediaDebug(info.debug, 'download-bytes-final', payload);
+          console.log('[NewName] download-bytes-final', payload);
+        })
+        .catch((error) => {
+          console.error('Failed to log download bytes', error);
+        });
+    }
+  });
+
   browser.downloads.onDeterminingFilename.addListener(
     createDeterminingListener(pageContextService),
   );

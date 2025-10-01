@@ -3,7 +3,12 @@
  * Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
  */
 
-import { analyzeMediaFromBlob } from '@/entrypoints/shared/integrations/mediainfo';
+import type { ReadChunkFunc } from 'mediainfo.js';
+import {
+  analyzeMediaFromBlob,
+  MEDIAINFO_CHUNK_SIZE,
+} from '@/entrypoints/shared/integrations/mediainfo';
+import { summariseMediaInfo } from '@/entrypoints/shared/integrations/mediainfo/media-summary';
 import { getMediaInfoInstance } from '@/entrypoints/shared/integrations/mediainfo/mediainfo-loader';
 import type { MediaAnalysisResponse } from '@/entrypoints/shared/integrations/mediainfo/messages';
 
@@ -152,6 +157,179 @@ window.addEventListener('message', async (event) => {
         '*',
       );
     }
+    return;
+  }
+
+  if (type === 'analyze-url-streaming') {
+    // Analyze media using streaming via parent offscreen
+    const { url, requestId: reqId, chunkSize: customChunkSize } = data;
+    const start = performance.now();
+    const chunkSize = customChunkSize ?? MEDIAINFO_CHUNK_SIZE;
+
+    console.log('[Sandbox] Received streaming analysis request', {
+      requestId: reqId,
+      url,
+      chunkSize,
+    });
+
+    let totalBytesFetched = 0;
+    let totalRequests = 0;
+
+    try {
+      await ensureInitialized();
+
+      // Initialize stream in parent offscreen
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          window.removeEventListener('message', initListener);
+          reject(new Error('Stream init timeout'));
+        }, 10000);
+
+        const initListener = (event: MessageEvent) => {
+          if (event.data.requestId === reqId) {
+            if (event.data.type === 'stream-ready') {
+              clearTimeout(timeout);
+              window.removeEventListener('message', initListener);
+              resolve();
+            } else if (event.data.type === 'stream-error') {
+              clearTimeout(timeout);
+              window.removeEventListener('message', initListener);
+              reject(new Error(event.data.data.error));
+            }
+          }
+        };
+
+        window.addEventListener('message', initListener);
+        window.parent.postMessage(
+          { type: 'init-stream', requestId: reqId, url },
+          '*',
+        );
+      });
+
+      console.log('[Sandbox] Stream initialized, starting analysis');
+
+      // Create ReadChunkFunc that reads from stream via parent offscreen
+      const readChunk: ReadChunkFunc = async (size, offset) => {
+        const chunkRequestId = `${reqId}_chunk_${offset}_${size}`;
+        return new Promise<Uint8Array>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            window.removeEventListener('message', chunkListener);
+            reject(new Error(`Chunk fetch timeout for offset ${offset}`));
+          }, 10000);
+
+          const chunkListener = (event: MessageEvent) => {
+            if (event.data.requestId === chunkRequestId) {
+              if (event.data.type === 'chunk-result') {
+                clearTimeout(timeout);
+                window.removeEventListener('message', chunkListener);
+                const bytes = new Uint8Array(event.data.data.bytes);
+                totalBytesFetched += bytes.length;
+                totalRequests += 1;
+                resolve(bytes);
+              } else if (event.data.type === 'chunk-error') {
+                clearTimeout(timeout);
+                window.removeEventListener('message', chunkListener);
+                reject(new Error(event.data.data.error));
+              }
+            }
+          };
+
+          window.addEventListener('message', chunkListener);
+          window.parent.postMessage(
+            {
+              type: 'fetch-chunk',
+              requestId: chunkRequestId,
+              baseRequestId: reqId,
+              offset,
+              size,
+            },
+            '*',
+          );
+        });
+      };
+
+      // Analyze with MediaInfo using streaming chunked API
+      // Pass large file size (10GB) since we don't know actual size upfront
+      // StreamingReader handles early termination when stream completes
+      const mediaInfo = await getMediaInfoInstance();
+      const raw = await mediaInfo.analyzeData(
+        () => 10 * 1024 * 1024 * 1024,
+        readChunk,
+      );
+
+      const summary = summariseMediaInfo(raw);
+      const elapsed = performance.now() - start;
+
+      // Cleanup stream
+      window.parent.postMessage(
+        { type: 'cleanup-stream', requestId: reqId },
+        '*',
+      );
+
+      console.log('[Sandbox] Streaming analysis complete', {
+        requestId: reqId,
+        elapsedMs: Math.round(elapsed),
+        bytesFetched: totalBytesFetched,
+        requests: totalRequests,
+      });
+
+      const response: MediaAnalysisResponse = {
+        status: 'success',
+        requestId: reqId,
+        summary,
+        raw,
+        metrics: {
+          fileSize: totalBytesFetched,
+          bytesFetched: totalBytesFetched,
+          requests: totalRequests,
+          elapsedMs: Math.round(elapsed),
+          chunkSize,
+        },
+      };
+
+      window.parent.postMessage(
+        { type: 'result', requestId: reqId, data: response },
+        '*',
+      );
+    } catch (error) {
+      const elapsed = performance.now() - start;
+      const baseMessage =
+        error instanceof Error
+          ? error.message
+          : 'Streaming media analysis failed';
+      const details =
+        error instanceof Error && error.stack ? error.stack : undefined;
+
+      console.error('[Sandbox] Streaming analysis failed', {
+        requestId: reqId,
+        error: baseMessage,
+        elapsedMs: Math.round(elapsed),
+      });
+
+      // Cleanup stream on error
+      window.parent.postMessage(
+        { type: 'cleanup-stream', requestId: reqId },
+        '*',
+      );
+
+      const response: MediaAnalysisResponse = {
+        status: 'error',
+        requestId: reqId,
+        error: baseMessage,
+        details,
+        metrics: {
+          bytesFetched: totalBytesFetched,
+          requests: totalRequests,
+          elapsedMs: Math.round(elapsed),
+        },
+      };
+
+      window.parent.postMessage(
+        { type: 'result', requestId: reqId, data: response },
+        '*',
+      );
+    }
+    return;
   }
 });
 
