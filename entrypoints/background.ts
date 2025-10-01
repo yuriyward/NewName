@@ -103,44 +103,6 @@ function isMediaFileType(
   return fileType === 'audio' || fileType === 'video';
 }
 
-function scheduleMediaMetadataAnalysis(
-  request: MediaAnalysisRequest,
-  debug: MediaDebugSettings | undefined,
-  historyId: string,
-  url: string,
-): void {
-  logMediaDebug(debug, 'queue-request', {
-    requestId: request.requestId,
-    historyId,
-    url,
-  });
-
-  void enqueueMediaAnalysis(request)
-    .then((response) => {
-      logMediaDebug(debug, 'queue-response', {
-        requestId: request.requestId,
-        status: response.status,
-      });
-      return applyMediaAnalysisResponse(
-        historyId,
-        url,
-        request.requestId,
-        debug,
-        response,
-        request.downloadId,
-      );
-    })
-    .catch((error: unknown) => {
-      logMediaDebug(debug, 'queue-failure', {
-        requestId: request.requestId,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Unknown media analysis error',
-      });
-    });
-}
-
 async function applyMediaAnalysisResponse(
   historyId: string,
   url: string,
@@ -256,7 +218,8 @@ function ensureSettingsCache() {
 
 const readSettings = ensureSettingsCache();
 
-const SUGGEST_TIMEOUT_MS = 400;
+const MEDIA_ANALYSIS_MAX_WAIT_MS = 2100;
+const SUGGEST_TIMEOUT_MS = MEDIA_ANALYSIS_MAX_WAIT_MS + 400;
 const PAGE_CONTEXT_PRUNE_INTERVAL_MS = 5 * 60_000;
 
 type DeterminingListener = Parameters<
@@ -388,7 +351,97 @@ async function processDeterminingFilename(
 
     const evaluation: InstantBaselineEvaluation = computation.evaluation;
     const typeEnabled = shouldRenameType(settings, evaluation.fileType);
-    const renameCandidate = typeEnabled ? evaluation.rename : undefined;
+    let renameCandidate = typeEnabled ? evaluation.rename : undefined;
+
+    const historyId = randomId();
+    const debugSettings = toMediaDebugSettings(settings);
+    let mediaAnalysisPromise: Promise<MediaAnalysisResponse> | null = null;
+    let mediaRequest: MediaAnalysisRequest | null = null;
+
+    if (
+      renameCandidate &&
+      isMediaFileType(evaluation.fileType) &&
+      url &&
+      settings.metadataToggles.mediaSpecs &&
+      typeEnabled &&
+      !url.startsWith('data:')
+    ) {
+      mediaRequest = {
+        requestId: randomId(),
+        historyId,
+        downloadId,
+        url,
+        originalFilename: renameCandidate.filename,
+        fileType: evaluation.fileType,
+        debug: debugSettings,
+      };
+
+      logMediaDebug(debugSettings, 'queue-request', {
+        requestId: mediaRequest.requestId,
+        historyId,
+        url,
+      });
+
+      mediaAnalysisPromise = enqueueMediaAnalysis(mediaRequest);
+
+      const timeoutToken = Symbol('media-analysis-timeout');
+      try {
+        const quickResult = await Promise.race<
+          MediaAnalysisResponse | typeof timeoutToken
+        >([
+          mediaAnalysisPromise,
+          new Promise<typeof timeoutToken>((resolve) =>
+            setTimeout(() => resolve(timeoutToken), MEDIA_ANALYSIS_MAX_WAIT_MS),
+          ),
+        ]);
+
+        if (quickResult === timeoutToken) {
+          logMediaDebug(debugSettings, 'queue-wait-timeout', {
+            requestId: mediaRequest.requestId,
+            timeoutMs: MEDIA_ANALYSIS_MAX_WAIT_MS,
+          });
+        } else if (quickResult.status === 'success') {
+          const enhanced = generateMediaEnhancedFilename(
+            renameCandidate.filename,
+            quickResult.summary,
+            evaluation.fileType,
+            {
+              maxLength: settings.maxLen,
+              separator: settings.separator,
+              transliterateAscii: settings.transliterateAscii,
+            },
+          );
+
+          if (enhanced.filename !== renameCandidate.filename) {
+            const slashIndex = renameCandidate.path.lastIndexOf('/');
+            const directory =
+              slashIndex >= 0
+                ? renameCandidate.path.slice(0, slashIndex + 1)
+                : '';
+            const reasonTags = Array.from(
+              new Set([...renameCandidate.reasonTags, 'media-specs']),
+            );
+            renameCandidate = {
+              ...renameCandidate,
+              filename: enhanced.filename,
+              path: directory
+                ? `${directory}${enhanced.filename}`
+                : enhanced.filename,
+              reasonTags,
+            };
+          }
+        }
+      } catch (error) {
+        logMediaDebug(debugSettings, 'queue-wait-error', {
+          requestId: mediaRequest.requestId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    if (renameCandidate) {
+      evaluation.rename = renameCandidate;
+    }
 
     if (renameCandidate) {
       const submitted = controller.trySuggest({
@@ -419,7 +472,11 @@ async function processDeterminingFilename(
                 : evaluation.decision.reasons,
           };
 
-    const historyId = randomId();
+    const historyReasonTags = renameCandidate
+      ? Array.from(
+          new Set([...evaluation.reasonTags, ...renameCandidate.reasonTags]),
+        )
+      : evaluation.reasonTags;
 
     await addHistoryItem({
       id: historyId,
@@ -430,7 +487,7 @@ async function processDeterminingFilename(
       source: renameCandidate ? renameCandidate.source : evaluation.source,
       fileType: evaluation.fileType,
       phase: 'instant-baseline',
-      reasonTags: evaluation.reasonTags,
+      reasonTags: historyReasonTags,
       decision: historyDecision,
     });
 
@@ -445,27 +502,31 @@ async function processDeterminingFilename(
       });
     }
 
-    const debugSettings = toMediaDebugSettings(settings);
-    if (
-      isMediaFileType(evaluation.fileType) &&
-      url &&
-      settings.metadataToggles.mediaSpecs &&
-      typeEnabled &&
-      !url.startsWith('data:')
-    ) {
-      const mediaType = evaluation.fileType;
-      const request: MediaAnalysisRequest = {
-        requestId: randomId(),
-        historyId,
-        downloadId,
-        url,
-        originalFilename: renameCandidate
-          ? renameCandidate.filename
-          : basename(filename),
-        fileType: mediaType,
-        debug: debugSettings,
-      };
-      scheduleMediaMetadataAnalysis(request, debugSettings, historyId, url);
+    if (mediaAnalysisPromise && mediaRequest) {
+      void mediaAnalysisPromise
+        .then((response) => {
+          logMediaDebug(debugSettings, 'queue-response', {
+            requestId: mediaRequest.requestId,
+            status: response.status,
+          });
+          return applyMediaAnalysisResponse(
+            historyId,
+            url,
+            mediaRequest.requestId,
+            debugSettings,
+            response,
+            downloadId,
+          );
+        })
+        .catch((error: unknown) => {
+          logMediaDebug(debugSettings, 'queue-failure', {
+            requestId: mediaRequest.requestId,
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Unknown media analysis error',
+          });
+        });
     }
   } catch (error) {
     console.error('Instant Baseline rename failed', error);
