@@ -174,6 +174,7 @@ window.addEventListener('message', async (event) => {
 
     let totalBytesFetched = 0;
     let totalRequests = 0;
+    let actualFileSize: number | undefined;
 
     try {
       await ensureInitialized();
@@ -190,6 +191,8 @@ window.addEventListener('message', async (event) => {
             if (event.data.type === 'stream-ready') {
               clearTimeout(timeout);
               window.removeEventListener('message', initListener);
+              // Capture the actual file size from offscreen
+              actualFileSize = event.data.data?.totalSize;
               resolve();
             } else if (event.data.type === 'stream-error') {
               clearTimeout(timeout);
@@ -206,7 +209,10 @@ window.addEventListener('message', async (event) => {
         );
       });
 
-      console.log('[Sandbox] Stream initialized, starting analysis');
+      console.log('[Sandbox] Stream initialized, starting analysis', {
+        requestId: reqId,
+        actualFileSize,
+      });
 
       // Create ReadChunkFunc that reads from stream via parent offscreen
       const readChunk: ReadChunkFunc = async (size, offset) => {
@@ -248,9 +254,9 @@ window.addEventListener('message', async (event) => {
         });
       };
 
-      // Analyze with MediaInfo using streaming chunked API
-      // Pass large file size (10GB) since we don't know actual size upfront
-      // StreamingReader handles early termination when stream completes
+      // Analyze with MediaInfo using range-based chunked API
+      // RangeFetchReader in offscreen fetches only the byte ranges MediaInfo needs
+      // Server returns 206 Partial Content for each range request
       const mediaInfo = await getMediaInfoInstance();
       const raw = await mediaInfo.analyzeData(
         () => 10 * 1024 * 1024 * 1024,
@@ -270,6 +276,7 @@ window.addEventListener('message', async (event) => {
         requestId: reqId,
         elapsedMs: Math.round(elapsed),
         bytesFetched: totalBytesFetched,
+        actualFileSize,
         requests: totalRequests,
       });
 
@@ -279,7 +286,7 @@ window.addEventListener('message', async (event) => {
         summary,
         raw,
         metrics: {
-          fileSize: totalBytesFetched,
+          fileSize: actualFileSize ?? totalBytesFetched,
           bytesFetched: totalBytesFetched,
           requests: totalRequests,
           elapsedMs: Math.round(elapsed),

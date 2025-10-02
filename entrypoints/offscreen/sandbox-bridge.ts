@@ -4,11 +4,12 @@
  */
 
 import { browser } from 'wxt/browser';
+import { MEDIAINFO_CHUNK_SIZE } from '@/entrypoints/shared/integrations/mediainfo';
 import type {
   MediaAnalysisRequest,
   MediaAnalysisResponse,
 } from '@/entrypoints/shared/integrations/mediainfo/messages';
-import { StreamingReader } from './streaming-reader';
+import { RangeFetchReader } from '@/entrypoints/shared/integrations/mediainfo/range-reader';
 
 interface PendingRequest {
   resolve: (response: MediaAnalysisResponse) => void;
@@ -22,7 +23,7 @@ const ANALYSIS_TIMEOUT_MS = 30000;
 let iframe: HTMLIFrameElement | null = null;
 let readyPromise: Promise<void> | null = null;
 const pendingRequests = new Map<string, PendingRequest>();
-const activeStreamers = new Map<string, StreamingReader>();
+const activeReaders = new Map<string, RangeFetchReader>();
 
 function resolveSandboxUrl(): string {
   if (browser.runtime?.getURL) {
@@ -137,16 +138,15 @@ export async function fetchAndAnalyzeFromUrl(
   });
 
   try {
-    // Request sandbox to analyze using streaming fetch
+    // Request sandbox to analyze using range-based fetch
     const analysisResponse = await new Promise<MediaAnalysisResponse>(
       (resolve, reject) => {
         const timeout = setTimeout(() => {
           pendingRequests.delete(request.requestId);
-          // Cleanup streamer on timeout
-          const streamer = activeStreamers.get(request.requestId);
-          if (streamer) {
-            streamer.cancel();
-            activeStreamers.delete(request.requestId);
+          // Cleanup reader on timeout
+          const reader = activeReaders.get(request.requestId);
+          if (reader) {
+            activeReaders.delete(request.requestId);
           }
           reject(
             new Error(
@@ -174,11 +174,10 @@ export async function fetchAndAnalyzeFromUrl(
       },
     );
 
-    // Cleanup streamer after analysis
-    const streamer = activeStreamers.get(request.requestId);
-    if (streamer) {
-      streamer.cancel();
-      activeStreamers.delete(request.requestId);
+    // Cleanup reader after analysis
+    const reader = activeReaders.get(request.requestId);
+    if (reader) {
+      activeReaders.delete(request.requestId);
     }
 
     const totalElapsed = performance.now() - start;
@@ -191,11 +190,10 @@ export async function fetchAndAnalyzeFromUrl(
 
     return analysisResponse;
   } catch (error) {
-    // Cleanup streamer on error
-    const streamer = activeStreamers.get(request.requestId);
-    if (streamer) {
-      streamer.cancel();
-      activeStreamers.delete(request.requestId);
+    // Cleanup reader on error
+    const reader = activeReaders.get(request.requestId);
+    if (reader) {
+      activeReaders.delete(request.requestId);
     }
 
     const elapsed = performance.now() - start;
@@ -239,32 +237,39 @@ window.addEventListener('message', (event) => {
 
   if (event.data.type === 'init-stream') {
     const { requestId, url } = event.data;
-    console.log('[SandboxBridge] Initializing stream', { requestId, url });
+    console.log('[SandboxBridge] Initializing range reader', {
+      requestId,
+      url,
+    });
     void (async () => {
       try {
-        const streamer = new StreamingReader(url, (bytes) => {
-          console.log('[SandboxBridge] Stream progress', {
-            requestId,
-            bytesBuffered: bytes,
-          });
+        const reader = new RangeFetchReader(url, {
+          chunkSize: MEDIAINFO_CHUNK_SIZE,
         });
 
-        await streamer.initialize();
-        activeStreamers.set(requestId, streamer);
+        // Ensure size is known (makes HEAD request or initial range probe)
+        await reader.ensureSize();
+        activeReaders.set(requestId, reader);
 
-        console.log('[SandboxBridge] Stream initialized', { requestId });
+        console.log('[SandboxBridge] Range reader initialized', {
+          requestId,
+          totalSize: reader.totalSize,
+        });
         iframe?.contentWindow?.postMessage(
           {
             type: 'stream-ready',
             requestId,
-            data: { success: true },
+            data: {
+              success: true,
+              totalSize: reader.totalSize,
+            },
           },
           '*',
         );
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : 'Stream init failed';
-        console.error('[SandboxBridge] Stream init failed', {
+          error instanceof Error ? error.message : 'Range reader init failed';
+        console.error('[SandboxBridge] Range reader init failed', {
           requestId,
           error: message,
         });
@@ -286,16 +291,17 @@ window.addEventListener('message', (event) => {
     console.log('[SandboxBridge] Fetching chunk', { requestId, offset, size });
     void (async () => {
       try {
-        const streamer = activeStreamers.get(baseRequestId);
-        if (!streamer) {
-          throw new Error('Streamer not found');
+        const reader = activeReaders.get(baseRequestId);
+        if (!reader) {
+          throw new Error('Range reader not found');
         }
 
-        const bytes = await streamer.read(size, offset);
+        const bytes = await reader.read(size, offset);
         console.log('[SandboxBridge] Sending chunk', {
           requestId,
           bytesLength: bytes.length,
-          totalBuffered: streamer.getBytesBuffered(),
+          bytesFetched: reader.bytesFetched,
+          requests: reader.requests,
         });
 
         iframe?.contentWindow?.postMessage(
@@ -329,16 +335,16 @@ window.addEventListener('message', (event) => {
 
   if (event.data.type === 'cleanup-stream') {
     const { requestId } = event.data;
-    console.log('[SandboxBridge] Cleaning up stream', { requestId });
-    const streamer = activeStreamers.get(requestId);
-    if (streamer) {
-      console.log('[SandboxBridge] Stream stats', {
+    console.log('[SandboxBridge] Cleaning up range reader', { requestId });
+    const reader = activeReaders.get(requestId);
+    if (reader) {
+      console.log('[SandboxBridge] Range reader stats', {
         requestId,
-        bytesBuffered: streamer.getBytesBuffered(),
-        complete: streamer.isComplete(),
+        bytesFetched: reader.bytesFetched,
+        requests: reader.requests,
+        totalSize: reader.totalSize,
       });
-      streamer.cancel();
-      activeStreamers.delete(requestId);
+      activeReaders.delete(requestId);
     }
     return;
   }

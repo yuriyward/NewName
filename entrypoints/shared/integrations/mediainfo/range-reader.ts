@@ -42,6 +42,8 @@ export class RangeFetchReader {
 
   private requestCount = 0;
 
+  private rangeSupported: boolean | undefined;
+
   constructor(
     private readonly url: string,
     { chunkSize, ...options }: RangeFetchOptions & { chunkSize: number },
@@ -60,6 +62,10 @@ export class RangeFetchReader {
 
   get totalSize(): number | undefined {
     return this.size;
+  }
+
+  get supportsRanges(): boolean | undefined {
+    return this.rangeSupported;
   }
 
   async ensureSize(): Promise<number> {
@@ -196,6 +202,20 @@ export class RangeFetchReader {
       cache: 'no-store',
       mode: 'cors',
     });
+
+    // Detect if server doesn't support range requests
+    // When Range header is sent but server responds with 200 instead of 206,
+    // it means ranges aren't supported and full file will be downloaded
+    if (safeLength > 0 && response.status === 200) {
+      this.rangeSupported = false;
+      throw new Error(
+        'Server does not support range requests (responded with 200 OK instead of 206 Partial Content). Aborting to avoid downloading entire file.',
+      );
+    }
+
+    if (response.status === 206) {
+      this.rangeSupported = true;
+    }
 
     if (!response.ok && response.status !== 206) {
       if (response.status === 416) {
