@@ -3,6 +3,7 @@
  * Coordinates analysis requests and response handling.
  */
 
+import { ANALYSIS_TIMEOUT_MS } from '@/entrypoints/shared/integrations/mediainfo/constants';
 import type {
   MediaAnalysisRequest,
   MediaAnalysisResponse,
@@ -11,7 +12,9 @@ import {
   destroySandbox as destroySandboxLifecycle,
   ensureSandboxReady as ensureSandboxReadyInternal,
   getSandboxWindow,
+  isFromSandbox,
 } from './bridge/sandbox-lifecycle';
+import { isSandboxMessage, postToSandbox } from './bridge/sandbox-protocol';
 import {
   cleanupReader,
   registerStreamingListeners,
@@ -25,8 +28,6 @@ interface PendingRequest {
   reject: (error: Error) => void;
   timeout: ReturnType<typeof setTimeout>;
 }
-
-const ANALYSIS_TIMEOUT_MS = 30000;
 
 const pendingRequests = new Map<string, PendingRequest>();
 
@@ -64,20 +65,13 @@ export async function fetchAndAnalyzeFromUrl(
 
         pendingRequests.set(request.requestId, { resolve, reject, timeout });
 
-        getSandboxWindow()?.postMessage(
-          {
-            type: 'analyze-url-streaming',
-            requestId: request.requestId,
-            data: {
-              requestId: request.requestId,
-              url: request.url,
-              chunkSize: request.chunkSize,
-              historyId: request.historyId,
-              downloadId: request.downloadId,
-            },
-          },
-          '*',
-        );
+        postToSandbox(getSandboxWindow(), 'analyze-url-streaming', {
+          requestId: request.requestId,
+          url: request.url,
+          chunkSize: request.chunkSize,
+          historyId: request.historyId,
+          downloadId: request.downloadId,
+        });
       },
     );
 
@@ -125,7 +119,9 @@ registerStreamingListeners();
 
 // Listen for responses from sandbox
 window.addEventListener('message', (event) => {
-  if (event.data.type === 'result') {
+  if (!isFromSandbox(event)) return;
+
+  if (isSandboxMessage(event, 'result')) {
     const { requestId, data } = event.data;
     const pending = pendingRequests.get(requestId);
 

@@ -2,8 +2,8 @@
  * Sandbox iframe lifecycle management
  */
 import { browser } from 'wxt/browser';
-
-const SANDBOX_READY_TIMEOUT_MS = 5000;
+import { SANDBOX_READY_TIMEOUT_MS } from '@/entrypoints/shared/integrations/mediainfo/constants';
+import { isSandboxMessage, postToSandbox } from './sandbox-protocol';
 
 let iframe: HTMLIFrameElement | null = null;
 let readyPromise: Promise<void> | null = null;
@@ -45,7 +45,7 @@ function waitForReady(): Promise<void> {
     }, SANDBOX_READY_TIMEOUT_MS);
 
     const handler = (event: MessageEvent) => {
-      if (event.data.type === 'ready') {
+      if (isSandboxMessage(event, 'ready')) {
         console.log('[SandboxBridge] Received ready signal from sandbox');
         clearTimeout(timeout);
         window.removeEventListener('message', handler);
@@ -88,7 +88,7 @@ export async function ensureSandboxReady(): Promise<void> {
 
       const handler = (event: MessageEvent) => {
         if (
-          event.data.type === 'init-complete' &&
+          isSandboxMessage(event, 'init-complete') &&
           event.data.requestId === initId
         ) {
           clearTimeout(timeout);
@@ -101,10 +101,9 @@ export async function ensureSandboxReady(): Promise<void> {
       };
 
       window.addEventListener('message', handler);
-      iframe?.contentWindow?.postMessage(
-        { type: 'init', requestId: initId },
-        '*',
-      );
+      postToSandbox(iframe?.contentWindow ?? null, 'init', {
+        requestId: initId,
+      });
     },
   );
 

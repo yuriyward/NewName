@@ -10,6 +10,7 @@ import {
   resetMediaAnalysisQueueForTesting,
 } from './media-analysis-queue';
 import type { MediaAnalysisRequest } from './messages';
+import { resetOffscreenCoordinatorForTesting } from './offscreen-coordinator';
 
 vi.mock(
   '@/entrypoints/shared/messaging/extension-messaging',
@@ -36,6 +37,7 @@ describe('enqueueMediaAnalysis', () => {
   beforeEach(() => {
     fakeBrowser.reset();
     resetMediaAnalysisQueueForTesting();
+    resetOffscreenCoordinatorForTesting();
 
     if (!browser.offscreen) {
       browser.offscreen = {} as OffscreenApi;

@@ -5,6 +5,10 @@
 
 import type { ReadChunkFunc } from 'mediainfo.js';
 import {
+  isSandboxMessage,
+  postToParent,
+} from '@/entrypoints/offscreen/bridge/sandbox-protocol';
+import {
   analyzeMediaFromBlob,
   MEDIAINFO_CHUNK_SIZE,
 } from '@/entrypoints/shared/integrations/mediainfo';
@@ -47,36 +51,32 @@ async function ensureInitialized(): Promise<void> {
 window.addEventListener('message', async (event) => {
   const { type, requestId, data } = event.data;
 
-  if (type === 'ping') {
+  if (isSandboxMessage(event, 'ping')) {
     // Health check / handshake
     console.log('[Sandbox] Received ping, sending pong');
-    window.parent.postMessage(
-      { type: 'pong', requestId, timestamp: Date.now() },
-      '*',
-    );
+    postToParent('pong', {
+      requestId,
+      timestamp: Date.now(),
+    });
     return;
   }
 
-  if (type === 'init') {
+  if (isSandboxMessage(event, 'init')) {
     // Initialize MediaInfo eagerly
     console.log('[Sandbox] Received init request');
     try {
       await ensureInitialized();
-      window.parent.postMessage(
-        { type: 'init-complete', requestId, success: true },
-        '*',
-      );
+      postToParent('init-complete', {
+        requestId,
+        success: true,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Init failed';
-      window.parent.postMessage(
-        {
-          type: 'init-complete',
-          requestId,
-          success: false,
-          error: message,
-        },
-        '*',
-      );
+      postToParent('init-complete', {
+        requestId,
+        success: false,
+        error: message,
+      });
     }
     return;
   }
@@ -123,10 +123,10 @@ window.addEventListener('message', async (event) => {
         },
       };
 
-      window.parent.postMessage(
-        { type: 'result', requestId: reqId, data: response },
-        '*',
-      );
+      postToParent('result', {
+        requestId: reqId,
+        data: response,
+      });
     } catch (error) {
       const elapsed = performance.now() - start;
       const baseMessage =
@@ -152,10 +152,10 @@ window.addEventListener('message', async (event) => {
         },
       };
 
-      window.parent.postMessage(
-        { type: 'result', requestId: reqId, data: response },
-        '*',
-      );
+      postToParent('result', {
+        requestId: reqId,
+        data: response,
+      });
     }
     return;
   }
@@ -203,10 +203,10 @@ window.addEventListener('message', async (event) => {
         };
 
         window.addEventListener('message', initListener);
-        window.parent.postMessage(
-          { type: 'init-stream', requestId: reqId, url },
-          '*',
-        );
+        postToParent('init-stream', {
+          requestId: reqId,
+          url,
+        });
       });
 
       console.log('[Sandbox] Stream initialized, starting analysis', {
@@ -241,16 +241,12 @@ window.addEventListener('message', async (event) => {
           };
 
           window.addEventListener('message', chunkListener);
-          window.parent.postMessage(
-            {
-              type: 'fetch-chunk',
-              requestId: chunkRequestId,
-              baseRequestId: reqId,
-              offset,
-              size,
-            },
-            '*',
-          );
+          postToParent('fetch-chunk', {
+            requestId: chunkRequestId,
+            baseRequestId: reqId,
+            offset,
+            size,
+          });
         });
       };
 
@@ -267,10 +263,9 @@ window.addEventListener('message', async (event) => {
       const elapsed = performance.now() - start;
 
       // Cleanup stream
-      window.parent.postMessage(
-        { type: 'cleanup-stream', requestId: reqId },
-        '*',
-      );
+      postToParent('cleanup-stream', {
+        requestId: reqId,
+      });
 
       console.log('[Sandbox] Streaming analysis complete', {
         requestId: reqId,
@@ -294,10 +289,10 @@ window.addEventListener('message', async (event) => {
         },
       };
 
-      window.parent.postMessage(
-        { type: 'result', requestId: reqId, data: response },
-        '*',
-      );
+      postToParent('result', {
+        requestId: reqId,
+        data: response,
+      });
     } catch (error) {
       const elapsed = performance.now() - start;
       const baseMessage =
@@ -314,10 +309,9 @@ window.addEventListener('message', async (event) => {
       });
 
       // Cleanup stream on error
-      window.parent.postMessage(
-        { type: 'cleanup-stream', requestId: reqId },
-        '*',
-      );
+      postToParent('cleanup-stream', {
+        requestId: reqId,
+      });
 
       const response: MediaAnalysisResponse = {
         status: 'error',
@@ -331,10 +325,10 @@ window.addEventListener('message', async (event) => {
         },
       };
 
-      window.parent.postMessage(
-        { type: 'result', requestId: reqId, data: response },
-        '*',
-      );
+      postToParent('result', {
+        requestId: reqId,
+        data: response,
+      });
     }
     return;
   }
@@ -342,4 +336,6 @@ window.addEventListener('message', async (event) => {
 
 // Signal readiness to parent
 console.log('[Sandbox] Sending ready signal to parent');
-window.parent.postMessage({ type: 'ready', timestamp: Date.now() }, '*');
+postToParent('ready', {
+  timestamp: Date.now(),
+});

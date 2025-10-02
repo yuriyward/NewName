@@ -4,6 +4,11 @@
 import { MEDIAINFO_CHUNK_SIZE } from '@/entrypoints/shared/integrations/mediainfo';
 import { RangeFetchReader } from '@/entrypoints/shared/integrations/mediainfo/range-reader';
 import { getSandboxWindow, isFromSandbox } from './sandbox-lifecycle';
+import {
+  isSandboxMessage,
+  postToSandboxWithTransfer,
+  type SandboxToParentMessages,
+} from './sandbox-protocol';
 
 const activeReaders = new Map<string, RangeFetchReader>();
 
@@ -30,17 +35,17 @@ function handleStreamingMessage(event: MessageEvent): void {
     return;
   }
 
-  if (event.data.type === 'init-stream') {
+  if (isSandboxMessage(event, 'init-stream')) {
     handleInitStream(event.data);
     return;
   }
 
-  if (event.data.type === 'fetch-chunk') {
+  if (isSandboxMessage(event, 'fetch-chunk')) {
     handleFetchChunk(event.data);
     return;
   }
 
-  if (event.data.type === 'cleanup-stream') {
+  if (isSandboxMessage(event, 'cleanup-stream')) {
     handleCleanupStream(event.data);
     return;
   }
@@ -49,7 +54,7 @@ function handleStreamingMessage(event: MessageEvent): void {
 /**
  * Initialize a range reader for streaming.
  */
-function handleInitStream(data: { requestId: string; url: string }): void {
+function handleInitStream(data: SandboxToParentMessages['init-stream']): void {
   const { requestId, url } = data;
   console.log('[SandboxBridge] Initializing range reader', {
     requestId,
@@ -69,17 +74,13 @@ function handleInitStream(data: { requestId: string; url: string }): void {
         requestId,
         totalSize: reader.totalSize,
       });
-      getSandboxWindow()?.postMessage(
-        {
-          type: 'stream-ready',
-          requestId,
-          data: {
-            success: true,
-            totalSize: reader.totalSize,
-          },
+      postToSandboxWithTransfer(getSandboxWindow(), 'stream-ready', {
+        requestId,
+        data: {
+          success: true,
+          totalSize: reader.totalSize,
         },
-        '*',
-      );
+      });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Range reader init failed';
@@ -87,14 +88,10 @@ function handleInitStream(data: { requestId: string; url: string }): void {
         requestId,
         error: message,
       });
-      getSandboxWindow()?.postMessage(
-        {
-          type: 'stream-error',
-          requestId,
-          data: { error: message },
-        },
-        '*',
-      );
+      postToSandboxWithTransfer(getSandboxWindow(), 'stream-error', {
+        requestId,
+        data: { error: message },
+      });
     }
   })();
 }
@@ -102,12 +99,7 @@ function handleInitStream(data: { requestId: string; url: string }): void {
 /**
  * Fetch a chunk from the range reader.
  */
-function handleFetchChunk(data: {
-  requestId: string;
-  baseRequestId: string;
-  offset: number;
-  size: number;
-}): void {
+function handleFetchChunk(data: SandboxToParentMessages['fetch-chunk']): void {
   const { requestId, baseRequestId, offset, size } = data;
   console.log('[SandboxBridge] Fetching chunk', { requestId, offset, size });
   void (async () => {
@@ -125,13 +117,13 @@ function handleFetchChunk(data: {
         requests: reader.requests,
       });
 
-      getSandboxWindow()?.postMessage(
+      postToSandboxWithTransfer(
+        getSandboxWindow(),
+        'chunk-result',
         {
-          type: 'chunk-result',
           requestId,
           data: { bytes, offset, size: bytes.length },
         },
-        '*',
         [bytes.buffer], // Transfer for zero-copy
       );
     } catch (error) {
@@ -141,14 +133,10 @@ function handleFetchChunk(data: {
         requestId,
         error: message,
       });
-      getSandboxWindow()?.postMessage(
-        {
-          type: 'chunk-error',
-          requestId,
-          data: { error: message },
-        },
-        '*',
-      );
+      postToSandboxWithTransfer(getSandboxWindow(), 'chunk-error', {
+        requestId,
+        data: { error: message },
+      });
     }
   })();
 }
@@ -156,7 +144,9 @@ function handleFetchChunk(data: {
 /**
  * Cleanup a range reader after analysis completes.
  */
-function handleCleanupStream(data: { requestId: string }): void {
+function handleCleanupStream(
+  data: SandboxToParentMessages['cleanup-stream'],
+): void {
   const { requestId } = data;
   console.log('[SandboxBridge] Cleaning up range reader', { requestId });
   const reader = activeReaders.get(requestId);

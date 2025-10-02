@@ -5,6 +5,7 @@ import type { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { DebugContext } from '@/entrypoints/shared/debug/types';
 import { addHistoryItem } from '@/entrypoints/shared/history/history';
+import { SUGGEST_TIMEOUT_MS } from '@/entrypoints/shared/integrations/mediainfo/constants';
 import type { MediaDebugSettings } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { enqueueMediaAnalysis } from '@/entrypoints/shared/integrations/mediainfo/media-analysis-queue';
@@ -24,9 +25,6 @@ import {
   applyMediaAnalysisResponse,
   toMediaDebugSettings,
 } from './media-orchestrator';
-
-export const MEDIA_ANALYSIS_MAX_WAIT_MS = 1800;
-export const SUGGEST_TIMEOUT_MS = MEDIA_ANALYSIS_MAX_WAIT_MS + 400;
 
 export interface DownloadTrackingEntry {
   historyId: string;
