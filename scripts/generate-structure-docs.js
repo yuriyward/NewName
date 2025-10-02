@@ -158,12 +158,19 @@ function getFileDescription(module) {
   if (module.sources?.[0]) {
     const filePath = module.sources[0].fileName;
     try {
-      const fileContent = fs.readFileSync(`entrypoints/${filePath}`, 'utf8');
-      const fileCommentMatch = fileContent.match(
-        /^\/\*\*\s*\n\s*\*\s*(.+?)\s*\n\s*\*\//,
-      );
+      const sourcePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(filePath);
+      const fileContent = fs.readFileSync(sourcePath, 'utf8');
+      const fileCommentMatch = fileContent.match(/^\/\*\*([\s\S]*?)\*\//);
       if (fileCommentMatch) {
-        return fileCommentMatch[1].trim();
+        const lines = fileCommentMatch[1]
+          .split('\n')
+          .map((line) => line.replace(/^\s*\*\s?/, '').trim())
+          .filter(Boolean);
+        if (lines.length > 0) {
+          return lines.join(' ').trim();
+        }
       }
     } catch (_error) {
       // Ignore file read errors
@@ -244,7 +251,10 @@ function getDescription(node) {
     try {
       const filePath = node.sources[0].fileName;
       const lineNumber = node.sources[0].line;
-      const fileContent = fs.readFileSync(`entrypoints/${filePath}`, 'utf8');
+      const sourcePath = path.isAbsolute(filePath)
+        ? filePath
+        : path.resolve(filePath);
+      const fileContent = fs.readFileSync(sourcePath, 'utf8');
       const lines = fileContent.split('\n');
 
       // Look for JSDoc comment before the function/export
