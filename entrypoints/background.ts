@@ -10,12 +10,14 @@ import { registerPageContextService } from '@/entrypoints/shared/state/page-cont
 import {
   createDeterminingListener,
   type DownloadTrackingEntry,
+  pruneDownloadTrackingMap,
 } from './background/download-coordinator';
 import { ensureSettingsCache } from './background/settings-cache';
 
 const readSettings = ensureSettingsCache();
 
 const PAGE_CONTEXT_PRUNE_INTERVAL_MS = 5 * 60_000;
+const DOWNLOAD_TRACKING_PRUNE_INTERVAL_MS = 15 * 60_000;
 
 const downloadTracking = new Map<number, DownloadTrackingEntry>();
 
@@ -65,7 +67,6 @@ function initializeBackground(): void {
           };
 
           logMediaDebug(info.debug, 'download-bytes-final', payload);
-          console.log('[NewName] download-bytes-final', payload);
         })
         .catch((error) => {
           console.error('Failed to log download bytes', error);
@@ -80,6 +81,10 @@ function initializeBackground(): void {
       downloadTracking,
     ),
   );
+
+  setInterval(() => {
+    pruneDownloadTrackingMap(downloadTracking);
+  }, DOWNLOAD_TRACKING_PRUNE_INTERVAL_MS);
 
   setInterval(() => {
     void pageContextService.prune();

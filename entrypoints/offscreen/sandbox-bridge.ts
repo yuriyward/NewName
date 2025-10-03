@@ -4,6 +4,7 @@
  */
 
 import { ANALYSIS_TIMEOUT_MS } from '@/entrypoints/shared/integrations/mediainfo/constants';
+import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import type {
   MediaAnalysisRequest,
   MediaAnalysisResponse,
@@ -27,6 +28,7 @@ interface PendingRequest {
   resolve: (response: MediaAnalysisResponse) => void;
   reject: (error: Error) => void;
   timeout: ReturnType<typeof setTimeout>;
+  debug: MediaAnalysisRequest['debug'];
 }
 
 const pendingRequests = new Map<string, PendingRequest>();
@@ -43,7 +45,7 @@ export async function fetchAndAnalyzeFromUrl(
   await ensureSandboxReadyInternal();
 
   const start = performance.now();
-  console.log('[SandboxBridge] Starting streaming media analysis', {
+  logMediaDebug(request.debug, 'stream-analysis-start', {
     requestId: request.requestId,
     url: request.url,
   });
@@ -63,7 +65,12 @@ export async function fetchAndAnalyzeFromUrl(
           );
         }, ANALYSIS_TIMEOUT_MS);
 
-        pendingRequests.set(request.requestId, { resolve, reject, timeout });
+        pendingRequests.set(request.requestId, {
+          resolve,
+          reject,
+          timeout,
+          debug: request.debug,
+        });
 
         postToSandbox(getSandboxWindow(), 'analyze-url-streaming', {
           requestId: request.requestId,
@@ -71,6 +78,7 @@ export async function fetchAndAnalyzeFromUrl(
           chunkSize: request.chunkSize,
           historyId: request.historyId,
           downloadId: request.downloadId,
+          debug: request.debug,
         });
       },
     );
@@ -79,7 +87,7 @@ export async function fetchAndAnalyzeFromUrl(
     cleanupReader(request.requestId);
 
     const totalElapsed = performance.now() - start;
-    console.log('[SandboxBridge] Streaming analysis complete', {
+    logMediaDebug(request.debug, 'stream-analysis-complete', {
       requestId: request.requestId,
       totalElapsedMs: Math.round(totalElapsed),
       bytesFetched: analysisResponse.metrics?.bytesFetched,
@@ -126,7 +134,7 @@ window.addEventListener('message', (event) => {
     const pending = pendingRequests.get(requestId);
 
     if (pending) {
-      console.log('[SandboxBridge] Received result from sandbox', {
+      logMediaDebug(pending.debug, 'stream-analysis-result', {
         requestId,
       });
       clearTimeout(pending.timeout);

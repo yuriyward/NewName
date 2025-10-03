@@ -4,6 +4,7 @@
  */
 
 import type { MediaAnalysisResponse } from '@/entrypoints/shared/integrations/mediainfo/messages';
+import type { MediaDebugSettings } from '@/entrypoints/shared/integrations/mediainfo/debug';
 
 /**
  * Messages sent from Parent (Offscreen) → Sandbox (iframe)
@@ -14,6 +15,12 @@ export interface ParentToSandboxMessages {
   };
   init: {
     requestId: string;
+    debug?: MediaDebugSettings;
+  };
+  'analyze-blob': {
+    requestId: string;
+    arrayBuffer: ArrayBuffer;
+    debug?: MediaDebugSettings;
   };
   'analyze-url-streaming': {
     requestId: string;
@@ -21,6 +28,7 @@ export interface ParentToSandboxMessages {
     chunkSize?: number;
     historyId?: string;
     downloadId?: string;
+    debug?: MediaDebugSettings;
   };
 }
 

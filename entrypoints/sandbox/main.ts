@@ -12,11 +12,34 @@ import {
   analyzeMediaFromBlob,
   MEDIAINFO_CHUNK_SIZE,
 } from '@/entrypoints/shared/integrations/mediainfo';
+import type { MediaDebugSettings } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { summariseMediaInfo } from '@/entrypoints/shared/integrations/mediainfo/media-summary';
 import { getMediaInfoInstance } from '@/entrypoints/shared/integrations/mediainfo/mediainfo-loader';
 import type { MediaAnalysisResponse } from '@/entrypoints/shared/integrations/mediainfo/messages';
 
-console.log('[Sandbox] MediaInfo sandbox script starting', {
+const MEDIAINFO_MAX_ANALYSIS_BYTES = 10 * 1024 * 1024 * 1024; // 10 GiB limit
+
+let sandboxDebugSettings: MediaDebugSettings | undefined;
+
+function setSandboxDebugSettings(
+  debug: MediaDebugSettings | undefined,
+): void {
+  sandboxDebugSettings = debug;
+}
+
+function sandboxDebugLog(
+  message: string,
+  data?: Record<string, unknown>,
+): void {
+  if (!sandboxDebugSettings?.enabled) return;
+  if (data) {
+    console.log(message, data);
+    return;
+  }
+  console.log(message);
+}
+
+sandboxDebugLog('[Sandbox] MediaInfo sandbox script starting', {
   timestamp: Date.now(),
 });
 
@@ -29,12 +52,12 @@ async function ensureInitialized(): Promise<void> {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
-    console.log('[Sandbox] Initializing MediaInfo WASM...');
+    sandboxDebugLog('[Sandbox] Initializing MediaInfo WASM...');
     const start = performance.now();
     try {
       await getMediaInfoInstance();
       initialized = true;
-      console.log('[Sandbox] MediaInfo WASM initialized', {
+      sandboxDebugLog('[Sandbox] MediaInfo WASM initialized', {
         elapsedMs: Math.round(performance.now() - start),
       });
     } catch (error) {
@@ -53,7 +76,7 @@ window.addEventListener('message', async (event) => {
 
   if (isSandboxMessage(event, 'ping')) {
     // Health check / handshake
-    console.log('[Sandbox] Received ping, sending pong');
+    sandboxDebugLog('[Sandbox] Received ping, sending pong');
     postToParent('pong', {
       requestId,
       timestamp: Date.now(),
@@ -63,7 +86,11 @@ window.addEventListener('message', async (event) => {
 
   if (isSandboxMessage(event, 'init')) {
     // Initialize MediaInfo eagerly
-    console.log('[Sandbox] Received init request');
+    const initData = (data ?? event.data) as {
+      debug?: MediaDebugSettings;
+    };
+    setSandboxDebugSettings(initData.debug);
+    sandboxDebugLog('[Sandbox] Received init request');
     try {
       await ensureInitialized();
       postToParent('init-complete', {
@@ -83,10 +110,17 @@ window.addEventListener('message', async (event) => {
 
   if (type === 'analyze-blob') {
     // Analyze media from ArrayBuffer transferred from offscreen
-    const { arrayBuffer, requestId: reqId } = data;
     const start = performance.now();
 
-    console.log('[Sandbox] Received blob analysis request', {
+    const blobData = (data ?? event.data) as {
+      arrayBuffer?: ArrayBuffer;
+      requestId: string;
+      debug?: MediaDebugSettings;
+    };
+    setSandboxDebugSettings(blobData.debug);
+    const reqId = blobData.requestId;
+    const arrayBuffer = blobData.arrayBuffer;
+    sandboxDebugLog('[Sandbox] Received blob analysis request', {
       requestId: reqId,
       blobSize: arrayBuffer?.byteLength ?? 0,
     });
@@ -103,7 +137,7 @@ window.addEventListener('message', async (event) => {
       const result = await analyzeMediaFromBlob(blob);
       const elapsed = performance.now() - start;
 
-      console.log('[Sandbox] Blob analysis complete', {
+      sandboxDebugLog('[Sandbox] Blob analysis complete', {
         requestId: reqId,
         elapsedMs: Math.round(elapsed),
         blobSize: blob.size,
@@ -162,11 +196,18 @@ window.addEventListener('message', async (event) => {
 
   if (type === 'analyze-url-streaming') {
     // Analyze media using streaming via parent offscreen
-    const { url, requestId: reqId, chunkSize: customChunkSize } = data;
+    const streamingData = (data ?? event.data) as {
+      url: string;
+      requestId: string;
+      chunkSize?: number;
+      debug?: MediaDebugSettings;
+    };
+    const { url, requestId: reqId, chunkSize: customChunkSize } = streamingData;
+    setSandboxDebugSettings(streamingData.debug);
     const start = performance.now();
     const chunkSize = customChunkSize ?? MEDIAINFO_CHUNK_SIZE;
 
-    console.log('[Sandbox] Received streaming analysis request', {
+    sandboxDebugLog('[Sandbox] Received streaming analysis request', {
       requestId: reqId,
       url,
       chunkSize,
@@ -209,7 +250,7 @@ window.addEventListener('message', async (event) => {
         });
       });
 
-      console.log('[Sandbox] Stream initialized, starting analysis', {
+      sandboxDebugLog('[Sandbox] Stream initialized, starting analysis', {
         requestId: reqId,
         actualFileSize,
       });
@@ -255,7 +296,7 @@ window.addEventListener('message', async (event) => {
       // Server returns 206 Partial Content for each range request
       const mediaInfo = await getMediaInfoInstance();
       const raw = await mediaInfo.analyzeData(
-        () => 10 * 1024 * 1024 * 1024,
+        () => MEDIAINFO_MAX_ANALYSIS_BYTES,
         readChunk,
       );
 
@@ -267,7 +308,7 @@ window.addEventListener('message', async (event) => {
         requestId: reqId,
       });
 
-      console.log('[Sandbox] Streaming analysis complete', {
+      sandboxDebugLog('[Sandbox] Streaming analysis complete', {
         requestId: reqId,
         elapsedMs: Math.round(elapsed),
         bytesFetched: totalBytesFetched,
@@ -335,7 +376,7 @@ window.addEventListener('message', async (event) => {
 });
 
 // Signal readiness to parent
-console.log('[Sandbox] Sending ready signal to parent');
+sandboxDebugLog('[Sandbox] Sending ready signal to parent');
 postToParent('ready', {
   timestamp: Date.now(),
 });
