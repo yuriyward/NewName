@@ -36,6 +36,9 @@ export interface DownloadTrackingEntry {
 
 const DOWNLOAD_TRACKING_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 const DOWNLOAD_TRACKING_MAX_ENTRIES = 200;
+const DOWNLOAD_TRACKING_PRUNE_EVERY_N_ADDITIONS = 50;
+
+let additionsSinceLastPrune = 0;
 
 export function pruneDownloadTrackingMap(
   map: Map<number, DownloadTrackingEntry>,
@@ -327,7 +330,11 @@ export async function processDeterminingFilename(
         filename: finalFilename,
         createdAt: Date.now(),
       });
-      pruneDownloadTrackingMap(downloadTracking);
+      additionsSinceLastPrune += 1;
+      if (additionsSinceLastPrune >= DOWNLOAD_TRACKING_PRUNE_EVERY_N_ADDITIONS) {
+        pruneDownloadTrackingMap(downloadTracking);
+        additionsSinceLastPrune = 0;
+      }
     }
 
     if (debugContext) {
