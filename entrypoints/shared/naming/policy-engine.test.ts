@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { applyFilenamePolicy } from './policy-engine';
+import type { MediaMetadataSummary } from '@/entrypoints/shared/integrations/mediainfo/media-summary';
+import {
+  applyFilenamePolicy,
+  generateMediaEnhancedFilename,
+} from './policy-engine';
 
 describe('applyFilenamePolicy', () => {
   describe('basic functionality', () => {
@@ -331,5 +335,69 @@ describe('applyFilenamePolicy', () => {
         'Zachód Słońca Tatry Morskie Oko 2025-08-17.jpg',
       );
     });
+  });
+});
+
+describe('generateMediaEnhancedFilename', () => {
+  const baseSummary: MediaMetadataSummary = {
+    general: {
+      durationMs: 28_237,
+      format: 'AVI',
+      overallBitRateKbps: 2_807,
+      fileSizeBytes: 9_909_100,
+      title: undefined,
+    },
+    video: [
+      {
+        codec: 'MPEG-4 Visual / FMP4',
+        codecProfile: 'Simple',
+        width: 1_920,
+        height: 1_080,
+        frameRate: 23.976,
+        displayAspectRatio: 1.778,
+        hdrFormat: undefined,
+        bitRateKbps: 2_801,
+      },
+    ],
+    audio: [],
+  };
+
+  const defaultSettings = {
+    maxLength: 80,
+    separator: 'clean' as const,
+    transliterateAscii: false,
+  };
+
+  it('builds enhanced filename without container format', () => {
+    const result = generateMediaEnhancedFilename(
+      'Sample 1920x1080.avi',
+      baseSummary,
+      'video',
+      defaultSettings,
+    );
+
+    expect(result.filename).toBe('Sample 1920x1080 1080p 24fps 28s.avi');
+  });
+
+  it('preserves original underscore delimiter when settings use clean separator', () => {
+    const result = generateMediaEnhancedFilename(
+      'Sample_clip.avi',
+      baseSummary,
+      'video',
+      defaultSettings,
+    );
+
+    expect(result.filename).toBe('Sample_Clip_1080p_24fps_28s.avi');
+  });
+
+  it('preserves original hyphen delimiter when settings use clean separator', () => {
+    const result = generateMediaEnhancedFilename(
+      'Sample-clip.avi',
+      baseSummary,
+      'video',
+      defaultSettings,
+    );
+
+    expect(result.filename).toBe('Sample-Clip-1080p-24fps-28s.avi');
   });
 });

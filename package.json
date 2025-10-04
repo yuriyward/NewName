@@ -42,6 +42,7 @@
     "@heroui/react": "^2.8.4",
     "@heroui/skeleton": "^2.2.16",
     "@heroui/system": "2.4.22",
+    "@heroui/tabs": "^2.2.23",
     "@heroui/theme": "2.4.22",
     "@heroui/toast": "^2.0.16",
     "@heroui/use-theme": "^2.1.10",
@@ -55,10 +56,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.4",
+    "@playwright/test": "^1.55.0",
     "@tailwindcss/vite": "^4.1.13",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
-    "@playwright/test": "^1.55.0",
     "@wxt-dev/auto-icons": "^1.1.0",
     "@wxt-dev/module-react": "^1.1.5",
     "commitizen": "^4.3.1",
@@ -67,6 +68,7 @@
     "typedoc": "^0.28.13",
     "typedoc-plugin-markdown": "^4.9.0",
     "typescript": "^5.9.2",
+    "vite-plugin-static-copy": "^3.1.2",
     "vitest": "^3.2.4",
     "wxt": "^0.20.11"
   },
