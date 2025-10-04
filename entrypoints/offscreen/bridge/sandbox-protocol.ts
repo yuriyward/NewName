@@ -3,8 +3,8 @@
  * Uses window.postMessage for parent-iframe IPC (browser standard).
  */
 
-import type { MediaAnalysisResponse } from '@/entrypoints/shared/integrations/mediainfo/messages';
 import type { MediaDebugSettings } from '@/entrypoints/shared/integrations/mediainfo/debug';
+import type { MediaAnalysisResponse } from '@/entrypoints/shared/integrations/mediainfo/messages';
 
 /**
  * Messages sent from Parent (Offscreen) → Sandbox (iframe)

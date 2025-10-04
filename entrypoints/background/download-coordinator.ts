@@ -331,7 +331,9 @@ export async function processDeterminingFilename(
         createdAt: Date.now(),
       });
       additionsSinceLastPrune += 1;
-      if (additionsSinceLastPrune >= DOWNLOAD_TRACKING_PRUNE_EVERY_N_ADDITIONS) {
+      if (
+        additionsSinceLastPrune >= DOWNLOAD_TRACKING_PRUNE_EVERY_N_ADDITIONS
+      ) {
         pruneDownloadTrackingMap(downloadTracking);
         additionsSinceLastPrune = 0;
       }

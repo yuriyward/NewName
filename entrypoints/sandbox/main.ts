@@ -21,9 +21,7 @@ const MEDIAINFO_MAX_ANALYSIS_BYTES = 10 * 1024 * 1024 * 1024; // 10 GiB limit
 
 let sandboxDebugSettings: MediaDebugSettings | undefined;
 
-function setSandboxDebugSettings(
-  debug: MediaDebugSettings | undefined,
-): void {
+function setSandboxDebugSettings(debug: MediaDebugSettings | undefined): void {
   sandboxDebugSettings = debug;
 }
 
