@@ -31,6 +31,39 @@ export interface DownloadTrackingEntry {
   debug?: MediaDebugSettings;
   url: string;
   filename: string;
+  createdAt: number;
+}
+
+const DOWNLOAD_TRACKING_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+const DOWNLOAD_TRACKING_MAX_ENTRIES = 200;
+const DOWNLOAD_TRACKING_PRUNE_EVERY_N_ADDITIONS = 50;
+
+let additionsSinceLastPrune = 0;
+
+export function pruneDownloadTrackingMap(
+  map: Map<number, DownloadTrackingEntry>,
+  now = Date.now(),
+): void {
+  for (const [id, entry] of map) {
+    if (now - entry.createdAt > DOWNLOAD_TRACKING_TTL_MS) {
+      map.delete(id);
+    }
+  }
+
+  if (map.size <= DOWNLOAD_TRACKING_MAX_ENTRIES) {
+    return;
+  }
+
+  const entries = Array.from(map.entries()).sort(
+    (a, b) => a[1].createdAt - b[1].createdAt,
+  );
+  const excess = map.size - DOWNLOAD_TRACKING_MAX_ENTRIES;
+  for (let index = 0; index < excess; index += 1) {
+    const [downloadId] = entries[index] ?? [];
+    if (downloadId !== undefined) {
+      map.delete(downloadId);
+    }
+  }
 }
 
 export type DeterminingListener = Parameters<
@@ -44,9 +77,9 @@ export type SuggestPayload = Parameters<SuggestCallback>[0];
 /**
  * Generate a random ID for tracking downloads and history items.
  */
-export function randomId(): string {
-  let fallbackRandomSeed = 0;
+let fallbackRandomSeed = 0;
 
+export function randomId(): string {
   if (typeof crypto !== 'undefined') {
     if (typeof crypto.randomUUID === 'function') {
       return crypto.randomUUID();
@@ -295,7 +328,15 @@ export async function processDeterminingFilename(
         debug: debugSettings,
         url,
         filename: finalFilename,
+        createdAt: Date.now(),
       });
+      additionsSinceLastPrune += 1;
+      if (
+        additionsSinceLastPrune >= DOWNLOAD_TRACKING_PRUNE_EVERY_N_ADDITIONS
+      ) {
+        pruneDownloadTrackingMap(downloadTracking);
+        additionsSinceLastPrune = 0;
+      }
     }
 
     if (debugContext) {

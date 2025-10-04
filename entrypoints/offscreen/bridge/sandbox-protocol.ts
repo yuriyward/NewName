@@ -3,6 +3,7 @@
  * Uses window.postMessage for parent-iframe IPC (browser standard).
  */
 
+import type { MediaDebugSettings } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import type { MediaAnalysisResponse } from '@/entrypoints/shared/integrations/mediainfo/messages';
 
 /**
@@ -14,6 +15,12 @@ export interface ParentToSandboxMessages {
   };
   init: {
     requestId: string;
+    debug?: MediaDebugSettings;
+  };
+  'analyze-blob': {
+    requestId: string;
+    arrayBuffer: ArrayBuffer;
+    debug?: MediaDebugSettings;
   };
   'analyze-url-streaming': {
     requestId: string;
@@ -21,6 +28,7 @@ export interface ParentToSandboxMessages {
     chunkSize?: number;
     historyId?: string;
     downloadId?: string;
+    debug?: MediaDebugSettings;
   };
 }
 
