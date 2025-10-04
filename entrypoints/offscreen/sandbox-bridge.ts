@@ -18,6 +18,7 @@ import {
 import { isSandboxMessage, postToSandbox } from './bridge/sandbox-protocol';
 import {
   cleanupReader,
+  cleanupStreamingListeners,
   registerStreamingListeners,
 } from './bridge/stream-coordinator';
 
@@ -145,5 +146,6 @@ window.addEventListener('message', (event) => {
 });
 
 export function destroySandbox(): void {
+  cleanupStreamingListeners();
   destroySandboxLifecycle(pendingRequests);
 }

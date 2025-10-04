@@ -21,6 +21,15 @@ export function registerStreamingListeners(): void {
 }
 
 /**
+ * Cleanup streaming message listeners to prevent memory leaks.
+ */
+export function cleanupStreamingListeners(): void {
+  console.log('[SandboxBridge] Cleaning up streaming message listeners');
+  window.removeEventListener('message', handleStreamingMessage);
+  activeReaders.clear();
+}
+
+/**
  * Handle streaming-related messages from sandbox.
  */
 function handleStreamingMessage(event: MessageEvent): void {

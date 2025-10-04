@@ -59,9 +59,9 @@ export function pruneDownloadTrackingMap(
   );
   const excess = map.size - DOWNLOAD_TRACKING_MAX_ENTRIES;
   for (let index = 0; index < excess; index += 1) {
-    const [downloadId] = entries[index] ?? [];
-    if (downloadId !== undefined) {
-      map.delete(downloadId);
+    const entry = entries[index];
+    if (entry && entry[0] !== undefined) {
+      map.delete(entry[0]);
     }
   }
 }
