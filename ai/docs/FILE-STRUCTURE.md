@@ -97,6 +97,7 @@
 - `export fallbackNameFromUrl` - Generate a fallback filename from a URL when no filename ...
 - `export isMediaFileType` - Check if the file type is a media file (audio or video)
 - `export processDeterminingFilename` - Process the determining filename event and suggest a rena...
+- `export pruneDownloadTrackingMap` - item implementation
 - `export randomId` - Generate a random ID for tracking downloads and history i...
 - `export shouldRenameType` - Check if renaming is enabled for the given file type
 
@@ -147,6 +148,7 @@
 
 **Exports**:
 - `export cleanupReader` - Cleanup a specific reader by request ID
+- `export cleanupStreamingListeners` - Cleanup streaming message listeners to prevent memory leaks
 - `export registerStreamingListeners` - Register streaming message listeners for range-based fetc...
 
 ### offscreen/main.ts
