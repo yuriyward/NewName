@@ -237,12 +237,14 @@ All variants share the same post-processing: apply separator preference, enforce
 
 ### 5.6 Audio/Video
 
-* Extract 1–2 **keyframes** (video) and a **short intro audio** slice; pass to Prompt multimodal for class (meeting/tutorial/call).
-* For duration/resolution, read container metadata if accessible without full download.
+* Use **mediainfo.js** container metadata extracted during Instant Baseline (duration, resolution, sample rate, channels, codecs).
+* Contextual Upgrade for audio/video relies on metadata-only; no content analysis (keyframe/audio extraction) to maintain reliability and performance.
+* For archives, optionally inspect manifest/file list for better naming.
 
 ### 5.7 Scoring & compare
 
-* Compute **score** = weighted sum (ContentTitle, DocType, MetadataHelpfulness, SourceClarity) minus (ExistingNameQuality, Ambiguity).
+* Compute **score** = weighted sum (MetadataHelpfulness, SourceClarity, StructureQuality) minus (ExistingNameQuality, Ambiguity).
+* For media files, scoring prioritizes metadata enrichment (duration/resolution tags, archive manifest insights) over content analysis.
 * Use `phase1Decision.confidence` as the baseline; when the Instant Baseline stage kept the original, treat the baseline as 0 but carry through `decision.reasons` to inform messaging.
 * If `best.score - baseline >= delta` (e.g., +10) → surface **Upgrade**.
 
@@ -315,9 +317,9 @@ All variants share the same post-processing: apply separator preference, enforce
 ## 10) Performance budgets
 
 * **Instant Baseline** decision (strategy evaluation + `suggest()`) ≤ **120 ms** (p95).
-* **Contextual Upgrade** offscreen processing ≤ **6 s** (p95) for PDFs; ≤ **3 s** for images; ≤ **8 s** for media.
+* **Contextual Upgrade** offscreen processing ≤ **6 s** (p95) for PDFs; ≤ **3 s** for images; ≤ **2 s** for archives (manifest inspection only).
 * **Prompt/Summarizer** invocations: p95 ≤ **800 ms** on supported hardware, else fall back.
-* Memory: OSD < **180 MB** peak with MuPDF; lazy-load WASM only on scan path.
+* Memory: OSD < **180 MB** peak with MuPDF; lazy-load WASM only on scan path or archive inspection.
 
 ---
 
