@@ -495,7 +495,7 @@ function buildTreeFromPaths(files) {
 /**
  * Render tree structure as text
  */
-function renderTree(tree, prefix = '', parentPrefix = '') {
+function renderTree(tree, prefix = '', parentPrefix = '', depth = 0) {
   let output = '';
   const entries = Object.entries(tree).sort(([a], [b]) => {
     // Directories first, then files
@@ -507,8 +507,10 @@ function renderTree(tree, prefix = '', parentPrefix = '') {
 
   entries.forEach(([name, node], index) => {
     const isLast = index === entries.length - 1;
-    const connector = isLast ? '└── ' : '├── ';
-    const nextPrefix = parentPrefix + (isLast ? '    ' : '│   ');
+
+    // For top level (depth 0), no connector prefix
+    const connector = depth === 0 ? '' : (isLast ? '└─ ' : '├─ ');
+    const nextPrefix = depth === 0 ? '  ' : (parentPrefix + (isLast ? '  ' : '│ '));
 
     if (node.__file) {
       // File
@@ -538,7 +540,7 @@ function renderTree(tree, prefix = '', parentPrefix = '') {
       // Recurse for subdirectories
       const subtree = { ...node };
       delete subtree.__dir;
-      output += renderTree(subtree, nextPrefix, nextPrefix);
+      output += renderTree(subtree, nextPrefix, nextPrefix, depth + 1);
     }
   });
 
