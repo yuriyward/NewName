@@ -6,6 +6,7 @@ import { isInstantBaselineStrategy } from '@/entrypoints/shared/pipeline/instant
 
 export type { InstantBaselineStrategy };
 export { isInstantBaselineStrategy };
+
 export type Mode = 'balanced' | 'silent' | 'careful' | 'custom';
 export type Separator = 'clean' | 'kebab' | 'snake';
 export type DebugLevel = 'basic' | 'detailed' | 'verbose';
@@ -17,6 +18,8 @@ export type FileType =
   | 'archive'
   | 'office'
   | 'data';
+
+export type UiLocale = 'browser' | 'en' | 'pl' | 'uk';
 
 export interface PerTypeBehavior {
   behavior: 'auto' | 'confirm' | 'off';
@@ -40,8 +43,19 @@ export interface DebugSettings {
   level: DebugLevel;
 }
 
-export interface SettingsV1 {
-  version: 1;
+export interface ConfirmModalDefaults {
+  /** Whether metadata sections are expanded by default in the confirm modal */
+  expandMetadata: boolean;
+  /** Whether reason tags are shown by default in the confirm modal */
+  showReasonTags: boolean;
+}
+
+export interface LocalizationSettings {
+  uiLocale: UiLocale;
+}
+
+export interface Settings {
+  version: 2;
   mode: Mode;
   language: 'browser' | 'auto' | 'pl' | 'en' | 'uk';
   separator: Separator;
@@ -53,10 +67,22 @@ export interface SettingsV1 {
   cloud: CloudSettings;
   debug: DebugSettings;
   notifyOnKeep: boolean;
+  confirmModal: ConfirmModalDefaults;
+  localization: LocalizationSettings;
 }
 
-export const DEFAULT_SETTINGS: SettingsV1 = {
-  version: 1,
+export const UI_LOCALE_OPTIONS: ReadonlyArray<{
+  id: UiLocale;
+  labelKey: `settings.localization.ui.${UiLocale}`;
+}> = [
+  { id: 'browser', labelKey: 'settings.localization.ui.browser' },
+  { id: 'en', labelKey: 'settings.localization.ui.en' },
+  { id: 'pl', labelKey: 'settings.localization.ui.pl' },
+  { id: 'uk', labelKey: 'settings.localization.ui.uk' },
+];
+
+export const DEFAULT_SETTINGS: Settings = {
+  version: 2,
   mode: 'balanced',
   language: 'auto',
   separator: 'clean',
@@ -88,6 +114,13 @@ export const DEFAULT_SETTINGS: SettingsV1 = {
     level: 'basic',
   },
   notifyOnKeep: false,
+  confirmModal: {
+    expandMetadata: false,
+    showReasonTags: true,
+  },
+  localization: {
+    uiLocale: 'browser',
+  },
 };
 
 export function isFileType(value: unknown): value is FileType {
@@ -99,5 +132,11 @@ export function isFileType(value: unknown): value is FileType {
     value === 'office' ||
     value === 'archive' ||
     value === 'data'
+  );
+}
+
+export function isUiLocale(value: unknown): value is UiLocale {
+  return (
+    value === 'browser' || value === 'en' || value === 'pl' || value === 'uk'
   );
 }

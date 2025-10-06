@@ -1,3 +1,6 @@
+/**
+ * Queue manager for sequential media analysis requests
+ */
 import { browser } from 'wxt/browser';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import type {

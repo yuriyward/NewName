@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { InstantBaselineSignals } from '@/entrypoints/shared/context/page-analyzer';
-import type { SettingsV1 } from '@/entrypoints/shared/settings/settings';
+import type { Settings } from '@/entrypoints/shared/settings/settings';
 import { DEFAULT_SETTINGS } from '@/entrypoints/shared/settings/settings';
 import { evaluateInstantBaseline } from './instant-baseline-strategy';
 
@@ -196,7 +196,7 @@ describe('evaluateInstantBaseline (file-type awareness)', () => {
   const capturedAt = 1_700_000_000_000;
 
   it('preserves multi-part archive extensions and classifies as archive', () => {
-    const settings: SettingsV1 = {
+    const settings: Settings = {
       ...DEFAULT_SETTINGS,
       instantBaselineStrategy: 'page-title-with-date',
     };
@@ -225,7 +225,7 @@ describe('evaluateInstantBaseline (file-type awareness)', () => {
   ] as const)(
     'classifies %s downloads as %s',
     (mime, filename, expectedType) => {
-      const settings: SettingsV1 = {
+      const settings: Settings = {
         ...DEFAULT_SETTINGS,
         instantBaselineStrategy: 'keep-original',
       };

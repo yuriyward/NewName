@@ -19,6 +19,12 @@ async function wakeServiceWorker(
   extensionId: string,
   timeoutMs: number,
 ): Promise<void> {
+  /**
+   * Attempt to wake the service worker by briefly opening the popup page.
+   * Chrome will lazily start MV3 workers, so our retry loop navigates to the
+   * extension UI with a small timeout. Even if navigation fails, the request is
+   * enough to nudge the worker and we silently ignore the error.
+   */
   const page = await context.newPage();
   try {
     await page.goto(`chrome-extension://${extensionId}/popup.html`, {
@@ -165,7 +171,7 @@ export { expect };
 
 export async function setSettingsInExtension(
   worker: Worker,
-  settings: Record<string, unknown>,
+  settings: unknown,
 ): Promise<void> {
   await worker.evaluate(async (payload) => {
     const chromeApi = (
@@ -177,7 +183,7 @@ export async function setSettingsInExtension(
       }
     ).chrome;
     await new Promise<void>((resolve, reject) => {
-      chromeApi.storage.local.set({ 'local:settings.v1': payload }, () => {
+      chromeApi.storage.local.set({ 'local:settings.v2': payload }, () => {
         if (chromeApi.runtime.lastError) reject(chromeApi.runtime.lastError);
         else resolve();
       });

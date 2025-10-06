@@ -4,10 +4,12 @@
 
 ## Tree Overview
 
-├── background/ # 3 files
+├── background/ # 5 files
 │   ├── download-coordinator.ts # Download coordination logic for onDeterminingFilename events
+│   ├── download-tracking.ts # Download tracking helpers used by the background coordinator.
 │   ├── media-orchestrator.ts # Media analysis orchestration and upgrade proposal generation
-│   └── settings-cache.ts # Settings cache management for background service worker
+│   ├── settings-cache.ts # Settings cache management for background service worker
+│   └── suggest-controller.ts # Helper for coordinating the Chrome downloads suggest callback with timeouts.
 ├── offscreen/ # 3 files, 1 directories
 │   ├── bridge/ # 3 files
 │   │   ├── sandbox-lifecycle.ts # Sandbox iframe lifecycle management
@@ -21,7 +23,7 @@
 │   └── main.tsx # React popup entry point and application bootstrapping
 ├── sandbox/ # 1 file
 │   └── main.ts # Sandboxed iframe for MediaInfo.js WASM execution. Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
-├── shared/ # 13 directories
+├── shared/ # 14 directories
 │   ├── classification/ # 1 file
 │   │   └── file-types.ts # File type detection from MIME and extensions
 │   ├── constants/ # 1 file
@@ -41,14 +43,14 @@
 │   │       │   ├── duration-parser.ts # Duration parsing utilities for MediaInfo track data
 │   │       │   └── track-parser.ts # Track parsing utilities for MediaInfo video and audio tracks
 │   │       ├── constants.ts # Centralized constants for MediaInfo integration and analysis pipeline.
-│   │       ├── debug.ts # 2 exports
-│   │       ├── index.ts # 7 exports
-│   │       ├── media-analysis-queue.ts # 2 exports
-│   │       ├── media-summary.ts # 4 exports
-│   │       ├── mediainfo-loader.ts # 4 exports
-│   │       ├── messages.ts # 4 exports
+│   │       ├── debug.ts # Debug logging utilities for media analysis pipeline
+│   │       ├── index.ts # Main entry point for MediaInfo integration and media file analysis
+│   │       ├── media-analysis-queue.ts # Queue manager for sequential media analysis requests
+│   │       ├── media-summary.ts # MediaInfo result summarization and metadata extraction
+│   │       ├── mediainfo-loader.ts # MediaInfo.js WASM loader and instance management
+│   │       ├── messages.ts # Type definitions for media analysis request/response protocol
 │   │       ├── offscreen-coordinator.ts # Offscreen document lifecycle and readiness coordination
-│   │       └── range-reader.ts # 2 exports
+│   │       └── range-reader.ts # HTTP Range request reader for efficient partial file fetching
 │   ├── lifecycle/ # 1 file
 │   │   └── install-tracking.ts # Extension installation date tracking and storage utilities
 │   ├── messaging/ # 1 file
@@ -63,14 +65,20 @@
 │   │   ├── path-utils.ts # Path and filename manipulation utilities for Instant Baseline processing
 │   │   ├── strategy-evaluator.ts # Strategy evaluation and decision logic for Instant Baseline processing
 │   │   └── strategy-options.ts # Strategy option definitions for the Instant Baseline domain
-│   ├── settings/ # 2 files
+│   ├── settings/ # 5 files
 │   │   ├── settings.ts # Application settings persistence and state management
-│   │   └── types.ts # Type definitions for application configuration and settings
+│   │   ├── storage-state.ts # Internal storage adapter state management for testing
+│   │   ├── testing.ts # Test utilities for settings module
+│   │   ├── types.ts # Type definitions for application configuration and settings
+│   │   └── validation.ts # Settings validation and sanitization functions
 │   ├── state/ # 2 files
 │   │   ├── page-context-service.ts # Proxy service exposing PageContext store operations to other extension contexts.
 │   │   └── page-context-store.ts # Runtime page context storage and management
-│   └── ui/ # 1 file
-│       └── theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
+│   ├── ui/ # 1 file
+│   │   └── theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
+│   └── utils/ # 2 files
+│       ├── filename.ts # Utility helpers for working with file names.
+│       └── id.ts # Utility helpers for generating identifiers.
 ├── background.ts # Background service worker for download interception and renaming
 └── content.ts # Content script for page context extraction and messaging
 
@@ -86,20 +94,23 @@
 **Purpose**: Download coordination logic for onDeterminingFilename events
 
 **Exports**:
-- `export DownloadTrackingEntry` - item implementation
 - `export DeterminingItem` - item implementation
 - `export DeterminingListener` - item implementation
 - `export SuggestCallback` - item implementation
 - `export SuggestPayload` - item implementation
-- `export basename` - Extract the base filename from a path
 - `export createDeterminingListener` - Create the determining listener that processes download e...
-- `export createSuggestController` - Controller for managing the suggest callback with timeout...
-- `export fallbackNameFromUrl` - Generate a fallback filename from a URL when no filename ...
 - `export isMediaFileType` - Check if the file type is a media file (audio or video)
 - `export processDeterminingFilename` - Process the determining filename event and suggest a rena...
-- `export pruneDownloadTrackingMap` - item implementation
-- `export randomId` - Generate a random ID for tracking downloads and history i...
 - `export shouldRenameType` - Check if renaming is enabled for the given file type
+
+### background/download-tracking.ts
+**Purpose**: Download tracking helpers used by the background coordinator.
+
+**Exports**:
+- `export DownloadTrackingEntry` - Download tracking helpers used by the background coordina...
+- `export pruneDownloadTrackingMap` - item implementation
+- `export recordDownloadTracking` - item implementation
+- `export resetDownloadTrackingForTesting` - item implementation
 
 ### background/media-orchestrator.ts
 **Purpose**: Media analysis orchestration and upgrade proposal generation
@@ -113,6 +124,13 @@
 
 **Exports**:
 - `export ensureSettingsCache` - Initialize a cached settings reader that automatically up...
+
+### background/suggest-controller.ts
+**Purpose**: Helper for coordinating the Chrome downloads suggest callback with timeouts.
+
+**Exports**:
+- `export SuggestController` - Helper for coordinating the Chrome downloads suggest call...
+- `export createSuggestController` - item implementation
 
 ### content.ts
 **Purpose**: Content script for page context extraction and messaging
@@ -269,33 +287,33 @@
 - `export SUGGEST_TIMEOUT_MS` - Total timeout for filename suggestion in download interce...
 
 ### shared/integrations/mediainfo/debug.ts
-**Purpose**: 2 exports
+**Purpose**: Debug logging utilities for media analysis pipeline
 
 **Exports**:
-- `export MediaDebugSettings` - item implementation
+- `export MediaDebugSettings` - Debug logging utilities for media analysis pipeline
 - `export logMediaDebug` - item implementation
 
 ### shared/integrations/mediainfo/index.ts
-**Purpose**: 7 exports
+**Purpose**: Main entry point for MediaInfo integration and media file analysis
 
 **Exports**:
 - `export MediaAnalysisError` - item implementation
 - `export AnalyzeMediaFromBlobResult` - item implementation
-- `export AnalyzeMediaFromUrlOptions` - item implementation
+- `export AnalyzeMediaFromUrlOptions` - HTTP Range request reader for efficient partial file fetc...
 - `export AnalyzeMediaFromUrlResult` - item implementation
 - `export analyzeMediaFromBlob` - item implementation
 - `export analyzeMediaFromUrl` - item implementation
 - `export MEDIAINFO_CHUNK_SIZE` - item implementation
 
 ### shared/integrations/mediainfo/media-analysis-queue.ts
-**Purpose**: 2 exports
+**Purpose**: Queue manager for sequential media analysis requests
 
 **Exports**:
 - `export enqueueMediaAnalysis` - item implementation
 - `export resetMediaAnalysisQueueForTesting` - item implementation
 
 ### shared/integrations/mediainfo/media-summary.ts
-**Purpose**: 4 exports
+**Purpose**: MediaInfo result summarization and metadata extraction
 
 **Exports**:
 - `export MediaMetadataSummary` - item implementation
@@ -304,20 +322,20 @@
 - `export VideoTrackSummary` - item implementation
 
 ### shared/integrations/mediainfo/mediainfo-loader.ts
-**Purpose**: 4 exports
+**Purpose**: MediaInfo.js WASM loader and instance management
 
 **Exports**:
-- `export MediaInfoInstance` - item implementation
-- `export MEDIAINFO_CHUNK_SIZE` - item implementation
+- `export MediaInfoInstance` - MediaInfo.js WASM loader and instance management
+- `export MEDIAINFO_CHUNK_SIZE` - MediaInfo.js WASM loader and instance management
 - `export getMediaInfoInstance` - item implementation
 - `export resetMediaInfoInstanceForTesting` - item implementation
 
 ### shared/integrations/mediainfo/messages.ts
-**Purpose**: 4 exports
+**Purpose**: Type definitions for media analysis request/response protocol
 
 **Exports**:
 - `export MediaAnalysisFailure` - item implementation
-- `export MediaAnalysisRequest` - item implementation
+- `export MediaAnalysisRequest` - Type definitions for media analysis request/response prot...
 - `export MediaAnalysisSuccess` - item implementation
 - `export MediaAnalysisResponse` - item implementation
 
@@ -344,11 +362,11 @@
 - `export summariseVideoTrack` - Summarize a video track from MediaInfo data
 
 ### shared/integrations/mediainfo/range-reader.ts
-**Purpose**: 2 exports
+**Purpose**: HTTP Range request reader for efficient partial file fetching
 
 **Exports**:
 - `export RangeFetchReader` - item implementation
-- `export RangeFetchOptions` - item implementation
+- `export RangeFetchOptions` - HTTP Range request reader for efficient partial file fetc...
 
 ### shared/lifecycle/install-tracking.ts
 **Purpose**: Extension installation date tracking and storage utilities
@@ -461,25 +479,67 @@
 - `export Mode` - item implementation
 - `export PerTypeBehavior` - item implementation
 - `export Separator` - item implementation
-- `export SettingsV1` - item implementation
+- `export Settings` - item implementation
+
+### shared/settings/storage-state.ts
+**Purpose**: Internal storage adapter state management for testing
+
+**Exports**:
+- `export StorageOverride` - Internal storage adapter state management for testing
+- `export getStorageAdapter` - item implementation
+- `export getStorageUnwatch` - item implementation
+- `export registerResetHook` - item implementation
+- `export resetCachesForTesting` - item implementation
+- `export resetStorageStateForTesting` - item implementation
+- `export setStorageAdapterForTesting` - item implementation
+- `export setStorageUnwatch` - item implementation
+
+### shared/settings/testing.ts
+**Purpose**: Test utilities for settings module
+
+**Exports**:
+- `export applySettingsStorageOverrideForTesting` - Applies a storage override for tests and clears cached se...
+- `export resetSettingsStateForTesting` - Restores the default storage adapter and clears cached se...
 
 ### shared/settings/types.ts
 **Purpose**: Type definitions for application configuration and settings
 
 **Exports**:
 - `export CloudSettings` - item implementation
+- `export ConfirmModalDefaults` - item implementation
 - `export DebugSettings` - item implementation
+- `export LocalizationSettings` - item implementation
 - `export MetadataToggles` - item implementation
 - `export PerTypeBehavior` - item implementation
-- `export SettingsV1` - item implementation
+- `export Settings` - item implementation
 - `export DebugLevel` - item implementation
 - `export FileType` - item implementation
 - `export Mode` - Type definitions for application configuration and settings
-- `export Separator` - Type definitions for application configuration and settings
+- `export Separator` - item implementation
+- `export UiLocale` - item implementation
 - `export DEFAULT_SETTINGS` - item implementation
+- `export UI_LOCALE_OPTIONS` - item implementation
 - `export isFileType` - item implementation
+- `export isUiLocale` - item implementation
 - `export InstantBaselineStrategy` - Type definitions for application configuration and settings
 - `export isInstantBaselineStrategy` - Type definitions for application configuration and settings
+
+### shared/settings/validation.ts
+**Purpose**: Settings validation and sanitization functions
+
+**Exports**:
+- `export isDebugLevel` - item implementation
+- `export isLanguage` - item implementation
+- `export isMode` - item implementation
+- `export isPerTypeBehavior` - item implementation
+- `export isSeparator` - item implementation
+- `export sanitizeCloudSettings` - item implementation
+- `export sanitizeConfirmModal` - item implementation
+- `export sanitizeDebugSettings` - item implementation
+- `export sanitizeLocalization` - item implementation
+- `export sanitizeMetadataToggles` - item implementation
+- `export sanitizePerType` - item implementation
+- `export sanitizeSettings` - item implementation
 
 ### shared/state/page-context-service.ts
 **Purpose**: Proxy service exposing PageContext store operations to other extension contexts.
@@ -513,4 +573,17 @@ Handles automatic th...
 - `export getAppropriateTheme` - Get appropriate theme (system detection + daily reset logic)
 - `export markThemeReset` - Mark theme as reset for today
 - `export shouldResetTheme` - Check if theme should be reset (new day)
+
+### shared/utils/filename.ts
+**Purpose**: Utility helpers for working with file names.
+
+**Exports**:
+- `export basename` - Extract the base filename from a path, normalising Window...
+- `export fallbackNameFromUrl` - Generate a fallback filename from a URL when no filename ...
+
+### shared/utils/id.ts
+**Purpose**: Utility helpers for generating identifiers.
+
+**Exports**:
+- `export randomId` - Generate a random ID for tracking downloads and history i...
 

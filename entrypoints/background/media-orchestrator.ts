@@ -9,7 +9,7 @@ import type { MediaDebugSettings } from '@/entrypoints/shared/integrations/media
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import type { MediaAnalysisResponse } from '@/entrypoints/shared/integrations/mediainfo/messages';
 import { generateMediaEnhancedFilename } from '@/entrypoints/shared/naming/policy-engine';
-import type { SettingsV1 } from '@/entrypoints/shared/settings/settings';
+import type { Settings } from '@/entrypoints/shared/settings/settings';
 
 /**
  * Apply media analysis response to history item and generate upgrade proposal if applicable.
@@ -21,7 +21,7 @@ export async function applyMediaAnalysisResponse(
   debug: MediaDebugSettings | undefined,
   response: MediaAnalysisResponse,
   downloadId: string | undefined,
-  readSettings: () => SettingsV1,
+  readSettings: () => Settings,
 ): Promise<void> {
   const analyzedAt = Date.now();
 
@@ -125,7 +125,7 @@ export async function applyMediaAnalysisResponse(
  * Convert settings to media debug settings if debug is enabled.
  */
 export function toMediaDebugSettings(
-  settings: SettingsV1,
+  settings: Settings,
 ): MediaDebugSettings | undefined {
   if (!settings.debug.enabled) {
     return undefined;

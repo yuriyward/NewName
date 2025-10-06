@@ -108,18 +108,21 @@ type Sep = 'clean'|'kebab'|'snake';
 type FileType = 'pdf'|'image'|'audio'|'video'|'archive'|'data';
 type Phase1Strategy = 'keep-original'|'original-with-date'|'page-title'|'page-title-with-date';
 
-interface SettingsV1 {
-  version: 1;
+interface Settings {
+  version: 2;
   mode: Mode;
   language: 'browser'|'auto'|'pl'|'en'|'uk';
   separator: Sep;
-  maxLen: number; // 40..80 (default 60)
+  maxLen: number; // 40..120 (default 60)
   transliterateAscii: boolean;
-  phase1Strategy: Phase1Strategy;
+  instantBaselineStrategy: Phase1Strategy;
   perType: Record<FileType,{behavior:'auto'|'confirm'|'off'}>;
   metadataToggles: { geo:boolean; docDate:boolean; mediaSpecs:boolean; sourceHint:boolean; };
   cloud: { enabled:boolean; scope: FileType[]; dataMinimize:boolean; };
+  debug: { enabled:boolean; level:'basic'|'detailed'|'verbose'; };
   notifyOnKeep: boolean;
+  confirmModal: { expandMetadata:boolean; showReasonTags:boolean; };
+  localization: { uiLocale:'browser'|'pl'|'en'|'uk'; };
 }
 ```
 
@@ -151,7 +154,7 @@ interface Phase1Decision {
   guardrail: 'strategy-applied'|'strategy-unavailable';
   reasons: string[];
 }
-interface Phase2Cfg { langPref:SettingsV1['language']; maxLen:number; sep:Sep; meta:SettingsV1['metadataToggles']; cloud:boolean; scope: FileType[]; }
+interface Phase2Cfg { langPref:Settings['language']; maxLen:number; sep:Sep; meta:Settings['metadataToggles']; cloud:boolean; scope: FileType[]; }
 interface Candidate { name:string; confidence:number; reason:string[]; }
 interface Phase2Result { best?:Candidate; alts?:Candidate[]; source:'on-device'|'cloud'|'metadata'; elapsedMs:number; }
 ```
@@ -237,12 +240,14 @@ All variants share the same post-processing: apply separator preference, enforce
 
 ### 5.6 Audio/Video
 
-* Extract 1–2 **keyframes** (video) and a **short intro audio** slice; pass to Prompt multimodal for class (meeting/tutorial/call).
-* For duration/resolution, read container metadata if accessible without full download.
+* Use **mediainfo.js** container metadata extracted during Instant Baseline (duration, resolution, sample rate, channels, codecs).
+* Contextual Upgrade for audio/video relies on metadata-only; no content analysis (keyframe/audio extraction) to maintain reliability and performance.
+* For archives, optionally inspect manifest/file list for better naming.
 
 ### 5.7 Scoring & compare
 
-* Compute **score** = weighted sum (ContentTitle, DocType, MetadataHelpfulness, SourceClarity) minus (ExistingNameQuality, Ambiguity).
+* Compute **score** = weighted sum (MetadataHelpfulness, SourceClarity, StructureQuality) minus (ExistingNameQuality, Ambiguity).
+* For media files, scoring prioritizes metadata enrichment (duration/resolution tags, archive manifest insights) over content analysis.
 * Use `phase1Decision.confidence` as the baseline; when the Instant Baseline stage kept the original, treat the baseline as 0 but carry through `decision.reasons` to inform messaging.
 * If `best.score - baseline >= delta` (e.g., +10) → surface **Upgrade**.
 
@@ -315,9 +320,9 @@ All variants share the same post-processing: apply separator preference, enforce
 ## 10) Performance budgets
 
 * **Instant Baseline** decision (strategy evaluation + `suggest()`) ≤ **120 ms** (p95).
-* **Contextual Upgrade** offscreen processing ≤ **6 s** (p95) for PDFs; ≤ **3 s** for images; ≤ **8 s** for media.
+* **Contextual Upgrade** offscreen processing ≤ **6 s** (p95) for PDFs; ≤ **3 s** for images; ≤ **2 s** for archives (manifest inspection only).
 * **Prompt/Summarizer** invocations: p95 ≤ **800 ms** on supported hardware, else fall back.
-* Memory: OSD < **180 MB** peak with MuPDF; lazy-load WASM only on scan path.
+* Memory: OSD < **180 MB** peak with MuPDF; lazy-load WASM only on scan path or archive inspection.
 
 ---
 

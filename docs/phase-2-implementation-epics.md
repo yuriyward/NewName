@@ -6,29 +6,28 @@ Phase 2 extends the MVP deterministic renaming flow (Phase 1) into a more expres
 
 ## Epic A — Multi-Media Instant Baseline & Upgrade Coverage
 
-**Objective.** Deliver deterministic Instant Baseline decisions and contextual upgrades for audio, video, and archive/installer downloads so automation benefits the most common non-document payloads while preserving Phase 1 guardrails and UX expectations.
+**Objective.** Deliver deterministic Instant Baseline decisions and metadata-based contextual upgrades for audio, video, and archive/installer downloads so automation benefits the most common non-document payloads while preserving Phase 1 guardrails and UX expectations.
 
 **Primary work.**
 - Extend file-type classification to audio/video/archive formats; expose new types end-to-end (downloads metadata → policy engine → settings/per-type UI → history telemetry badges).
 - Implement deterministic Instant Baseline handling per new type by reading container metadata with mediainfo.js (duration, resolution, sample rate, channels, codecs), generating helpful suffixes that respect the safe filename policy and separator preferences; avoid filename-derived heuristics for media.
-- Build offscreen extraction for Phase 2 upgrades: first keyframes, short intro audio slices, lightweight container metadata, and archive manifest inspection.
-- Update upgrade scoring/guardrails to compare new media signals against Phase 1 decisions; never regress keep outcomes when context is weak.
+- Build offscreen extraction for Phase 2 upgrades: archive manifest inspection for better naming. For audio/video, rely on existing mediainfo.js metadata from Instant Baseline (no content analysis).
+- Update upgrade scoring/guardrails to compare metadata-enriched filenames against Phase 1 decisions; never regress keep outcomes when context is weak.
 - Expand unit/integration coverage and add media-focused Playwright scenarios, including Undo/Upgrade behaviour.
 - Collaborate with design on visual/audio cues (file-type icons, ✨ upgrade cards for media) and ensure toast/notification copy matches the design PRD (reason tags, badges, tone).
 
 **Dependencies.**
-- Chrome built-in AI multimodal support (Prompt image/audio) with graceful fallback heuristics.
-- WASM helpers (e.g., FFmpeg-lite/MuPDF) sized within offscreen performance budgets and cleared for licensing.
+- WASM helpers for archive inspection (e.g., lightweight ZIP readers) sized within offscreen performance budgets and cleared for licensing.
 - Updated iconography and badges for new file types.
 
 **Acceptance.**
-- Audio/video/archive downloads either receive deterministic renamed filenames or are intentionally kept with logged guardrail reasons and correct toast copy (“Kept original — already clear”).
-- Contextual Upgrade offers media-specific suggestions within latency budgets (≤3 s images/video, ≤8 s audio) and surface design-specified badges (“On-device” / “Cloud assist”, Duration/Resolution tags).
+- Audio/video/archive downloads either receive deterministic renamed filenames or are intentionally kept with logged guardrail reasons and correct toast copy ("Kept original — already clear").
+- Contextual Upgrade offers metadata-based improvements (archive manifest inspection) within latency budgets; audio/video rely on existing mediainfo.js metadata from Instant Baseline with design-specified badges (Duration/Resolution tags).
 - QA sign-off via new automated + manual media cases; no regressions to PDF/image flows.
 
 **Risks / Mitigations.**
-- Large media payloads → rely on Range fetch + strict timeouts; fall back to metadata-only workflows when budgets exceed.
-- Tooling licensing → prefer permissive libraries; document alternative builds if redistribution limits apply.
+- Large archive files → rely on partial reads of manifest data only; strict timeouts prevent blocking.
+- Tooling licensing → prefer permissive libraries for archive inspection; document alternative builds if redistribution limits apply.
 
 ## Epic B — Confirm Modal, Mode Flows & Per-Type Controls
 
@@ -140,12 +139,12 @@ Phase 2 extends the MVP deterministic renaming flow (Phase 1) into a more expres
 ## Incremental Implementation Tasks
 
 ### Epic A — Multi-Media Instant Baseline & Upgrade Coverage
-- [ ] Extend file-type classifier and policy engine to recognise audio, video, and archive formats end-to-end (downloads metadata → settings toggles → history badges) with unit tests.
-- [ ] Implement deterministic Instant Baseline naming helpers that consume mediainfo.js results (duration, resolution, sample rate, channels, codecs) to add relevant qualifiers; do not rely on filename parsing; respect separator preferences and length caps.
-- [ ] Prototype offscreen media upgrade pipelines (keyframes, intro audio slices, archive manifest peek) with timeout guards and Playwright coverage for Upgrade/Undo paths.
+- [X] Extend file-type classifier and policy engine to recognise audio, video, and archive formats end-to-end (downloads metadata → settings toggles → history badges) with unit tests.
+- [X] Implement deterministic Instant Baseline naming helpers that consume mediainfo.js results (duration, resolution, sample rate, channels, codecs) to add relevant qualifiers; do not rely on filename parsing; respect separator preferences and length caps.
+- [ ] Prototype offscreen archive upgrade pipeline (manifest inspection for better naming) with timeout guards and Playwright coverage for Upgrade/Undo paths; audio/video use existing mediainfo.js metadata from Instant Baseline.
 
 ### Epic B — Confirm Modal, Mode Flows & Per-Type Controls
-- [ ] Ship settings schema v2 with per-type behaviour flags and metadata toggles, plus migration tests and localisation hooks.
+- [X] Ship settings schema v2 with per-type behaviour flags and metadata toggles, plus migration tests and localisation hooks.
 - [ ] Build accessible Confirm Modal UI shell, wire it to Balanced/Careful flows, and exercise keyboard + screen reader interactions in automated tests.
 - [ ] Implement onboarding screens (Mode, Cloud, Downloads access, AI activation) with persistent storage integration and smoke tests for mode-specific behaviours.
 

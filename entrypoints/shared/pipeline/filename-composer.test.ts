@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { SettingsV1 } from '@/entrypoints/shared/settings/settings';
+import type { Settings } from '@/entrypoints/shared/settings/settings';
 import {
   buildOriginalWithDateRename,
   buildRenameProposal,
@@ -17,7 +17,7 @@ describe('filename-composer', () => {
         '',
         'original.txt',
         'data',
-        { maxLen: 3 } as SettingsV1, // Only 3 chars total - less than extension
+        { maxLen: 3 } as Settings, // Only 3 chars total - less than extension
       );
 
       // Should return the date with extension when no room for base
@@ -34,7 +34,7 @@ describe('filename-composer', () => {
         '',
         'original.txt',
         'data',
-        { maxLen: 4 } as SettingsV1, // Exactly .txt length
+        { maxLen: 4 } as Settings, // Exactly .txt length
       );
 
       // Should return the date with extension when no room for base
@@ -51,7 +51,7 @@ describe('filename-composer', () => {
         '',
         'original.verylongextension',
         'data',
-        { maxLen: 10 } as SettingsV1, // Much shorter than extension
+        { maxLen: 10 } as Settings, // Much shorter than extension
       );
 
       // Should return the date with extension
@@ -68,7 +68,7 @@ describe('filename-composer', () => {
         '',
         'original.txt',
         'data',
-        { maxLen: 30 } as SettingsV1,
+        { maxLen: 30 } as Settings,
       );
 
       expect(result.filename).toBe('fallback-name_2025-01-01.txt');
@@ -84,7 +84,7 @@ describe('filename-composer', () => {
         '',
         'original.txt',
         'data',
-        { maxLen: 30 } as SettingsV1,
+        { maxLen: 30 } as Settings,
       );
 
       expect(result.filename).toBe('file_2025-01-01.txt');
@@ -100,7 +100,7 @@ describe('filename-composer', () => {
         '',
         'original',
         'data',
-        { maxLen: 30 } as SettingsV1,
+        { maxLen: 30 } as Settings,
       );
 
       expect(result.filename).toBe('document_2025-01-01');
@@ -117,7 +117,7 @@ describe('filename-composer', () => {
         '',
         'original.txt',
         'data',
-        { maxLen: 25 } as SettingsV1,
+        { maxLen: 25 } as Settings,
       );
 
       expect(result.filename).toMatch(/\.txt$/);
@@ -139,7 +139,7 @@ describe('filename-composer', () => {
           maxLen: 30,
           separator: 'clean',
           transliterateAscii: false,
-        } as SettingsV1,
+        } as Settings,
         ['test'],
       );
 
@@ -160,7 +160,7 @@ describe('filename-composer', () => {
           maxLen: 20,
           separator: 'clean',
           transliterateAscii: false,
-        } as SettingsV1,
+        } as Settings,
         ['test'],
       );
 
@@ -180,7 +180,7 @@ describe('filename-composer', () => {
           maxLen: 30,
           separator: 'clean',
           transliterateAscii: false,
-        } as SettingsV1,
+        } as Settings,
         ['test'],
       );
 
@@ -200,7 +200,7 @@ describe('filename-composer', () => {
           maxLen: 30,
           separator: 'clean',
           transliterateAscii: false,
-        } as SettingsV1,
+        } as Settings,
         ['test'],
       );
 

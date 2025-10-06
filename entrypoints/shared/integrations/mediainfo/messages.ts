@@ -1,3 +1,6 @@
+/**
+ * Type definitions for media analysis request/response protocol
+ */
 import type { MediaInfoResult } from 'mediainfo.js';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
 import type { MediaDebugSettings } from './debug';

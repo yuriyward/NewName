@@ -1,7 +1,13 @@
 /**
  * Application settings persistence and state management
  */
-import { storage } from '#imports';
+
+import {
+  getStorageAdapter,
+  getStorageUnwatch,
+  registerResetHook,
+  setStorageUnwatch,
+} from '@/entrypoints/shared/settings/storage-state';
 import type {
   CloudSettings,
   DebugLevel,
@@ -12,13 +18,13 @@ import type {
   Mode,
   PerTypeBehavior,
   Separator,
-  SettingsV1,
+  Settings,
 } from '@/entrypoints/shared/settings/types';
 import {
   DEFAULT_SETTINGS,
   isFileType,
-  isInstantBaselineStrategy,
 } from '@/entrypoints/shared/settings/types';
+import { sanitizeSettings } from '@/entrypoints/shared/settings/validation';
 
 export type {
   CloudSettings,
@@ -30,73 +36,33 @@ export type {
   PerTypeBehavior,
   Separator,
   InstantBaselineStrategy,
-  SettingsV1,
+  Settings,
 };
 export { DEFAULT_SETTINGS, isFileType };
-
-const SETTINGS_KEY = 'local:settings.v1';
+const SETTINGS_KEY = 'local:settings.v2';
 const HISTORY_MAX = 50;
 
-let cache: SettingsV1 | null = null;
-let loadingPromise: Promise<SettingsV1> | null = null;
-const listeners = new Set<(settings: SettingsV1) => void>();
+let cache: Settings | null = null;
+let loadingPromise: Promise<Settings> | null = null;
+const listeners = new Set<(settings: Settings) => void>();
 let initialized = false;
 
-function coerceSettings(data: unknown): SettingsV1 {
-  if (!data || typeof data !== 'object') {
-    return DEFAULT_SETTINGS;
+async function readSettingsFromStorage(): Promise<Settings> {
+  const storage = getStorageAdapter();
+  const currentValue = await storage.getItem<Settings>(SETTINGS_KEY);
+  if (currentValue) {
+    const sanitized = sanitizeSettings(currentValue);
+    if (sanitized.version !== currentValue.version) {
+      await storage.setItem(SETTINGS_KEY, sanitized);
+    }
+    return sanitized;
   }
 
-  const raw = data as Partial<SettingsV1>;
-  const merged: SettingsV1 = {
-    ...DEFAULT_SETTINGS,
-    ...raw,
-    perType: {
-      ...DEFAULT_SETTINGS.perType,
-      ...(raw.perType ?? {}),
-    },
-    metadataToggles: {
-      ...DEFAULT_SETTINGS.metadataToggles,
-      ...(raw.metadataToggles ?? {}),
-    },
-    cloud: {
-      ...DEFAULT_SETTINGS.cloud,
-      ...(raw.cloud ?? {}),
-      scope: Array.isArray(raw.cloud?.scope)
-        ? raw.cloud.scope.filter(isFileType)
-        : DEFAULT_SETTINGS.cloud.scope,
-    },
-    debug: {
-      ...DEFAULT_SETTINGS.debug,
-      ...(raw.debug ?? {}),
-    },
-  };
-
-  merged.maxLen = Number.isFinite(merged.maxLen)
-    ? Math.min(Math.max(40, Math.trunc(merged.maxLen)), 120)
-    : DEFAULT_SETTINGS.maxLen;
-
-  if (!isInstantBaselineStrategy(merged.instantBaselineStrategy)) {
-    merged.instantBaselineStrategy = DEFAULT_SETTINGS.instantBaselineStrategy;
-  }
-
-  return merged;
+  await storage.setItem(SETTINGS_KEY, DEFAULT_SETTINGS);
+  return DEFAULT_SETTINGS;
 }
 
-async function readSettingsFromStorage(): Promise<SettingsV1> {
-  const value = await storage.getItem<SettingsV1>(SETTINGS_KEY);
-  if (!value) {
-    await storage.setItem(SETTINGS_KEY, DEFAULT_SETTINGS);
-    return DEFAULT_SETTINGS;
-  }
-  const settings = coerceSettings(value);
-  if (settings.version !== DEFAULT_SETTINGS.version) {
-    await storage.setItem(SETTINGS_KEY, settings);
-  }
-  return settings;
-}
-
-async function ensureInitialized(): Promise<SettingsV1> {
+async function ensureInitialized(): Promise<Settings> {
   if (cache) return cache;
   if (!loadingPromise) {
     loadingPromise = readSettingsFromStorage().then((settings) => {
@@ -111,35 +77,39 @@ async function ensureInitialized(): Promise<SettingsV1> {
 function ensureListener(): void {
   if (initialized) return;
   initialized = true;
-  storage.watch<SettingsV1>(SETTINGS_KEY, (newValue) => {
-    const next = coerceSettings(newValue);
+  const previousUnwatch = getStorageUnwatch();
+  previousUnwatch?.();
+  const storage = getStorageAdapter();
+  const unwatch = storage.watch<Settings>(SETTINGS_KEY, (newValue) => {
+    const next = sanitizeSettings(newValue);
     cache = next;
     listeners.forEach((listener) => {
       listener(next);
     });
   });
+  setStorageUnwatch(unwatch);
 }
 
-export async function getSettings(): Promise<SettingsV1> {
+export async function getSettings(): Promise<Settings> {
   ensureListener();
   return ensureInitialized();
 }
 
-export function getLastKnownSettings(): SettingsV1 {
+export function getLastKnownSettings(): Settings {
   return cache ?? DEFAULT_SETTINGS;
 }
 
 export async function updateSettings(
-  partial: Partial<SettingsV1>,
+  partial: Partial<Settings>,
 ): Promise<void> {
   const current = await getSettings();
-  const next = coerceSettings({ ...current, ...partial });
+  const next = sanitizeSettings({ ...current, ...partial });
   cache = next;
-  await storage.setItem(SETTINGS_KEY, next);
+  await getStorageAdapter().setItem(SETTINGS_KEY, next);
 }
 
 export function subscribeSettings(
-  listener: (settings: SettingsV1) => void,
+  listener: (settings: Settings) => void,
 ): () => void {
   ensureListener();
   listeners.add(listener);
@@ -154,3 +124,10 @@ export function subscribeSettings(
 export function getHistoryMax(): number {
   return HISTORY_MAX;
 }
+
+registerResetHook(() => {
+  cache = null;
+  loadingPromise = null;
+  listeners.clear();
+  initialized = false;
+});
