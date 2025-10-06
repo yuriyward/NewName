@@ -50,8 +50,8 @@
     "@webext-core/proxy-service": "^1.2.1",
     "framer-motion": "12.23.22",
     "mediainfo.js": "^0.3.6",
-    "react": "19.1.1",
-    "react-dom": "19.1.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
     "tw-animate-css": "^1.3.8"
   },
   "devDependencies": {
