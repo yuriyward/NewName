@@ -1,3 +1,6 @@
+/**
+ * MediaInfo result summarization and metadata extraction
+ */
 import type {
   AudioTrack,
   GeneralTrack,

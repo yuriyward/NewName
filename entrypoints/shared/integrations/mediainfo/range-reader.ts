@@ -1,3 +1,6 @@
+/**
+ * HTTP Range request reader for efficient partial file fetching
+ */
 interface RangeFetchOptions {
   readonly signal?: AbortSignal;
   readonly headers?: Record<string, string>;

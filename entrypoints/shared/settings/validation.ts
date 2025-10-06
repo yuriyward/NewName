@@ -1,3 +1,6 @@
+/**
+ * Settings validation and sanitization functions
+ */
 import type {
   CloudSettings,
   ConfirmModalDefaults,

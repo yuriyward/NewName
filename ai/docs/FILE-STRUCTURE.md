@@ -43,14 +43,14 @@
 │   │       │   ├── duration-parser.ts # Duration parsing utilities for MediaInfo track data
 │   │       │   └── track-parser.ts # Track parsing utilities for MediaInfo video and audio tracks
 │   │       ├── constants.ts # Centralized constants for MediaInfo integration and analysis pipeline.
-│   │       ├── debug.ts # 2 exports
-│   │       ├── index.ts # 7 exports
-│   │       ├── media-analysis-queue.ts # 2 exports
-│   │       ├── media-summary.ts # 4 exports
-│   │       ├── mediainfo-loader.ts # 4 exports
-│   │       ├── messages.ts # 4 exports
+│   │       ├── debug.ts # Debug logging utilities for media analysis pipeline
+│   │       ├── index.ts # Main entry point for MediaInfo integration and media file analysis
+│   │       ├── media-analysis-queue.ts # Queue manager for sequential media analysis requests
+│   │       ├── media-summary.ts # MediaInfo result summarization and metadata extraction
+│   │       ├── mediainfo-loader.ts # MediaInfo.js WASM loader and instance management
+│   │       ├── messages.ts # Type definitions for media analysis request/response protocol
 │   │       ├── offscreen-coordinator.ts # Offscreen document lifecycle and readiness coordination
-│   │       └── range-reader.ts # 2 exports
+│   │       └── range-reader.ts # HTTP Range request reader for efficient partial file fetching
 │   ├── lifecycle/ # 1 file
 │   │   └── install-tracking.ts # Extension installation date tracking and storage utilities
 │   ├── messaging/ # 1 file
@@ -65,9 +65,12 @@
 │   │   ├── path-utils.ts # Path and filename manipulation utilities for Instant Baseline processing
 │   │   ├── strategy-evaluator.ts # Strategy evaluation and decision logic for Instant Baseline processing
 │   │   └── strategy-options.ts # Strategy option definitions for the Instant Baseline domain
-│   ├── settings/ # 2 files
+│   ├── settings/ # 5 files
 │   │   ├── settings.ts # Application settings persistence and state management
-│   │   └── types.ts # Type definitions for application configuration and settings
+│   │   ├── storage-state.ts # Internal storage adapter state management for testing
+│   │   ├── testing.ts # Test utilities for settings module
+│   │   ├── types.ts # Type definitions for application configuration and settings
+│   │   └── validation.ts # Settings validation and sanitization functions
 │   ├── state/ # 2 files
 │   │   ├── page-context-service.ts # Proxy service exposing PageContext store operations to other extension contexts.
 │   │   └── page-context-store.ts # Runtime page context storage and management
@@ -284,33 +287,33 @@
 - `export SUGGEST_TIMEOUT_MS` - Total timeout for filename suggestion in download interce...
 
 ### shared/integrations/mediainfo/debug.ts
-**Purpose**: 2 exports
+**Purpose**: Debug logging utilities for media analysis pipeline
 
 **Exports**:
-- `export MediaDebugSettings` - item implementation
+- `export MediaDebugSettings` - Debug logging utilities for media analysis pipeline
 - `export logMediaDebug` - item implementation
 
 ### shared/integrations/mediainfo/index.ts
-**Purpose**: 7 exports
+**Purpose**: Main entry point for MediaInfo integration and media file analysis
 
 **Exports**:
 - `export MediaAnalysisError` - item implementation
 - `export AnalyzeMediaFromBlobResult` - item implementation
-- `export AnalyzeMediaFromUrlOptions` - item implementation
+- `export AnalyzeMediaFromUrlOptions` - HTTP Range request reader for efficient partial file fetc...
 - `export AnalyzeMediaFromUrlResult` - item implementation
 - `export analyzeMediaFromBlob` - item implementation
 - `export analyzeMediaFromUrl` - item implementation
 - `export MEDIAINFO_CHUNK_SIZE` - item implementation
 
 ### shared/integrations/mediainfo/media-analysis-queue.ts
-**Purpose**: 2 exports
+**Purpose**: Queue manager for sequential media analysis requests
 
 **Exports**:
 - `export enqueueMediaAnalysis` - item implementation
 - `export resetMediaAnalysisQueueForTesting` - item implementation
 
 ### shared/integrations/mediainfo/media-summary.ts
-**Purpose**: 4 exports
+**Purpose**: MediaInfo result summarization and metadata extraction
 
 **Exports**:
 - `export MediaMetadataSummary` - item implementation
@@ -319,20 +322,20 @@
 - `export VideoTrackSummary` - item implementation
 
 ### shared/integrations/mediainfo/mediainfo-loader.ts
-**Purpose**: 4 exports
+**Purpose**: MediaInfo.js WASM loader and instance management
 
 **Exports**:
-- `export MediaInfoInstance` - item implementation
-- `export MEDIAINFO_CHUNK_SIZE` - item implementation
+- `export MediaInfoInstance` - MediaInfo.js WASM loader and instance management
+- `export MEDIAINFO_CHUNK_SIZE` - MediaInfo.js WASM loader and instance management
 - `export getMediaInfoInstance` - item implementation
 - `export resetMediaInfoInstanceForTesting` - item implementation
 
 ### shared/integrations/mediainfo/messages.ts
-**Purpose**: 4 exports
+**Purpose**: Type definitions for media analysis request/response protocol
 
 **Exports**:
 - `export MediaAnalysisFailure` - item implementation
-- `export MediaAnalysisRequest` - item implementation
+- `export MediaAnalysisRequest` - Type definitions for media analysis request/response prot...
 - `export MediaAnalysisSuccess` - item implementation
 - `export MediaAnalysisResponse` - item implementation
 
@@ -359,11 +362,11 @@
 - `export summariseVideoTrack` - Summarize a video track from MediaInfo data
 
 ### shared/integrations/mediainfo/range-reader.ts
-**Purpose**: 2 exports
+**Purpose**: HTTP Range request reader for efficient partial file fetching
 
 **Exports**:
 - `export RangeFetchReader` - item implementation
-- `export RangeFetchOptions` - item implementation
+- `export RangeFetchOptions` - HTTP Range request reader for efficient partial file fetc...
 
 ### shared/lifecycle/install-tracking.ts
 **Purpose**: Extension installation date tracking and storage utilities
@@ -460,8 +463,6 @@
 **Purpose**: Application settings persistence and state management
 
 **Exports**:
-- `export __resetSettingsStateForTesting` - item implementation
-- `export __setSettingsStorageForTesting` - Test-only hook for swapping the storage adapter
 - `export getHistoryMax` - item implementation
 - `export getLastKnownSettings` - item implementation
 - `export getSettings` - item implementation
@@ -479,6 +480,26 @@
 - `export PerTypeBehavior` - item implementation
 - `export Separator` - item implementation
 - `export Settings` - item implementation
+
+### shared/settings/storage-state.ts
+**Purpose**: Internal storage adapter state management for testing
+
+**Exports**:
+- `export StorageOverride` - Internal storage adapter state management for testing
+- `export getStorageAdapter` - item implementation
+- `export getStorageUnwatch` - item implementation
+- `export registerResetHook` - item implementation
+- `export resetCachesForTesting` - item implementation
+- `export resetStorageStateForTesting` - item implementation
+- `export setStorageAdapterForTesting` - item implementation
+- `export setStorageUnwatch` - item implementation
+
+### shared/settings/testing.ts
+**Purpose**: Test utilities for settings module
+
+**Exports**:
+- `export applySettingsStorageOverrideForTesting` - Applies a storage override for tests and clears cached se...
+- `export resetSettingsStateForTesting` - Restores the default storage adapter and clears cached se...
 
 ### shared/settings/types.ts
 **Purpose**: Type definitions for application configuration and settings
@@ -502,6 +523,23 @@
 - `export isUiLocale` - item implementation
 - `export InstantBaselineStrategy` - Type definitions for application configuration and settings
 - `export isInstantBaselineStrategy` - Type definitions for application configuration and settings
+
+### shared/settings/validation.ts
+**Purpose**: Settings validation and sanitization functions
+
+**Exports**:
+- `export isDebugLevel` - item implementation
+- `export isLanguage` - item implementation
+- `export isMode` - item implementation
+- `export isPerTypeBehavior` - item implementation
+- `export isSeparator` - item implementation
+- `export sanitizeCloudSettings` - item implementation
+- `export sanitizeConfirmModal` - item implementation
+- `export sanitizeDebugSettings` - item implementation
+- `export sanitizeLocalization` - item implementation
+- `export sanitizeMetadataToggles` - item implementation
+- `export sanitizePerType` - item implementation
+- `export sanitizeSettings` - item implementation
 
 ### shared/state/page-context-service.ts
 **Purpose**: Proxy service exposing PageContext store operations to other extension contexts.

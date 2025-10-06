@@ -1,3 +1,6 @@
+/**
+ * Internal storage adapter state management for testing
+ */
 import { storage as storageApi } from '#imports';
 
 type StorageAdapter = typeof storageApi;

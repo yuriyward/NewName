@@ -1,3 +1,6 @@
+/**
+ * Test utilities for settings module
+ */
 import {
   resetCachesForTesting,
   resetStorageStateForTesting,

@@ -1,3 +1,6 @@
+/**
+ * Debug logging utilities for media analysis pipeline
+ */
 import type { DebugLevel } from '@/entrypoints/shared/settings/settings';
 
 export interface MediaDebugSettings {

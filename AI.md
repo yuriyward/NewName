@@ -140,14 +140,14 @@ The `ai/` directory hosts both static and auto-generated docs.
 │   │       │   ├── duration-parser.ts # Duration parsing utilities for MediaInfo track data
 │   │       │   └── track-parser.ts # Track parsing utilities for MediaInfo video and audio tracks
 │   │       ├── constants.ts # Centralized constants for MediaInfo integration and analysis pipeline.
-│   │       ├── debug.ts # 2 exports
-│   │       ├── index.ts # 7 exports
-│   │       ├── media-analysis-queue.ts # 2 exports
-│   │       ├── media-summary.ts # 4 exports
-│   │       ├── mediainfo-loader.ts # 4 exports
-│   │       ├── messages.ts # 4 exports
+│   │       ├── debug.ts # Debug logging utilities for media analysis pipeline
+│   │       ├── index.ts # Main entry point for MediaInfo integration and media file analysis
+│   │       ├── media-analysis-queue.ts # Queue manager for sequential media analysis requests
+│   │       ├── media-summary.ts # MediaInfo result summarization and metadata extraction
+│   │       ├── mediainfo-loader.ts # MediaInfo.js WASM loader and instance management
+│   │       ├── messages.ts # Type definitions for media analysis request/response protocol
 │   │       ├── offscreen-coordinator.ts # Offscreen document lifecycle and readiness coordination
-│   │       └── range-reader.ts # 2 exports
+│   │       └── range-reader.ts # HTTP Range request reader for efficient partial file fetching
 │   ├── lifecycle/ # 1 file
 │   │   └── install-tracking.ts # Extension installation date tracking and storage utilities
 │   ├── messaging/ # 1 file
@@ -162,9 +162,12 @@ The `ai/` directory hosts both static and auto-generated docs.
 │   │   ├── path-utils.ts # Path and filename manipulation utilities for Instant Baseline processing
 │   │   ├── strategy-evaluator.ts # Strategy evaluation and decision logic for Instant Baseline processing
 │   │   └── strategy-options.ts # Strategy option definitions for the Instant Baseline domain
-│   ├── settings/ # 2 files
+│   ├── settings/ # 5 files
 │   │   ├── settings.ts # Application settings persistence and state management
-│   │   └── types.ts # Type definitions for application configuration and settings
+│   │   ├── storage-state.ts # Internal storage adapter state management for testing
+│   │   ├── testing.ts # Test utilities for settings module
+│   │   ├── types.ts # Type definitions for application configuration and settings
+│   │   └── validation.ts # Settings validation and sanitization functions
 │   ├── state/ # 2 files
 │   │   ├── page-context-service.ts # Proxy service exposing PageContext store operations to other extension contexts.
 │   │   └── page-context-store.ts # Runtime page context storage and management

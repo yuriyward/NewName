@@ -139,12 +139,12 @@ Phase 2 extends the MVP deterministic renaming flow (Phase 1) into a more expres
 ## Incremental Implementation Tasks
 
 ### Epic A — Multi-Media Instant Baseline & Upgrade Coverage
-- [ ] Extend file-type classifier and policy engine to recognise audio, video, and archive formats end-to-end (downloads metadata → settings toggles → history badges) with unit tests.
-- [ ] Implement deterministic Instant Baseline naming helpers that consume mediainfo.js results (duration, resolution, sample rate, channels, codecs) to add relevant qualifiers; do not rely on filename parsing; respect separator preferences and length caps.
+- [X] Extend file-type classifier and policy engine to recognise audio, video, and archive formats end-to-end (downloads metadata → settings toggles → history badges) with unit tests.
+- [X] Implement deterministic Instant Baseline naming helpers that consume mediainfo.js results (duration, resolution, sample rate, channels, codecs) to add relevant qualifiers; do not rely on filename parsing; respect separator preferences and length caps.
 - [ ] Prototype offscreen archive upgrade pipeline (manifest inspection for better naming) with timeout guards and Playwright coverage for Upgrade/Undo paths; audio/video use existing mediainfo.js metadata from Instant Baseline.
 
 ### Epic B — Confirm Modal, Mode Flows & Per-Type Controls
-- [ ] Ship settings schema v2 with per-type behaviour flags and metadata toggles, plus migration tests and localisation hooks.
+- [X] Ship settings schema v2 with per-type behaviour flags and metadata toggles, plus migration tests and localisation hooks.
 - [ ] Build accessible Confirm Modal UI shell, wire it to Balanced/Careful flows, and exercise keyboard + screen reader interactions in automated tests.
 - [ ] Implement onboarding screens (Mode, Cloud, Downloads access, AI activation) with persistent storage integration and smoke tests for mode-specific behaviours.
 

@@ -1,3 +1,6 @@
+/**
+ * MediaInfo.js WASM loader and instance management
+ */
 import mediaInfoFactory, { type MediaInfo } from 'mediainfo.js';
 import wasmUrl from 'mediainfo.js/MediaInfoModule.wasm?url';
 

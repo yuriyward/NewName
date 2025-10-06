@@ -1,3 +1,6 @@
+/**
+ * Main entry point for MediaInfo integration and media file analysis
+ */
 import type { MediaInfoResult, ReadChunkFunc } from 'mediainfo.js';
 import { type MediaMetadataSummary, summariseMediaInfo } from './media-summary';
 import { getMediaInfoInstance, MEDIAINFO_CHUNK_SIZE } from './mediainfo-loader';
