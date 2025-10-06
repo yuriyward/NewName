@@ -108,18 +108,21 @@ type Sep = 'clean'|'kebab'|'snake';
 type FileType = 'pdf'|'image'|'audio'|'video'|'archive'|'data';
 type Phase1Strategy = 'keep-original'|'original-with-date'|'page-title'|'page-title-with-date';
 
-interface SettingsV1 {
-  version: 1;
+interface Settings {
+  version: 2;
   mode: Mode;
   language: 'browser'|'auto'|'pl'|'en'|'uk';
   separator: Sep;
-  maxLen: number; // 40..80 (default 60)
+  maxLen: number; // 40..120 (default 60)
   transliterateAscii: boolean;
-  phase1Strategy: Phase1Strategy;
+  instantBaselineStrategy: Phase1Strategy;
   perType: Record<FileType,{behavior:'auto'|'confirm'|'off'}>;
   metadataToggles: { geo:boolean; docDate:boolean; mediaSpecs:boolean; sourceHint:boolean; };
   cloud: { enabled:boolean; scope: FileType[]; dataMinimize:boolean; };
+  debug: { enabled:boolean; level:'basic'|'detailed'|'verbose'; };
   notifyOnKeep: boolean;
+  confirmModal: { expandMetadata:boolean; showReasonTags:boolean; };
+  localization: { uiLocale:'browser'|'pl'|'en'|'uk'; };
 }
 ```
 
@@ -151,7 +154,7 @@ interface Phase1Decision {
   guardrail: 'strategy-applied'|'strategy-unavailable';
   reasons: string[];
 }
-interface Phase2Cfg { langPref:SettingsV1['language']; maxLen:number; sep:Sep; meta:SettingsV1['metadataToggles']; cloud:boolean; scope: FileType[]; }
+interface Phase2Cfg { langPref:Settings['language']; maxLen:number; sep:Sep; meta:Settings['metadataToggles']; cloud:boolean; scope: FileType[]; }
 interface Candidate { name:string; confidence:number; reason:string[]; }
 interface Phase2Result { best?:Candidate; alts?:Candidate[]; source:'on-device'|'cloud'|'metadata'; elapsedMs:number; }
 ```

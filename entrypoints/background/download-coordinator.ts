@@ -5,8 +5,6 @@ import type { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { DebugContext } from '@/entrypoints/shared/debug/types';
 import { addHistoryItem } from '@/entrypoints/shared/history/history';
-import { SUGGEST_TIMEOUT_MS } from '@/entrypoints/shared/integrations/mediainfo/constants';
-import type { MediaDebugSettings } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { enqueueMediaAnalysis } from '@/entrypoints/shared/integrations/mediainfo/media-analysis-queue';
 import type { MediaAnalysisRequest } from '@/entrypoints/shared/integrations/mediainfo/messages';
@@ -18,53 +16,23 @@ import {
 import type { InstantBaselineEvaluation } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type {
   FileType,
-  SettingsV1,
+  Settings,
 } from '@/entrypoints/shared/settings/settings';
 import type { PageContextService } from '@/entrypoints/shared/state/page-context-service';
+import {
+  basename,
+  fallbackNameFromUrl,
+} from '@/entrypoints/shared/utils/filename';
+import { randomId } from '@/entrypoints/shared/utils/id';
+import {
+  type DownloadTrackingEntry,
+  recordDownloadTracking,
+} from './download-tracking';
 import {
   applyMediaAnalysisResponse,
   toMediaDebugSettings,
 } from './media-orchestrator';
-
-export interface DownloadTrackingEntry {
-  historyId: string;
-  debug?: MediaDebugSettings;
-  url: string;
-  filename: string;
-  createdAt: number;
-}
-
-const DOWNLOAD_TRACKING_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-const DOWNLOAD_TRACKING_MAX_ENTRIES = 200;
-const DOWNLOAD_TRACKING_PRUNE_EVERY_N_ADDITIONS = 50;
-
-let additionsSinceLastPrune = 0;
-
-export function pruneDownloadTrackingMap(
-  map: Map<number, DownloadTrackingEntry>,
-  now = Date.now(),
-): void {
-  for (const [id, entry] of map) {
-    if (now - entry.createdAt > DOWNLOAD_TRACKING_TTL_MS) {
-      map.delete(id);
-    }
-  }
-
-  if (map.size <= DOWNLOAD_TRACKING_MAX_ENTRIES) {
-    return;
-  }
-
-  const entries = Array.from(map.entries()).sort(
-    (a, b) => a[1].createdAt - b[1].createdAt,
-  );
-  const excess = map.size - DOWNLOAD_TRACKING_MAX_ENTRIES;
-  for (let index = 0; index < excess; index += 1) {
-    const entry = entries[index];
-    if (entry && entry[0] !== undefined) {
-      map.delete(entry[0]);
-    }
-  }
-}
+import { createSuggestController } from './suggest-controller';
 
 export type DeterminingListener = Parameters<
   typeof browser.downloads.onDeterminingFilename.addListener
@@ -73,60 +41,6 @@ export type DeterminingListener = Parameters<
 export type DeterminingItem = Parameters<DeterminingListener>[0];
 export type SuggestCallback = Parameters<DeterminingListener>[1];
 export type SuggestPayload = Parameters<SuggestCallback>[0];
-
-/**
- * Generate a random ID for tracking downloads and history items.
- */
-let fallbackRandomSeed = 0;
-
-export function randomId(): string {
-  if (typeof crypto !== 'undefined') {
-    if (typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID();
-    }
-    if (typeof crypto.getRandomValues === 'function') {
-      const buffer = new Uint32Array(4);
-      crypto.getRandomValues(buffer);
-      return Array.from(buffer, (value) =>
-        value.toString(16).padStart(8, '0'),
-      ).join('');
-    }
-  }
-
-  fallbackRandomSeed = (fallbackRandomSeed + 1) & 0xffff;
-  const timeHex = Date.now().toString(16);
-  const seedHex = fallbackRandomSeed.toString(16).padStart(4, '0');
-  const randomHex = Math.random().toString(16).slice(2, 10);
-  return `${timeHex}-${seedHex}-${randomHex}`;
-}
-
-/**
- * Extract the base filename from a path.
- */
-export function basename(path: string): string {
-  const normalized = path.replace(/\\/g, '/');
-  const parts = normalized.split('/');
-  return parts.pop() ?? path;
-}
-
-/**
- * Generate a fallback filename from a URL when no filename is provided.
- */
-export function fallbackNameFromUrl(rawUrl: string): string {
-  try {
-    const url = new URL(rawUrl);
-    const segment = url.pathname.split('/').pop() ?? 'download';
-    if (!segment) return 'download';
-    try {
-      const decoded = decodeURIComponent(segment);
-      return decoded || 'download';
-    } catch {
-      return segment;
-    }
-  } catch {
-    return 'download';
-  }
-}
 
 /**
  * Check if the file type is a media file (audio or video).
@@ -141,71 +55,22 @@ export function isMediaFileType(
  * Check if renaming is enabled for the given file type.
  */
 export function shouldRenameType(
-  settings: SettingsV1,
-  fileType: keyof SettingsV1['perType'],
+  settings: Settings,
+  fileType: keyof Settings['perType'],
 ): boolean {
   const behavior = settings.perType[fileType]?.behavior ?? 'auto';
   if (behavior === 'off') return false;
   return true;
 }
 
-/**
- * Controller for managing the suggest callback with timeout handling.
- */
-export function createSuggestController(suggest: SuggestCallback) {
-  let resolved = false;
-  let timeoutId: ReturnType<typeof setTimeout> | undefined = setTimeout(() => {
-    if (resolved) return;
-    resolved = true;
-    try {
-      suggest();
-    } catch (error) {
-      console.warn('Suggest callback failed after timeout', error);
-    }
-  }, SUGGEST_TIMEOUT_MS);
+type DownloadItemNumeric = Partial<Record<'id' | 'tabId', number>>;
 
-  function clearTimer() {
-    if (timeoutId !== undefined) {
-      clearTimeout(timeoutId);
-      timeoutId = undefined;
-    }
-  }
-
-  return {
-    trySuggest(payload?: SuggestPayload): boolean {
-      if (resolved) return false;
-      try {
-        if (payload) {
-          suggest(payload);
-        } else {
-          suggest();
-        }
-        resolved = true;
-        clearTimer();
-        return true;
-      } catch (error) {
-        resolved = true;
-        clearTimer();
-        throw error;
-      }
-    },
-    ensureDefault(): void {
-      if (resolved) return;
-      try {
-        suggest();
-      } catch (error) {
-        console.warn('Suggest callback failed during fallback', error);
-      } finally {
-        resolved = true;
-        clearTimer();
-      }
-    },
-    finish(): void {
-      if (resolved) return;
-      resolved = true;
-      clearTimer();
-    },
-  };
+function getNumericProperty(
+  target: DownloadItemNumeric,
+  key: keyof DownloadItemNumeric,
+): number | undefined {
+  const value = target[key];
+  return typeof value === 'number' ? value : undefined;
 }
 
 /**
@@ -215,7 +80,7 @@ export async function processDeterminingFilename(
   item: DeterminingItem,
   suggest: SuggestCallback,
   pageContextService: PageContextService,
-  readSettings: () => SettingsV1,
+  readSettings: () => Settings,
   downloadTracking: Map<number, DownloadTrackingEntry>,
 ): Promise<void> {
   const controller = createSuggestController(suggest);
@@ -226,16 +91,10 @@ export async function processDeterminingFilename(
     const settings = readSettings();
     const url = item.finalUrl ?? item.url;
     const filename = item.filename ?? fallbackNameFromUrl(url);
-    const rawDownloadId =
-      typeof (item as { id?: number }).id === 'number'
-        ? (item as { id: number }).id
-        : undefined;
+    const rawDownloadId = getNumericProperty(item, 'id');
     const downloadId =
       rawDownloadId !== undefined ? String(rawDownloadId) : undefined;
-    const initiatingTabId =
-      typeof (item as { tabId?: number }).tabId === 'number'
-        ? (item as { tabId?: number }).tabId
-        : undefined;
+    const initiatingTabId = getNumericProperty(item, 'tabId');
     const pageContext = await pageContextService.read({
       tabId: initiatingTabId,
       url: item.referrer,
@@ -323,20 +182,13 @@ export async function processDeterminingFilename(
     });
 
     if (rawDownloadId !== undefined) {
-      downloadTracking.set(rawDownloadId, {
+      recordDownloadTracking(downloadTracking, rawDownloadId, {
         historyId,
         debug: debugSettings,
         url,
         filename: finalFilename,
         createdAt: Date.now(),
       });
-      additionsSinceLastPrune += 1;
-      if (
-        additionsSinceLastPrune >= DOWNLOAD_TRACKING_PRUNE_EVERY_N_ADDITIONS
-      ) {
-        pruneDownloadTrackingMap(downloadTracking);
-        additionsSinceLastPrune = 0;
-      }
     }
 
     if (debugContext) {
@@ -416,7 +268,7 @@ export async function processDeterminingFilename(
  */
 export function createDeterminingListener(
   pageContextService: PageContextService,
-  readSettings: () => SettingsV1,
+  readSettings: () => Settings,
   downloadTracking: Map<number, DownloadTrackingEntry>,
 ): DeterminingListener {
   return (item, suggest) => {

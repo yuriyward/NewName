@@ -6,9 +6,10 @@ import type { InstantBaselineSignals } from '@/entrypoints/shared/context/page-a
 import type { DebugContext } from '@/entrypoints/shared/debug/types';
 import type {
   InstantBaselineEvaluation,
+  InstantBaselineGuardrail,
   InstantBaselineStrategyInputs,
 } from '@/entrypoints/shared/pipeline/instant-baseline-types';
-import type { SettingsV1 } from '@/entrypoints/shared/settings/settings';
+import type { Settings } from '@/entrypoints/shared/settings/settings';
 import {
   detectOriginalDelimiter,
   sanitizeBaseName,
@@ -23,23 +24,17 @@ import {
 
 function parseIsoDate(startTime?: string): string | null {
   if (!startTime) return null;
-  try {
-    const date = new Date(startTime);
-    if (Number.isNaN(date.getTime())) return null;
-    return date.toISOString().slice(0, 10);
-  } catch {
-    return null;
-  }
+  const timestamp = Date.parse(startTime);
+  if (!Number.isFinite(timestamp)) return null;
+  const iso = new Date(timestamp).toISOString();
+  // Defensive: ensure the derived ISO string produces a calendar date portion
+  return iso.length >= 10 ? iso.slice(0, 10) : null;
 }
 
 function sanitizePageTitle(title?: string): string | null {
   if (!title) return null;
-  try {
-    const trimmed = title.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  } catch {
-    return null;
-  }
+  const trimmed = title.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function determineStrategyInputs(
@@ -75,7 +70,7 @@ export interface InstantBaselineComputation {
 
 export function evaluateInstantBaseline(
   signals: InstantBaselineSignals,
-  settings: SettingsV1,
+  settings: Settings,
 ): InstantBaselineComputation {
   try {
     const strategy = settings.instantBaselineStrategy;
@@ -119,32 +114,23 @@ export function evaluateInstantBaseline(
     // Fallback evaluation if processing fails
     console.warn('InstantBaseline evaluation failed, using fallback', error);
     const fallbackInputs = determineStrategyInputs(signals);
-    const fallbackEvaluation: InstantBaselineEvaluation = {
-      decision: {
-        outcome: 'keep',
-        strategy: settings.instantBaselineStrategy,
-        confidence: 0,
+    const fallbackEvaluation = createFallbackEvaluation(
+      signals,
+      settings.instantBaselineStrategy,
+      {
         guardrail: 'evaluation-failed',
-        reasons: ['evaluation-error'],
-        signals: { inputsUsed: [], missingInputs: ['evaluation-failed'] },
+        reason: 'evaluation-error',
+        missingInput: 'evaluation-failed',
+        reasonTag: 'Error',
       },
-      strategy: settings.instantBaselineStrategy,
-      rename: undefined,
-      reasonTags: ['Error'],
-      inputsUsed: [],
-      missingInputs: ['evaluation-failed'],
-      fileType: 'data',
-      source: 'metadata',
-      originalPath: signals.filename || '',
-      subject: 'file',
-    };
+    );
     return { evaluation: fallbackEvaluation, inputs: fallbackInputs };
   }
 }
 
 export function evaluateInstantBaselineDebug(
   signals: InstantBaselineSignals,
-  settings: SettingsV1,
+  settings: Settings,
   downloadId: string,
 ): DebugContext {
   try {
@@ -172,32 +158,21 @@ export function evaluateInstantBaselineDebug(
       error,
     );
     const fallbackInputs = determineStrategyInputs(signals);
+    const fallbackEvaluation = createFallbackEvaluation(
+      signals,
+      settings.instantBaselineStrategy,
+      {
+        guardrail: 'debug-evaluation-failed',
+        reason: 'debug-evaluation-error',
+        missingInput: 'debug-evaluation-failed',
+        reasonTag: 'DebugError',
+      },
+    );
     return {
       downloadId,
       timestamp: Date.now(),
       signals,
-      evaluation: {
-        decision: {
-          outcome: 'keep',
-          strategy: settings.instantBaselineStrategy,
-          confidence: 0,
-          guardrail: 'debug-evaluation-failed',
-          reasons: ['debug-evaluation-error'],
-          signals: {
-            inputsUsed: [],
-            missingInputs: ['debug-evaluation-failed'],
-          },
-        },
-        strategy: settings.instantBaselineStrategy,
-        rename: undefined,
-        reasonTags: ['DebugError'],
-        inputsUsed: [],
-        missingInputs: ['debug-evaluation-failed'],
-        fileType: 'data',
-        source: 'metadata',
-        originalPath: signals.filename || '',
-        subject: 'file',
-      },
+      evaluation: fallbackEvaluation,
       strategy: {
         selected: settings.instantBaselineStrategy,
         inputs: fallbackInputs,
@@ -206,4 +181,40 @@ export function evaluateInstantBaselineDebug(
       processingTime: 0,
     };
   }
+}
+
+interface FallbackConfig {
+  guardrail: InstantBaselineGuardrail;
+  reason: string;
+  missingInput: string;
+  reasonTag: string;
+}
+
+function createFallbackEvaluation(
+  signals: InstantBaselineSignals,
+  strategy: Settings['instantBaselineStrategy'],
+  config: FallbackConfig,
+): InstantBaselineEvaluation {
+  return {
+    decision: {
+      outcome: 'keep',
+      strategy,
+      confidence: 0,
+      guardrail: config.guardrail,
+      reasons: [config.reason],
+      signals: {
+        inputsUsed: [],
+        missingInputs: [config.missingInput],
+      },
+    },
+    strategy,
+    rename: undefined,
+    reasonTags: [config.reasonTag],
+    inputsUsed: [],
+    missingInputs: [config.missingInput],
+    fileType: 'data',
+    source: 'metadata',
+    originalPath: signals.filename || '',
+    subject: 'file',
+  };
 }

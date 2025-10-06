@@ -101,10 +101,12 @@ The `ai/` directory hosts both static and auto-generated docs.
 <!-- AUTO-GENERATED TREE START -->
 
 ```
-├── background/ # 3 files
+├── background/ # 5 files
 │   ├── download-coordinator.ts # Download coordination logic for onDeterminingFilename events
+│   ├── download-tracking.ts # Download tracking helpers used by the background coordinator.
 │   ├── media-orchestrator.ts # Media analysis orchestration and upgrade proposal generation
-│   └── settings-cache.ts # Settings cache management for background service worker
+│   ├── settings-cache.ts # Settings cache management for background service worker
+│   └── suggest-controller.ts # Helper for coordinating the Chrome downloads suggest callback with timeouts.
 ├── offscreen/ # 3 files, 1 directories
 │   ├── bridge/ # 3 files
 │   │   ├── sandbox-lifecycle.ts # Sandbox iframe lifecycle management
@@ -118,7 +120,7 @@ The `ai/` directory hosts both static and auto-generated docs.
 │   └── main.tsx # React popup entry point and application bootstrapping
 ├── sandbox/ # 1 file
 │   └── main.ts # Sandboxed iframe for MediaInfo.js WASM execution. Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
-├── shared/ # 13 directories
+├── shared/ # 14 directories
 │   ├── classification/ # 1 file
 │   │   └── file-types.ts # File type detection from MIME and extensions
 │   ├── constants/ # 1 file
@@ -166,8 +168,11 @@ The `ai/` directory hosts both static and auto-generated docs.
 │   ├── state/ # 2 files
 │   │   ├── page-context-service.ts # Proxy service exposing PageContext store operations to other extension contexts.
 │   │   └── page-context-store.ts # Runtime page context storage and management
-│   └── ui/ # 1 file
-│       └── theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
+│   ├── ui/ # 1 file
+│   │   └── theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
+│   └── utils/ # 2 files
+│       ├── filename.ts # Utility helpers for working with file names.
+│       └── id.ts # Utility helpers for generating identifiers.
 ├── background.ts # Background service worker for download interception and renaming
 └── content.ts # Content script for page context extraction and messaging
 ```

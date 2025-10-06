@@ -4,10 +4,12 @@
 
 ## Tree Overview
 
-├── background/ # 3 files
+├── background/ # 5 files
 │   ├── download-coordinator.ts # Download coordination logic for onDeterminingFilename events
+│   ├── download-tracking.ts # Download tracking helpers used by the background coordinator.
 │   ├── media-orchestrator.ts # Media analysis orchestration and upgrade proposal generation
-│   └── settings-cache.ts # Settings cache management for background service worker
+│   ├── settings-cache.ts # Settings cache management for background service worker
+│   └── suggest-controller.ts # Helper for coordinating the Chrome downloads suggest callback with timeouts.
 ├── offscreen/ # 3 files, 1 directories
 │   ├── bridge/ # 3 files
 │   │   ├── sandbox-lifecycle.ts # Sandbox iframe lifecycle management
@@ -21,7 +23,7 @@
 │   └── main.tsx # React popup entry point and application bootstrapping
 ├── sandbox/ # 1 file
 │   └── main.ts # Sandboxed iframe for MediaInfo.js WASM execution. Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
-├── shared/ # 13 directories
+├── shared/ # 14 directories
 │   ├── classification/ # 1 file
 │   │   └── file-types.ts # File type detection from MIME and extensions
 │   ├── constants/ # 1 file
@@ -69,8 +71,11 @@
 │   ├── state/ # 2 files
 │   │   ├── page-context-service.ts # Proxy service exposing PageContext store operations to other extension contexts.
 │   │   └── page-context-store.ts # Runtime page context storage and management
-│   └── ui/ # 1 file
-│       └── theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
+│   ├── ui/ # 1 file
+│   │   └── theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
+│   └── utils/ # 2 files
+│       ├── filename.ts # Utility helpers for working with file names.
+│       └── id.ts # Utility helpers for generating identifiers.
 ├── background.ts # Background service worker for download interception and renaming
 └── content.ts # Content script for page context extraction and messaging
 
@@ -86,20 +91,23 @@
 **Purpose**: Download coordination logic for onDeterminingFilename events
 
 **Exports**:
-- `export DownloadTrackingEntry` - item implementation
 - `export DeterminingItem` - item implementation
 - `export DeterminingListener` - item implementation
 - `export SuggestCallback` - item implementation
 - `export SuggestPayload` - item implementation
-- `export basename` - Extract the base filename from a path
 - `export createDeterminingListener` - Create the determining listener that processes download e...
-- `export createSuggestController` - Controller for managing the suggest callback with timeout...
-- `export fallbackNameFromUrl` - Generate a fallback filename from a URL when no filename ...
 - `export isMediaFileType` - Check if the file type is a media file (audio or video)
 - `export processDeterminingFilename` - Process the determining filename event and suggest a rena...
-- `export pruneDownloadTrackingMap` - item implementation
-- `export randomId` - Generate a random ID for tracking downloads and history i...
 - `export shouldRenameType` - Check if renaming is enabled for the given file type
+
+### background/download-tracking.ts
+**Purpose**: Download tracking helpers used by the background coordinator.
+
+**Exports**:
+- `export DownloadTrackingEntry` - Download tracking helpers used by the background coordina...
+- `export pruneDownloadTrackingMap` - item implementation
+- `export recordDownloadTracking` - item implementation
+- `export resetDownloadTrackingForTesting` - item implementation
 
 ### background/media-orchestrator.ts
 **Purpose**: Media analysis orchestration and upgrade proposal generation
@@ -113,6 +121,13 @@
 
 **Exports**:
 - `export ensureSettingsCache` - Initialize a cached settings reader that automatically up...
+
+### background/suggest-controller.ts
+**Purpose**: Helper for coordinating the Chrome downloads suggest callback with timeouts.
+
+**Exports**:
+- `export SuggestController` - Helper for coordinating the Chrome downloads suggest call...
+- `export createSuggestController` - item implementation
 
 ### content.ts
 **Purpose**: Content script for page context extraction and messaging
@@ -445,6 +460,8 @@
 **Purpose**: Application settings persistence and state management
 
 **Exports**:
+- `export __resetSettingsStateForTesting` - item implementation
+- `export __setSettingsStorageForTesting` - Test-only hook for swapping the storage adapter
 - `export getHistoryMax` - item implementation
 - `export getLastKnownSettings` - item implementation
 - `export getSettings` - item implementation
@@ -461,23 +478,28 @@
 - `export Mode` - item implementation
 - `export PerTypeBehavior` - item implementation
 - `export Separator` - item implementation
-- `export SettingsV1` - item implementation
+- `export Settings` - item implementation
 
 ### shared/settings/types.ts
 **Purpose**: Type definitions for application configuration and settings
 
 **Exports**:
 - `export CloudSettings` - item implementation
+- `export ConfirmModalDefaults` - item implementation
 - `export DebugSettings` - item implementation
+- `export LocalizationSettings` - item implementation
 - `export MetadataToggles` - item implementation
 - `export PerTypeBehavior` - item implementation
-- `export SettingsV1` - item implementation
+- `export Settings` - item implementation
 - `export DebugLevel` - item implementation
 - `export FileType` - item implementation
 - `export Mode` - Type definitions for application configuration and settings
-- `export Separator` - Type definitions for application configuration and settings
+- `export Separator` - item implementation
+- `export UiLocale` - item implementation
 - `export DEFAULT_SETTINGS` - item implementation
+- `export UI_LOCALE_OPTIONS` - item implementation
 - `export isFileType` - item implementation
+- `export isUiLocale` - item implementation
 - `export InstantBaselineStrategy` - Type definitions for application configuration and settings
 - `export isInstantBaselineStrategy` - Type definitions for application configuration and settings
 
@@ -513,4 +535,17 @@ Handles automatic th...
 - `export getAppropriateTheme` - Get appropriate theme (system detection + daily reset logic)
 - `export markThemeReset` - Mark theme as reset for today
 - `export shouldResetTheme` - Check if theme should be reset (new day)
+
+### shared/utils/filename.ts
+**Purpose**: Utility helpers for working with file names.
+
+**Exports**:
+- `export basename` - Extract the base filename from a path, normalising Window...
+- `export fallbackNameFromUrl` - Generate a fallback filename from a URL when no filename ...
+
+### shared/utils/id.ts
+**Purpose**: Utility helpers for generating identifiers.
+
+**Exports**:
+- `export randomId` - Generate a random ID for tracking downloads and history i...
 

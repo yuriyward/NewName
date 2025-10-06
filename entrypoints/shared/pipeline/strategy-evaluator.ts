@@ -10,7 +10,7 @@ import type {
   InstantBaselineStrategy,
   InstantBaselineStrategyInputs,
 } from '@/entrypoints/shared/pipeline/instant-baseline-types';
-import type { SettingsV1 } from '@/entrypoints/shared/settings/settings';
+import type { Settings } from '@/entrypoints/shared/settings/settings';
 import {
   buildOriginalWithDateRename,
   buildRenameProposal,
@@ -24,7 +24,7 @@ export function evaluateStrategy(
   directory: string,
   originalPath: string,
   fileType: ReturnType<typeof detectFileType>,
-  settings: SettingsV1,
+  settings: Settings,
 ): {
   rename?: InstantBaselineRenameProposal;
   subject: string;
@@ -36,21 +36,6 @@ export function evaluateStrategy(
     const signals: InstantBaselineDecisionSignals = {
       inputsUsed: [],
       missingInputs: [],
-    };
-
-    const _useOriginal = () => {
-      const subject =
-        inputs.originalBase.length > 0 ? inputs.originalBase : 'file';
-      return buildRenameProposal(
-        subject,
-        [],
-        extension,
-        directory,
-        originalPath,
-        fileType,
-        settings,
-        ['Original'],
-      );
     };
 
     switch (strategy) {
