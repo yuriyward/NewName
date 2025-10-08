@@ -25,11 +25,10 @@ export interface PendingConfirmationEntry {
   proposal: ConfirmToastProposal;
   target?: number | SendMessageOptions;
   timeoutId?: ReturnType<typeof setTimeout>;
+  visibleOnTabs?: Set<number>;
 }
 
 export interface QueueConfirmToastOptions {
-  tabId?: number;
-  frameId?: number;
   historyId: string;
   downloadId?: string;
   originalFilename: string;
@@ -72,6 +71,7 @@ export interface ConfirmToastController {
     message?: string,
   ): Promise<boolean>;
   getPendingByHistory(historyId: string): PendingConfirmationEntry | undefined;
+  getAllPending(): PendingConfirmationEntry[];
   emitStatus(
     entry: PendingConfirmationEntry,
     state: ConfirmToastStatusState,
@@ -83,23 +83,30 @@ interface PendingMapEntry extends PendingConfirmationEntry {
   historyId: string;
 }
 
+/**
+ * Extract tab ID from a target (either number or SendMessageOptions)
+ */
+function extractTabId(
+  target: number | SendMessageOptions | undefined,
+): number | undefined {
+  if (typeof target === 'number') {
+    return target;
+  }
+  if (target && typeof target === 'object' && 'tabId' in target) {
+    return target.tabId;
+  }
+  return undefined;
+}
+
 export function createConfirmToastController(
   hooks: ConfirmToastControllerHooks,
 ): ConfirmToastController {
   const pending = new Map<string, PendingMapEntry>();
   const byHistory = new Map<string, string>();
 
-  async function resolveTarget(
-    tabId?: number,
-    frameId?: number,
-  ): Promise<number | SendMessageOptions | undefined> {
-    if (typeof tabId === 'number' && Number.isFinite(tabId)) {
-      if (typeof frameId === 'number' && Number.isFinite(frameId)) {
-        return { tabId, frameId };
-      }
-      return tabId;
-    }
-
+  async function resolveTarget(): Promise<
+    number | SendMessageOptions | undefined
+  > {
     try {
       const [activeTab] = await browser.tabs.query({
         active: true,
@@ -163,23 +170,30 @@ export function createConfirmToastController(
     state: ConfirmToastStatusState,
     message?: string,
   ): Promise<void> {
-    if (entry.target === undefined) return;
-    try {
-      await sendConfirmToastStatus(
-        {
-          toastId: entry.proposal.toastId,
-          state,
-          message,
-        },
-        entry.target,
-      );
-    } catch (error) {
-      console.error(
-        '[ConfirmToast] Failed to dispatch toast status',
-        entry.proposal.toastId,
-        error,
-      );
-    }
+    // Send status update to all tabs that have received this toast
+    const tabIds = entry.visibleOnTabs || new Set();
+    if (tabIds.size === 0) return;
+
+    const statusMessage = {
+      toastId: entry.proposal.toastId,
+      state,
+      message,
+    };
+
+    // Broadcast to all tracked tabs
+    const promises = Array.from(tabIds).map(async (tabId) => {
+      try {
+        await sendConfirmToastStatus(statusMessage, tabId);
+      } catch (error) {
+        console.warn(
+          '[ConfirmToast] Failed to send status to tab',
+          tabId,
+          error,
+        );
+      }
+    });
+
+    await Promise.all(promises);
   }
 
   async function handleAutoApply(toastId: string): Promise<void> {
@@ -228,12 +242,14 @@ export function createConfirmToastController(
         allowAlwaysApply: options.allowAlwaysApply,
       };
 
-      const target = await resolveTarget(options.tabId, options.frameId);
+      const target = await resolveTarget();
+      const tabId = extractTabId(target);
 
       const entry: PendingMapEntry = {
         proposal,
         target,
         historyId: options.historyId,
+        visibleOnTabs: tabId ? new Set([tabId]) : new Set(),
       };
 
       if (allowAutoApply && autoApplyDelayMs !== null && autoApplyDelayMs > 0) {
@@ -284,6 +300,10 @@ export function createConfirmToastController(
       const toastId = byHistory.get(historyId);
       if (!toastId) return undefined;
       return pending.get(toastId);
+    },
+
+    getAllPending(): PendingConfirmationEntry[] {
+      return Array.from(pending.values());
     },
 
     emitStatus,

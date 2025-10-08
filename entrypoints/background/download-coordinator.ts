@@ -163,7 +163,6 @@ export async function processDeterminingFilename(
         suggestionIssued = true;
         try {
           await confirmToastController.queueConfirmation({
-            tabId: initiatingTabId,
             historyId,
             downloadId,
             originalFilename: basename(filename),

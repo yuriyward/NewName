@@ -5,7 +5,10 @@ import { browser } from 'wxt/browser';
 import { initializeBackgroundDebug } from '@/entrypoints/shared/debug/console-helpers';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
-import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
+import {
+  onExtensionMessage,
+  sendShowConfirmToast,
+} from '@/entrypoints/shared/messaging/extension-messaging';
 import {
   getSettings,
   updateSettings,
@@ -91,6 +94,30 @@ function initializeBackground(): void {
 
   browser.tabs.onRemoved.addListener((tabId) => {
     void pageContextService.clear(tabId);
+  });
+
+  // Re-broadcast pending toasts to newly active tabs
+  browser.tabs.onActivated.addListener((activeInfo) => {
+    const pendingToasts = confirmToastController.getAllPending();
+    if (pendingToasts.length === 0) return;
+
+    // Send all pending toasts to the newly active tab
+    for (const entry of pendingToasts) {
+      void sendShowConfirmToast({ proposal: entry.proposal }, activeInfo.tabId)
+        .then(() => {
+          // Track that this tab has received the toast
+          if (entry.visibleOnTabs) {
+            entry.visibleOnTabs.add(activeInfo.tabId);
+          }
+        })
+        .catch((error) => {
+          console.warn(
+            '[ConfirmToast] Failed to broadcast toast to tab',
+            activeInfo.tabId,
+            error,
+          );
+        });
+    }
   });
 
   browser.downloads.onChanged.addListener((delta) => {
