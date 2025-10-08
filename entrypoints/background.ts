@@ -88,7 +88,7 @@ function initializeBackground(): void {
 
   void (async () => {
    await updateSettings({
-          mode: 'careful',
+          mode: 'balanced',
           debug: {
             enabled: true,
             level: 'verbose' as const,
@@ -101,6 +101,36 @@ function initializeBackground(): void {
     frameId: sender.frameId,
     url: sender.url ?? sender.tab?.url ?? null,
   }));
+
+  onExtensionMessage('syncConfirmToasts', ({ sender }) => {
+    const tabId = sender.tab?.id;
+    if (typeof tabId !== 'number') {
+      return { proposals: [] };
+    }
+
+    const proposals = confirmToastController
+      .getAllPending()
+      .filter((entry) => {
+        if (!entry.visibleOnTabs) {
+          entry.visibleOnTabs = new Set();
+        }
+        const target = entry.target;
+        const targetTabId =
+          typeof target === 'number'
+            ? target
+            : target && typeof target === 'object' && 'tabId' in target
+              ? target.tabId
+              : undefined;
+        if (entry.visibleOnTabs.has(tabId) || targetTabId === tabId) {
+          entry.visibleOnTabs.add(tabId);
+          return true;
+        }
+        return false;
+      })
+      .map((entry) => entry.proposal);
+
+    return { proposals };
+  });
 
   browser.tabs.onRemoved.addListener((tabId) => {
     void pageContextService.clear(tabId);

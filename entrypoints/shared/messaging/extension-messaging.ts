@@ -10,6 +10,7 @@ import type {
 } from '@/entrypoints/shared/integrations/mediainfo/messages';
 import type {
   ConfirmToastDecisionMessage,
+  ConfirmToastProposal,
   ConfirmToastStatusMessage,
   ShowConfirmToastMessage,
   ShowRenameToastMessage,
@@ -56,6 +57,11 @@ export interface ExtensionMessagingProtocol {
    * Status updates for an in-flight confirmation toast (dismissed, applied, error).
    */
   confirmToastStatus(payload: ConfirmToastStatusMessage): { ok: true };
+
+  /**
+   * Request any pending confirm toasts for the caller's tab so the UI can resync after reload.
+   */
+  syncConfirmToasts(): { proposals: ConfirmToastProposal[] };
 
   /**
    * Show a non-blocking rename-complete toast in the active tab.
@@ -126,5 +132,12 @@ export async function sendShowRenameToast(
   target: SendMessageOptions | number,
 ): Promise<{ ok: true }> {
   const result = await sendExtensionMessage('showRenameToast', payload, target);
+  return await result;
+}
+
+export async function requestPendingConfirmToasts(): Promise<{
+  proposals: ConfirmToastProposal[];
+}> {
+  const result = await sendExtensionMessage('syncConfirmToasts');
   return await result;
 }

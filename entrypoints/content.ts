@@ -3,6 +3,7 @@
  */
 import {
   onExtensionMessage,
+  requestPendingConfirmToasts,
   sendExtensionMessage,
 } from '@/entrypoints/shared/messaging/extension-messaging';
 import type { PageContextPublishRequest } from '@/entrypoints/shared/state/page-context-service';
@@ -74,6 +75,21 @@ onExtensionMessage('showRenameToast', async ({ data }) => {
   ensureToastManager().showRenameResult(data.toast);
   return { ok: true };
 });
+
+async function syncPendingToasts(): Promise<void> {
+  try {
+    const { proposals } = await requestPendingConfirmToasts();
+    if (proposals.length === 0) {
+      return;
+    }
+    const manager = ensureToastManager();
+    for (const proposal of proposals) {
+      manager.showToast(proposal);
+    }
+  } catch (error) {
+    console.warn('[ConfirmToast] Failed to sync pending toasts', error);
+  }
+}
 
 async function ensureRuntimeContext(): Promise<RuntimeContext> {
   if (resolvedRuntimeContext) return resolvedRuntimeContext;
@@ -280,6 +296,7 @@ export default defineContentScript({
     void ensureRuntimeContext().catch(() => {
       // Resolution will be retried by individual updates on demand.
     });
+    void syncPendingToasts();
     publishPageContext(true);
     observeTitle();
     window.addEventListener('click', handleLinkInteraction, true);

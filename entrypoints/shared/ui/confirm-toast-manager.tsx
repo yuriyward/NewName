@@ -23,8 +23,8 @@ import type {
 const TOAST_ROOT_ID = 'newname-confirm-toast-root';
 // Confirm toasts should disappear as soon as we receive a final status.
 const CONFIRM_RESOLVE_REMOVAL_MS = 0;
-// Rename overlay is purely informational; dismiss immediately to keep UX snappy.
-const RENAME_TOAST_DURATION_MS = 0;
+// Rename overlay should remain briefly so Balanced/Silent flows get feedback.
+const RENAME_TOAST_DURATION_MS = 3000;
 
 type ToastMap = Map<string, ConfirmToastRenderState>;
 interface RenameToastState extends RenameToastPayload {
