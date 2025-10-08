@@ -35,6 +35,10 @@ export default defineConfig({
       // Security note: Only affects dev server, not production builds
       cors: true,
     },
+    build: {
+      // Suppress Tailwind v4 sourcemap warnings (known issue, doesn't affect functionality)
+      sourcemap: false,
+    },
     plugins: [
       tailwindcss(),
       viteStaticCopy({

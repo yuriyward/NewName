@@ -4,7 +4,7 @@
 import { HeroUIProvider } from '@heroui/react';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import tailwindStyles from '@/assets/tailwind.css?inline';
+import shadowDomStyles from '@/assets/shadow-dom.css?inline';
 import { sendConfirmToastDecision } from '@/entrypoints/shared/messaging/extension-messaging';
 import {
   getSettings,
@@ -37,7 +37,7 @@ type RenameRemovalCallback = () => void;
 
 function createStyleElement(): HTMLStyleElement {
   const style = document.createElement('style');
-  style.textContent = tailwindStyles;
+  style.textContent = shadowDomStyles;
   return style;
 }
 
@@ -49,7 +49,10 @@ function createContainer(): {
   const host = document.createElement('div');
   host.id = TOAST_ROOT_ID;
   host.setAttribute('data-newname', 'confirm-toast');
-  host.style.all = 'initial';
+  // Specific resets instead of nuclear 'all: initial' to allow CSS inheritance
+  host.style.position = 'fixed';
+  host.style.zIndex = '2147483647';
+  host.style.pointerEvents = 'none';
   document.documentElement.appendChild(host);
 
   const shadow = host.attachShadow({ mode: 'closed' });
@@ -193,6 +196,9 @@ export class ConfirmToastManager {
   }
 
   private applyTheme(theme: 'light' | 'dark'): void {
+    // Apply to host for :host(.dark) selectors
+    this.host.className = theme;
+    // Apply to mount for HeroUI components
     this.mount.className = theme;
   }
 

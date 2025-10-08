@@ -153,7 +153,7 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
       : null;
 
   return (
-    <div className="w-full rounded-lg border border-divider bg-content1 p-3 shadow-lg backdrop-blur">
+    <div className="w-full rounded-lg border border-divider bg-content1 p-3 shadow-2xl backdrop-blur">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="break-words text-sm font-semibold text-foreground">
@@ -205,7 +205,7 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
           type="button"
           onClick={handleApprove}
           disabled={disableActions}
-          className="inline-flex flex-1 items-center justify-center rounded bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex flex-1 cursor-pointer items-center justify-center rounded bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {toast.resolving ? 'Applying…' : 'Apply'}
         </button>
@@ -213,7 +213,7 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
           type="button"
           onClick={onKeep}
           disabled={disableActions}
-          className="inline-flex flex-1 items-center justify-center rounded border border-default-300 bg-transparent px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-default-100 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex flex-1 cursor-pointer items-center justify-center rounded border border-default-300 bg-transparent px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-default-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Keep
         </button>
@@ -224,7 +224,7 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
           type="button"
           onClick={handleAlwaysApply}
           disabled={disableActions}
-          className="font-medium text-primary hover:opacity-80 disabled:opacity-40"
+          className="cursor-pointer font-medium text-primary hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Always apply
         </button>
