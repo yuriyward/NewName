@@ -153,51 +153,29 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
       : null;
 
   return (
-    <div className="w-full rounded-lg border border-slate-600/60 bg-slate-900/95 p-4 shadow-xl backdrop-blur">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-slate-400">
-            Proposed rename
-          </p>
-          <p className="mt-1 break-words text-base font-semibold text-slate-50">
+    <div className="w-full rounded-lg border border-divider bg-content1 p-3 shadow-lg backdrop-blur">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-sm font-semibold text-foreground">
             {toast.proposedFilename}
           </p>
+          <p className="mt-0.5 truncate text-xs text-default-500">
+            {toast.originalFilename}
+          </p>
         </div>
-        <div className="text-right text-sm font-medium text-slate-300">
-          {countdownLabel}
-        </div>
-      </div>
-
-      <div className="mt-3">
-        <label
-          className="text-xs font-semibold text-slate-400"
-          htmlFor={inputId}
-        >
-          Edit filename
-        </label>
-        <input
-          ref={inputRef}
-          id={inputId}
-          value={editedName}
-          onChange={handleInputChange}
-          onKeyDown={handleInputKeyDown}
-          disabled={disableActions}
-          spellCheck={false}
-          className="mt-1 w-full rounded-md border border-slate-600 bg-slate-800 px-2 py-1 text-sm text-slate-50 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
-        />
-      </div>
-
-      <div className="mt-2 text-xs text-slate-400">
-        Original:{' '}
-        <span className="text-slate-300">{toast.originalFilename}</span>
+        {countdownLabel ? (
+          <div className="shrink-0 rounded-full bg-default-100 px-2 py-0.5 text-xs font-medium text-default-700">
+            {countdownLabel}
+          </div>
+        ) : null}
       </div>
 
       {chips.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-1">
+        <div className="mt-2 flex flex-wrap gap-1">
           {chips.map((chip) => (
             <span
               key={chip}
-              className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-200"
+              className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary"
             >
               {chip}
             </span>
@@ -205,36 +183,50 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
         </div>
       ) : null}
 
-      <div className="mt-3 text-xs text-slate-300">{statusText}</div>
+      <input
+        ref={inputRef}
+        id={inputId}
+        value={editedName}
+        onChange={handleInputChange}
+        onKeyDown={handleInputKeyDown}
+        disabled={disableActions}
+        spellCheck={false}
+        placeholder="Edit filename…"
+        className="mt-2 w-full rounded border border-default-200 bg-default-100 px-2 py-1 text-xs text-foreground placeholder-default-400 outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/50"
+      />
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      {statusText && isPending ? (
+        <div className="mt-2 text-[11px] text-default-500">{statusText}</div>
+      ) : null}
+
+      <div className="mt-2 flex gap-1.5">
         <button
           ref={primaryButtonRef}
           type="button"
           onClick={handleApprove}
           disabled={disableActions}
-          className="inline-flex flex-1 items-center justify-center rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:bg-slate-600"
+          className="inline-flex flex-1 items-center justify-center rounded bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {toast.resolving ? 'Applying…' : 'Apply rename'}
+          {toast.resolving ? 'Applying…' : 'Apply'}
         </button>
         <button
           type="button"
           onClick={onKeep}
           disabled={disableActions}
-          className="inline-flex flex-1 items-center justify-center rounded-md border border-slate-500 px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-700 disabled:text-slate-500"
+          className="inline-flex flex-1 items-center justify-center rounded border border-default-300 bg-transparent px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-default-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Keep original
+          Keep
         </button>
       </div>
 
-      <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
+      <div className="mt-1.5 flex items-center justify-between text-[10px] text-default-400">
         <button
           type="button"
           onClick={handleAlwaysApply}
           disabled={disableActions}
-          className="font-semibold text-indigo-300 underline-offset-2 hover:text-indigo-200 hover:underline disabled:text-slate-500 disabled:no-underline"
+          className="font-medium text-primary hover:opacity-80 disabled:opacity-40"
         >
-          Always apply for this type
+          Always apply
         </button>
         <span>Esc keeps original</span>
       </div>

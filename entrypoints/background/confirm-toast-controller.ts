@@ -89,28 +89,31 @@ export function createConfirmToastController(
   const pending = new Map<string, PendingMapEntry>();
   const byHistory = new Map<string, string>();
 
-async function resolveTarget(
-  tabId?: number,
-  frameId?: number,
-): Promise<number | SendMessageOptions | undefined> {
-  if (typeof tabId === 'number' && Number.isFinite(tabId)) {
-    if (typeof frameId === 'number' && Number.isFinite(frameId)) {
-      return { tabId, frameId };
+  async function resolveTarget(
+    tabId?: number,
+    frameId?: number,
+  ): Promise<number | SendMessageOptions | undefined> {
+    if (typeof tabId === 'number' && Number.isFinite(tabId)) {
+      if (typeof frameId === 'number' && Number.isFinite(frameId)) {
+        return { tabId, frameId };
+      }
+      return tabId;
     }
-    return tabId;
-  }
 
-  try {
-    const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
-    if (activeTab?.id !== undefined) {
-      return activeTab.id;
+    try {
+      const [activeTab] = await browser.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      if (activeTab?.id !== undefined) {
+        return activeTab.id;
+      }
+    } catch (error) {
+      console.warn('[ConfirmToast] Unable to resolve active tab target', error);
     }
-  } catch (error) {
-    console.warn('[ConfirmToast] Unable to resolve active tab target', error);
-  }
 
-  return undefined;
-}
+    return undefined;
+  }
 
   function makeHelpers(entry: PendingMapEntry): ConfirmToastControllerHelpers {
     return {

@@ -1,10 +1,15 @@
 /**
  * Toast manager rendered inside the content script via Shadow DOM.
  */
+import { HeroUIProvider } from '@heroui/react';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import tailwindStyles from '@/assets/tailwind.css?inline';
 import { sendConfirmToastDecision } from '@/entrypoints/shared/messaging/extension-messaging';
+import {
+  getSettings,
+  subscribeSettings,
+} from '@/entrypoints/shared/settings/settings';
 import { ConfirmToast } from '@/entrypoints/shared/ui/ConfirmToast';
 import type {
   ConfirmToastAction,
@@ -81,22 +86,24 @@ const RenameToast: React.FC<{
   const progress = total > 0 ? Math.min(1, (total - remaining) / total) : 1;
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: Interactive hover handlers require div element
     <div
-      className="pointer-events-auto w-full rounded-lg border border-emerald-600/40 bg-emerald-900/90 px-3 py-2 text-sm text-emerald-50 shadow-md"
+      role="status"
+      className="pointer-events-auto w-full rounded-lg border border-success-300 bg-success-100 px-3 py-2 text-sm text-success-800 shadow-md"
       onMouseEnter={onHoverStart}
       onMouseLeave={onHoverEnd}
     >
       <p className="font-semibold">Rename applied</p>
-      <p className="text-xs text-emerald-100">
+      <p className="text-xs text-success-700">
         {toast.originalFilename} → {toast.finalFilename}
       </p>
-      <div className="mt-2 h-1 rounded bg-emerald-700/60">
+      <div className="mt-2 h-1 rounded bg-success-200">
         <div
-          className="h-full rounded bg-emerald-300 transition-[width] duration-200"
+          className="h-full rounded bg-success-500 transition-[width] duration-200"
           style={{ width: `${progress * 100}%` }}
         />
       </div>
-      <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-200 text-right">
+      <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-success-600 text-right">
         {toast.paused ? 'Paused' : `Hiding in ${seconds}s`}
       </div>
     </div>
@@ -115,29 +122,31 @@ const ToastOverlay: React.FC<ToastOverlayProps> = React.memo(
   }) => {
     if (confirmToasts.length === 0 && renameToasts.length === 0) return null;
     return (
-      <div className="pointer-events-none fixed inset-0 z-[2147483647] flex flex-col justify-end items-end gap-2 px-4 py-4">
-        <div className="flex w-full max-w-sm flex-col gap-3">
-          {confirmToasts.map((toast, index) => (
-            <div key={toast.toastId} className="pointer-events-auto">
-              <ConfirmToast
+      <HeroUIProvider>
+        <div className="pointer-events-none fixed inset-0 z-[2147483647] flex flex-col justify-end items-end gap-2 px-4 py-4">
+          <div className="flex w-full max-w-xs flex-col gap-2">
+            {confirmToasts.map((toast, index) => (
+              <div key={toast.toastId} className="pointer-events-auto">
+                <ConfirmToast
+                  toast={toast}
+                  autoFocus={index === 0}
+                  onApprove={(edited) => onApprove(toast, edited)}
+                  onKeep={() => onKeep(toast)}
+                  onAlwaysApply={(edited) => onAlwaysApply(toast, edited)}
+                />
+              </div>
+            ))}
+            {renameToasts.map((toast) => (
+              <RenameToast
+                key={toast.toastId}
                 toast={toast}
-                autoFocus={index === 0}
-                onApprove={(edited) => onApprove(toast, edited)}
-                onKeep={() => onKeep(toast)}
-                onAlwaysApply={(edited) => onAlwaysApply(toast, edited)}
+                onHoverStart={() => onRenameHoverStart(toast.toastId)}
+                onHoverEnd={() => onRenameHoverEnd(toast.toastId)}
               />
-            </div>
-          ))}
-          {renameToasts.map((toast) => (
-            <RenameToast
-              key={toast.toastId}
-              toast={toast}
-              onHoverStart={() => onRenameHoverStart(toast.toastId)}
-              onHoverEnd={() => onRenameHoverEnd(toast.toastId)}
-            />
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      </HeroUIProvider>
     );
   },
 );
@@ -148,8 +157,10 @@ export class ConfirmToastManager {
   private removalTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private root: ReactDOM.Root;
   private host: HTMLDivElement;
+  private mount: HTMLDivElement;
   private keyListenerAttached = false;
   private renameTicker: ReturnType<typeof setInterval> | undefined;
+  private currentTheme: 'light' | 'dark' = 'dark';
 
   constructor() {
     const existing = document.getElementById(TOAST_ROOT_ID);
@@ -158,8 +169,31 @@ export class ConfirmToastManager {
     }
     const { host, mount } = createContainer();
     this.host = host;
+    this.mount = mount;
     this.root = ReactDOM.createRoot(mount);
-    this.render();
+
+    // Initialize theme from settings
+    getSettings()
+      .then((settings) => {
+        this.currentTheme = settings.theme;
+        this.applyTheme(settings.theme);
+        this.render();
+      })
+      .catch(() => {
+        this.render();
+      });
+
+    // Subscribe to theme changes
+    subscribeSettings((settings) => {
+      if (settings.theme !== this.currentTheme) {
+        this.currentTheme = settings.theme;
+        this.applyTheme(settings.theme);
+      }
+    });
+  }
+
+  private applyTheme(theme: 'light' | 'dark'): void {
+    this.mount.className = theme;
   }
 
   showToast(proposal: ConfirmToastProposal): void {

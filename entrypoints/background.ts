@@ -6,7 +6,10 @@ import { initializeBackgroundDebug } from '@/entrypoints/shared/debug/console-he
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
-import { getSettings, updateSettings } from '@/entrypoints/shared/settings/settings';
+import {
+  getSettings,
+  updateSettings,
+} from '@/entrypoints/shared/settings/settings';
 import { registerPageContextService } from '@/entrypoints/shared/state/page-context-service';
 import { createConfirmToastController } from './background/confirm-toast-controller';
 import { createDeterminingListener } from './background/download-coordinator';
@@ -71,7 +74,9 @@ function initializeBackground(): void {
           mode: 'careful',
           debug: desiredDebug,
         });
-        console.info('[NewName] Dev override: mode set to careful with verbose debug');
+        console.info(
+          '[NewName] Dev override: mode set to careful with verbose debug',
+        );
       }
     } catch (error) {
       console.warn('[NewName] Failed to apply dev settings override', error);

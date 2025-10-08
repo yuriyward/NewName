@@ -7,8 +7,9 @@ vi.mock('@/entrypoints/shared/messaging/extension-messaging', () => ({
   sendShowRenameToast: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
-const { sendShowRenameToast } =
-  await import('@/entrypoints/shared/messaging/extension-messaging');
+const { sendShowRenameToast } = await import(
+  '@/entrypoints/shared/messaging/extension-messaging'
+);
 const { maybeShowRenameOverlay } = await import('./rename-overlay');
 
 describe('maybeShowRenameOverlay', () => {

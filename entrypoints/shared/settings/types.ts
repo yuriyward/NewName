@@ -59,6 +59,8 @@ export interface ConfirmToastSettings {
   showRenameNotifications: boolean;
 }
 
+export type Theme = 'light' | 'dark';
+
 export interface LocalizationSettings {
   uiLocale: UiLocale;
 }
@@ -66,6 +68,7 @@ export interface LocalizationSettings {
 export interface Settings {
   version: 2;
   mode: Mode;
+  theme: Theme;
   language: 'browser' | 'auto' | 'pl' | 'en' | 'uk';
   separator: Separator;
   maxLen: number;
@@ -94,6 +97,7 @@ export const UI_LOCALE_OPTIONS: ReadonlyArray<{
 export const DEFAULT_SETTINGS: Settings = {
   version: 2,
   mode: 'balanced',
+  theme: 'dark',
   language: 'auto',
   separator: 'clean',
   maxLen: 60,

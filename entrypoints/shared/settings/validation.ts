@@ -14,6 +14,7 @@ import type {
   PerTypeBehavior,
   Separator,
   Settings,
+  Theme,
 } from '@/entrypoints/shared/settings/types';
 import {
   DEFAULT_SETTINGS,
@@ -64,6 +65,10 @@ export function isLanguage(value: unknown): value is Language {
     value === 'en' ||
     value === 'uk'
   );
+}
+
+export function isTheme(value: unknown): value is Theme {
+  return value === 'light' || value === 'dark';
 }
 
 export function sanitizePerType(
@@ -195,6 +200,7 @@ export function sanitizeSettings(data: unknown): Settings {
   const raw = data as FallbackSettings;
 
   const mode = isMode(raw.mode) ? raw.mode : DEFAULT_SETTINGS.mode;
+  const theme = isTheme(raw.theme) ? raw.theme : DEFAULT_SETTINGS.theme;
   const separator = isSeparator(raw.separator)
     ? raw.separator
     : DEFAULT_SETTINGS.separator;
@@ -221,6 +227,7 @@ export function sanitizeSettings(data: unknown): Settings {
   return {
     version: 2,
     mode,
+    theme,
     language,
     separator,
     maxLen,

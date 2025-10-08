@@ -190,7 +190,9 @@ export async function processDeterminingFilename(
             return;
           }
           suggestionIssued = true;
-          console.info('[NewName] queueConfirmation failed, showing rename overlay');
+          console.info(
+            '[NewName] queueConfirmation failed, showing rename overlay',
+          );
           await maybeShowRenameOverlay({
             settings,
             tabId: initiatingTabId,

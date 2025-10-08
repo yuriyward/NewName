@@ -4,7 +4,10 @@
 import type { SendMessageOptions } from '@webext-core/messaging';
 import { browser } from 'wxt/browser';
 import { sendShowRenameToast } from '@/entrypoints/shared/messaging/extension-messaging';
-import { DEFAULT_SETTINGS, type Settings } from '@/entrypoints/shared/settings/types';
+import {
+  DEFAULT_SETTINGS,
+  type Settings,
+} from '@/entrypoints/shared/settings/types';
 
 export interface RenameOverlayOptions {
   settings: Settings;
@@ -27,17 +30,25 @@ async function resolveTarget(
   }
 
   try {
-    const [activeTab] = await browser.tabs.query({ active: true, currentWindow: true });
+    const [activeTab] = await browser.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
     if (activeTab?.id !== undefined) {
       return activeTab.id;
     }
   } catch (error) {
-    console.warn('[NewName] Unable to resolve active tab for rename overlay', error);
+    console.warn(
+      '[NewName] Unable to resolve active tab for rename overlay',
+      error,
+    );
   }
   return undefined;
 }
 
-export async function maybeShowRenameOverlay(options: RenameOverlayOptions): Promise<void> {
+export async function maybeShowRenameOverlay(
+  options: RenameOverlayOptions,
+): Promise<void> {
   const {
     settings,
     tabId,

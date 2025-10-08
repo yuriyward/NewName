@@ -29,6 +29,7 @@ function App(): JSX.Element {
   const [strategy, setStrategy] = useState<InstantBaselineStrategy | null>(
     null,
   );
+  const [settingsTheme, setSettingsTheme] = useState<'light' | 'dark'>('dark');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +48,8 @@ function App(): JSX.Element {
       .then((settings) => {
         if (!active) return;
         setStrategy(settings.instantBaselineStrategy);
+        setSettingsTheme(settings.theme);
+        setTheme(settings.theme);
         setLoading(false);
       })
       .catch((err) => {
@@ -59,6 +62,10 @@ function App(): JSX.Element {
     unsubscribe = subscribeSettings((settings) => {
       if (!active) return;
       setStrategy(settings.instantBaselineStrategy);
+      if (settings.theme !== settingsTheme) {
+        setSettingsTheme(settings.theme);
+        setTheme(settings.theme);
+      }
     });
 
     return () => {
@@ -67,7 +74,7 @@ function App(): JSX.Element {
         unsubscribe();
       }
     };
-  }, []);
+  }, [setTheme, settingsTheme]);
 
   useEffect(() => {
     if (savedAt === null) return;
@@ -133,7 +140,14 @@ function App(): JSX.Element {
       {/* Dark Mode Toggle */}
       <button
         type="button"
-        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        onClick={() => {
+          const newTheme = theme === 'dark' ? 'light' : 'dark';
+          setTheme(newTheme);
+          setSettingsTheme(newTheme);
+          updateSettings({ theme: newTheme }).catch((err) => {
+            console.error('Failed to save theme', err);
+          });
+        }}
         className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-default-600 hover:text-default-900 transition-colors cursor-pointer"
         title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
       >
