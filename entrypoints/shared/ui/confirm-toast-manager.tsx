@@ -21,8 +21,10 @@ import type {
 } from '@/entrypoints/shared/ui/confirm-toast-types';
 
 const TOAST_ROOT_ID = 'newname-confirm-toast-root';
-const CONFIRM_RESOLVE_REMOVAL_MS = 1800;
-const RENAME_TOAST_DURATION_MS = 4000;
+// Confirm toasts should disappear as soon as we receive a final status.
+const CONFIRM_RESOLVE_REMOVAL_MS = 0;
+// Rename overlay is purely informational; dismiss immediately to keep UX snappy.
+const RENAME_TOAST_DURATION_MS = 0;
 
 type ToastMap = Map<string, ConfirmToastRenderState>;
 interface RenameToastState extends RenameToastPayload {

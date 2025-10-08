@@ -60,30 +60,40 @@ function initializeBackground(): void {
 
   const pageContextService = registerPageContextService();
 
+  // void (async () => {
+  //   try {
+  //     const current = await getSettings();
+  //     const desiredDebug = {
+  //       ...current.debug,
+  //       enabled: true,
+  //       level: 'verbose' as const,
+  //     };
+  //     if (
+  //       current.mode !== 'careful' ||
+  //       current.debug.enabled !== desiredDebug.enabled ||
+  //       current.debug.level !== desiredDebug.level
+  //     ) {
+  //       await updateSettings({
+  //         mode: 'careful',
+  //         debug: desiredDebug,
+  //       });
+  //       console.info(
+  //         '[NewName] Dev override: mode set to careful with verbose debug',
+  //       );
+  //     }
+  //   } catch (error) {
+  //     console.warn('[NewName] Failed to apply dev settings override', error);
+  //   }
+  // })();
+
   void (async () => {
-    try {
-      const current = await getSettings();
-      const desiredDebug = {
-        ...current.debug,
-        enabled: true,
-        level: 'verbose' as const,
-      };
-      if (
-        current.mode !== 'careful' ||
-        current.debug.enabled !== desiredDebug.enabled ||
-        current.debug.level !== desiredDebug.level
-      ) {
-        await updateSettings({
+   await updateSettings({
           mode: 'careful',
-          debug: desiredDebug,
+          debug: {
+            enabled: true,
+            level: 'verbose' as const,
+          },
         });
-        console.info(
-          '[NewName] Dev override: mode set to careful with verbose debug',
-        );
-      }
-    } catch (error) {
-      console.warn('[NewName] Failed to apply dev settings override', error);
-    }
   })();
 
   onExtensionMessage('resolveRuntimeContext', ({ sender }) => ({
