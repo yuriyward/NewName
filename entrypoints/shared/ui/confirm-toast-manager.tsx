@@ -1,0 +1,432 @@
+/**
+ * Toast manager rendered inside the content script via Shadow DOM.
+ */
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import tailwindStyles from '@/assets/tailwind.css?inline';
+import { sendConfirmToastDecision } from '@/entrypoints/shared/messaging/extension-messaging';
+import { ConfirmToast } from '@/entrypoints/shared/ui/ConfirmToast';
+import type {
+  ConfirmToastAction,
+  ConfirmToastDecisionMessage,
+  ConfirmToastProposal,
+  ConfirmToastRenderState,
+  ConfirmToastStatusMessage,
+  RenameToastPayload,
+} from '@/entrypoints/shared/ui/confirm-toast-types';
+
+const TOAST_ROOT_ID = 'newname-confirm-toast-root';
+const CONFIRM_RESOLVE_REMOVAL_MS = 1800;
+const RENAME_TOAST_DURATION_MS = 4000;
+
+type ToastMap = Map<string, ConfirmToastRenderState>;
+interface RenameToastState extends RenameToastPayload {
+  durationMs: number;
+  remainingMs: number;
+  dismissAt: number | null;
+  paused: boolean;
+}
+
+type RenameToastMap = Map<string, RenameToastState>;
+type RenameRemovalCallback = () => void;
+
+function createStyleElement(): HTMLStyleElement {
+  const style = document.createElement('style');
+  style.textContent = tailwindStyles;
+  return style;
+}
+
+function createContainer(): {
+  host: HTMLDivElement;
+  shadow: ShadowRoot;
+  mount: HTMLDivElement;
+} {
+  const host = document.createElement('div');
+  host.id = TOAST_ROOT_ID;
+  host.setAttribute('data-newname', 'confirm-toast');
+  host.style.all = 'initial';
+  document.documentElement.appendChild(host);
+
+  const shadow = host.attachShadow({ mode: 'closed' });
+  const mount = document.createElement('div');
+  shadow.appendChild(createStyleElement());
+  shadow.appendChild(mount);
+  return { host, shadow, mount };
+}
+
+function sortToastsDescending(toasts: ToastMap): ConfirmToastRenderState[] {
+  return Array.from(toasts.values()).sort((a, b) => b.createdAt - a.createdAt);
+}
+
+interface RenameToastState extends RenameToastPayload {}
+
+interface ToastOverlayProps {
+  confirmToasts: ConfirmToastRenderState[];
+  renameToasts: RenameToastState[];
+  onApprove: (toast: ConfirmToastRenderState, edited?: string) => void;
+  onKeep: (toast: ConfirmToastRenderState) => void;
+  onAlwaysApply: (toast: ConfirmToastRenderState, edited?: string) => void;
+  onRenameHoverStart: (toastId: string) => void;
+  onRenameHoverEnd: (toastId: string) => void;
+}
+
+const RenameToast: React.FC<{
+  toast: RenameToastState;
+  onHoverStart: () => void;
+  onHoverEnd: () => void;
+}> = ({ toast, onHoverStart, onHoverEnd }) => {
+  const total = toast.durationMs;
+  const remaining = Math.max(0, toast.remainingMs);
+  const seconds = Math.max(0, Math.ceil(remaining / 1000));
+  const progress = total > 0 ? Math.min(1, (total - remaining) / total) : 1;
+
+  return (
+    <div
+      className="pointer-events-auto w-full rounded-lg border border-emerald-600/40 bg-emerald-900/90 px-3 py-2 text-sm text-emerald-50 shadow-md"
+      onMouseEnter={onHoverStart}
+      onMouseLeave={onHoverEnd}
+    >
+      <p className="font-semibold">Rename applied</p>
+      <p className="text-xs text-emerald-100">
+        {toast.originalFilename} → {toast.finalFilename}
+      </p>
+      <div className="mt-2 h-1 rounded bg-emerald-700/60">
+        <div
+          className="h-full rounded bg-emerald-300 transition-[width] duration-200"
+          style={{ width: `${progress * 100}%` }}
+        />
+      </div>
+      <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-200 text-right">
+        {toast.paused ? 'Paused' : `Hiding in ${seconds}s`}
+      </div>
+    </div>
+  );
+};
+
+const ToastOverlay: React.FC<ToastOverlayProps> = React.memo(
+  ({
+    confirmToasts,
+    renameToasts,
+    onApprove,
+    onKeep,
+    onAlwaysApply,
+    onRenameHoverStart,
+    onRenameHoverEnd,
+  }) => {
+    if (confirmToasts.length === 0 && renameToasts.length === 0) return null;
+    return (
+      <div className="pointer-events-none fixed inset-0 z-[2147483647] flex flex-col justify-end items-end gap-2 px-4 py-4">
+        <div className="flex w-full max-w-sm flex-col gap-3">
+          {confirmToasts.map((toast, index) => (
+            <div key={toast.toastId} className="pointer-events-auto">
+              <ConfirmToast
+                toast={toast}
+                autoFocus={index === 0}
+                onApprove={(edited) => onApprove(toast, edited)}
+                onKeep={() => onKeep(toast)}
+                onAlwaysApply={(edited) => onAlwaysApply(toast, edited)}
+              />
+            </div>
+          ))}
+          {renameToasts.map((toast) => (
+            <RenameToast
+              key={toast.toastId}
+              toast={toast}
+              onHoverStart={() => onRenameHoverStart(toast.toastId)}
+              onHoverEnd={() => onRenameHoverEnd(toast.toastId)}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  },
+);
+
+export class ConfirmToastManager {
+  private toasts: ToastMap = new Map();
+  private renameToasts: RenameToastMap = new Map();
+  private removalTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private root: ReactDOM.Root;
+  private host: HTMLDivElement;
+  private keyListenerAttached = false;
+  private renameTicker: ReturnType<typeof setInterval> | undefined;
+
+  constructor() {
+    const existing = document.getElementById(TOAST_ROOT_ID);
+    if (existing) {
+      existing.remove();
+    }
+    const { host, mount } = createContainer();
+    this.host = host;
+    this.root = ReactDOM.createRoot(mount);
+    this.render();
+  }
+
+  showToast(proposal: ConfirmToastProposal): void {
+    this.clearRemovalTimer(proposal.toastId);
+    this.toasts.set(proposal.toastId, {
+      ...proposal,
+      status: 'pending',
+      statusMessage: undefined,
+      resolving: false,
+    });
+    this.render();
+  }
+
+  updateStatus(message: ConfirmToastStatusMessage): void {
+    const toast = this.toasts.get(message.toastId);
+    if (!toast) {
+      console.warn(
+        '[ConfirmToast] Received status for unknown toast',
+        message.toastId,
+      );
+      return;
+    }
+    toast.status = message.state;
+    toast.statusMessage = message.message;
+    toast.resolving = false;
+    if (message.state !== 'error') {
+      this.scheduleRemoval(message.toastId);
+    }
+    this.render();
+  }
+
+  showRenameResult(toast: RenameToastPayload): void {
+    this.clearRemovalTimer(toast.toastId);
+    const duration = RENAME_TOAST_DURATION_MS;
+    const now = Date.now();
+    this.renameToasts.set(toast.toastId, {
+      ...toast,
+      durationMs: duration,
+      remainingMs: duration,
+      dismissAt: now + duration,
+      paused: false,
+    });
+    this.scheduleRemoval(toast.toastId, duration);
+    this.startRenameTicker();
+    this.render();
+  }
+
+  destroy(): void {
+    this.root.unmount();
+    this.host.remove();
+    this.removeKeyListener();
+    this.stopRenameTicker();
+  }
+
+  private render(): void {
+    const ordered = sortToastsDescending(this.toasts);
+    const rename = Array.from(this.renameToasts.values()).sort(
+      (a, b) => b.createdAt - a.createdAt,
+    );
+    this.root.render(
+      <ToastOverlay
+        confirmToasts={ordered}
+        renameToasts={rename}
+        onApprove={(toast, edited) => {
+          void this.sendAction(toast, 'approve', edited);
+        }}
+        onKeep={(toast) => {
+          void this.sendAction(toast, 'keep-original');
+        }}
+        onAlwaysApply={(toast, edited) => {
+          if (!toast.allowAlwaysApply) {
+            void this.sendAction(toast, 'approve', edited);
+            return;
+          }
+          void this.sendAction(toast, 'always-apply', edited);
+        }}
+        onRenameHoverStart={(id) => {
+          this.pauseRenameToast(id);
+        }}
+        onRenameHoverEnd={(id) => {
+          this.resumeRenameToast(id);
+        }}
+      />,
+    );
+    this.ensureKeyListener();
+  }
+
+  private async sendAction(
+    toast: ConfirmToastRenderState,
+    action: ConfirmToastAction,
+    edited?: string,
+  ): Promise<void> {
+    if (toast.resolving) return;
+    toast.resolving = true;
+    toast.status = 'pending';
+    toast.statusMessage = undefined;
+    this.render();
+
+    const payload: ConfirmToastDecisionMessage = {
+      toastId: toast.toastId,
+      historyId: toast.historyId,
+      downloadId: toast.downloadId,
+      action,
+    };
+
+    const trimmedName = edited?.trim();
+    if (
+      trimmedName &&
+      trimmedName.length > 0 &&
+      trimmedName !== toast.proposedFilename
+    ) {
+      payload.editedFilename = trimmedName;
+    }
+
+    try {
+      await sendConfirmToastDecision(payload);
+    } catch (error) {
+      toast.resolving = false;
+      toast.status = 'error';
+      toast.statusMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to send decision. Please try again.';
+      this.render();
+    }
+  }
+
+  private scheduleRemoval(
+    toastId: string,
+    delay = CONFIRM_RESOLVE_REMOVAL_MS,
+    onRemove?: RenameRemovalCallback,
+  ): void {
+    this.clearRemovalTimer(toastId);
+    if (delay <= 0) {
+      const removedConfirm = this.toasts.delete(toastId);
+      const removedRename = this.renameToasts.delete(toastId);
+      onRemove?.();
+      if (removedConfirm || removedRename) {
+        this.render();
+        this.ensureKeyListener();
+      }
+      if (this.renameToasts.size === 0) {
+        this.stopRenameTicker();
+      }
+      return;
+    }
+    const timer = setTimeout(() => {
+      const removedConfirm = this.toasts.delete(toastId);
+      const removedRename = this.renameToasts.delete(toastId);
+      this.removalTimers.delete(toastId);
+      onRemove?.();
+      if (removedConfirm || removedRename) {
+        this.render();
+        this.ensureKeyListener();
+      }
+      if (this.renameToasts.size === 0) {
+        this.stopRenameTicker();
+      }
+    }, delay);
+    this.removalTimers.set(toastId, timer);
+  }
+
+  private clearRemovalTimer(toastId: string): void {
+    const timer = this.removalTimers.get(toastId);
+    if (timer) {
+      clearTimeout(timer);
+      this.removalTimers.delete(toastId);
+    }
+  }
+
+  private startRenameTicker(): void {
+    if (this.renameTicker) return;
+    this.renameTicker = setInterval(() => {
+      if (this.renameToasts.size === 0) {
+        this.stopRenameTicker();
+        return;
+      }
+      const now = Date.now();
+      let updated = false;
+      for (const toast of this.renameToasts.values()) {
+        if (toast.paused || toast.dismissAt === null) continue;
+        const nextRemaining = Math.max(0, toast.dismissAt - now);
+        if (Math.abs(nextRemaining - toast.remainingMs) > 120) {
+          toast.remainingMs = nextRemaining;
+          updated = true;
+        }
+      }
+      if (updated) {
+        this.render();
+      }
+    }, 150);
+  }
+
+  private stopRenameTicker(): void {
+    if (!this.renameTicker) return;
+    clearInterval(this.renameTicker);
+    this.renameTicker = undefined;
+  }
+
+  private pauseRenameToast(toastId: string): void {
+    const toast = this.renameToasts.get(toastId);
+    if (!toast || toast.paused) return;
+    if (toast.dismissAt !== null) {
+      toast.remainingMs = Math.max(0, toast.dismissAt - Date.now());
+    }
+    toast.dismissAt = null;
+    toast.paused = true;
+    this.clearRemovalTimer(toastId);
+    this.render();
+  }
+
+  private resumeRenameToast(toastId: string): void {
+    const toast = this.renameToasts.get(toastId);
+    if (!toast || !toast.paused) return;
+    toast.paused = false;
+    const remaining = Math.max(0, toast.remainingMs);
+    toast.dismissAt = Date.now() + remaining;
+    this.scheduleRemoval(toastId, remaining);
+    this.startRenameTicker();
+    this.render();
+  }
+
+  private getLatestToast(): ConfirmToastRenderState | undefined {
+    if (this.toasts.size === 0) return undefined;
+    const ordered = sortToastsDescending(this.toasts);
+    return ordered[0];
+  }
+
+  private readonly handleKeyDown = (event: KeyboardEvent): void => {
+    if (event.key !== 'Escape') return;
+    const toast = this.getLatestToast();
+    if (!toast) return;
+    if (toast.status !== 'pending' || toast.resolving) {
+      return;
+    }
+    event.preventDefault();
+    void this.sendAction(toast, 'keep-original');
+  };
+
+  private ensureKeyListener(): void {
+    if (this.toasts.size > 0 && !this.keyListenerAttached) {
+      document.addEventListener('keydown', this.handleKeyDown, true);
+      this.keyListenerAttached = true;
+      return;
+    }
+    if (this.toasts.size === 0 && this.keyListenerAttached) {
+      this.removeKeyListener();
+    }
+  }
+
+  private removeKeyListener(): void {
+    if (!this.keyListenerAttached) return;
+    document.removeEventListener('keydown', this.handleKeyDown, true);
+    this.keyListenerAttached = false;
+  }
+}
+
+let singleton: ConfirmToastManager | null = null;
+
+export function getConfirmToastManager(): ConfirmToastManager {
+  if (!singleton) {
+    singleton = new ConfirmToastManager();
+  }
+  return singleton;
+}
+
+export function resetConfirmToastManagerForTesting(): void {
+  singleton?.destroy();
+  singleton = null;
+}

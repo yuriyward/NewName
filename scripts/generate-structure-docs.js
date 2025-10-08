@@ -509,8 +509,9 @@ function renderTree(tree, prefix = '', parentPrefix = '', depth = 0) {
     const isLast = index === entries.length - 1;
 
     // For top level (depth 0), no connector prefix
-    const connector = depth === 0 ? '' : (isLast ? '└─ ' : '├─ ');
-    const nextPrefix = depth === 0 ? '  ' : (parentPrefix + (isLast ? '  ' : '│ '));
+    const connector = depth === 0 ? '' : isLast ? '└─ ' : '├─ ';
+    const nextPrefix =
+      depth === 0 ? '  ' : parentPrefix + (isLast ? '  ' : '│ ');
 
     if (node.__file) {
       // File

@@ -6,7 +6,9 @@ import { initializeBackgroundDebug } from '@/entrypoints/shared/debug/console-he
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
+import { getSettings, updateSettings } from '@/entrypoints/shared/settings/settings';
 import { registerPageContextService } from '@/entrypoints/shared/state/page-context-service';
+import { createConfirmToastController } from './background/confirm-toast-controller';
 import { createDeterminingListener } from './background/download-coordinator';
 import {
   type DownloadTrackingEntry,
@@ -22,10 +24,59 @@ const DOWNLOAD_TRACKING_PRUNE_INTERVAL_MS = 15 * 60_000;
 const downloadTracking = new Map<number, DownloadTrackingEntry>();
 
 function initializeBackground(): void {
+  const confirmToastController = createConfirmToastController({
+    async onUserDecision(entry, decision, helpers) {
+      console.info(
+        '[ConfirmToast] Received user decision',
+        decision.action,
+        entry.proposal.historyId,
+      );
+      // Placeholder: dismiss toast until rename orchestration is implemented.
+      const state: 'applied' | 'kept' | 'dismissed' =
+        decision.action === 'approve'
+          ? 'applied'
+          : decision.action === 'keep-original'
+            ? 'kept'
+            : 'dismissed';
+      await helpers.emitStatus(state);
+    },
+    async onAutoApply(entry, helpers) {
+      console.info(
+        '[ConfirmToast] Auto-apply timeout reached',
+        entry.proposal.historyId,
+      );
+      await helpers.emitStatus('timeout');
+    },
+  });
+
   registerInstallDateListener();
   initializeBackgroundDebug();
 
   const pageContextService = registerPageContextService();
+
+  void (async () => {
+    try {
+      const current = await getSettings();
+      const desiredDebug = {
+        ...current.debug,
+        enabled: true,
+        level: 'verbose' as const,
+      };
+      if (
+        current.mode !== 'careful' ||
+        current.debug.enabled !== desiredDebug.enabled ||
+        current.debug.level !== desiredDebug.level
+      ) {
+        await updateSettings({
+          mode: 'careful',
+          debug: desiredDebug,
+        });
+        console.info('[NewName] Dev override: mode set to careful with verbose debug');
+      }
+    } catch (error) {
+      console.warn('[NewName] Failed to apply dev settings override', error);
+    }
+  })();
 
   onExtensionMessage('resolveRuntimeContext', ({ sender }) => ({
     tabId: sender.tab?.id ?? undefined,
@@ -79,6 +130,7 @@ function initializeBackground(): void {
       pageContextService,
       readSettings,
       downloadTracking,
+      confirmToastController,
     ),
   );
 
@@ -94,6 +146,14 @@ function initializeBackground(): void {
   if (settings.debug.enabled) {
     console.log('[NewName Debug] Background ready', { id: browser.runtime.id });
   }
+
+  onExtensionMessage('confirmToastDecision', async ({ data }) => {
+    const handled = await confirmToastController.handleUserDecision(data);
+    if (!handled) {
+      console.warn('[ConfirmToast] Unmatched decision for toast', data.toastId);
+    }
+    return { ok: true };
+  });
 }
 
 export default defineBackground(() => {

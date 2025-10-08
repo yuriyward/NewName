@@ -2,6 +2,7 @@
  * Download coordination logic for onDeterminingFilename events
  */
 import type { browser } from 'wxt/browser';
+import { detectSensitiveContent } from '@/entrypoints/shared/classification/sensitive-content';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { DebugContext } from '@/entrypoints/shared/debug/types';
 import { addHistoryItem } from '@/entrypoints/shared/history/history';
@@ -14,6 +15,7 @@ import {
   type InstantBaselineComputation,
 } from '@/entrypoints/shared/pipeline/instant-baseline-strategy';
 import type { InstantBaselineEvaluation } from '@/entrypoints/shared/pipeline/instant-baseline-types';
+import { resolveConfirmToastRoute } from '@/entrypoints/shared/settings/confirm-toast-routing';
 import type {
   FileType,
   Settings,
@@ -24,6 +26,7 @@ import {
   fallbackNameFromUrl,
 } from '@/entrypoints/shared/utils/filename';
 import { randomId } from '@/entrypoints/shared/utils/id';
+import type { ConfirmToastController } from './confirm-toast-controller';
 import {
   type DownloadTrackingEntry,
   recordDownloadTracking,
@@ -32,6 +35,7 @@ import {
   applyMediaAnalysisResponse,
   toMediaDebugSettings,
 } from './media-orchestrator';
+import { maybeShowRenameOverlay } from './rename-overlay';
 import { createSuggestController } from './suggest-controller';
 
 export type DeterminingListener = Parameters<
@@ -82,6 +86,7 @@ export async function processDeterminingFilename(
   pageContextService: PageContextService,
   readSettings: () => Settings,
   downloadTracking: Map<number, DownloadTrackingEntry>,
+  confirmToastController: ConfirmToastController,
 ): Promise<void> {
   const controller = createSuggestController(suggest);
   let suggestionIssued = false;
@@ -134,14 +139,87 @@ export async function processDeterminingFilename(
 
     const historyId = randomId();
 
+    const sensitiveDetection = detectSensitiveContent({
+      originalPath: evaluation.originalPath,
+      proposedPath: renameCandidate?.path,
+      url,
+      reasonTags: evaluation.reasonTags,
+    });
+
+    const confirmRoute = resolveConfirmToastRoute({
+      settings,
+      fileType: evaluation.fileType,
+      signals: {
+        sensitiveReasons: sensitiveDetection.reasons,
+      },
+    });
+
     if (renameCandidate) {
-      const submitted = controller.trySuggest({
-        filename: renameCandidate.path,
-      });
-      if (!submitted) {
-        return;
+      if (confirmRoute.kind === 'toast') {
+        const submitted = controller.trySuggest();
+        if (!submitted) {
+          return;
+        }
+        suggestionIssued = true;
+        try {
+          await confirmToastController.queueConfirmation({
+            tabId: initiatingTabId,
+            historyId,
+            downloadId,
+            originalFilename: basename(filename),
+            proposedFilename: renameCandidate.filename,
+            proposedPath: renameCandidate.path,
+            fileType: evaluation.fileType,
+            mode: settings.mode,
+            reasonTags: evaluation.reasonTags,
+            sensitiveReasons: sensitiveDetection.reasons,
+            sensitiveMatches: sensitiveDetection.matches,
+            triggerSources: confirmRoute.sources,
+            autoApplyDelaySeconds: confirmRoute.autoApplyDelaySeconds,
+            allowAlwaysApply: settings.mode !== 'careful',
+          });
+        } catch (error) {
+          console.error(
+            'Failed to queue confirm toast; falling back to direct rename',
+            error,
+          );
+          const fallbackSubmitted = controller.trySuggest({
+            filename: renameCandidate.path,
+          });
+          if (!fallbackSubmitted) {
+            return;
+          }
+          suggestionIssued = true;
+          console.info('[NewName] queueConfirmation failed, showing rename overlay');
+          await maybeShowRenameOverlay({
+            settings,
+            tabId: initiatingTabId,
+            originalFilename: basename(filename),
+            finalFilename: renameCandidate.filename,
+            downloadId,
+          });
+        }
+      } else {
+        const submitted = controller.trySuggest({
+          filename: renameCandidate.path,
+        });
+        if (!submitted) {
+          return;
+        }
+        suggestionIssued = true;
+        console.info('[NewName] Auto rename overlay dispatch', {
+          tabId: initiatingTabId,
+          original: basename(filename),
+          final: renameCandidate.filename,
+        });
+        await maybeShowRenameOverlay({
+          settings,
+          tabId: initiatingTabId,
+          originalFilename: basename(filename),
+          finalFilename: renameCandidate.filename,
+          downloadId,
+        });
       }
-      suggestionIssued = true;
     } else {
       const submitted = controller.trySuggest();
       if (!submitted) {
@@ -270,6 +348,7 @@ export function createDeterminingListener(
   pageContextService: PageContextService,
   readSettings: () => Settings,
   downloadTracking: Map<number, DownloadTrackingEntry>,
+  confirmToastController: ConfirmToastController,
 ): DeterminingListener {
   return (item, suggest) => {
     void processDeterminingFilename(
@@ -278,6 +357,7 @@ export function createDeterminingListener(
       pageContextService,
       readSettings,
       downloadTracking,
+      confirmToastController,
     ).catch((error) => {
       console.error('Instant Baseline rename unhandled failure', error);
     });

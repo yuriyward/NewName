@@ -50,6 +50,15 @@ export interface ConfirmModalDefaults {
   showReasonTags: boolean;
 }
 
+export interface ConfirmToastSettings {
+  /** Countdown duration before auto-apply when enabled */
+  autoApplyDelaySeconds: number;
+  /** Whether to display sensitive reason tags inside the toast */
+  showReasonTags: boolean;
+  /** Whether to surface a follow-up notification after rename completes */
+  showRenameNotifications: boolean;
+}
+
 export interface LocalizationSettings {
   uiLocale: UiLocale;
 }
@@ -68,6 +77,7 @@ export interface Settings {
   debug: DebugSettings;
   notifyOnKeep: boolean;
   confirmModal: ConfirmModalDefaults;
+  confirmToast: ConfirmToastSettings;
   localization: LocalizationSettings;
 }
 
@@ -117,6 +127,11 @@ export const DEFAULT_SETTINGS: Settings = {
   confirmModal: {
     expandMetadata: false,
     showReasonTags: true,
+  },
+  confirmToast: {
+    autoApplyDelaySeconds: 10,
+    showReasonTags: true,
+    showRenameNotifications: true,
   },
   localization: {
     uiLocale: 'browser',

@@ -4,6 +4,7 @@
 import type {
   CloudSettings,
   ConfirmModalDefaults,
+  ConfirmToastSettings,
   DebugLevel,
   DebugSettings,
   FileType,
@@ -145,6 +146,35 @@ export function sanitizeConfirmModal(
   };
 }
 
+export function sanitizeConfirmToast(
+  input: Partial<ConfirmToastSettings> | undefined,
+): Settings['confirmToast'] {
+  const defaults = DEFAULT_SETTINGS.confirmToast;
+  const rawDelay =
+    typeof input?.autoApplyDelaySeconds === 'number'
+      ? input.autoApplyDelaySeconds
+      : Number(input?.autoApplyDelaySeconds);
+  const normalizedDelay = Number.isFinite(rawDelay)
+    ? Math.round(rawDelay as number)
+    : defaults.autoApplyDelaySeconds;
+  const clampedDelay =
+    normalizedDelay >= 5 && normalizedDelay <= 30
+      ? normalizedDelay
+      : defaults.autoApplyDelaySeconds;
+
+  return {
+    autoApplyDelaySeconds: clampedDelay,
+    showReasonTags:
+      typeof input?.showReasonTags === 'boolean'
+        ? input.showReasonTags
+        : defaults.showReasonTags,
+    showRenameNotifications:
+      typeof input?.showRenameNotifications === 'boolean'
+        ? input.showRenameNotifications
+        : defaults.showRenameNotifications,
+  };
+}
+
 export function sanitizeLocalization(
   input: Partial<LocalizationSettings> | undefined,
 ): Settings['localization'] {
@@ -202,6 +232,7 @@ export function sanitizeSettings(data: unknown): Settings {
     debug: sanitizeDebugSettings(raw.debug),
     notifyOnKeep,
     confirmModal: sanitizeConfirmModal(raw.confirmModal),
+    confirmToast: sanitizeConfirmToast(raw.confirmToast),
     localization: sanitizeLocalization(raw.localization),
   };
 }

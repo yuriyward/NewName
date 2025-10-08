@@ -1,9 +1,16 @@
 /**
  * Content script for page context extraction and messaging
  */
-import { sendExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
+import {
+  onExtensionMessage,
+  sendExtensionMessage,
+} from '@/entrypoints/shared/messaging/extension-messaging';
 import type { PageContextPublishRequest } from '@/entrypoints/shared/state/page-context-service';
 import { getPageContextService } from '@/entrypoints/shared/state/page-context-service';
+import {
+  type ConfirmToastManager,
+  getConfirmToastManager,
+} from '@/entrypoints/shared/ui/confirm-toast-manager';
 
 const MAX_IMMEDIATE_SEND_ATTEMPTS = 3;
 const MAX_TOTAL_SEND_ATTEMPTS = 6;
@@ -42,6 +49,31 @@ interface RuntimeContext {
 
 let resolvedRuntimeContext: RuntimeContext | null = null;
 let runtimeContextPromise: Promise<RuntimeContext> | null = null;
+
+let toastManager: ConfirmToastManager | null = null;
+
+function ensureToastManager(): ConfirmToastManager {
+  if (!toastManager) {
+    toastManager = getConfirmToastManager();
+  }
+  return toastManager;
+}
+
+onExtensionMessage('showConfirmToast', async ({ data }) => {
+  ensureToastManager().showToast(data.proposal);
+  return { ok: true };
+});
+
+onExtensionMessage('confirmToastStatus', async ({ data }) => {
+  ensureToastManager().updateStatus(data);
+  return { ok: true };
+});
+
+onExtensionMessage('showRenameToast', async ({ data }) => {
+  console.info('[NewName] Content showing rename toast', data.toast);
+  ensureToastManager().showRenameResult(data.toast);
+  return { ok: true };
+});
 
 async function ensureRuntimeContext(): Promise<RuntimeContext> {
   if (resolvedRuntimeContext) return resolvedRuntimeContext;
