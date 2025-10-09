@@ -16,8 +16,7 @@
       "!playwright-report",
       "!test-results",
       "!tmp",
-      "!assets/tailwind.css",
-      "!assets/shadow-dom.css"
+      "!assets/tailwind.css"
     ]
   },
   "formatter": {

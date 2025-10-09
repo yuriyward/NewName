@@ -1,7 +1,7 @@
 /**
  * Toast container and Shadow DOM creation utilities.
  */
-import shadowDomStyles from '@/assets/shadow-dom.css?inline';
+import shadowDomStyles from '@/assets/tailwind.css?inline';
 
 export const TOAST_ROOT_ID = 'newname-confirm-toast-root';
 
