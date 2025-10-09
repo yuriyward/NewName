@@ -1,7 +1,7 @@
 /**
  * Keyboard event handler for toast interactions.
  */
-import type { ConfirmToastRenderState } from '@/entrypoints/shared/ui/confirm-toast-types';
+import type { ConfirmToastRenderState } from '@/entrypoints/shared/toast/types';
 
 type ToastMap = Map<string, ConfirmToastRenderState>;
 

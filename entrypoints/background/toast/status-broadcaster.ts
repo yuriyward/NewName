@@ -5,7 +5,7 @@ import { sendConfirmToastStatus } from '@/entrypoints/shared/messaging/extension
 import type {
   ConfirmToastProposal,
   ConfirmToastStatusState,
-} from '@/entrypoints/shared/ui/confirm-toast-types';
+} from '@/entrypoints/shared/toast/types';
 
 export interface StatusBroadcastEntry {
   proposal: ConfirmToastProposal;

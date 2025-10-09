@@ -3,8 +3,8 @@
  */
 import { HeroUIProvider } from '@heroui/react';
 import React from 'react';
+import type { ConfirmToastRenderState } from '@/entrypoints/shared/toast/types';
 import { ConfirmToast } from '@/entrypoints/shared/ui/ConfirmToast';
-import type { ConfirmToastRenderState } from '@/entrypoints/shared/ui/confirm-toast-types';
 import type { RenameToastState } from './rename-toast';
 import { RenameToast } from './rename-toast';
 

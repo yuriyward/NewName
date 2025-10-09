@@ -2,7 +2,7 @@
  * RenameToast component displays confirmation feedback for applied renames.
  */
 import type React from 'react';
-import type { RenameToastPayload } from '@/entrypoints/shared/ui/confirm-toast-types';
+import type { RenameToastPayload } from '@/entrypoints/shared/toast/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
 
 export interface RenameToastState extends RenameToastPayload {

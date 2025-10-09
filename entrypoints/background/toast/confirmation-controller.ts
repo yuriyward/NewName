@@ -14,10 +14,10 @@ import type {
   ConfirmToastProposal,
   ConfirmToastStatusState,
   ShowConfirmToastMessage,
-} from '@/entrypoints/shared/ui/confirm-toast-types';
+} from '@/entrypoints/shared/toast/types';
 import { randomId } from '@/entrypoints/shared/utils/id';
-import { emitStatus } from './confirm-toast/status-broadcaster';
-import { extractTabId, resolveTarget } from './confirm-toast/target-resolver';
+import { emitStatus } from './status-broadcaster';
+import { extractTabId, resolveTarget } from './target-resolver';
 
 export interface PendingConfirmationEntry {
   proposal: ConfirmToastProposal;
