@@ -2,15 +2,11 @@
  * Confirm toast controller manages pending confirmation requests and routing.
  */
 import type { SendMessageOptions } from '@webext-core/messaging';
-import { browser } from 'wxt/browser';
 import type {
   SensitiveDetectionMatch,
   SensitiveReason,
 } from '@/entrypoints/shared/classification/sensitive-content';
-import {
-  sendConfirmToastStatus,
-  sendShowConfirmToast,
-} from '@/entrypoints/shared/messaging/extension-messaging';
+import { sendShowConfirmToast } from '@/entrypoints/shared/messaging/extension-messaging';
 import type { ConfirmToastTriggerSource } from '@/entrypoints/shared/settings/confirm-toast-routing';
 import type { FileType, Mode } from '@/entrypoints/shared/settings/types';
 import type {
@@ -18,8 +14,10 @@ import type {
   ConfirmToastProposal,
   ConfirmToastStatusState,
   ShowConfirmToastMessage,
-} from '@/entrypoints/shared/ui/confirm-toast-types';
+} from '@/entrypoints/shared/toast/types';
 import { randomId } from '@/entrypoints/shared/utils/id';
+import { emitStatus } from './status-broadcaster';
+import { extractTabId, resolveTarget } from './target-resolver';
 
 export interface PendingConfirmationEntry {
   proposal: ConfirmToastProposal;
@@ -83,44 +81,11 @@ interface PendingMapEntry extends PendingConfirmationEntry {
   historyId: string;
 }
 
-/**
- * Extract tab ID from a target (either number or SendMessageOptions)
- */
-function extractTabId(
-  target: number | SendMessageOptions | undefined,
-): number | undefined {
-  if (typeof target === 'number') {
-    return target;
-  }
-  if (target && typeof target === 'object' && 'tabId' in target) {
-    return target.tabId;
-  }
-  return undefined;
-}
-
 export function createConfirmToastController(
   hooks: ConfirmToastControllerHooks,
 ): ConfirmToastController {
   const pending = new Map<string, PendingMapEntry>();
   const byHistory = new Map<string, string>();
-
-  async function resolveTarget(): Promise<
-    number | SendMessageOptions | undefined
-  > {
-    try {
-      const [activeTab] = await browser.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      if (activeTab?.id !== undefined) {
-        return activeTab.id;
-      }
-    } catch (error) {
-      console.warn('[ConfirmToast] Unable to resolve active tab target', error);
-    }
-
-    return undefined;
-  }
 
   function makeHelpers(entry: PendingMapEntry): ConfirmToastControllerHelpers {
     return {
@@ -163,37 +128,6 @@ export function createConfirmToastController(
       );
       throw error instanceof Error ? error : new Error(String(error));
     }
-  }
-
-  async function emitStatus(
-    entry: PendingConfirmationEntry,
-    state: ConfirmToastStatusState,
-    message?: string,
-  ): Promise<void> {
-    // Send status update to all tabs that have received this toast
-    const tabIds = entry.visibleOnTabs || new Set();
-    if (tabIds.size === 0) return;
-
-    const statusMessage = {
-      toastId: entry.proposal.toastId,
-      state,
-      message,
-    };
-
-    // Broadcast to all tracked tabs
-    const promises = Array.from(tabIds).map(async (tabId) => {
-      try {
-        await sendConfirmToastStatus(statusMessage, tabId);
-      } catch (error) {
-        console.warn(
-          '[ConfirmToast] Failed to send status to tab',
-          tabId,
-          error,
-        );
-      }
-    });
-
-    await Promise.all(promises);
   }
 
   async function handleAutoApply(toastId: string): Promise<void> {

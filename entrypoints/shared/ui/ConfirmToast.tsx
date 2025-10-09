@@ -1,4 +1,3 @@
-import { CheckIcon, PencilIcon } from '@heroicons/react/24/solid';
 import React, {
   type ChangeEvent,
   type KeyboardEvent,
@@ -7,8 +6,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import type { ConfirmToastRenderState } from '@/entrypoints/shared/ui/confirm-toast-types';
+import type { ConfirmToastRenderState } from '@/entrypoints/shared/toast/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
+import { CheckIcon, PencilIcon } from '@/entrypoints/shared/ui/icons';
 
 interface ConfirmToastProps {
   toast: ConfirmToastRenderState;

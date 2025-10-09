@@ -14,7 +14,7 @@ import type {
   ConfirmToastStatusMessage,
   ShowConfirmToastMessage,
   ShowRenameToastMessage,
-} from '@/entrypoints/shared/ui/confirm-toast-types';
+} from '@/entrypoints/shared/toast/types';
 
 export interface ExtensionMessagingProtocol {
   /**
