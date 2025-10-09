@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { TOAST_TIMING } from '@/entrypoints/shared/toast/timing-constants';
 import type { ConfirmToastRenderState } from '@/entrypoints/shared/toast/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
 import { CheckIcon, PencilIcon } from '@/entrypoints/shared/ui/icons';
@@ -17,8 +18,6 @@ interface ConfirmToastProps {
   onKeep: () => void;
   onAlwaysApply: (editedName?: string) => void;
 }
-
-const COUNTDOWN_INTERVAL_MS = 250;
 
 function formatCountdown(seconds: number | null): string {
   if (seconds === null) return '';
@@ -58,7 +57,7 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
       setCountdownSeconds(computeCountdownSeconds(toast.autoApplyAt));
     };
     tick();
-    const interval = setInterval(tick, COUNTDOWN_INTERVAL_MS);
+    const interval = setInterval(tick, TOAST_TIMING.COUNTDOWN_TICK_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [toast.autoApplyAt, toast.status]);
 

@@ -1,6 +1,7 @@
 /**
  * Toast lifecycle management utilities for timer and removal handling.
  */
+import { TOAST_TIMING } from '@/entrypoints/shared/toast/timing-constants';
 import type { RenameToastState } from './rename-toast';
 
 export type RenameRemovalCallback = () => void;
@@ -53,7 +54,10 @@ export function createToastLifecycleManager() {
       for (const toast of renameToasts.values()) {
         if (toast.paused || toast.dismissAt === null) continue;
         const nextRemaining = Math.max(0, toast.dismissAt - now);
-        if (Math.abs(nextRemaining - toast.remainingMs) > 120) {
+        if (
+          Math.abs(nextRemaining - toast.remainingMs) >
+          TOAST_TIMING.PROGRESS_UPDATE_THRESHOLD_MS
+        ) {
           toast.remainingMs = nextRemaining;
           updated = true;
         }
@@ -61,7 +65,7 @@ export function createToastLifecycleManager() {
       if (updated) {
         onUpdate();
       }
-    }, 150);
+    }, TOAST_TIMING.RENAME_TICK_INTERVAL_MS);
   }
 
   function stopRenameTicker(): void {

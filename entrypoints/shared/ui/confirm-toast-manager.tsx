@@ -2,6 +2,7 @@
  * Toast manager rendered inside the content script via Shadow DOM.
  */
 import ReactDOM from 'react-dom/client';
+import { TOAST_TIMING } from '@/entrypoints/shared/toast/timing-constants';
 import type {
   ConfirmToastProposal,
   ConfirmToastStatusMessage,
@@ -14,11 +15,6 @@ import { createToastLifecycleManager } from './toast/toast-lifecycle';
 import { ToastOverlay } from './toast/toast-overlay';
 import { createToastStateManager } from './toast/toast-state-manager';
 import { createThemeManager } from './toast/toast-theme-manager';
-
-// Confirm toasts should disappear as soon as we receive a final status.
-const CONFIRM_RESOLVE_REMOVAL_MS = 0;
-// Rename overlay should remain briefly so Balanced/Silent flows get feedback.
-const RENAME_TOAST_DURATION_MS = 3000;
 
 export class ConfirmToastManager {
   private state = createToastStateManager();
@@ -58,7 +54,7 @@ export class ConfirmToastManager {
     if (message.state !== 'error') {
       this.lifecycle.scheduleRemoval(
         message.toastId,
-        CONFIRM_RESOLVE_REMOVAL_MS,
+        TOAST_TIMING.CONFIRM_REMOVAL_DELAY_MS,
         () => {
           this.state.removeConfirmToast(message.toastId);
           this.render();
@@ -71,10 +67,10 @@ export class ConfirmToastManager {
 
   showRenameResult(toast: RenameToastPayload): void {
     this.lifecycle.clearRemovalTimer(toast.toastId);
-    this.state.addRenameToast(toast, RENAME_TOAST_DURATION_MS);
+    this.state.addRenameToast(toast, TOAST_TIMING.RENAME_DISPLAY_DURATION_MS);
     this.lifecycle.scheduleRemoval(
       toast.toastId,
-      RENAME_TOAST_DURATION_MS,
+      TOAST_TIMING.RENAME_DISPLAY_DURATION_MS,
       () => {
         this.state.removeRenameToast(toast.toastId);
         this.render();
