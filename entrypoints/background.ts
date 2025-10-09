@@ -11,13 +11,13 @@ import {
 } from '@/entrypoints/shared/messaging/extension-messaging';
 import { updateSettings } from '@/entrypoints/shared/settings/settings';
 import { registerPageContextService } from '@/entrypoints/shared/state/page-context-service';
+import { createConfirmToastController } from './background/confirm-toast-controller';
 import { createDeterminingListener } from './background/download-coordinator';
 import {
   type DownloadTrackingEntry,
   pruneDownloadTrackingMap,
 } from './background/download-tracking';
 import { ensureSettingsCache } from './background/settings-cache';
-import { createConfirmToastController } from './background/toast/confirmation-controller';
 
 const readSettings = ensureSettingsCache();
 

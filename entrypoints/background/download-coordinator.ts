@@ -26,6 +26,7 @@ import {
   fallbackNameFromUrl,
 } from '@/entrypoints/shared/utils/filename';
 import { randomId } from '@/entrypoints/shared/utils/id';
+import type { ConfirmToastController } from './confirm-toast-controller';
 import {
   type DownloadTrackingEntry,
   recordDownloadTracking,
@@ -36,7 +37,6 @@ import {
 } from './media-orchestrator';
 import { maybeShowRenameOverlay } from './rename-overlay';
 import { createSuggestController } from './suggest-controller';
-import type { ConfirmToastController } from './toast/confirmation-controller';
 
 export type DeterminingListener = Parameters<
   typeof browser.downloads.onDeterminingFilename.addListener

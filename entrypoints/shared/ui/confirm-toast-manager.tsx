@@ -14,7 +14,7 @@ import type {
   ConfirmToastRenderState,
   ConfirmToastStatusMessage,
   RenameToastPayload,
-} from '@/entrypoints/shared/toast/types';
+} from '@/entrypoints/shared/ui/confirm-toast-types';
 import { createKeyboardHandler } from './toast/keyboard-handler';
 import type { RenameToastState } from './toast/rename-toast';
 import { createContainer, TOAST_ROOT_ID } from './toast/toast-container';
