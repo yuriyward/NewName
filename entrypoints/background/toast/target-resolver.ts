@@ -3,6 +3,7 @@
  */
 import type { SendMessageOptions } from '@webext-core/messaging';
 import { browser } from 'wxt/browser';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 
 /**
  * Extract tab ID from a target (either number or SendMessageOptions)
@@ -35,7 +36,10 @@ export async function resolveTarget(): Promise<
       return activeTab.id;
     }
   } catch (error) {
-    console.warn('[ConfirmToast] Unable to resolve active tab target', error);
+    debugLogger.warn(
+      '[ConfirmToast] Unable to resolve active tab target',
+      error,
+    );
   }
 
   return undefined;

@@ -25,6 +25,7 @@ export class ConfirmToastManager {
   private keyboard = createKeyboardHandler(this.state.confirmToasts, (toast) =>
     this.actions.sendAction(toast, 'keep-original'),
   );
+  private themeManager: ReturnType<typeof createThemeManager>;
   private root: ReactDOM.Root;
   private host: HTMLDivElement;
 
@@ -38,7 +39,9 @@ export class ConfirmToastManager {
     this.root = ReactDOM.createRoot(mount);
 
     // Initialize theme management
-    createThemeManager({ host, mount }, () => this.render());
+    this.themeManager = createThemeManager({ host, mount }, () =>
+      this.render(),
+    );
   }
 
   showToast(proposal: ConfirmToastProposal): void {
@@ -91,6 +94,7 @@ export class ConfirmToastManager {
     this.host.remove();
     this.keyboard.removeKeyListener();
     this.lifecycle.destroy();
+    this.themeManager.destroy();
   }
 
   private render(): void {

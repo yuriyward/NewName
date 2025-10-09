@@ -6,6 +6,7 @@ import type {
   SensitiveDetectionMatch,
   SensitiveReason,
 } from '@/entrypoints/shared/classification/sensitive-content';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { sendShowConfirmToast } from '@/entrypoints/shared/messaging/extension-messaging';
 import type { ConfirmToastTriggerSource } from '@/entrypoints/shared/settings/confirm-toast-routing';
 import type { FileType, Mode } from '@/entrypoints/shared/settings/types';
@@ -203,7 +204,7 @@ export function createConfirmToastController(
     ): Promise<boolean> {
       const entry = removeEntry(decision.toastId);
       if (!entry) {
-        console.warn(
+        debugLogger.warn(
           '[ConfirmToast] Decision received for unknown toast',
           decision.toastId,
         );

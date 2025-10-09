@@ -3,6 +3,7 @@
  */
 import { browser } from 'wxt/browser';
 import { initializeBackgroundDebug } from '@/entrypoints/shared/debug/console-helpers';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
 import {
@@ -29,7 +30,7 @@ const downloadTracking = new Map<number, DownloadTrackingEntry>();
 function initializeBackground(): void {
   const confirmToastController = createConfirmToastController({
     async onUserDecision(entry, decision, helpers) {
-      console.info(
+      debugLogger.log(
         '[ConfirmToast] Received user decision',
         decision.action,
         entry.proposal.historyId,
@@ -44,7 +45,7 @@ function initializeBackground(): void {
       await helpers.emitStatus(state);
     },
     async onAutoApply(entry, helpers) {
-      console.info(
+      debugLogger.log(
         '[ConfirmToast] Auto-apply timeout reached',
         entry.proposal.historyId,
       );
@@ -148,7 +149,7 @@ function initializeBackground(): void {
           }
         })
         .catch((error) => {
-          console.warn(
+          debugLogger.warn(
             '[ConfirmToast] Failed to broadcast toast to tab',
             activeInfo.tabId,
             error,
@@ -169,7 +170,10 @@ function initializeBackground(): void {
         .search({ id: delta.id })
         .then(([item]) => {
           if (!item) {
-            console.warn('[NewName] download info missing for id', delta.id);
+            debugLogger.warn(
+              '[NewName] download info missing for id',
+              delta.id,
+            );
             return;
           }
 
@@ -219,7 +223,10 @@ function initializeBackground(): void {
   onExtensionMessage('confirmToastDecision', async ({ data }) => {
     const handled = await confirmToastController.handleUserDecision(data);
     if (!handled) {
-      console.warn('[ConfirmToast] Unmatched decision for toast', data.toastId);
+      debugLogger.warn(
+        '[ConfirmToast] Unmatched decision for toast',
+        data.toastId,
+      );
     }
     return { ok: true };
   });

@@ -1,6 +1,8 @@
 /**
  * Content script for page context extraction and messaging
  */
+
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
   onExtensionMessage,
   requestPendingConfirmToasts,
@@ -71,7 +73,7 @@ onExtensionMessage('confirmToastStatus', async ({ data }) => {
 });
 
 onExtensionMessage('showRenameToast', async ({ data }) => {
-  console.info('[NewName] Content showing rename toast', data.toast);
+  debugLogger.log('[NewName] Content showing rename toast', data.toast);
   ensureToastManager().showRenameResult(data.toast);
   return { ok: true };
 });
@@ -87,7 +89,7 @@ async function syncPendingToasts(): Promise<void> {
       manager.showToast(proposal);
     }
   } catch (error) {
-    console.warn('[ConfirmToast] Failed to sync pending toasts', error);
+    debugLogger.warn('[ConfirmToast] Failed to sync pending toasts', error);
   }
 }
 
@@ -200,7 +202,7 @@ function sendUpdateWithRetry(update: ContextUpdate, attempts = 0): void {
   const nextAttempt = attempts + 1;
   void performContextUpdate(update).catch((error) => {
     if (nextAttempt >= MAX_TOTAL_SEND_ATTEMPTS) {
-      console.warn('Dropping page context update after repeated failures', {
+      debugLogger.warn('Dropping page context update after repeated failures', {
         update,
         error,
       });

@@ -17,8 +17,12 @@ export interface ThemeTarget {
 export function createThemeManager(
   target: ThemeTarget,
   onThemeChange?: () => void,
-) {
+): {
+  getCurrentTheme: () => 'light' | 'dark';
+  destroy: () => void;
+} {
   let currentTheme: 'light' | 'dark' = 'dark';
+  let disposed = false;
 
   function applyTheme(theme: 'light' | 'dark'): void {
     // Apply to host for :host(.dark) selectors
@@ -30,16 +34,20 @@ export function createThemeManager(
   // Initialize theme from settings
   getSettings()
     .then((settings) => {
+      if (disposed) return;
       currentTheme = settings.theme;
       applyTheme(settings.theme);
       onThemeChange?.();
     })
     .catch(() => {
-      onThemeChange?.();
+      if (!disposed) {
+        onThemeChange?.();
+      }
     });
 
   // Subscribe to theme changes
-  subscribeSettings((settings) => {
+  const unsubscribe = subscribeSettings((settings) => {
+    if (disposed) return;
     if (settings.theme !== currentTheme) {
       currentTheme = settings.theme;
       applyTheme(settings.theme);
@@ -48,5 +56,10 @@ export function createThemeManager(
 
   return {
     getCurrentTheme: () => currentTheme,
+    destroy: () => {
+      if (disposed) return;
+      disposed = true;
+      unsubscribe();
+    },
   };
 }

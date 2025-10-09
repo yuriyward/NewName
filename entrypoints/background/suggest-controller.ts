@@ -1,6 +1,8 @@
 /**
  * Helper for coordinating the Chrome downloads suggest callback with timeouts.
  */
+
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { SUGGEST_TIMEOUT_MS } from '@/entrypoints/shared/integrations/mediainfo/constants';
 
 export interface SuggestController<SuggestPayload> {
@@ -20,7 +22,7 @@ export function createSuggestController<SuggestPayload>(
     try {
       suggest();
     } catch (error) {
-      console.warn('Suggest callback failed after timeout', error);
+      debugLogger.warn('Suggest callback failed after timeout', error);
     }
   }, timeoutMs);
 
@@ -54,7 +56,7 @@ export function createSuggestController<SuggestPayload>(
       try {
         suggest();
       } catch (error) {
-        console.warn('Suggest callback failed during fallback', error);
+        debugLogger.warn('Suggest callback failed during fallback', error);
       } finally {
         resolved = true;
         clearTimer();

@@ -3,6 +3,7 @@
  */
 import type { SendMessageOptions } from '@webext-core/messaging';
 import { browser } from 'wxt/browser';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { sendShowRenameToast } from '@/entrypoints/shared/messaging/extension-messaging';
 import {
   DEFAULT_SETTINGS,
@@ -38,7 +39,7 @@ async function resolveTarget(
       return activeTab.id;
     }
   } catch (error) {
-    console.warn(
+    debugLogger.warn(
       '[NewName] Unable to resolve active tab for rename overlay',
       error,
     );
@@ -68,14 +69,16 @@ export async function maybeShowRenameOverlay(
   const target = await resolveTarget(tabId, frameId);
   if (target === undefined) {
     // Without a tab we cannot render the overlay; silently skip for now.
-    console.warn('[NewName] Skipping rename overlay, no tab target available');
+    debugLogger.warn(
+      '[NewName] Skipping rename overlay, no tab target available',
+    );
     return;
   }
 
   const createdAt = Date.now();
 
   try {
-    console.info('[NewName] dispatching rename overlay', {
+    debugLogger.log('[NewName] dispatching rename overlay', {
       target,
       originalFilename,
       finalFilename,
@@ -93,6 +96,6 @@ export async function maybeShowRenameOverlay(
       target,
     );
   } catch (error) {
-    console.warn('[NewName] Failed to show rename overlay', error);
+    debugLogger.warn('[NewName] Failed to show rename overlay', error);
   }
 }

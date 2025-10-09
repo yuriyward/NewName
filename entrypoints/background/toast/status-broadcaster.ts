@@ -1,6 +1,8 @@
 /**
  * Status broadcasting utilities for confirm toast updates.
  */
+
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { sendConfirmToastStatus } from '@/entrypoints/shared/messaging/extension-messaging';
 import type {
   ConfirmToastProposal,
@@ -36,7 +38,11 @@ export async function emitStatus(
     try {
       await sendConfirmToastStatus(statusMessage, tabId);
     } catch (error) {
-      console.warn('[ConfirmToast] Failed to send status to tab', tabId, error);
+      debugLogger.warn(
+        '[ConfirmToast] Failed to send status to tab',
+        tabId,
+        error,
+      );
     }
   });
 

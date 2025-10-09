@@ -121,7 +121,7 @@ content.ts # Content script for page context extraction and messaging
 - `export ConfirmToastController` - item implementation
 - `export ConfirmToastControllerHelpers` - item implementation
 - `export ConfirmToastControllerHooks` - item implementation
-- `export PendingConfirmationEntry` - item implementation
+- `export ConfirmToastEntry` - item implementation
 - `export QueueConfirmToastOptions` - item implementation
 - `export createConfirmToastController` - item implementation
 
@@ -181,7 +181,7 @@ content.ts # Content script for page context extraction and messaging
 - `export ConfirmToastController` - item implementation
 - `export ConfirmToastControllerHelpers` - item implementation
 - `export ConfirmToastControllerHooks` - item implementation
-- `export PendingConfirmationEntry` - item implementation
+- `export ConfirmToastEntry` - item implementation
 - `export QueueConfirmToastOptions` - item implementation
 - `export createConfirmToastController` - item implementation
 
@@ -189,7 +189,7 @@ content.ts # Content script for page context extraction and messaging
 **Purpose**: Status broadcasting utilities for confirm toast updates.
 
 **Exports**:
-- `export StatusBroadcastEntry` - Status broadcasting utilities for confirm toast updates.
+- `export StatusBroadcastEntry` - item implementation
 - `export emitStatus` - Emit status update to all tabs that have received this toast
 
 ### background/toast/target-resolver.ts
@@ -674,9 +674,9 @@ content.ts # Content script for page context extraction and messaging
 **Exports**:
 - `export ConfirmToastDecisionMessage` - item implementation
 - `export ConfirmToastProposal` - item implementation
-- `export ConfirmToastRenderState` - item implementation
+- `export ConfirmToastState` - item implementation
 - `export ConfirmToastStatusMessage` - item implementation
-- `export RenameToastPayload` - item implementation
+- `export RenameToastProposal` - item implementation
 - `export ShowConfirmToastMessage` - item implementation
 - `export ShowRenameToastMessage` - item implementation
 - `export ConfirmToastAction` - item implementation
@@ -752,7 +752,7 @@ Handles automatic th...
 
 **Exports**:
 - `export RenameRemovalCallback` - Toast lifecycle management utilities for timer and remova...
-- `export RenameToastMap` - Toast lifecycle management utilities for timer and remova...
+- `export RenameToastStateMap` - Toast lifecycle management utilities for timer and remova...
 - `export createToastLifecycleManager` - Creates a lifecycle manager for handling toast removal ti...
 
 ### shared/ui/toast/toast-overlay.tsx
@@ -766,8 +766,8 @@ Handles automatic th...
 **Purpose**: State management for confirm and rename toasts.
 
 **Exports**:
-- `export RenameToastMap` - item implementation
-- `export ToastMap` - item implementation
+- `export ConfirmToastStateMap` - item implementation
+- `export RenameToastStateMap` - item implementation
 - `export createToastStateManager` - Creates a state manager for toast collections
 - `export sortToastsDescending` - item implementation
 

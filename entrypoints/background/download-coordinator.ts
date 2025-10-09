@@ -189,7 +189,7 @@ export async function processDeterminingFilename(
             return;
           }
           suggestionIssued = true;
-          console.info(
+          debugLogger.log(
             '[NewName] queueConfirmation failed, showing rename overlay',
           );
           await maybeShowRenameOverlay({
@@ -208,7 +208,7 @@ export async function processDeterminingFilename(
           return;
         }
         suggestionIssued = true;
-        console.info('[NewName] Auto rename overlay dispatch', {
+        debugLogger.log('[NewName] Auto rename overlay dispatch', {
           tabId: initiatingTabId,
           original: basename(filename),
           final: renameCandidate.filename,

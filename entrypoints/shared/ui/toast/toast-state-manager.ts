@@ -1,6 +1,8 @@
 /**
  * State management for confirm and rename toasts.
  */
+
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type {
   ConfirmToastProposal,
   ConfirmToastState,
@@ -39,7 +41,7 @@ export function createToastStateManager() {
   ): ConfirmToastState | null {
     const toast = confirmToasts.get(message.toastId);
     if (!toast) {
-      console.warn(
+      debugLogger.warn(
         '[ConfirmToast] Received status for unknown toast',
         message.toastId,
       );
