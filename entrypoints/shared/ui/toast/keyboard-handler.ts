@@ -1,20 +1,20 @@
 /**
  * Keyboard event handler for toast interactions.
  */
-import type { ConfirmToastRenderState } from '@/entrypoints/shared/toast/types';
+import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';
 
-type ToastMap = Map<string, ConfirmToastRenderState>;
+type ConfirmToastStateMap = Map<string, ConfirmToastState>;
 
 /**
  * Creates a keyboard handler for toast interactions (Escape to dismiss).
  */
 export function createKeyboardHandler(
-  toasts: ToastMap,
-  onKeep: (toast: ConfirmToastRenderState) => void,
+  toasts: ConfirmToastStateMap,
+  onKeep: (toast: ConfirmToastState) => void,
 ) {
   let keyListenerAttached = false;
 
-  function getLatestToast(): ConfirmToastRenderState | undefined {
+  function getLatestToast(): ConfirmToastState | undefined {
     if (toasts.size === 0) return undefined;
     const ordered = Array.from(toasts.values()).sort(
       (a, b) => b.createdAt - a.createdAt,

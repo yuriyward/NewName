@@ -3,18 +3,18 @@
  */
 import type {
   ConfirmToastProposal,
-  ConfirmToastRenderState,
+  ConfirmToastState,
   ConfirmToastStatusMessage,
-  RenameToastPayload,
+  RenameToastProposal,
 } from '@/entrypoints/shared/toast/types';
 import type { RenameToastState } from './rename-toast';
 
-export type ToastMap = Map<string, ConfirmToastRenderState>;
-export type RenameToastMap = Map<string, RenameToastState>;
+export type ConfirmToastStateMap = Map<string, ConfirmToastState>;
+export type RenameToastStateMap = Map<string, RenameToastState>;
 
 export function sortToastsDescending(
-  toasts: ToastMap,
-): ConfirmToastRenderState[] {
+  toasts: ConfirmToastStateMap,
+): ConfirmToastState[] {
   return Array.from(toasts.values()).sort((a, b) => b.createdAt - a.createdAt);
 }
 
@@ -22,11 +22,11 @@ export function sortToastsDescending(
  * Creates a state manager for toast collections.
  */
 export function createToastStateManager() {
-  const toasts: ToastMap = new Map();
-  const renameToasts: RenameToastMap = new Map();
+  const confirmToasts: ConfirmToastStateMap = new Map();
+  const renameToasts: RenameToastStateMap = new Map();
 
   function addConfirmToast(proposal: ConfirmToastProposal): void {
-    toasts.set(proposal.toastId, {
+    confirmToasts.set(proposal.toastId, {
       ...proposal,
       status: 'pending',
       statusMessage: undefined,
@@ -36,8 +36,8 @@ export function createToastStateManager() {
 
   function updateConfirmToastStatus(
     message: ConfirmToastStatusMessage,
-  ): ConfirmToastRenderState | null {
-    const toast = toasts.get(message.toastId);
+  ): ConfirmToastState | null {
+    const toast = confirmToasts.get(message.toastId);
     if (!toast) {
       console.warn(
         '[ConfirmToast] Received status for unknown toast',
@@ -52,11 +52,11 @@ export function createToastStateManager() {
   }
 
   function removeConfirmToast(toastId: string): boolean {
-    return toasts.delete(toastId);
+    return confirmToasts.delete(toastId);
   }
 
   function addRenameToast(
-    toast: RenameToastPayload,
+    toast: RenameToastProposal,
     duration: number,
   ): RenameToastState {
     const now = Date.now();
@@ -75,8 +75,8 @@ export function createToastStateManager() {
     return renameToasts.delete(toastId);
   }
 
-  function getConfirmToasts(): ConfirmToastRenderState[] {
-    return sortToastsDescending(toasts);
+  function getConfirmToasts(): ConfirmToastState[] {
+    return sortToastsDescending(confirmToasts);
   }
 
   function getRenameToasts(): RenameToastState[] {
@@ -94,7 +94,7 @@ export function createToastStateManager() {
   }
 
   return {
-    toasts,
+    confirmToasts,
     renameToasts,
     addConfirmToast,
     updateConfirmToastStatus,

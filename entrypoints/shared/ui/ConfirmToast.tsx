@@ -7,12 +7,12 @@ import React, {
   useState,
 } from 'react';
 import { TOAST_TIMING } from '@/entrypoints/shared/toast/timing-constants';
-import type { ConfirmToastRenderState } from '@/entrypoints/shared/toast/types';
+import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
 import { CheckIcon, PencilIcon } from '@/entrypoints/shared/ui/icons';
 
 interface ConfirmToastProps {
-  toast: ConfirmToastRenderState;
+  toast: ConfirmToastState;
   autoFocus?: boolean;
   onApprove: (editedName?: string) => void;
   onKeep: () => void;

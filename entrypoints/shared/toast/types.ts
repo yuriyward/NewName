@@ -57,13 +57,13 @@ export interface ConfirmToastStatusMessage {
 
 export type ConfirmToastLifecycleState = 'pending' | ConfirmToastStatusState;
 
-export interface ConfirmToastRenderState extends ConfirmToastProposal {
+export interface ConfirmToastState extends ConfirmToastProposal {
   status: ConfirmToastLifecycleState;
   statusMessage?: string;
   resolving: boolean;
 }
 
-export interface RenameToastPayload {
+export interface RenameToastProposal {
   toastId: string;
   createdAt: number;
   originalFilename: string;
@@ -72,5 +72,5 @@ export interface RenameToastPayload {
 }
 
 export interface ShowRenameToastMessage {
-  toast: RenameToastPayload;
+  toast: RenameToastProposal;
 }

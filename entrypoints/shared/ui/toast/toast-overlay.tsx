@@ -3,17 +3,17 @@
  */
 import { HeroUIProvider } from '@heroui/react';
 import React from 'react';
-import type { ConfirmToastRenderState } from '@/entrypoints/shared/toast/types';
+import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';
 import { ConfirmToast } from '@/entrypoints/shared/ui/ConfirmToast';
 import type { RenameToastState } from './rename-toast';
 import { RenameToast } from './rename-toast';
 
 export interface ToastOverlayProps {
-  confirmToasts: ConfirmToastRenderState[];
+  confirmToasts: ConfirmToastState[];
   renameToasts: RenameToastState[];
-  onApprove: (toast: ConfirmToastRenderState, edited?: string) => void;
-  onKeep: (toast: ConfirmToastRenderState) => void;
-  onAlwaysApply: (toast: ConfirmToastRenderState, edited?: string) => void;
+  onApprove: (toast: ConfirmToastState, edited?: string) => void;
+  onKeep: (toast: ConfirmToastState) => void;
+  onAlwaysApply: (toast: ConfirmToastState, edited?: string) => void;
   onRenameHoverStart: (toastId: string) => void;
   onRenameHoverEnd: (toastId: string) => void;
   onRenameUndo: (toastId: string) => void;

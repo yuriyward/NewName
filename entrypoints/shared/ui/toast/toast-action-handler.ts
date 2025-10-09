@@ -5,7 +5,7 @@ import { sendConfirmToastDecision } from '@/entrypoints/shared/messaging/extensi
 import type {
   ConfirmToastAction,
   ConfirmToastDecisionMessage,
-  ConfirmToastRenderState,
+  ConfirmToastState,
 } from '@/entrypoints/shared/toast/types';
 
 export interface ActionHandlerCallbacks {
@@ -17,7 +17,7 @@ export interface ActionHandlerCallbacks {
  */
 export function createToastActionHandler(callbacks: ActionHandlerCallbacks) {
   async function sendAction(
-    toast: ConfirmToastRenderState,
+    toast: ConfirmToastState,
     action: ConfirmToastAction,
     edited?: string,
   ): Promise<void> {

@@ -6,7 +6,7 @@ import { TOAST_TIMING } from '@/entrypoints/shared/toast/timing-constants';
 import type {
   ConfirmToastProposal,
   ConfirmToastStatusMessage,
-  RenameToastPayload,
+  RenameToastProposal,
 } from '@/entrypoints/shared/toast/types';
 import { createKeyboardHandler } from './toast/keyboard-handler';
 import { createToastActionHandler } from './toast/toast-action-handler';
@@ -22,7 +22,7 @@ export class ConfirmToastManager {
   private actions = createToastActionHandler({
     onRenderNeeded: () => this.render(),
   });
-  private keyboard = createKeyboardHandler(this.state.toasts, (toast) =>
+  private keyboard = createKeyboardHandler(this.state.confirmToasts, (toast) =>
     this.actions.sendAction(toast, 'keep-original'),
   );
   private root: ReactDOM.Root;
@@ -65,7 +65,7 @@ export class ConfirmToastManager {
     this.render();
   }
 
-  showRenameResult(toast: RenameToastPayload): void {
+  showRenameResult(toast: RenameToastProposal): void {
     this.lifecycle.clearRemovalTimer(toast.toastId);
     this.state.addRenameToast(toast, TOAST_TIMING.RENAME_DISPLAY_DURATION_MS);
     this.lifecycle.scheduleRemoval(

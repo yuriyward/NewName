@@ -101,10 +101,16 @@ The `ai/` directory hosts both static and auto-generated docs.
 <!-- AUTO-GENERATED TREE START -->
 
 ```
-background/ # 5 files
+background/ # 7 files, 1 directories
+  ├─ toast/ # 3 files
+  │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
+  │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
+  │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
+  ├─ confirm-toast-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
   ├─ download-tracking.ts # Download tracking helpers used by the background coordinator.
   ├─ media-orchestrator.ts # Media analysis orchestration and upgrade proposal generation
+  ├─ rename-overlay.ts # Helper for sending rename-complete overlay notifications to the initiating tab.
   ├─ settings-cache.ts # Settings cache management for background service worker
   └─ suggest-controller.ts # Helper for coordinating the Chrome downloads suggest callback with timeouts.
 offscreen/ # 3 files, 1 directories
@@ -120,9 +126,10 @@ popup/ # 2 files
   └─ main.tsx # React popup entry point and application bootstrapping
 sandbox/ # 1 file
   └─ main.ts # Sandboxed iframe for MediaInfo.js WASM execution. Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
-shared/ # 14 directories
-  ├─ classification/ # 1 file
-  │ └─ file-types.ts # File type detection from MIME and extensions
+shared/ # 15 directories
+  ├─ classification/ # 2 files
+  │ ├─ file-types.ts # File type detection from MIME and extensions
+  │ └─ sensitive-content.ts # Sensitive content detection heuristics for confirmation routing.
   ├─ constants/ # 1 file
   │ └─ file-constants.ts # Shared file-related constants used across the application
   ├─ context/ # 1 file
@@ -162,7 +169,8 @@ shared/ # 14 directories
   │ ├─ path-utils.ts # Path and filename manipulation utilities for Instant Baseline processing
   │ ├─ strategy-evaluator.ts # Strategy evaluation and decision logic for Instant Baseline processing
   │ └─ strategy-options.ts # Strategy option definitions for the Instant Baseline domain
-  ├─ settings/ # 5 files
+  ├─ settings/ # 6 files
+  │ ├─ confirm-toast-routing.ts # Helper utilities for deciding whether the confirm toast should appear.
   │ ├─ settings.ts # Application settings persistence and state management
   │ ├─ storage-state.ts # Internal storage adapter state management for testing
   │ ├─ testing.ts # Test utilities for settings module
@@ -171,7 +179,23 @@ shared/ # 14 directories
   ├─ state/ # 2 files
   │ ├─ page-context-service.ts # Proxy service exposing PageContext store operations to other extension contexts.
   │ └─ page-context-store.ts # Runtime page context storage and management
-  ├─ ui/ # 1 file
+  ├─ toast/ # 2 files
+  │ ├─ timing-constants.ts # Centralized timing constants for toast behavior. All values are in milliseconds unless otherwise noted.
+  │ └─ types.ts # Shared types for confirm toast messaging between contexts.
+  ├─ ui/ # 5 files, 1 directories
+  │ ├─ toast/ # 8 files
+  │ │ ├─ keyboard-handler.ts # Keyboard event handler for toast interactions.
+  │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames.
+  │ │ ├─ toast-action-handler.ts # Action handler for user interactions with toasts.
+  │ │ ├─ toast-container.ts # Toast container and Shadow DOM creation utilities.
+  │ │ ├─ toast-lifecycle.ts # Toast lifecycle management utilities for timer and removal handling.
+  │ │ ├─ toast-overlay.tsx # ToastOverlay renders both confirm and rename toasts in a fixed overlay.
+  │ │ ├─ toast-state-manager.ts # State management for confirm and rename toasts.
+  │ │ └─ toast-theme-manager.ts # Theme management for toast UI elements.
+  │ ├─ confirm-toast-manager.tsx # Toast manager rendered inside the content script via Shadow DOM.
+  │ ├─ ConfirmToast.tsx # 1 export
+  │ ├─ FilenameLabel.tsx # 1 export
+  │ ├─ icons.ts # Shared icon exports for consistent icon usage across the application. All icons are re-exported from @heroicons/react for easy replacement if needed.
   │ └─ theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
   └─ utils/ # 2 files
     ├─ filename.ts # Utility helpers for working with file names.

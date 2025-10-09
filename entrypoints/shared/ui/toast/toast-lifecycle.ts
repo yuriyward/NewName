@@ -5,7 +5,7 @@ import { TOAST_TIMING } from '@/entrypoints/shared/toast/timing-constants';
 import type { RenameToastState } from './rename-toast';
 
 export type RenameRemovalCallback = () => void;
-export type RenameToastMap = Map<string, RenameToastState>;
+export type RenameToastStateMap = Map<string, RenameToastState>;
 
 /**
  * Creates a lifecycle manager for handling toast removal timers and rename toast animations.
@@ -40,7 +40,7 @@ export function createToastLifecycleManager() {
   }
 
   function startRenameTicker(
-    renameToasts: RenameToastMap,
+    renameToasts: RenameToastStateMap,
     onUpdate: () => void,
   ): void {
     if (renameTicker) return;
@@ -76,7 +76,7 @@ export function createToastLifecycleManager() {
 
   function pauseRenameToast(
     toastId: string,
-    renameToasts: RenameToastMap,
+    renameToasts: RenameToastStateMap,
   ): boolean {
     const toast = renameToasts.get(toastId);
     if (!toast || toast.paused) return false;
@@ -91,7 +91,7 @@ export function createToastLifecycleManager() {
 
   function resumeRenameToast(
     toastId: string,
-    renameToasts: RenameToastMap,
+    renameToasts: RenameToastStateMap,
   ): { shouldSchedule: boolean; remaining: number } | null {
     const toast = renameToasts.get(toastId);
     if (!toast || !toast.paused) return null;

@@ -4,10 +4,16 @@
 
 ## Tree Overview
 
-background/ # 5 files
+background/ # 7 files, 1 directories
+  ├─ toast/ # 3 files
+  │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
+  │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
+  │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
+  ├─ confirm-toast-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
   ├─ download-tracking.ts # Download tracking helpers used by the background coordinator.
   ├─ media-orchestrator.ts # Media analysis orchestration and upgrade proposal generation
+  ├─ rename-overlay.ts # Helper for sending rename-complete overlay notifications to the initiating tab.
   ├─ settings-cache.ts # Settings cache management for background service worker
   └─ suggest-controller.ts # Helper for coordinating the Chrome downloads suggest callback with timeouts.
 offscreen/ # 3 files, 1 directories
@@ -23,9 +29,10 @@ popup/ # 2 files
   └─ main.tsx # React popup entry point and application bootstrapping
 sandbox/ # 1 file
   └─ main.ts # Sandboxed iframe for MediaInfo.js WASM execution. Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
-shared/ # 14 directories
-  ├─ classification/ # 1 file
-  │ └─ file-types.ts # File type detection from MIME and extensions
+shared/ # 15 directories
+  ├─ classification/ # 2 files
+  │ ├─ file-types.ts # File type detection from MIME and extensions
+  │ └─ sensitive-content.ts # Sensitive content detection heuristics for confirmation routing.
   ├─ constants/ # 1 file
   │ └─ file-constants.ts # Shared file-related constants used across the application
   ├─ context/ # 1 file
@@ -65,7 +72,8 @@ shared/ # 14 directories
   │ ├─ path-utils.ts # Path and filename manipulation utilities for Instant Baseline processing
   │ ├─ strategy-evaluator.ts # Strategy evaluation and decision logic for Instant Baseline processing
   │ └─ strategy-options.ts # Strategy option definitions for the Instant Baseline domain
-  ├─ settings/ # 5 files
+  ├─ settings/ # 6 files
+  │ ├─ confirm-toast-routing.ts # Helper utilities for deciding whether the confirm toast should appear.
   │ ├─ settings.ts # Application settings persistence and state management
   │ ├─ storage-state.ts # Internal storage adapter state management for testing
   │ ├─ testing.ts # Test utilities for settings module
@@ -74,7 +82,23 @@ shared/ # 14 directories
   ├─ state/ # 2 files
   │ ├─ page-context-service.ts # Proxy service exposing PageContext store operations to other extension contexts.
   │ └─ page-context-store.ts # Runtime page context storage and management
-  ├─ ui/ # 1 file
+  ├─ toast/ # 2 files
+  │ ├─ timing-constants.ts # Centralized timing constants for toast behavior. All values are in milliseconds unless otherwise noted.
+  │ └─ types.ts # Shared types for confirm toast messaging between contexts.
+  ├─ ui/ # 5 files, 1 directories
+  │ ├─ toast/ # 8 files
+  │ │ ├─ keyboard-handler.ts # Keyboard event handler for toast interactions.
+  │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames.
+  │ │ ├─ toast-action-handler.ts # Action handler for user interactions with toasts.
+  │ │ ├─ toast-container.ts # Toast container and Shadow DOM creation utilities.
+  │ │ ├─ toast-lifecycle.ts # Toast lifecycle management utilities for timer and removal handling.
+  │ │ ├─ toast-overlay.tsx # ToastOverlay renders both confirm and rename toasts in a fixed overlay.
+  │ │ ├─ toast-state-manager.ts # State management for confirm and rename toasts.
+  │ │ └─ toast-theme-manager.ts # Theme management for toast UI elements.
+  │ ├─ confirm-toast-manager.tsx # Toast manager rendered inside the content script via Shadow DOM.
+  │ ├─ ConfirmToast.tsx # 1 export
+  │ ├─ FilenameLabel.tsx # 1 export
+  │ ├─ icons.ts # Shared icon exports for consistent icon usage across the application. All icons are re-exported from @heroicons/react for easy replacement if needed.
   │ └─ theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
   └─ utils/ # 2 files
     ├─ filename.ts # Utility helpers for working with file names.
@@ -89,6 +113,17 @@ content.ts # Content script for page context extraction and messaging
 
 **Exports**:
 - `export default` - item implementation
+
+### background/confirm-toast-controller.ts
+**Purpose**: Confirm toast controller manages pending confirmation requests and routing.
+
+**Exports**:
+- `export ConfirmToastController` - item implementation
+- `export ConfirmToastControllerHelpers` - item implementation
+- `export ConfirmToastControllerHooks` - item implementation
+- `export PendingConfirmationEntry` - item implementation
+- `export QueueConfirmToastOptions` - item implementation
+- `export createConfirmToastController` - item implementation
 
 ### background/download-coordinator.ts
 **Purpose**: Download coordination logic for onDeterminingFilename events
@@ -119,6 +154,13 @@ content.ts # Content script for page context extraction and messaging
 - `export applyMediaAnalysisResponse` - Apply media analysis response to history item and generat...
 - `export toMediaDebugSettings` - Convert settings to media debug settings if debug is enabled
 
+### background/rename-overlay.ts
+**Purpose**: Helper for sending rename-complete overlay notifications to the initiating tab.
+
+**Exports**:
+- `export RenameOverlayOptions` - item implementation
+- `export maybeShowRenameOverlay` - item implementation
+
 ### background/settings-cache.ts
 **Purpose**: Settings cache management for background service worker
 
@@ -131,6 +173,31 @@ content.ts # Content script for page context extraction and messaging
 **Exports**:
 - `export SuggestController` - Helper for coordinating the Chrome downloads suggest call...
 - `export createSuggestController` - item implementation
+
+### background/toast/confirmation-controller.ts
+**Purpose**: Confirm toast controller manages pending confirmation requests and routing.
+
+**Exports**:
+- `export ConfirmToastController` - item implementation
+- `export ConfirmToastControllerHelpers` - item implementation
+- `export ConfirmToastControllerHooks` - item implementation
+- `export PendingConfirmationEntry` - item implementation
+- `export QueueConfirmToastOptions` - item implementation
+- `export createConfirmToastController` - item implementation
+
+### background/toast/status-broadcaster.ts
+**Purpose**: Status broadcasting utilities for confirm toast updates.
+
+**Exports**:
+- `export StatusBroadcastEntry` - Status broadcasting utilities for confirm toast updates.
+- `export emitStatus` - Emit status update to all tabs that have received this toast
+
+### background/toast/target-resolver.ts
+**Purpose**: Tab resolution utilities for confirm toast targeting.
+
+**Exports**:
+- `export extractTabId` - Extract tab ID from a target (either number or SendMessag...
+- `export resolveTarget` - Resolve the active tab to use as the target for displayin...
 
 ### content.ts
 **Purpose**: Content script for page context extraction and messaging
@@ -209,6 +276,16 @@ content.ts # Content script for page context extraction and messaging
 
 **Exports**:
 - `export detectFileType` - item implementation
+
+### shared/classification/sensitive-content.ts
+**Purpose**: Sensitive content detection heuristics for confirmation routing.
+
+**Exports**:
+- `export SensitiveDetectionInput` - item implementation
+- `export SensitiveDetectionMatch` - item implementation
+- `export SensitiveDetectionResult` - item implementation
+- `export SensitiveReason` - Sensitive content detection heuristics for confirmation r...
+- `export detectSensitiveContent` - item implementation
 
 ### shared/constants/file-constants.ts
 **Purpose**: Shared file-related constants used across the application
@@ -381,11 +458,16 @@ content.ts # Content script for page context extraction and messaging
 **Purpose**: Central extension messaging protocol using @webext-core/messaging
 
 **Exports**:
-- `export ExtensionMessagingProtocol` - Central extension messaging protocol using @webext-core/m...
+- `export ExtensionMessagingProtocol` - item implementation
 - `export onExtensionMessage` - item implementation
 - `export sendExtensionMessage` - item implementation
 - `export offscreenHandshake` - item implementation
 - `export requestMediaAnalysis` - item implementation
+- `export requestPendingConfirmToasts` - item implementation
+- `export sendConfirmToastDecision` - item implementation
+- `export sendConfirmToastStatus` - item implementation
+- `export sendShowConfirmToast` - item implementation
+- `export sendShowRenameToast` - item implementation
 - `export signalOffscreenReady` - item implementation
 
 ### shared/naming/media-qualifiers.ts
@@ -459,6 +541,18 @@ content.ts # Content script for page context extraction and messaging
 - `export getAvailableStrategies` - Get all available strategy values
 - `export getStrategyOption` - Get strategy option by value
 
+### shared/settings/confirm-toast-routing.ts
+**Purpose**: Helper utilities for deciding whether the confirm toast should appear.
+
+**Exports**:
+- `export ConfirmToastRouteSkip` - item implementation
+- `export ConfirmToastRouteToast` - Additional metadata-driven reasons to force confirmation ...
+- `export ConfirmToastSignals` - item implementation
+- `export ConfirmToastRoute` - item implementation
+- `export ConfirmToastSkipReason` - item implementation
+- `export ConfirmToastTriggerSource` - Helper utilities for deciding whether the confirm toast s...
+- `export resolveConfirmToastRoute` - item implementation
+
 ### shared/settings/settings.ts
 **Purpose**: Application settings persistence and state management
 
@@ -507,6 +601,7 @@ content.ts # Content script for page context extraction and messaging
 **Exports**:
 - `export CloudSettings` - item implementation
 - `export ConfirmModalDefaults` - item implementation
+- `export ConfirmToastSettings` - item implementation
 - `export DebugSettings` - item implementation
 - `export LocalizationSettings` - item implementation
 - `export MetadataToggles` - item implementation
@@ -516,6 +611,7 @@ content.ts # Content script for page context extraction and messaging
 - `export FileType` - item implementation
 - `export Mode` - Type definitions for application configuration and settings
 - `export Separator` - item implementation
+- `export Theme` - item implementation
 - `export UiLocale` - item implementation
 - `export DEFAULT_SETTINGS` - item implementation
 - `export UI_LOCALE_OPTIONS` - item implementation
@@ -533,8 +629,10 @@ content.ts # Content script for page context extraction and messaging
 - `export isMode` - item implementation
 - `export isPerTypeBehavior` - item implementation
 - `export isSeparator` - item implementation
+- `export isTheme` - item implementation
 - `export sanitizeCloudSettings` - item implementation
 - `export sanitizeConfirmModal` - item implementation
+- `export sanitizeConfirmToast` - item implementation
 - `export sanitizeDebugSettings` - item implementation
 - `export sanitizeLocalization` - item implementation
 - `export sanitizeMetadataToggles` - item implementation
@@ -563,6 +661,53 @@ content.ts # Content script for page context extraction and messaging
 - `export updatePageContext` - item implementation
 - `export updatePageContextByUrl` - item implementation
 
+### shared/toast/timing-constants.ts
+**Purpose**: Centralized timing constants for toast behavior. All values are in milliseconds unless otherwise noted.
+
+**Exports**:
+- `export ToastTimingKey` - Type for timing constant keys (useful for testing/mocking)
+- `export TOAST_TIMING` - Centralized timing constants for toast behavior
+
+### shared/toast/types.ts
+**Purpose**: Shared types for confirm toast messaging between contexts.
+
+**Exports**:
+- `export ConfirmToastDecisionMessage` - item implementation
+- `export ConfirmToastProposal` - item implementation
+- `export ConfirmToastRenderState` - item implementation
+- `export ConfirmToastStatusMessage` - item implementation
+- `export RenameToastPayload` - item implementation
+- `export ShowConfirmToastMessage` - item implementation
+- `export ShowRenameToastMessage` - item implementation
+- `export ConfirmToastAction` - item implementation
+- `export ConfirmToastLifecycleState` - item implementation
+- `export ConfirmToastStatusState` - item implementation
+
+### shared/ui/ConfirmToast.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export ConfirmToast` - item implementation
+
+### shared/ui/FilenameLabel.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export FilenameLabel` - Shared component for displaying filename transitions (ori...
+
+### shared/ui/confirm-toast-manager.tsx
+**Purpose**: Toast manager rendered inside the content script via Shadow DOM.
+
+**Exports**:
+- `export ConfirmToastManager` - item implementation
+- `export getConfirmToastManager` - item implementation
+- `export resetConfirmToastManagerForTesting` - item implementation
+
+### shared/ui/icons.ts
+**Purpose**: Shared icon exports for consistent icon usage across the application. All icons are re-exported from @heroicons/react for easy replacement if needed.
+
+*No exports found*
+
 ### shared/ui/theme-service.ts
 **Purpose**: Theme management application service Handles automatic theme detection and daily reset logic
 
@@ -573,6 +718,65 @@ Handles automatic th...
 - `export getAppropriateTheme` - Get appropriate theme (system detection + daily reset logic)
 - `export markThemeReset` - Mark theme as reset for today
 - `export shouldResetTheme` - Check if theme should be reset (new day)
+
+### shared/ui/toast/keyboard-handler.ts
+**Purpose**: Keyboard event handler for toast interactions.
+
+**Exports**:
+- `export createKeyboardHandler` - Creates a keyboard handler for toast interactions (Escape...
+
+### shared/ui/toast/rename-toast.tsx
+**Purpose**: RenameToast component displays confirmation feedback for applied renames.
+
+**Exports**:
+- `export RenameToastProps` - item implementation
+- `export RenameToastState` - RenameToast component displays confirmation feedback for ...
+- `export RenameToast` - item implementation
+
+### shared/ui/toast/toast-action-handler.ts
+**Purpose**: Action handler for user interactions with toasts.
+
+**Exports**:
+- `export ActionHandlerCallbacks` - item implementation
+- `export createToastActionHandler` - Creates an action handler for toast user interactions
+
+### shared/ui/toast/toast-container.ts
+**Purpose**: Toast container and Shadow DOM creation utilities.
+
+**Exports**:
+- `export TOAST_ROOT_ID` - Toast container and Shadow DOM creation utilities.
+- `export createContainer` - Creates the Shadow DOM container for toast rendering
+
+### shared/ui/toast/toast-lifecycle.ts
+**Purpose**: Toast lifecycle management utilities for timer and removal handling.
+
+**Exports**:
+- `export RenameRemovalCallback` - Toast lifecycle management utilities for timer and remova...
+- `export RenameToastMap` - Toast lifecycle management utilities for timer and remova...
+- `export createToastLifecycleManager` - Creates a lifecycle manager for handling toast removal ti...
+
+### shared/ui/toast/toast-overlay.tsx
+**Purpose**: ToastOverlay renders both confirm and rename toasts in a fixed overlay.
+
+**Exports**:
+- `export ToastOverlayProps` - item implementation
+- `export ToastOverlay` - item implementation
+
+### shared/ui/toast/toast-state-manager.ts
+**Purpose**: State management for confirm and rename toasts.
+
+**Exports**:
+- `export RenameToastMap` - item implementation
+- `export ToastMap` - item implementation
+- `export createToastStateManager` - Creates a state manager for toast collections
+- `export sortToastsDescending` - item implementation
+
+### shared/ui/toast/toast-theme-manager.ts
+**Purpose**: Theme management for toast UI elements.
+
+**Exports**:
+- `export ThemeTarget` - Theme management for toast UI elements.
+- `export createThemeManager` - Creates a theme manager that syncs theme between settings...
 
 ### shared/utils/filename.ts
 **Purpose**: Utility helpers for working with file names.

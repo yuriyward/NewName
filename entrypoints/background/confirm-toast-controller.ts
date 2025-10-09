@@ -19,8 +19,9 @@ import { randomId } from '@/entrypoints/shared/utils/id';
 import { emitStatus } from './toast/status-broadcaster';
 import { extractTabId, resolveTarget } from './toast/target-resolver';
 
-export interface PendingConfirmationEntry {
+export interface ConfirmToastEntry {
   proposal: ConfirmToastProposal;
+  historyId: string;
   target?: number | SendMessageOptions;
   timeoutId?: ReturnType<typeof setTimeout>;
   visibleOnTabs?: Set<number>;
@@ -48,12 +49,12 @@ export interface ConfirmToastControllerHelpers {
 
 export interface ConfirmToastControllerHooks {
   onUserDecision(
-    entry: PendingConfirmationEntry,
+    entry: ConfirmToastEntry,
     decision: ConfirmToastDecisionMessage,
     helpers: ConfirmToastControllerHelpers,
   ): Promise<void>;
   onAutoApply(
-    entry: PendingConfirmationEntry,
+    entry: ConfirmToastEntry,
     helpers: ConfirmToastControllerHelpers,
   ): Promise<void>;
 }
@@ -61,51 +62,49 @@ export interface ConfirmToastControllerHooks {
 export interface ConfirmToastController {
   queueConfirmation(
     options: QueueConfirmToastOptions,
-  ): Promise<PendingConfirmationEntry | null>;
+  ): Promise<ConfirmToastEntry | null>;
   handleUserDecision(decision: ConfirmToastDecisionMessage): Promise<boolean>;
   cancel(
     toastId: string,
     state?: ConfirmToastStatusState,
     message?: string,
   ): Promise<boolean>;
-  getPendingByHistory(historyId: string): PendingConfirmationEntry | undefined;
-  getAllPending(): PendingConfirmationEntry[];
+  getPendingByHistory(historyId: string): ConfirmToastEntry | undefined;
+  getAllPending(): ConfirmToastEntry[];
   emitStatus(
-    entry: PendingConfirmationEntry,
+    entry: ConfirmToastEntry,
     state: ConfirmToastStatusState,
     message?: string,
   ): Promise<void>;
 }
 
-interface PendingMapEntry extends PendingConfirmationEntry {
-  historyId: string;
-}
-
 export function createConfirmToastController(
   hooks: ConfirmToastControllerHooks,
 ): ConfirmToastController {
-  const pending = new Map<string, PendingMapEntry>();
-  const byHistory = new Map<string, string>();
+  const entriesById = new Map<string, ConfirmToastEntry>();
+  const historyIndex = new Map<string, string>();
 
-  function makeHelpers(entry: PendingMapEntry): ConfirmToastControllerHelpers {
+  function makeHelpers(
+    entry: ConfirmToastEntry,
+  ): ConfirmToastControllerHelpers {
     return {
       emitStatus: (state, message) => emitStatus(entry, state, message),
     };
   }
 
-  function clearTimeoutFor(entry: PendingMapEntry): void {
+  function clearTimeoutFor(entry: ConfirmToastEntry): void {
     if (entry.timeoutId !== undefined) {
       clearTimeout(entry.timeoutId);
       entry.timeoutId = undefined;
     }
   }
 
-  function removeEntry(toastId: string): PendingMapEntry | undefined {
-    const entry = pending.get(toastId);
+  function removeEntry(toastId: string): ConfirmToastEntry | undefined {
+    const entry = entriesById.get(toastId);
     if (!entry) return undefined;
     clearTimeoutFor(entry);
-    pending.delete(toastId);
-    byHistory.delete(entry.historyId);
+    entriesById.delete(toastId);
+    historyIndex.delete(entry.historyId);
     return entry;
   }
 
@@ -139,7 +138,7 @@ export function createConfirmToastController(
   return {
     async queueConfirmation(
       options: QueueConfirmToastOptions,
-    ): Promise<PendingConfirmationEntry | null> {
+    ): Promise<ConfirmToastEntry | null> {
       const createdAt = Date.now();
       const toastId = randomId();
       const autoApplyDelaySeconds = options.autoApplyDelaySeconds;
@@ -179,10 +178,10 @@ export function createConfirmToastController(
       const target = await resolveTarget();
       const tabId = extractTabId(target);
 
-      const entry: PendingMapEntry = {
+      const entry: ConfirmToastEntry = {
         proposal,
-        target,
         historyId: options.historyId,
+        target,
         visibleOnTabs: tabId ? new Set([tabId]) : new Set(),
       };
 
@@ -192,8 +191,8 @@ export function createConfirmToastController(
         }, autoApplyDelayMs);
       }
 
-      pending.set(toastId, entry);
-      byHistory.set(options.historyId, toastId);
+      entriesById.set(toastId, entry);
+      historyIndex.set(options.historyId, toastId);
 
       await scheduleShowToast(target, { proposal });
       return entry;
@@ -228,16 +227,14 @@ export function createConfirmToastController(
       return true;
     },
 
-    getPendingByHistory(
-      historyId: string,
-    ): PendingConfirmationEntry | undefined {
-      const toastId = byHistory.get(historyId);
+    getPendingByHistory(historyId: string): ConfirmToastEntry | undefined {
+      const toastId = historyIndex.get(historyId);
       if (!toastId) return undefined;
-      return pending.get(toastId);
+      return entriesById.get(toastId);
     },
 
-    getAllPending(): PendingConfirmationEntry[] {
-      return Array.from(pending.values());
+    getAllPending(): ConfirmToastEntry[] {
+      return Array.from(entriesById.values());
     },
 
     emitStatus,

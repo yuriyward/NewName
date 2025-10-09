@@ -2,10 +2,10 @@
  * RenameToast component displays confirmation feedback for applied renames.
  */
 import type React from 'react';
-import type { RenameToastPayload } from '@/entrypoints/shared/toast/types';
+import type { RenameToastProposal } from '@/entrypoints/shared/toast/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
 
-export interface RenameToastState extends RenameToastPayload {
+export interface RenameToastState extends RenameToastProposal {
   durationMs: number;
   remainingMs: number;
   dismissAt: number | null;
@@ -31,12 +31,14 @@ export const RenameToast: React.FC<RenameToastProps> = ({
   const progress = total > 0 ? Math.min(1, (total - remaining) / total) : 1;
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: Interactive hover handlers require div element
-    <div
-      role="status"
+    <section
+      aria-live="polite"
+      aria-atomic="true"
       className="pointer-events-auto w-full rounded-lg border border-divider bg-content1 px-3 py-2 shadow-2xl backdrop-blur"
-      onMouseEnter={onHoverStart}
-      onMouseLeave={onHoverEnd}
+      onPointerEnter={onHoverStart}
+      onPointerLeave={onHoverEnd}
+      onFocusCapture={onHoverStart}
+      onBlurCapture={onHoverEnd}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
@@ -69,6 +71,6 @@ export const RenameToast: React.FC<RenameToastProps> = ({
       <div className="mt-2 text-right text-[10px] font-medium uppercase tracking-wide text-default-400">
         {toast.paused ? 'Paused' : `Hiding in ${seconds}s`}
       </div>
-    </div>
+    </section>
   );
 };
