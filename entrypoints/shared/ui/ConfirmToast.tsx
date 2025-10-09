@@ -1,3 +1,4 @@
+import { CheckIcon, PencilIcon } from '@heroicons/react/24/solid';
 import React, {
   type ChangeEvent,
   type KeyboardEvent,
@@ -7,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import type { ConfirmToastRenderState } from '@/entrypoints/shared/ui/confirm-toast-types';
+import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
 
 interface ConfirmToastProps {
   toast: ConfirmToastRenderState;
@@ -24,48 +26,6 @@ function formatCountdown(seconds: number | null): string {
   return `${seconds}s`;
 }
 
-function defaultStatusMessage(
-  toast: ConfirmToastRenderState,
-  countdown: number | null,
-): string {
-  if (toast.status === 'pending') {
-    if (toast.allowAutoApply && toast.autoApplyAt && countdown !== null) {
-      return countdown > 0
-        ? `Auto-applying in ${formatCountdown(countdown)}`
-        : 'Applying…';
-    }
-    return 'Awaiting your decision';
-  }
-  if (toast.status === 'applied') {
-    return toast.statusMessage ?? 'Rename applied';
-  }
-  if (toast.status === 'kept') {
-    return toast.statusMessage ?? 'Kept original filename';
-  }
-  if (toast.status === 'timeout') {
-    return toast.statusMessage ?? 'Auto-applied';
-  }
-  if (toast.status === 'dismissed') {
-    return toast.statusMessage ?? 'Dismissed';
-  }
-  if (toast.status === 'error') {
-    return toast.statusMessage ?? 'Action failed. Try again.';
-  }
-  return toast.statusMessage ?? '';
-}
-
-function uniqueChips(values: string[]): string[] {
-  const seen = new Set<string>();
-  const output: string[] = [];
-  for (const value of values) {
-    const normalized = value.trim();
-    if (!normalized || seen.has(normalized)) continue;
-    seen.add(normalized);
-    output.push(normalized);
-  }
-  return output;
-}
-
 export const ConfirmToast: React.FC<ConfirmToastProps> = ({
   toast,
   autoFocus = false,
@@ -74,11 +34,12 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
   onAlwaysApply,
 }) => {
   const [editedName, setEditedName] = useState(toast.proposedFilename);
+  const [isEditing, setIsEditing] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number | null>(() =>
     computeCountdownSeconds(toast.autoApplyAt),
   );
   const primaryButtonRef = useRef<HTMLButtonElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const inputId = useMemo(
     () => `confirm-toast-${toast.toastId}-input`,
     [toast.toastId],
@@ -107,43 +68,78 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
     }
   }, [autoFocus, toast.status]);
 
-  const chips = useMemo(
-    () =>
-      uniqueChips([
-        ...toast.sensitiveReasons.map((reason) => reason.replace(/-/g, ' ')),
-        ...toast.reasonTags,
-      ]),
-    [toast.reasonTags, toast.sensitiveReasons],
-  );
-
-  const statusText = useMemo(
-    () => defaultStatusMessage(toast, countdownSeconds),
-    [toast, countdownSeconds],
-  );
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+      // Auto-resize textarea to fit content
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
+    }
+  }, [isEditing]);
 
   const isPending = toast.status === 'pending';
   const disableActions = toast.resolving || !isPending;
 
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedName(toast.proposedFilename);
+  };
+
   const handleApprove = () => {
+    if (isEditing) {
+      handleCancelEdit();
+      return;
+    }
     const trimmed = editedName.trim();
     const value = trimmed.length > 0 ? trimmed : toast.proposedFilename.trim();
     onApprove(value !== toast.proposedFilename ? value : undefined);
   };
 
+  const handleKeep = () => {
+    if (isEditing) {
+      handleCancelEdit();
+      return;
+    }
+    onKeep();
+  };
+
   const handleAlwaysApply = () => {
+    if (isEditing) {
+      handleCancelEdit();
+      return;
+    }
     const trimmed = editedName.trim();
     const value = trimmed.length > 0 ? trimmed : toast.proposedFilename.trim();
     onAlwaysApply(value !== toast.proposedFilename ? value : undefined);
   };
 
-  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setEditedName(event.target.value);
+    // Auto-resize textarea as user types
+    event.target.style.height = 'auto';
+    event.target.style.height = `${event.target.scrollHeight}px`;
   };
 
-  const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+  const handleEditClick = () => {
+    if (disableActions) return;
+    setIsEditing(true);
+  };
+
+  const handleApplyEdit = () => {
+    setIsEditing(false);
+    // Just exit edit mode, keep the edited value
+    // The main Apply button will actually submit the change
+  };
+
+  const handleInputKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !disableActions) {
       event.preventDefault();
-      handleApprove();
+      handleApplyEdit();
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      handleCancelEdit();
     }
   };
 
@@ -152,83 +148,101 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
       ? formatCountdown(countdownSeconds)
       : null;
 
+  const isUrgent = countdownSeconds !== null && countdownSeconds <= 5;
+
   return (
     <div className="w-full rounded-lg border border-divider bg-content1 p-3 shadow-2xl backdrop-blur">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="break-words text-sm font-semibold text-foreground">
-            {toast.proposedFilename}
-          </p>
-          <p className="mt-0.5 truncate text-xs text-default-500">
-            {toast.originalFilename}
-          </p>
-        </div>
+        <FilenameLabel originalFilename={toast.originalFilename}>
+          {isEditing ? (
+            <div className="mt-1 flex items-start gap-2">
+              <textarea
+                ref={inputRef}
+                id={inputId}
+                value={editedName}
+                onChange={handleInputChange}
+                onKeyDown={handleInputKeyDown}
+                disabled={disableActions}
+                spellCheck={false}
+                rows={1}
+                className="min-w-0 flex-1 resize-none rounded border border-primary bg-default-100 px-2 py-1 text-sm font-semibold text-foreground outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/50"
+              />
+              <button
+                type="button"
+                onClick={handleApplyEdit}
+                disabled={disableActions}
+                className="flex shrink-0 cursor-pointer items-center justify-center rounded bg-primary p-1.5 text-primary-foreground transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Apply (Enter)"
+              >
+                <CheckIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="mt-1 flex items-center gap-2">
+              <p className="min-w-0 flex-1 break-all text-sm font-semibold text-foreground">
+                {editedName}
+              </p>
+              <button
+                type="button"
+                onClick={handleEditClick}
+                disabled={disableActions}
+                className="flex shrink-0 cursor-pointer items-center justify-center rounded border border-default-300 p-1 text-primary transition-all hover:border-primary hover:bg-default-100 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Edit filename"
+              >
+                <PencilIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+        </FilenameLabel>
         {countdownLabel ? (
-          <div className="shrink-0 rounded-full bg-default-100 px-2 py-0.5 text-xs font-medium text-default-700">
+          <div
+            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
+              isUrgent
+                ? 'bg-warning-100 text-warning-700'
+                : 'bg-default-100 text-default-700'
+            }`}
+          >
             {countdownLabel}
           </div>
         ) : null}
       </div>
 
-      {chips.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {chips.map((chip) => (
-            <span
-              key={chip}
-              className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary"
-            >
-              {chip}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      <input
-        ref={inputRef}
-        id={inputId}
-        value={editedName}
-        onChange={handleInputChange}
-        onKeyDown={handleInputKeyDown}
-        disabled={disableActions}
-        spellCheck={false}
-        placeholder="Edit filename…"
-        className="mt-2 w-full rounded border border-default-200 bg-default-100 px-2 py-1 text-xs text-foreground placeholder-default-400 outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/50"
-      />
-
-      {statusText && isPending ? (
-        <div className="mt-2 text-[11px] text-default-500">{statusText}</div>
-      ) : null}
-
-      <div className="mt-2 flex gap-1.5">
+      <div className="mt-2 flex gap-2">
         <button
           ref={primaryButtonRef}
           type="button"
           onClick={handleApprove}
           disabled={disableActions}
-          className="inline-flex flex-1 cursor-pointer items-center justify-center rounded bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+          className={`inline-flex flex-1 items-center justify-center rounded bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground transition-all hover:opacity-90 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40 ${
+            isEditing ? 'cursor-pointer opacity-60' : 'cursor-pointer'
+          }`}
         >
           {toast.resolving ? 'Applying…' : 'Apply'}
         </button>
         <button
           type="button"
-          onClick={onKeep}
+          onClick={handleKeep}
           disabled={disableActions}
-          className="inline-flex flex-1 cursor-pointer items-center justify-center rounded border border-default-300 bg-transparent px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:bg-default-100 disabled:cursor-not-allowed disabled:opacity-40"
+          className={`inline-flex flex-1 items-center justify-center rounded border border-default-300 bg-transparent px-2.5 py-1.5 text-xs font-semibold text-foreground transition-all hover:border-default-400 hover:bg-default-200 disabled:cursor-not-allowed disabled:opacity-40 ${
+            isEditing ? 'cursor-pointer opacity-60' : 'cursor-pointer'
+          }`}
         >
-          Keep
+          Keep original
         </button>
       </div>
 
-      <div className="mt-1.5 flex items-center justify-between text-[10px] text-default-400">
+      <div className="mt-2 flex items-center justify-between text-[10px] text-default-400">
         <button
           type="button"
           onClick={handleAlwaysApply}
           disabled={disableActions}
-          className="cursor-pointer font-medium text-primary hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+          className={`font-semibold text-primary transition-all hover:underline hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 ${
+            isEditing ? 'cursor-pointer opacity-60' : 'cursor-pointer'
+          }`}
         >
           Always apply
         </button>
-        <span>Esc keeps original</span>
+        <span>Esc to cancel</span>
       </div>
     </div>
   );

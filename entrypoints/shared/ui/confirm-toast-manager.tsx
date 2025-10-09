@@ -19,6 +19,7 @@ import type {
   ConfirmToastStatusMessage,
   RenameToastPayload,
 } from '@/entrypoints/shared/ui/confirm-toast-types';
+import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
 
 const TOAST_ROOT_ID = 'newname-confirm-toast-root';
 // Confirm toasts should disappear as soon as we receive a final status.
@@ -78,13 +79,15 @@ interface ToastOverlayProps {
   onAlwaysApply: (toast: ConfirmToastRenderState, edited?: string) => void;
   onRenameHoverStart: (toastId: string) => void;
   onRenameHoverEnd: (toastId: string) => void;
+  onRenameUndo: (toastId: string) => void;
 }
 
 const RenameToast: React.FC<{
   toast: RenameToastState;
   onHoverStart: () => void;
   onHoverEnd: () => void;
-}> = ({ toast, onHoverStart, onHoverEnd }) => {
+  onUndo: () => void;
+}> = ({ toast, onHoverStart, onHoverEnd, onUndo }) => {
   const total = toast.durationMs;
   const remaining = Math.max(0, toast.remainingMs);
   const seconds = Math.max(0, Math.ceil(remaining / 1000));
@@ -94,21 +97,39 @@ const RenameToast: React.FC<{
     // biome-ignore lint/a11y/useSemanticElements: Interactive hover handlers require div element
     <div
       role="status"
-      className="pointer-events-auto w-full rounded-lg border border-success-300 bg-success-100 px-3 py-2 text-sm text-success-800 shadow-md"
+      className="pointer-events-auto w-full rounded-lg border border-divider bg-content1 px-3 py-2 shadow-2xl backdrop-blur"
       onMouseEnter={onHoverStart}
       onMouseLeave={onHoverEnd}
     >
-      <p className="font-semibold">Rename applied</p>
-      <p className="text-xs text-success-700">
-        {toast.originalFilename} → {toast.finalFilename}
-      </p>
-      <div className="mt-2 h-1 rounded bg-success-200">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className="text-primary">✓</span>
+          <p className="text-sm font-semibold text-foreground">
+            Rename applied
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onUndo}
+          className="cursor-pointer text-[10px] font-medium text-primary transition-opacity hover:opacity-70"
+        >
+          Undo
+        </button>
+      </div>
+      <div className="mt-0.5">
+        <FilenameLabel
+          originalFilename={toast.originalFilename}
+          newFilename={toast.finalFilename}
+          layout="inline"
+        />
+      </div>
+      <div className="mt-2 h-1 rounded bg-default-100">
         <div
-          className="h-full rounded bg-success-500 transition-[width] duration-200"
+          className="h-full rounded bg-primary transition-[width] duration-200"
           style={{ width: `${progress * 100}%` }}
         />
       </div>
-      <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-success-600 text-right">
+      <div className="mt-2 text-right text-[10px] font-medium uppercase tracking-wide text-default-400">
         {toast.paused ? 'Paused' : `Hiding in ${seconds}s`}
       </div>
     </div>
@@ -124,14 +145,18 @@ const ToastOverlay: React.FC<ToastOverlayProps> = React.memo(
     onAlwaysApply,
     onRenameHoverStart,
     onRenameHoverEnd,
+    onRenameUndo,
   }) => {
     if (confirmToasts.length === 0 && renameToasts.length === 0) return null;
     return (
       <HeroUIProvider>
-        <div className="pointer-events-none fixed inset-0 z-[2147483647] flex flex-col justify-end items-end gap-2 px-4 py-4">
+        <div className="pointer-events-none fixed inset-0 z-[2147483647] flex flex-col items-end justify-end gap-2 px-4 py-4">
           <div className="flex w-full max-w-xs flex-col gap-2">
             {confirmToasts.map((toast, index) => (
-              <div key={toast.toastId} className="pointer-events-auto">
+              <div
+                key={toast.toastId}
+                className="pointer-events-auto animate-in fade-in slide-in-from-right-2 duration-300"
+              >
                 <ConfirmToast
                   toast={toast}
                   autoFocus={index === 0}
@@ -142,12 +167,17 @@ const ToastOverlay: React.FC<ToastOverlayProps> = React.memo(
               </div>
             ))}
             {renameToasts.map((toast) => (
-              <RenameToast
+              <div
                 key={toast.toastId}
-                toast={toast}
-                onHoverStart={() => onRenameHoverStart(toast.toastId)}
-                onHoverEnd={() => onRenameHoverEnd(toast.toastId)}
-              />
+                className="animate-in fade-in slide-in-from-right-2 duration-300"
+              >
+                <RenameToast
+                  toast={toast}
+                  onHoverStart={() => onRenameHoverStart(toast.toastId)}
+                  onHoverEnd={() => onRenameHoverEnd(toast.toastId)}
+                  onUndo={() => onRenameUndo(toast.toastId)}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -284,9 +314,25 @@ export class ConfirmToastManager {
         onRenameHoverEnd={(id) => {
           this.resumeRenameToast(id);
         }}
+        onRenameUndo={(id) => {
+          this.handleRenameUndo(id);
+        }}
       />,
     );
     this.ensureKeyListener();
+  }
+
+  private handleRenameUndo(toastId: string): void {
+    const toast = this.renameToasts.get(toastId);
+    if (!toast) return;
+    // TODO: Implement undo logic - need to send message to background
+    // For now, just dismiss the toast
+    this.renameToasts.delete(toastId);
+    this.clearRemovalTimer(toastId);
+    this.render();
+    if (this.renameToasts.size === 0) {
+      this.stopRenameTicker();
+    }
   }
 
   private async sendAction(

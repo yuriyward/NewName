@@ -9,10 +9,7 @@ import {
   onExtensionMessage,
   sendShowConfirmToast,
 } from '@/entrypoints/shared/messaging/extension-messaging';
-import {
-  getSettings,
-  updateSettings,
-} from '@/entrypoints/shared/settings/settings';
+import { updateSettings } from '@/entrypoints/shared/settings/settings';
 import { registerPageContextService } from '@/entrypoints/shared/state/page-context-service';
 import { createConfirmToastController } from './background/confirm-toast-controller';
 import { createDeterminingListener } from './background/download-coordinator';
@@ -87,13 +84,13 @@ function initializeBackground(): void {
   // })();
 
   void (async () => {
-   await updateSettings({
-          mode: 'balanced',
-          debug: {
-            enabled: true,
-            level: 'verbose' as const,
-          },
-        });
+    await updateSettings({
+      mode: 'balanced',
+      debug: {
+        enabled: true,
+        level: 'verbose' as const,
+      },
+    });
   })();
 
   onExtensionMessage('resolveRuntimeContext', ({ sender }) => ({
