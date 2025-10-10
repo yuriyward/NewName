@@ -19,7 +19,7 @@ export default defineConfig({
       'Intelligent, context-aware file renamer for Chrome downloads.',
     version: '0.1.1',
     minimum_chrome_version: '138',
-    permissions: ['downloads', 'storage', 'notifications', 'offscreen'],
+    permissions: ['downloads', 'storage', 'offscreen'],
     host_permissions: ['<all_urls>'],
     content_security_policy: {
       extension_pages:
@@ -34,6 +34,10 @@ export default defineConfig({
       // Allow all origins in dev mode (needed for sandboxed iframe with origin: null)
       // Security note: Only affects dev server, not production builds
       cors: true,
+    },
+    build: {
+      // Suppress Tailwind v4 sourcemap warnings (known issue, doesn't affect functionality)
+      sourcemap: false,
     },
     plugins: [
       tailwindcss(),

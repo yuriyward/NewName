@@ -4,6 +4,7 @@
 import type {
   CloudSettings,
   ConfirmModalDefaults,
+  ConfirmToastSettings,
   DebugLevel,
   DebugSettings,
   FileType,
@@ -13,6 +14,7 @@ import type {
   PerTypeBehavior,
   Separator,
   Settings,
+  Theme,
 } from '@/entrypoints/shared/settings/types';
 import {
   DEFAULT_SETTINGS,
@@ -63,6 +65,10 @@ export function isLanguage(value: unknown): value is Language {
     value === 'en' ||
     value === 'uk'
   );
+}
+
+export function isTheme(value: unknown): value is Theme {
+  return value === 'light' || value === 'dark';
 }
 
 export function sanitizePerType(
@@ -145,6 +151,35 @@ export function sanitizeConfirmModal(
   };
 }
 
+export function sanitizeConfirmToast(
+  input: Partial<ConfirmToastSettings> | undefined,
+): Settings['confirmToast'] {
+  const defaults = DEFAULT_SETTINGS.confirmToast;
+  const rawDelay =
+    typeof input?.autoApplyDelaySeconds === 'number'
+      ? input.autoApplyDelaySeconds
+      : Number(input?.autoApplyDelaySeconds);
+  const normalizedDelay = Number.isFinite(rawDelay)
+    ? Math.round(rawDelay as number)
+    : defaults.autoApplyDelaySeconds;
+  const clampedDelay =
+    normalizedDelay >= 5 && normalizedDelay <= 30
+      ? normalizedDelay
+      : defaults.autoApplyDelaySeconds;
+
+  return {
+    autoApplyDelaySeconds: clampedDelay,
+    showReasonTags:
+      typeof input?.showReasonTags === 'boolean'
+        ? input.showReasonTags
+        : defaults.showReasonTags,
+    showRenameNotifications:
+      typeof input?.showRenameNotifications === 'boolean'
+        ? input.showRenameNotifications
+        : defaults.showRenameNotifications,
+  };
+}
+
 export function sanitizeLocalization(
   input: Partial<LocalizationSettings> | undefined,
 ): Settings['localization'] {
@@ -165,6 +200,7 @@ export function sanitizeSettings(data: unknown): Settings {
   const raw = data as FallbackSettings;
 
   const mode = isMode(raw.mode) ? raw.mode : DEFAULT_SETTINGS.mode;
+  const theme = isTheme(raw.theme) ? raw.theme : DEFAULT_SETTINGS.theme;
   const separator = isSeparator(raw.separator)
     ? raw.separator
     : DEFAULT_SETTINGS.separator;
@@ -191,6 +227,7 @@ export function sanitizeSettings(data: unknown): Settings {
   return {
     version: 2,
     mode,
+    theme,
     language,
     separator,
     maxLen,
@@ -202,6 +239,7 @@ export function sanitizeSettings(data: unknown): Settings {
     debug: sanitizeDebugSettings(raw.debug),
     notifyOnKeep,
     confirmModal: sanitizeConfirmModal(raw.confirmModal),
+    confirmToast: sanitizeConfirmToast(raw.confirmToast),
     localization: sanitizeLocalization(raw.localization),
   };
 }

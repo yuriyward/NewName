@@ -3,6 +3,7 @@
  */
 
 import { detectFileType } from '@/entrypoints/shared/classification/file-types';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type {
   InstantBaselineDecision,
   InstantBaselineDecisionSignals,
@@ -142,7 +143,7 @@ export function evaluateStrategy(
     }
   } catch (error) {
     // Fallback if strategy evaluation fails
-    console.warn('Strategy evaluation failed, using fallback', error);
+    debugLogger.warn('Strategy evaluation failed, using fallback', error);
     return {
       subject: inputs.originalBase || 'file',
       reasonTags: ['Error'],
@@ -184,7 +185,7 @@ export function createDecision(
     };
   } catch (error) {
     // Fallback decision if creation fails
-    console.warn('Decision creation failed, using fallback', error);
+    debugLogger.warn('Decision creation failed, using fallback', error);
     return {
       outcome: 'keep',
       strategy,

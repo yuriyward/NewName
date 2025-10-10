@@ -3,6 +3,7 @@
  * Uses window.postMessage for parent-iframe IPC (browser standard).
  */
 
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { MediaDebugSettings } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import type { MediaAnalysisResponse } from '@/entrypoints/shared/integrations/mediainfo/messages';
 
@@ -125,7 +126,9 @@ export function postToSandbox<T extends keyof ParentToSandboxMessages>(
   data: ParentToSandboxMessages[T],
 ): void {
   if (!sandboxWindow) {
-    console.warn('[SandboxProtocol] Cannot post message - no sandbox window');
+    debugLogger.warn(
+      '[SandboxProtocol] Cannot post message - no sandbox window',
+    );
     return;
   }
   sandboxWindow.postMessage({ type, ...data }, '*');
@@ -143,7 +146,9 @@ export function postToSandboxWithTransfer<
   transfer?: Transferable[],
 ): void {
   if (!sandboxWindow) {
-    console.warn('[SandboxProtocol] Cannot post message - no sandbox window');
+    debugLogger.warn(
+      '[SandboxProtocol] Cannot post message - no sandbox window',
+    );
     return;
   }
   sandboxWindow.postMessage({ type, ...message }, '*', transfer);

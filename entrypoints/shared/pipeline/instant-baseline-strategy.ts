@@ -3,6 +3,7 @@
  */
 
 import type { InstantBaselineSignals } from '@/entrypoints/shared/context/page-analyzer';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { DebugContext } from '@/entrypoints/shared/debug/types';
 import type {
   InstantBaselineEvaluation,
@@ -112,7 +113,10 @@ export function evaluateInstantBaseline(
     return { evaluation, inputs };
   } catch (error) {
     // Fallback evaluation if processing fails
-    console.warn('InstantBaseline evaluation failed, using fallback', error);
+    debugLogger.warn(
+      'InstantBaseline evaluation failed, using fallback',
+      error,
+    );
     const fallbackInputs = determineStrategyInputs(signals);
     const fallbackEvaluation = createFallbackEvaluation(
       signals,
@@ -153,7 +157,7 @@ export function evaluateInstantBaselineDebug(
     };
   } catch (error) {
     // Fallback debug context if evaluation fails
-    console.warn(
+    debugLogger.warn(
       'InstantBaseline debug evaluation failed, using fallback',
       error,
     );

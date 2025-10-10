@@ -110,6 +110,11 @@ describe('settings persistence', () => {
       debug: { enabled: 'true', level: 'super' },
       notifyOnKeep: 'nope',
       confirmModal: { expandMetadata: 'yes', showReasonTags: 'no' },
+      confirmToast: {
+        autoApplyDelaySeconds: 'fast',
+        showReasonTags: null,
+        showRenameNotifications: 'nope',
+      },
       localization: { uiLocale: 'es' },
     });
 
@@ -141,6 +146,7 @@ describe('settings persistence', () => {
     expect(settings.debug.level).toBe(DEFAULT_SETTINGS.debug.level);
     expect(settings.notifyOnKeep).toBe(DEFAULT_SETTINGS.notifyOnKeep);
     expect(settings.confirmModal).toEqual(DEFAULT_SETTINGS.confirmModal);
+    expect(settings.confirmToast).toEqual(DEFAULT_SETTINGS.confirmToast);
     expect(settings.localization.uiLocale).toBe(
       DEFAULT_SETTINGS.localization.uiLocale,
     );
