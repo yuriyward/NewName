@@ -4,12 +4,11 @@
 
 ## Tree Overview
 
-background/ # 7 files, 1 directories
+background/ # 6 files, 1 directories
   ├─ toast/ # 3 files
   │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
-  ├─ confirm-toast-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
   ├─ download-tracking.ts # Download tracking helpers used by the background coordinator.
   ├─ media-orchestrator.ts # Media analysis orchestration and upgrade proposal generation
@@ -85,7 +84,7 @@ shared/ # 15 directories
   ├─ toast/ # 2 files
   │ ├─ timing-constants.ts # Centralized timing constants for toast behavior. All values are in milliseconds unless otherwise noted.
   │ └─ types.ts # Shared types for confirm toast messaging between contexts.
-  ├─ ui/ # 5 files, 1 directories
+  ├─ ui/ # 7 files, 1 directories
   │ ├─ toast/ # 8 files
   │ │ ├─ keyboard-handler.ts # Keyboard event handler for toast interactions.
   │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames.
@@ -95,7 +94,9 @@ shared/ # 15 directories
   │ │ ├─ toast-overlay.tsx # ToastOverlay renders both confirm and rename toasts in a fixed overlay.
   │ │ ├─ toast-state-manager.ts # State management for confirm and rename toasts.
   │ │ └─ toast-theme-manager.ts # Theme management for toast UI elements.
+  │ ├─ confirm-toast-manager.test.tsx # Module exports
   │ ├─ confirm-toast-manager.tsx # Toast manager rendered inside the content script via Shadow DOM.
+  │ ├─ ConfirmToast.accessibility.test.tsx # Module exports
   │ ├─ ConfirmToast.tsx # 1 export
   │ ├─ FilenameLabel.tsx # 1 export
   │ ├─ icons.ts # Shared icon exports for consistent icon usage across the application. All icons are re-exported from @heroicons/react for easy replacement if needed.
@@ -113,17 +114,6 @@ content.ts # Content script for page context extraction and messaging
 
 **Exports**:
 - `export default` - item implementation
-
-### background/confirm-toast-controller.ts
-**Purpose**: Confirm toast controller manages pending confirmation requests and routing.
-
-**Exports**:
-- `export ConfirmToastController` - item implementation
-- `export ConfirmToastControllerHelpers` - item implementation
-- `export ConfirmToastControllerHooks` - item implementation
-- `export ConfirmToastEntry` - item implementation
-- `export QueueConfirmToastOptions` - item implementation
-- `export createConfirmToastController` - item implementation
 
 ### background/download-coordinator.ts
 **Purpose**: Download coordination logic for onDeterminingFilename events
@@ -683,6 +673,11 @@ content.ts # Content script for page context extraction and messaging
 - `export ConfirmToastLifecycleState` - item implementation
 - `export ConfirmToastStatusState` - item implementation
 
+### shared/ui/ConfirmToast.accessibility.test.tsx
+**Purpose**: Module exports
+
+*No exports found*
+
 ### shared/ui/ConfirmToast.tsx
 **Purpose**: 1 export
 
@@ -694,6 +689,11 @@ content.ts # Content script for page context extraction and messaging
 
 **Exports**:
 - `export FilenameLabel` - Shared component for displaying filename transitions (ori...
+
+### shared/ui/confirm-toast-manager.test.tsx
+**Purpose**: Module exports
+
+*No exports found*
 
 ### shared/ui/confirm-toast-manager.tsx
 **Purpose**: Toast manager rendered inside the content script via Shadow DOM.
