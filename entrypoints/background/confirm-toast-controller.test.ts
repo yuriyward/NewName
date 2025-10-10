@@ -3,7 +3,7 @@ import type { SensitiveReason } from '@/entrypoints/shared/classification/sensit
 import type {
   ConfirmToastControllerHooks,
   ConfirmToastEntry,
-} from './confirm-toast-controller';
+} from './toast/confirmation-controller';
 
 const sendShowConfirmToast = vi.hoisted(() =>
   vi.fn<(payload: unknown, target: unknown) => Promise<{ ok: true }>>(() =>
@@ -46,7 +46,7 @@ vi.mock('@/entrypoints/shared/utils/id', () => ({
 }));
 
 const { createConfirmToastController } = await import(
-  './confirm-toast-controller'
+  './toast/confirmation-controller'
 );
 
 const BASE_OPTIONS = {
