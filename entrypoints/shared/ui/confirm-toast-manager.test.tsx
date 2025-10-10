@@ -131,6 +131,8 @@ describe('ConfirmToastManager', () => {
     themeMocks.destroyTheme.mockClear();
     resetConfirmToastManagerForTesting();
     vi.unstubAllGlobals();
+    renderSpy.mockClear();
+    unmountSpy.mockClear();
   });
 
   it('removes a confirm toast after a successful status update', async () => {

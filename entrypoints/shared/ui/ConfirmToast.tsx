@@ -1,5 +1,6 @@
 import React, {
   type ChangeEvent,
+  type CSSProperties,
   type KeyboardEvent,
   useEffect,
   useMemo,
@@ -18,6 +19,18 @@ interface ConfirmToastProps {
   onKeep: () => void;
   onAlwaysApply: (editedName?: string) => void;
 }
+
+const SR_ONLY_STYLES: CSSProperties = {
+  border: 0,
+  clip: 'rect(0 0 0 0)',
+  height: '1px',
+  margin: '-1px',
+  overflow: 'hidden',
+  padding: 0,
+  position: 'absolute',
+  width: '1px',
+  whiteSpace: 'nowrap',
+};
 
 function formatCountdown(seconds: number | null): string {
   if (seconds === null) return '';
@@ -79,6 +92,13 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
 
   const isPending = toast.status === 'pending';
   const disableActions = toast.resolving || !isPending;
+
+  const countdownAnnouncement =
+    toast.allowAutoApply && countdownSeconds !== null && isPending
+      ? countdownSeconds <= 0
+        ? 'Auto-apply happening now'
+        : `Auto-apply in ${countdownSeconds} seconds`
+      : null;
 
   const handleCancelEdit = () => {
     setIsEditing(false);
@@ -151,6 +171,16 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
 
   return (
     <div className="w-full rounded-lg border border-divider bg-content1 p-3 shadow-2xl backdrop-blur">
+      {countdownAnnouncement ? (
+        <output
+          aria-live="polite"
+          aria-atomic="true"
+          data-test="confirm-toast-countdown-live"
+          style={SR_ONLY_STYLES}
+        >
+          {countdownAnnouncement}
+        </output>
+      ) : null}
       <div className="flex items-start justify-between gap-2">
         <FilenameLabel originalFilename={toast.originalFilename}>
           {isEditing ? (
@@ -195,6 +225,7 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
         </FilenameLabel>
         {countdownLabel ? (
           <div
+            aria-hidden="true"
             className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
               isUrgent
                 ? 'bg-warning-100 text-warning-700'
