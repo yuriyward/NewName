@@ -54,7 +54,7 @@ export class ConfirmToastManager {
     const toast = this.state.updateConfirmToastStatus(message);
     if (!toast) return;
 
-    if (message.state !== 'error') {
+    if (message.state !== 'error' && message.state !== 'permission-denied') {
       this.lifecycle.scheduleRemoval(
         message.toastId,
         TOAST_TIMING.CONFIRM_REMOVAL_DELAY_MS,

@@ -17,6 +17,11 @@ import {
   type DownloadTrackingEntry,
   pruneDownloadTrackingMap,
 } from './background/download-tracking';
+import {
+  executeAlwaysApply,
+  executeApply,
+  executeKeep,
+} from './background/rename-orchestrator';
 import { ensureSettingsCache } from './background/settings-cache';
 import { createConfirmToastController } from './background/toast/confirmation-controller';
 
@@ -35,21 +40,61 @@ function initializeBackground(): void {
         decision.action,
         entry.proposal.historyId,
       );
-      // Placeholder: dismiss toast until rename orchestration is implemented.
-      const state: 'applied' | 'kept' | 'dismissed' =
-        decision.action === 'approve'
-          ? 'applied'
-          : decision.action === 'keep-original'
-            ? 'kept'
-            : 'dismissed';
-      await helpers.emitStatus(state);
+      const orchestratorHelpers = {
+        emitStatus: helpers.emitStatus,
+      };
+
+      try {
+        switch (decision.action) {
+          case 'approve':
+            await executeApply(entry, decision, orchestratorHelpers);
+            break;
+          case 'keep-original':
+            await executeKeep(entry, orchestratorHelpers);
+            break;
+          case 'always-apply':
+            await executeAlwaysApply(entry, decision, orchestratorHelpers);
+            break;
+          default:
+            debugLogger.warn(
+              '[ConfirmToast] Unknown action received',
+              decision.action,
+            );
+            await helpers.emitStatus('dismissed');
+        }
+      } catch (error) {
+        debugLogger.error('[ConfirmToast] Failed to process user decision', error);
+        await helpers.emitStatus(
+          'error',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
     },
     async onAutoApply(entry, helpers) {
       debugLogger.log(
         '[ConfirmToast] Auto-apply timeout reached',
         entry.proposal.historyId,
       );
-      await helpers.emitStatus('timeout');
+      try {
+        await executeApply(
+          entry,
+          {
+            toastId: entry.proposal.toastId,
+            historyId: entry.historyId,
+            downloadId: entry.proposal.downloadId,
+            action: 'approve',
+          },
+          {
+            emitStatus: helpers.emitStatus,
+          },
+        );
+      } catch (error) {
+        debugLogger.error('[ConfirmToast] Auto-apply rename failed', error);
+        await helpers.emitStatus(
+          'error',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
     },
   });
 

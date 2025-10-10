@@ -31,6 +31,11 @@ class DebugLogger {
     console.warn(...args);
   }
 
+  error(...args: unknown[]): void {
+    if (!this.enabled) return;
+    console.error(...args);
+  }
+
   getLevel(): DebugLevel {
     return this.level;
   }

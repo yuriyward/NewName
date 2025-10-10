@@ -11,6 +11,7 @@ import { Tab, Tabs } from '@heroui/tabs';
 import { useTheme } from '@heroui/use-theme';
 import type { JSX } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
 import {
   getHistory,
   type HistoryItem,
@@ -23,9 +24,17 @@ import {
   updateSettings,
 } from '@/entrypoints/shared/settings/settings';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
+import { DownloadsAccessScreen } from './onboarding/DownloadsAccessScreen';
+import { getOnboardingState } from './onboarding/onboarding-state';
 
 function App(): JSX.Element {
   const { theme, setTheme } = useTheme();
+  const [downloadsAccessChecked, setDownloadsAccessChecked] = useState(false);
+  const [hasDownloadsAccess, setHasDownloadsAccess] = useState<boolean | null>(
+    null,
+  );
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [accessCheckError, setAccessCheckError] = useState<string | null>(null);
   const [strategy, setStrategy] = useState<InstantBaselineStrategy | null>(
     null,
   );
@@ -39,6 +48,57 @@ function App(): JSX.Element {
   const [historyFilter, setHistoryFilter] = useState<
     'all' | 'upgrades' | 'media'
   >('all');
+
+  const refreshDownloadsAccess = useCallback(async () => {
+    setDownloadsAccessChecked(false);
+    try {
+      const [state, handle] = await Promise.all([
+        getOnboardingState(),
+        getStoredDirectoryHandle(),
+      ]);
+      let permitted = false;
+      if (handle) {
+        try {
+          const permissionFn = (
+            handle as unknown as {
+              queryPermission?: (descriptor?: {
+                mode?: 'read' | 'readwrite';
+              }) => Promise<PermissionState>;
+            }
+          ).queryPermission;
+          if (typeof permissionFn === 'function') {
+            const permission = await permissionFn.call(handle, {
+              mode: 'readwrite',
+            });
+            permitted = permission === 'granted';
+          } else {
+            permitted = false;
+          }
+        } catch (err) {
+          console.warn('Querying directory permission failed', err);
+          permitted = false;
+        }
+      }
+      setHasDownloadsAccess(permitted);
+      setShowOnboarding(!permitted && state.status !== 'skipped');
+      setAccessCheckError(null);
+    } catch (err) {
+      console.error('Failed to evaluate onboarding state', err);
+      setAccessCheckError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to verify Downloads access.',
+      );
+      setHasDownloadsAccess(null);
+      setShowOnboarding(false);
+    } finally {
+      setDownloadsAccessChecked(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshDownloadsAccess();
+  }, [refreshDownloadsAccess]);
 
   useEffect(() => {
     let active = true;
@@ -135,6 +195,38 @@ function App(): JSX.Element {
     }
   };
 
+  if (!downloadsAccessChecked) {
+    return (
+      <div className="w-96 p-3 bg-background text-foreground">
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-12 w-full rounded-lg" />
+          <Skeleton className="h-24 w-full rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  if (showOnboarding) {
+    return (
+      <div className="w-96 p-3 bg-background text-foreground">
+        <DownloadsAccessScreen
+          onComplete={() => {
+            setShowOnboarding(false);
+            setHasDownloadsAccess(true);
+            void refreshDownloadsAccess();
+          }}
+          onSkip={() => {
+            setShowOnboarding(false);
+            setHasDownloadsAccess(false);
+            void refreshDownloadsAccess();
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="w-96 p-3 bg-background text-foreground relative">
       {/* Dark Mode Toggle */}
@@ -169,6 +261,32 @@ function App(): JSX.Element {
       <header className="mb-3">
         <h1 className="text-lg font-semibold">NewName</h1>
       </header>
+
+      {accessCheckError ? (
+        <Alert color="warning" variant="flat" className="mb-3 text-xs">
+          {accessCheckError}
+        </Alert>
+      ) : null}
+
+      {hasDownloadsAccess === false ? (
+        <Alert
+          color="warning"
+          variant="flat"
+          className="mb-3 text-xs space-y-2"
+        >
+          <p>
+            Downloads access is disabled. Post-download renames and undo will be
+            paused until access is granted.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowOnboarding(true)}
+            className="inline-flex items-center justify-center rounded border border-warning-400 px-3 py-1 text-[11px] font-semibold text-warning-800 transition hover:bg-warning-100"
+          >
+            Grant access
+          </button>
+        </Alert>
+      ) : null}
 
       <Tabs
         aria-label="Navigation tabs"

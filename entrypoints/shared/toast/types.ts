@@ -47,7 +47,8 @@ export type ConfirmToastStatusState =
   | 'kept'
   | 'timeout'
   | 'dismissed'
-  | 'error';
+  | 'error'
+  | 'permission-denied';
 
 export interface ConfirmToastStatusMessage {
   toastId: string;
