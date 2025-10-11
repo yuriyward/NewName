@@ -24,6 +24,7 @@ import {
 } from './background/rename-orchestrator';
 import { ensureSettingsCache } from './background/settings-cache';
 import { createConfirmToastController } from './background/toast/confirmation-controller';
+import { createUpgradeCoordinator } from './background/upgrade/coordinator';
 
 const readSettings = ensureSettingsCache();
 
@@ -113,6 +114,11 @@ function initializeBackground(): void {
     },
   });
 
+  const upgradeCoordinator = createUpgradeCoordinator({
+    confirmToastController,
+    readSettings,
+  });
+
   registerInstallDateListener();
   initializeBackgroundDebug();
 
@@ -199,6 +205,14 @@ function initializeBackground(): void {
 
   browser.downloads.onChanged.addListener((delta) => {
     const info = downloadTracking.get(delta.id);
+
+    void upgradeCoordinator.handleDownloadChange(delta, info).catch((error) => {
+      debugLogger.error('[UpgradeCoordinator] Unhandled failure', {
+        downloadId: delta.id,
+        error,
+      });
+    });
+
     if (!info) return;
 
     const state = delta.state?.current;

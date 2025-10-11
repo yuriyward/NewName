@@ -133,7 +133,7 @@ browser.runtime.onInstalled.addListener((details) => {
 
 #### 2.1 Upgrade Coordinator — ❌ MISSING
 
-**Planned Location:** `entrypoints/background/upgrade-coordinator.ts`
+**Planned Location:** `entrypoints/background/upgrade/coordinator.ts`
 
 **Status:** **NOT IMPLEMENTED**
 
@@ -410,7 +410,7 @@ No test results provided. Recommended to run through the checklist in plan §Tes
 ### Immediate Priorities
 
 1. **Implement Upgrade Coordinator** (Phase 2.1)
-   - Create `upgrade-coordinator.ts`
+   - Create `upgrade/coordinator.ts`
    - Add `downloads.onChanged` listener
    - Implement scoring and threshold logic
    - Wire upgrade toast queuing

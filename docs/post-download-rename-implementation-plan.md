@@ -1013,7 +1013,7 @@ const confirmToastController = createConfirmToastController({
 
 #### 2.1 Upgrade Coordinator
 
-**Location:** `entrypoints/background/upgrade-coordinator.ts`
+**Location:** `entrypoints/background/upgrade/coordinator.ts`
 
 **Responsibilities:**
 - Listen to `downloads.onChanged` for completed downloads

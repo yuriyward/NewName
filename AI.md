@@ -10,8 +10,15 @@ This is a browser extension (WXT + React 19) that intelligently cleans up messy 
 - Smart file name analysis and pattern detection
 - Suggested file names with context-aware templates
 - Auto-rename flows with undo/preview support
+- Post-download file renaming via File System Access API
+- Post-download file analysis via MediaInfo.js WASM
+- Post-download file analysis via built-in AI
 - Scoped rules per folder and project
 - Activity history and quick revert
+
+### Rename Pipeline (Two-Phase)
+- Phase 1: Instant Baseline - Synchronous, deterministic strategies
+- Phase 2: Contextual Upgrade - Asynchronous, AI-enhanced
 
 ## Development Commands
 
@@ -78,7 +85,7 @@ Built with WXT framework and React 19, using Tailwind CSS v4. Entry points live 
 - Keep each file focused on a single responsibility.
 - Prefer direct imports across domains; do not create circular dependencies.
 
-### 🔍 Reuse-First Development
+### Reuse-First Development
 
 Always search before building new functionality:
 - Scan `entrypoints/shared/` for existing utilities (validation, parsing, async, dates/formatters).
@@ -91,21 +98,39 @@ Always search before building new functionality:
 - Limit to 3 concerns per file; extract helpers for clarity.
 - Extract shared logic after 2+ uses.
 
+### Storage Strategy
+
+- **IndexedDB** (`idb-keyval`) - File System Access handles, large blobs
+- **WXT Storage** (`storage` from WXT) - Settings, preferences, history
+
+## Static references
+
+- `WebExt-Core.md` - @webext-core patterns (messaging, storage, proxy services)
+- `ai-chrome-*.md` - Chrome Built-in AI APIs (Prompt, Summarizer, Language Detection)
+- `mediainfo-research.md` - MediaInfo.js integration patterns
+- `chrome-service-worker-long-running-tasks.md` - Alarms API for persistent operations
+
 ## AI-Generated Documentation Hub
 
 The `ai/` directory hosts both static and auto-generated docs.
-- `ai/docs/README.md` — docs index
-- `ai/docs/FILE-STRUCTURE.md` — auto-generated from code via TypeDoc
-- Script: `node scripts/generate-structure-docs.js`
+- `ai/docs/README.md` - docs index
+- `ai/docs/FILE-STRUCTURE.md` - auto-generated from code via TypeDoc
+- Script: `bun run docs` (or `node scripts/generate-structure-docs.js`)
 
 <!-- AUTO-GENERATED TREE START -->
 
 ```
-background/ # 11 files, 1 directories
+background/ # 11 files, 2 directories
   ├─ toast/ # 3 files
   │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
+  ├─ upgrade/ # 5 files
+  │ ├─ coordinator.ts # 2 exports
+  │ ├─ eligibility.ts # 2 exports
+  │ ├─ mock-analysis.ts # 1 export
+  │ ├─ scoring.ts # 2 exports
+  │ └─ types.ts # 5 exports
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
   ├─ download-plan.ts # 2 exports
   ├─ download-post-actions.ts # 1 export
@@ -154,9 +179,14 @@ shared/ # 17 directories
   │ ├─ path-helpers.ts # Utilities for normalising download paths and managed subfolder prefixes.
   │ ├─ rename-operations.ts # Core file rename operations built on top of the File System Access API. Implements the copy+delete fallback until FileSystemHandle.move() ships for non-OPFS files. Supports nested paths, streaming for large files, and Windows reserved-name sanitisation.
   │ └─ types.ts # Shared types for File System Access operations and state.
-  ├─ history/ # 1 file
-  │ └─ history.ts # File renaming action history tracking and storage
-  ├─ integrations/ # 1 directory
+  ├─ history/ # 4 files
+  │ ├─ history.ts # File renaming action history tracking and storage orchestration. Keeps the public API focused while storage and validation live in dedicated modules.
+  │ ├─ storage.ts # 2 exports
+  │ ├─ types.ts # 5 exports
+  │ └─ validation.ts # 4 exports
+  ├─ integrations/ # 2 directories
+  │ ├─ chrome-ai/ # 1 file
+  │ │ └─ adapter.ts # Shared adapter interface for Chrome built-in AI APIs. The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector). This adapter keeps our background/offscreen logic decoupled from the actual runtime implementation so we can swap the mock below with real bindings once the APIs are ready.
   │ └─ mediainfo/ # 9 files, 1 directories
   │   ├─ parsers/ # 2 files
   │   │ ├─ duration-parser.ts # Duration parsing utilities for MediaInfo track data

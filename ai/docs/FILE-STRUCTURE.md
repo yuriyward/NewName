@@ -4,11 +4,17 @@
 
 ## Tree Overview
 
-background/ # 11 files, 1 directories
+background/ # 11 files, 2 directories
   ├─ toast/ # 3 files
   │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
+  ├─ upgrade/ # 5 files
+  │ ├─ coordinator.ts # 2 exports
+  │ ├─ eligibility.ts # 2 exports
+  │ ├─ mock-analysis.ts # 1 export
+  │ ├─ scoring.ts # 2 exports
+  │ └─ types.ts # 5 exports
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
   ├─ download-plan.ts # 2 exports
   ├─ download-post-actions.ts # 1 export
@@ -62,7 +68,9 @@ shared/ # 17 directories
   │ ├─ storage.ts # 2 exports
   │ ├─ types.ts # 5 exports
   │ └─ validation.ts # 4 exports
-  ├─ integrations/ # 1 directory
+  ├─ integrations/ # 2 directories
+  │ ├─ chrome-ai/ # 1 file
+  │ │ └─ adapter.ts # Shared adapter interface for Chrome built-in AI APIs. The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector). This adapter keeps our background/offscreen logic decoupled from the actual runtime implementation so we can swap the mock below with real bindings once the APIs are ready.
   │ └─ mediainfo/ # 9 files, 1 directories
   │   ├─ parsers/ # 2 files
   │   │ ├─ duration-parser.ts # Duration parsing utilities for MediaInfo track data
@@ -244,6 +252,43 @@ Can...
 **Exports**:
 - `export extractTabId` - Extract tab ID from a target (either number or SendMessag...
 - `export resolveTarget` - Resolve the active tab to use as the target for displayin...
+
+### background/upgrade/coordinator.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export UpgradeCoordinator` - item implementation
+- `export createUpgradeCoordinator` - item implementation
+
+### background/upgrade/eligibility.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export UPGRADE_RECENT_WINDOW_MS` - item implementation
+- `export shouldAnalyzeUpgrade` - item implementation
+
+### background/upgrade/mock-analysis.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export requestMockUpgradeAnalysis` - item implementation
+
+### background/upgrade/scoring.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export UPGRADE_SCORE_THRESHOLD` - item implementation
+- `export scoreUpgradeProposal` - item implementation
+
+### background/upgrade/types.ts
+**Purpose**: 5 exports
+
+**Exports**:
+- `export BrowserDownloadDelta` - item implementation
+- `export BrowserDownloadItem` - Minimal subset of download item fields used by the upgrad...
+- `export UpgradeAnalysisInput` - item implementation
+- `export UpgradeCoordinatorParams` - item implementation
+- `export UpgradeScore` - item implementation
 
 ### content.ts
 **Purpose**: Content script for page context extraction and messaging
@@ -489,6 +534,20 @@ Can...
 - `export isPendingAnalysisRename` - item implementation
 - `export isUpgradeProposal` - item implementation
 - `export isValidHistoryItem` - item implementation
+
+### shared/integrations/chrome-ai/adapter.ts
+**Purpose**: Shared adapter interface for Chrome built-in AI APIs. The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector). This adapter keeps our background/offscreen logic decoupled from the actual runtime implementation so we can swap the mock below with real bindings once the APIs are ready.
+
+**Exports**:
+- `export BuiltInAiAdapter` - item implementation
+- `export LanguageDetectorResult` - item implementation
+- `export PromptRequest` - item implementation
+- `export PromptResult` - item implementation
+- `export SummarizerRequest` - Shared adapter interface for Chrome built-in AI APIs
+- `export SummarizerResult` - item implementation
+- `export createMockBuiltInAiAdapter` - Provide a deterministic mock so we can wire the rest of t...
+- `export getBuiltInAiAdapter` - Retrieve the globally configured built-in AI adapter
+- `export setBuiltInAiAdapter` - Replace the shared adapter
 
 ### shared/integrations/mediainfo/constants.ts
 **Purpose**: Centralized constants for MediaInfo integration and analysis pipeline.

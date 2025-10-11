@@ -11,7 +11,8 @@ export type ConfirmToastTriggerSource =
   | 'careful-mode'
   | 'per-type-confirm'
   | 'sensitive-detection'
-  | 'metadata-rule';
+  | 'metadata-rule'
+  | 'contextual-upgrade';
 
 export type ConfirmToastSkipReason =
   | 'mode-silent'
