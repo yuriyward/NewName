@@ -1,3 +1,6 @@
+/**
+ * Lexical scoring engine for upgrade proposal evaluation
+ */
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import { stripExtension } from '@/entrypoints/shared/pipeline/path-utils';
 import type { UpgradeScore } from './types';

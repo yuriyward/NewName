@@ -1,3 +1,6 @@
+/**
+ * Download plan builder with evaluation and path resolution
+ */
 import type { SensitiveDetectionResult } from '@/entrypoints/shared/classification/sensitive-content';
 import { detectSensitiveContent } from '@/entrypoints/shared/classification/sensitive-content';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';

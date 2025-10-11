@@ -1,3 +1,6 @@
+/**
+ * Eligibility checks for contextual upgrade analysis
+ */
 import type { HistoryItem } from '@/entrypoints/shared/history/types';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
 

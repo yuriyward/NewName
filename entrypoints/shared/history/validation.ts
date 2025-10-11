@@ -1,3 +1,6 @@
+/**
+ * Runtime validation for history data integrity
+ */
 import type {
   HistoryItem,
   HistoryMediaMetadata,

@@ -1,3 +1,6 @@
+/**
+ * Accessibility tests for confirm toast component
+ */
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';

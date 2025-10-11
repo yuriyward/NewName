@@ -1,3 +1,6 @@
+/**
+ * Mock AI-powered contextual upgrade proposal generator
+ */
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import {

@@ -1,3 +1,6 @@
+/**
+ * Contextual upgrade coordinator for completed downloads
+ */
 import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {

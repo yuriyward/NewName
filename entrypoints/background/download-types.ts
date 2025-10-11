@@ -1,3 +1,6 @@
+/**
+ * Type definitions for download listener callbacks
+ */
 import type { browser } from 'wxt/browser';
 
 export type DeterminingListener = Parameters<

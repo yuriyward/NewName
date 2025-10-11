@@ -1,3 +1,6 @@
+/**
+ * Tests for toast manager lifecycle and interactions
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   ConfirmToastProposal,

@@ -1,3 +1,6 @@
+/**
+ * Post-download actions for history recording and media analysis
+ */
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { addHistoryItem } from '@/entrypoints/shared/history/history';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';

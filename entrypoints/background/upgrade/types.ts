@@ -1,3 +1,6 @@
+/**
+ * Type definitions for contextual upgrade pipeline
+ */
 import type {
   HistoryItem,
   UpgradeProposal,

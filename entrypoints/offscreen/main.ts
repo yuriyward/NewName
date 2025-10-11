@@ -1,3 +1,6 @@
+/**
+ * Offscreen document initialization with media analysis handlers
+ */
 import { attachConsoleHelpers } from '@/entrypoints/shared/debug/console-helpers';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { sendExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';

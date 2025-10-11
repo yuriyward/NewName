@@ -1,3 +1,6 @@
+/**
+ * History storage operations with pruning and sanitization
+ */
 import { browser } from 'wxt/browser';
 import {
   type HistoryItem,

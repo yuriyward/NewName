@@ -1,3 +1,6 @@
+/**
+ * Type definitions for history items and metadata
+ */
 import type { MediaMetadataSummary } from '@/entrypoints/shared/integrations/mediainfo/media-summary';
 import type { InstantBaselineDecision } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
