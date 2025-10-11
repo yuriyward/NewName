@@ -57,8 +57,11 @@ shared/ # 17 directories
   │ ├─ path-helpers.ts # Utilities for normalising download paths and managed subfolder prefixes.
   │ ├─ rename-operations.ts # Core file rename operations built on top of the File System Access API. Implements the copy+delete fallback until FileSystemHandle.move() ships for non-OPFS files. Supports nested paths, streaming for large files, and Windows reserved-name sanitisation.
   │ └─ types.ts # Shared types for File System Access operations and state.
-  ├─ history/ # 1 file
-  │ └─ history.ts # File renaming action history tracking and storage
+  ├─ history/ # 4 files
+  │ ├─ history.ts # File renaming action history tracking and storage orchestration. Keeps the public API focused while storage and validation live in dedicated modules.
+  │ ├─ storage.ts # 2 exports
+  │ ├─ types.ts # 5 exports
+  │ └─ validation.ts # 4 exports
   ├─ integrations/ # 1 directory
   │ └─ mediainfo/ # 9 files, 1 directories
   │   ├─ parsers/ # 2 files
@@ -453,17 +456,39 @@ Can...
 - `export RenameResponse` - item implementation
 
 ### shared/history/history.ts
-**Purpose**: File renaming action history tracking and storage
+**Purpose**: File renaming action history tracking and storage orchestration. Keeps the public API focused while storage and validation live in dedicated modules.
+
+**Exports**:
+- `export addHistoryItem` - item implementation
+- `export getHistory` - item implementation
+- `export getHistoryItem` - item implementation
+- `export updateHistoryItem` - item implementation
+
+### shared/history/storage.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export readHistory` - item implementation
+- `export writeHistory` - item implementation
+
+### shared/history/types.ts
+**Purpose**: 5 exports
 
 **Exports**:
 - `export HistoryItem` - item implementation
 - `export HistoryMediaMetadata` - item implementation
 - `export PendingAnalysisRename` - item implementation
 - `export UpgradeProposal` - item implementation
-- `export addHistoryItem` - item implementation
-- `export getHistory` - item implementation
-- `export getHistoryItem` - item implementation
-- `export updateHistoryItem` - item implementation
+- `export MAX_PENDING_ANALYSIS_AGE_MS` - item implementation
+
+### shared/history/validation.ts
+**Purpose**: 4 exports
+
+**Exports**:
+- `export isHistoryMediaMetadata` - item implementation
+- `export isPendingAnalysisRename` - item implementation
+- `export isUpgradeProposal` - item implementation
+- `export isValidHistoryItem` - item implementation
 
 ### shared/integrations/mediainfo/constants.ts
 **Purpose**: Centralized constants for MediaInfo integration and analysis pipeline.
