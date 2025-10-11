@@ -4,17 +4,25 @@
 
 ## Tree Overview
 
-background/ # 6 files, 1 directories
+background/ # 11 files, 1 directories
   ├─ toast/ # 3 files
   │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
+  ├─ download-plan.ts # 2 exports
+  ├─ download-post-actions.ts # 1 export
   ├─ download-tracking.ts # Download tracking helpers used by the background coordinator.
+  ├─ download-types.ts # 4 exports
+  ├─ download-utils.ts # 2 exports
   ├─ media-orchestrator.ts # Media analysis orchestration and upgrade proposal generation
+  ├─ rename-orchestrator.ts # Orchestrates file rename operations in response to toast actions.
   ├─ rename-overlay.ts # Helper for sending rename-complete overlay notifications to the initiating tab.
   ├─ settings-cache.ts # Settings cache management for background service worker
   └─ suggest-controller.ts # Helper for coordinating the Chrome downloads suggest callback with timeouts.
+downloads-permission/ # 2 files
+  ├─ DownloadsPermissionPage.tsx # 1 export
+  └─ main.tsx # Module exports
 offscreen/ # 3 files, 1 directories
   ├─ bridge/ # 3 files
   │ ├─ sandbox-lifecycle.ts # Sandbox iframe lifecycle management
@@ -23,12 +31,14 @@ offscreen/ # 3 files, 1 directories
   ├─ main.ts # Module exports
   ├─ media-analysis-handler.ts # 1 export
   └─ sandbox-bridge.ts # Bridge for communicating with the sandboxed iframe that runs MediaInfo.js. Coordinates analysis requests and response handling.
-popup/ # 2 files
+popup/ # 2 files, 1 directories
+  ├─ onboarding/ # 1 file
+  │ └─ DownloadsAccessScreen.tsx # 2 exports
   ├─ App.tsx # Settings popup for configuring deterministic Instant Baseline strategies
   └─ main.tsx # React popup entry point and application bootstrapping
 sandbox/ # 1 file
   └─ main.ts # Sandboxed iframe for MediaInfo.js WASM execution. Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
-shared/ # 15 directories
+shared/ # 17 directories
   ├─ classification/ # 2 files
   │ ├─ file-types.ts # File type detection from MIME and extensions
   │ └─ sensitive-content.ts # Sensitive content detection heuristics for confirmation routing.
@@ -41,6 +51,12 @@ shared/ # 15 directories
   │ ├─ logger.ts # Debug logging utilities for troubleshooting rename decisions
   │ ├─ types.ts # Debug types and interfaces for troubleshooting rename decisions
   │ └─ verbose-formatter.ts # Verbose debug formatting utilities
+  ├─ filesystem/ # 5 files
+  │ ├─ directory-picker.ts # Directory picker and permission management for the File System Access API.
+  │ ├─ handle-storage.ts # Persist and retrieve File System Access handles using IndexedDB. File system handles are structured-clone serialisable and must live in IndexedDB (not chrome.storage.local) so that they can be restored in offscreen documents and service workers.
+  │ ├─ path-helpers.ts # Utilities for normalising download paths and managed subfolder prefixes.
+  │ ├─ rename-operations.ts # Core file rename operations built on top of the File System Access API. Implements the copy+delete fallback until FileSystemHandle.move() ships for non-OPFS files. Supports nested paths, streaming for large files, and Windows reserved-name sanitisation.
+  │ └─ types.ts # Shared types for File System Access operations and state.
   ├─ history/ # 1 file
   │ └─ history.ts # File renaming action history tracking and storage
   ├─ integrations/ # 1 directory
@@ -64,6 +80,8 @@ shared/ # 15 directories
   ├─ naming/ # 2 files
   │ ├─ media-qualifiers.ts # Extract media metadata qualifiers for filename enhancement
   │ └─ policy-engine.ts # Filename generation policies and formatting rules
+  ├─ onboarding/ # 1 file
+  │ └─ onboarding-state.ts # Persistence helpers for onboarding progress shared across extension contexts.
   ├─ pipeline/ # 6 files
   │ ├─ filename-composer.ts # Filename composition and building utilities for Instant Baseline processing
   │ ├─ instant-baseline-strategy.ts # Instant Baseline deterministic strategy evaluator
@@ -119,14 +137,21 @@ content.ts # Content script for page context extraction and messaging
 **Purpose**: Download coordination logic for onDeterminingFilename events
 
 **Exports**:
-- `export DeterminingItem` - item implementation
-- `export DeterminingListener` - item implementation
-- `export SuggestCallback` - item implementation
-- `export SuggestPayload` - item implementation
 - `export createDeterminingListener` - Create the determining listener that processes download e...
-- `export isMediaFileType` - Check if the file type is a media file (audio or video)
 - `export processDeterminingFilename` - Process the determining filename event and suggest a rena...
-- `export shouldRenameType` - Check if renaming is enabled for the given file type
+
+### background/download-plan.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export DownloadPlan` - item implementation
+- `export buildDownloadPlan` - item implementation
+
+### background/download-post-actions.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export applyPostDownloadActions` - item implementation
 
 ### background/download-tracking.ts
 **Purpose**: Download tracking helpers used by the background coordinator.
@@ -137,12 +162,40 @@ content.ts # Content script for page context extraction and messaging
 - `export recordDownloadTracking` - item implementation
 - `export resetDownloadTrackingForTesting` - item implementation
 
+### background/download-types.ts
+**Purpose**: 4 exports
+
+**Exports**:
+- `export DeterminingItem` - item implementation
+- `export DeterminingListener` - item implementation
+- `export SuggestCallback` - item implementation
+- `export SuggestPayload` - item implementation
+
+### background/download-utils.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export isMediaFileType` - item implementation
+- `export shouldRenameType` - item implementation
+
 ### background/media-orchestrator.ts
 **Purpose**: Media analysis orchestration and upgrade proposal generation
 
 **Exports**:
 - `export applyMediaAnalysisResponse` - Apply media analysis response to history item and generat...
 - `export toMediaDebugSettings` - Convert settings to media debug settings if debug is enabled
+
+### background/rename-orchestrator.ts
+**Purpose**: Orchestrates file rename operations in response to toast actions.
+
+**Exports**:
+- `export RenameOrchestratorHelpers` - item implementation
+- `export executeAlwaysApply` - Execute "Always apply" action
+- `export executeApply` - Execute rename for "Approve" action (or auto-apply)
+- `export executeKeep` - Execute "Keep original" action
+- `export executePdfAnalysisRename` - Execute PDF analysis rename (called by alarm handler)
+Can...
+- `export schedulePdfAnalysisForDownload` - Schedule PDF analysis rename for auto-downloaded files (c...
 
 ### background/rename-overlay.ts
 **Purpose**: Helper for sending rename-complete overlay notifications to the initiating tab.
@@ -194,6 +247,17 @@ content.ts # Content script for page context extraction and messaging
 
 **Exports**:
 - `export default` - item implementation
+
+### downloads-permission/DownloadsPermissionPage.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export DownloadsPermissionPage` - item implementation
+
+### downloads-permission/main.tsx
+**Purpose**: Module exports
+
+*No exports found*
 
 ### offscreen/bridge/sandbox-lifecycle.ts
 **Purpose**: Sandbox iframe lifecycle management
@@ -255,6 +319,13 @@ content.ts # Content script for page context extraction and messaging
 **Purpose**: React popup entry point and application bootstrapping
 
 *No exports found*
+
+### popup/onboarding/DownloadsAccessScreen.tsx
+**Purpose**: 2 exports
+
+**Exports**:
+- `export DownloadsAccessScreenProps` - item implementation
+- `export DownloadsAccessScreen` - item implementation
 
 ### sandbox/main.ts
 **Purpose**: Sandboxed iframe for MediaInfo.js WASM execution. Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
@@ -331,15 +402,67 @@ content.ts # Content script for page context extraction and messaging
 **Exports**:
 - `export logVerboseContext` - Verbose debug formatting utilities
 
+### shared/filesystem/directory-picker.ts
+**Purpose**: Directory picker and permission management for the File System Access API.
+
+**Exports**:
+- `export ManagedSubfolderRequiredError` - Request read/write access to the Downloads directory
+- `export DirectoryHandleWithPermission` - Directory picker and permission management for the File S...
+- `export DownloadsAccessResult` - item implementation
+- `export isHandleValid` - Determine whether the provided handle is still valid and ...
+- `export requestDownloadsAccess` - item implementation
+- `export verifyDirectoryPermission` - Verify (and if necessary request) read/write permission f...
+
+### shared/filesystem/handle-storage.ts
+**Purpose**: Persist and retrieve File System Access handles using IndexedDB. File system handles are structured-clone serialisable and must live in IndexedDB (not chrome.storage.local) so that they can be restored in offscreen documents and service workers.
+
+**Exports**:
+- `export StoredHandleInfo` - item implementation
+- `export clearStoredHandle` - item implementation
+- `export getHandleMetadata` - item implementation
+- `export getManagedRelativePath` - item implementation
+- `export getStoredDirectoryHandle` - item implementation
+- `export normalizeRelativePath` - item implementation
+- `export storeDirectoryHandle` - item implementation
+- `export updateLastVerified` - item implementation
+
+### shared/filesystem/path-helpers.ts
+**Purpose**: Utilities for normalising download paths and managed subfolder prefixes.
+
+**Exports**:
+- `export buildManagedPath` - item implementation
+- `export normalizeDownloadPath` - Utilities for normalising download paths and managed subf...
+- `export normalizeManagedPrefix` - item implementation
+
+### shared/filesystem/rename-operations.ts
+**Purpose**: Core file rename operations built on top of the File System Access API. Implements the copy+delete fallback until FileSystemHandle.move() ships for non-OPFS files. Supports nested paths, streaming for large files, and Windows reserved-name sanitisation.
+
+**Exports**:
+- `export RenameOptions` - item implementation
+- `export RenameResult` - item implementation
+- `export renameFile` - Rename a file located inside the granted directory handle
+- `export renameFileNative` - item implementation
+- `export supportsNativeMove` - item implementation
+
+### shared/filesystem/types.ts
+**Purpose**: Shared types for File System Access operations and state.
+
+**Exports**:
+- `export FileSystemState` - Shared types for File System Access operations and state
+- `export RenameRequest` - item implementation
+- `export RenameResponse` - item implementation
+
 ### shared/history/history.ts
 **Purpose**: File renaming action history tracking and storage
 
 **Exports**:
 - `export HistoryItem` - item implementation
 - `export HistoryMediaMetadata` - item implementation
+- `export PendingAnalysisRename` - item implementation
 - `export UpgradeProposal` - item implementation
 - `export addHistoryItem` - item implementation
 - `export getHistory` - item implementation
+- `export getHistoryItem` - item implementation
 - `export updateHistoryItem` - item implementation
 
 ### shared/integrations/mediainfo/constants.ts
@@ -475,6 +598,17 @@ content.ts # Content script for page context extraction and messaging
 - `export FilenamePolicyResult` - item implementation
 - `export applyFilenamePolicy` - item implementation
 - `export generateMediaEnhancedFilename` - Generate enhanced filename with media metadata qualifiers
+
+### shared/onboarding/onboarding-state.ts
+**Purpose**: Persistence helpers for onboarding progress shared across extension contexts.
+
+**Exports**:
+- `export OnboardingState` - Persistence helpers for onboarding progress shared across...
+- `export OnboardingStatus` - Persistence helpers for onboarding progress shared across...
+- `export getOnboardingState` - item implementation
+- `export markOnboardingCompleted` - item implementation
+- `export markOnboardingSkipped` - item implementation
+- `export resetOnboardingState` - item implementation
 
 ### shared/pipeline/filename-composer.ts
 **Purpose**: Filename composition and building utilities for Instant Baseline processing

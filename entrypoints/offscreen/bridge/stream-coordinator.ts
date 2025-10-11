@@ -1,6 +1,7 @@
 /**
  * Streaming coordinator for range-based media fetching
  */
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { MEDIAINFO_CHUNK_SIZE } from '@/entrypoints/shared/integrations/mediainfo';
 import { RangeFetchReader } from '@/entrypoints/shared/integrations/mediainfo/range-reader';
 import { getSandboxWindow, isFromSandbox } from './sandbox-lifecycle';
@@ -93,7 +94,7 @@ function handleInitStream(data: SandboxToParentMessages['init-stream']): void {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Range reader init failed';
-      console.error('[SandboxBridge] Range reader init failed', {
+      debugLogger.error('[SandboxBridge] Range reader init failed', {
         requestId,
         error: message,
       });
@@ -138,7 +139,7 @@ function handleFetchChunk(data: SandboxToParentMessages['fetch-chunk']): void {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Chunk fetch failed';
-      console.error('[SandboxBridge] Chunk fetch failed', {
+      debugLogger.error('[SandboxBridge] Chunk fetch failed', {
         requestId,
         error: message,
       });

@@ -34,6 +34,7 @@ export interface QueueConfirmToastOptions {
   originalFilename: string;
   proposedFilename: string;
   proposedPath: string;
+  displayProposedPath: string;
   fileType: FileType;
   mode: Mode;
   reasonTags: string[];
@@ -121,10 +122,12 @@ export function createConfirmToastController(
     try {
       await sendShowConfirmToast(payload, target);
     } catch (error) {
-      console.error(
+      debugLogger.error(
         '[ConfirmToast] Failed to dispatch toast to content script',
-        payload.proposal.toastId,
-        error,
+        {
+          toastId: payload.proposal.toastId,
+          error,
+        },
       );
       throw error instanceof Error ? error : new Error(String(error));
     }
@@ -162,6 +165,7 @@ export function createConfirmToastController(
         originalFilename: options.originalFilename,
         proposedFilename: options.proposedFilename,
         proposedPath: options.proposedPath,
+        displayProposedPath: options.displayProposedPath,
         fileType: options.fileType,
         mode: options.mode,
         reasonTags: options.reasonTags,

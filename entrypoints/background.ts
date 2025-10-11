@@ -17,6 +17,11 @@ import {
   type DownloadTrackingEntry,
   pruneDownloadTrackingMap,
 } from './background/download-tracking';
+import {
+  executeAlwaysApply,
+  executeApply,
+  executeKeep,
+} from './background/rename-orchestrator';
 import { ensureSettingsCache } from './background/settings-cache';
 import { createConfirmToastController } from './background/toast/confirmation-controller';
 
@@ -27,6 +32,18 @@ const DOWNLOAD_TRACKING_PRUNE_INTERVAL_MS = 15 * 60_000;
 
 const downloadTracking = new Map<number, DownloadTrackingEntry>();
 
+browser.runtime.onInstalled.addListener((details) => {
+  if (details.reason !== 'install') {
+    return;
+  }
+  const setupUrl = browser.runtime.getURL('/downloads-permission.html');
+  void browser.tabs.create({ url: setupUrl }).catch((error) => {
+    debugLogger.warn('[Background] Failed to open setup tab after install', {
+      error,
+    });
+  });
+});
+
 function initializeBackground(): void {
   const confirmToastController = createConfirmToastController({
     async onUserDecision(entry, decision, helpers) {
@@ -35,21 +52,64 @@ function initializeBackground(): void {
         decision.action,
         entry.proposal.historyId,
       );
-      // Placeholder: dismiss toast until rename orchestration is implemented.
-      const state: 'applied' | 'kept' | 'dismissed' =
-        decision.action === 'approve'
-          ? 'applied'
-          : decision.action === 'keep-original'
-            ? 'kept'
-            : 'dismissed';
-      await helpers.emitStatus(state);
+      const orchestratorHelpers = {
+        emitStatus: helpers.emitStatus,
+      };
+
+      try {
+        switch (decision.action) {
+          case 'approve':
+            await executeApply(entry, decision, orchestratorHelpers);
+            break;
+          case 'keep-original':
+            await executeKeep(entry, orchestratorHelpers);
+            break;
+          case 'always-apply':
+            await executeAlwaysApply(entry, decision, orchestratorHelpers);
+            break;
+          default:
+            debugLogger.warn(
+              '[ConfirmToast] Unknown action received',
+              decision.action,
+            );
+            await helpers.emitStatus('dismissed');
+        }
+      } catch (error) {
+        debugLogger.error(
+          '[ConfirmToast] Failed to process user decision',
+          error,
+        );
+        await helpers.emitStatus(
+          'error',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
     },
     async onAutoApply(entry, helpers) {
       debugLogger.log(
         '[ConfirmToast] Auto-apply timeout reached',
         entry.proposal.historyId,
       );
-      await helpers.emitStatus('timeout');
+      try {
+        await executeApply(
+          entry,
+          {
+            toastId: entry.proposal.toastId,
+            historyId: entry.historyId,
+            downloadId: entry.proposal.downloadId,
+            action: 'approve',
+          },
+          {
+            emitStatus: helpers.emitStatus,
+          },
+        );
+      } catch (error) {
+        debugLogger.error('[ConfirmToast] Auto-apply rename failed', error);
+        await helpers.emitStatus(
+          'error',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
     },
   });
 
@@ -57,42 +117,21 @@ function initializeBackground(): void {
   initializeBackgroundDebug();
 
   const pageContextService = registerPageContextService();
-
-  // void (async () => {
-  //   try {
-  //     const current = await getSettings();
-  //     const desiredDebug = {
-  //       ...current.debug,
-  //       enabled: true,
-  //       level: 'verbose' as const,
-  //     };
-  //     if (
-  //       current.mode !== 'careful' ||
-  //       current.debug.enabled !== desiredDebug.enabled ||
-  //       current.debug.level !== desiredDebug.level
-  //     ) {
-  //       await updateSettings({
-  //         mode: 'careful',
-  //         debug: desiredDebug,
-  //       });
-  //       console.info(
-  //         '[NewName] Dev override: mode set to careful with verbose debug',
-  //       );
-  //     }
-  //   } catch (error) {
-  //     console.warn('[NewName] Failed to apply dev settings override', error);
-  //   }
-  // })();
-
-  void (async () => {
-    await updateSettings({
-      mode: 'balanced',
-      debug: {
-        enabled: true,
-        level: 'verbose' as const,
-      },
-    });
-  })();
+  if (import.meta.env.DEV) {
+    // Development mode override
+    void (async () => {
+      await updateSettings({
+        mode: 'balanced',
+        debug: {
+          enabled: true,
+          level: 'verbose' as const,
+        },
+      });
+      console.info(
+        '[NewName] Dev override: mode set to balanced with verbose debug',
+      );
+    })();
+  }
 
   onExtensionMessage('resolveRuntimeContext', ({ sender }) => ({
     tabId: sender.tab?.id ?? undefined,
@@ -193,7 +232,10 @@ function initializeBackground(): void {
           logMediaDebug(info.debug, 'download-bytes-final', payload);
         })
         .catch((error) => {
-          console.error('Failed to log download bytes', error);
+          debugLogger.error('[Background] Failed to log download bytes', {
+            error,
+            downloadId: delta.id,
+          });
         });
     }
   });
@@ -229,6 +271,23 @@ function initializeBackground(): void {
       );
     }
     return { ok: true };
+  });
+
+  // Handle delayed PDF analysis renames via alarms
+  browser.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name.startsWith('pdf-analysis-')) {
+      const historyId = alarm.name.replace('pdf-analysis-', '');
+      debugLogger.log('[Alarms] PDF analysis rename triggered', historyId);
+
+      try {
+        const { executePdfAnalysisRename } = await import(
+          './background/rename-orchestrator'
+        );
+        await executePdfAnalysisRename(historyId);
+      } catch (error) {
+        debugLogger.error('[Alarms] PDF analysis rename failed', error);
+      }
+    }
   });
 }
 

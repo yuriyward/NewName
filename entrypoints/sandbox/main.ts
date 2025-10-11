@@ -8,6 +8,7 @@ import {
   isSandboxMessage,
   postToParent,
 } from '@/entrypoints/offscreen/bridge/sandbox-protocol';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
   analyzeMediaFromBlob,
   MEDIAINFO_CHUNK_SIZE,
@@ -60,7 +61,7 @@ async function ensureInitialized(): Promise<void> {
       });
     } catch (error) {
       initPromise = null;
-      console.error('[Sandbox] MediaInfo initialization failed:', error);
+      debugLogger.error('[Sandbox] MediaInfo initialization failed', { error });
       throw error;
     }
   })();
@@ -166,7 +167,7 @@ window.addEventListener('message', async (event) => {
       const details =
         error instanceof Error && error.stack ? error.stack : undefined;
 
-      console.error('[Sandbox] Blob analysis failed', {
+      debugLogger.error('[Sandbox] Blob analysis failed', {
         requestId: reqId,
         error: baseMessage,
         elapsedMs: Math.round(elapsed),
@@ -341,7 +342,7 @@ window.addEventListener('message', async (event) => {
       const details =
         error instanceof Error && error.stack ? error.stack : undefined;
 
-      console.error('[Sandbox] Streaming analysis failed', {
+      debugLogger.error('[Sandbox] Streaming analysis failed', {
         requestId: reqId,
         error: baseMessage,
         elapsedMs: Math.round(elapsed),

@@ -1,4 +1,5 @@
 import { attachConsoleHelpers } from '@/entrypoints/shared/debug/console-helpers';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { sendExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import { initializeMediaAnalysisHandler } from './media-analysis-handler';
 
@@ -36,7 +37,7 @@ import { initializeMediaAnalysisHandler } from './media-analysis-handler';
     await sendExtensionMessage('offscreenReady', { ts: Date.now() });
     console.log('[Offscreen] Ready signal sent successfully');
   } catch (error) {
-    console.error('[Offscreen] Failed to send ready signal:', error);
+    debugLogger.error('[Offscreen] Failed to send ready signal', { error });
     // best-effort; background will still handshake-retry
   }
 
@@ -44,5 +45,5 @@ import { initializeMediaAnalysisHandler } from './media-analysis-handler';
     timestamp: Date.now(),
   });
 })().catch((error) => {
-  console.error('[Offscreen] Fatal initialization error:', error);
+  debugLogger.error('[Offscreen] Fatal initialization error', { error });
 });

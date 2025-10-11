@@ -9,6 +9,9 @@ This folder is the central place for both static docs and auto‑generated docum
   - Per‑file purpose and export summaries
 - `ai-chrome-prompt-api.md`:
   - Reference notes for Chrome Prompt API usage patterns
+- `chrome-service-worker-long-running-tasks.md`:
+  - Guide for implementing delayed/scheduled operations that survive service worker termination
+  - `chrome.alarms` API patterns, state persistence, and production best practices
 - Root `AI.md` (guidance for agents):
   - Conventions, domain organization, reuse‑first guidance, and workflows
 

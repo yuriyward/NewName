@@ -55,6 +55,7 @@ const BASE_OPTIONS = {
   originalFilename: 'original.pdf',
   proposedFilename: 'renamed.pdf',
   proposedPath: '/downloads/renamed.pdf',
+  displayProposedPath: '/downloads/renamed.pdf',
   fileType: 'pdf' as const,
   mode: 'balanced' as const,
   reasonTags: ['Legal'],
@@ -173,11 +174,19 @@ describe('createConfirmToastController', () => {
   it('returns false when handling decision for unknown toast', async () => {
     const { hooks } = createHooks();
     const controller = createConfirmToastController(hooks);
-    const handled = await controller.handleUserDecision({
-      toastId: 'missing',
-      historyId: 'missing',
-      action: 'approve',
-    });
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+    let handled: boolean;
+    try {
+      handled = await controller.handleUserDecision({
+        toastId: 'missing',
+        historyId: 'missing',
+        action: 'approve',
+      });
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
     expect(handled).toBe(false);
   });
 

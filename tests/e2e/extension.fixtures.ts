@@ -8,7 +8,7 @@ import {
   type Page,
   type Worker,
 } from '@playwright/test';
-import type { HistoryItem } from '@/entrypoints/shared/history/history';
+import type { HistoryItem } from '@/entrypoints/shared/history/types';
 
 const SERVICE_WORKER_WAIT_TIMEOUT = 2_000;
 

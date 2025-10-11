@@ -18,6 +18,7 @@ export interface ConfirmToastProposal {
   originalFilename: string;
   proposedFilename: string;
   proposedPath: string;
+  displayProposedPath: string;
   fileType: FileType;
   mode: Mode;
   reasonTags: string[];
@@ -47,7 +48,8 @@ export type ConfirmToastStatusState =
   | 'kept'
   | 'timeout'
   | 'dismissed'
-  | 'error';
+  | 'error'
+  | 'permission-denied';
 
 export interface ConfirmToastStatusMessage {
   toastId: string;

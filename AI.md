@@ -101,18 +101,25 @@ The `ai/` directory hosts both static and auto-generated docs.
 <!-- AUTO-GENERATED TREE START -->
 
 ```
-background/ # 7 files, 1 directories
+background/ # 11 files, 1 directories
   ├─ toast/ # 3 files
   │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
-  ├─ confirm-toast-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
+  ├─ download-plan.ts # 2 exports
+  ├─ download-post-actions.ts # 1 export
   ├─ download-tracking.ts # Download tracking helpers used by the background coordinator.
+  ├─ download-types.ts # 4 exports
+  ├─ download-utils.ts # 2 exports
   ├─ media-orchestrator.ts # Media analysis orchestration and upgrade proposal generation
+  ├─ rename-orchestrator.ts # Orchestrates file rename operations in response to toast actions.
   ├─ rename-overlay.ts # Helper for sending rename-complete overlay notifications to the initiating tab.
   ├─ settings-cache.ts # Settings cache management for background service worker
   └─ suggest-controller.ts # Helper for coordinating the Chrome downloads suggest callback with timeouts.
+downloads-permission/ # 2 files
+  ├─ DownloadsPermissionPage.tsx # 1 export
+  └─ main.tsx # Module exports
 offscreen/ # 3 files, 1 directories
   ├─ bridge/ # 3 files
   │ ├─ sandbox-lifecycle.ts # Sandbox iframe lifecycle management
@@ -121,12 +128,14 @@ offscreen/ # 3 files, 1 directories
   ├─ main.ts # Module exports
   ├─ media-analysis-handler.ts # 1 export
   └─ sandbox-bridge.ts # Bridge for communicating with the sandboxed iframe that runs MediaInfo.js. Coordinates analysis requests and response handling.
-popup/ # 2 files
+popup/ # 2 files, 1 directories
+  ├─ onboarding/ # 1 file
+  │ └─ DownloadsAccessScreen.tsx # 2 exports
   ├─ App.tsx # Settings popup for configuring deterministic Instant Baseline strategies
   └─ main.tsx # React popup entry point and application bootstrapping
 sandbox/ # 1 file
   └─ main.ts # Sandboxed iframe for MediaInfo.js WASM execution. Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
-shared/ # 15 directories
+shared/ # 17 directories
   ├─ classification/ # 2 files
   │ ├─ file-types.ts # File type detection from MIME and extensions
   │ └─ sensitive-content.ts # Sensitive content detection heuristics for confirmation routing.
@@ -139,6 +148,12 @@ shared/ # 15 directories
   │ ├─ logger.ts # Debug logging utilities for troubleshooting rename decisions
   │ ├─ types.ts # Debug types and interfaces for troubleshooting rename decisions
   │ └─ verbose-formatter.ts # Verbose debug formatting utilities
+  ├─ filesystem/ # 5 files
+  │ ├─ directory-picker.ts # Directory picker and permission management for the File System Access API.
+  │ ├─ handle-storage.ts # Persist and retrieve File System Access handles using IndexedDB. File system handles are structured-clone serialisable and must live in IndexedDB (not chrome.storage.local) so that they can be restored in offscreen documents and service workers.
+  │ ├─ path-helpers.ts # Utilities for normalising download paths and managed subfolder prefixes.
+  │ ├─ rename-operations.ts # Core file rename operations built on top of the File System Access API. Implements the copy+delete fallback until FileSystemHandle.move() ships for non-OPFS files. Supports nested paths, streaming for large files, and Windows reserved-name sanitisation.
+  │ └─ types.ts # Shared types for File System Access operations and state.
   ├─ history/ # 1 file
   │ └─ history.ts # File renaming action history tracking and storage
   ├─ integrations/ # 1 directory
@@ -162,6 +177,8 @@ shared/ # 15 directories
   ├─ naming/ # 2 files
   │ ├─ media-qualifiers.ts # Extract media metadata qualifiers for filename enhancement
   │ └─ policy-engine.ts # Filename generation policies and formatting rules
+  ├─ onboarding/ # 1 file
+  │ └─ onboarding-state.ts # Persistence helpers for onboarding progress shared across extension contexts.
   ├─ pipeline/ # 6 files
   │ ├─ filename-composer.ts # Filename composition and building utilities for Instant Baseline processing
   │ ├─ instant-baseline-strategy.ts # Instant Baseline deterministic strategy evaluator
@@ -182,7 +199,7 @@ shared/ # 15 directories
   ├─ toast/ # 2 files
   │ ├─ timing-constants.ts # Centralized timing constants for toast behavior. All values are in milliseconds unless otherwise noted.
   │ └─ types.ts # Shared types for confirm toast messaging between contexts.
-  ├─ ui/ # 5 files, 1 directories
+  ├─ ui/ # 7 files, 1 directories
   │ ├─ toast/ # 8 files
   │ │ ├─ keyboard-handler.ts # Keyboard event handler for toast interactions.
   │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames.
@@ -192,7 +209,9 @@ shared/ # 15 directories
   │ │ ├─ toast-overlay.tsx # ToastOverlay renders both confirm and rename toasts in a fixed overlay.
   │ │ ├─ toast-state-manager.ts # State management for confirm and rename toasts.
   │ │ └─ toast-theme-manager.ts # Theme management for toast UI elements.
+  │ ├─ confirm-toast-manager.test.tsx # Module exports
   │ ├─ confirm-toast-manager.tsx # Toast manager rendered inside the content script via Shadow DOM.
+  │ ├─ ConfirmToast.accessibility.test.tsx # Module exports
   │ ├─ ConfirmToast.tsx # 1 export
   │ ├─ FilenameLabel.tsx # 1 export
   │ ├─ icons.ts # Shared icon exports for consistent icon usage across the application. All icons are re-exported from @heroicons/react for easy replacement if needed.

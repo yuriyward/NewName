@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { addHistoryItem, type HistoryItem, updateHistoryItem } from './history';
+import { addHistoryItem, updateHistoryItem } from './history';
+import type { HistoryItem } from './types';
 
 function createBaseHistoryItem(): HistoryItem {
   const now = Date.now();

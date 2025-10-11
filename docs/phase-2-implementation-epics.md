@@ -145,7 +145,7 @@ Phase 2 extends the MVP deterministic renaming flow (Phase 1) into a more expres
 
 ### Epic B — Confirm Modal, Mode Flows & Per-Type Controls
 - [X] Ship settings schema v2 with per-type behaviour flags and metadata toggles, plus migration tests and localisation hooks.
-- [ ] Build accessible Confirm Modal UI shell, wire it to Balanced/Careful flows, and exercise keyboard + screen reader interactions in automated tests.
+- [X] Build accessible Confirm Modal UI shell, wire it to Balanced/Careful flows, and exercise keyboard + screen reader interactions in automated tests.
 - [ ] Implement onboarding screens (Mode, Cloud, Downloads access, AI activation) with persistent storage integration and smoke tests for mode-specific behaviours.
 
 ### Epic C — Cloud Assist Launch & Transparent Routing

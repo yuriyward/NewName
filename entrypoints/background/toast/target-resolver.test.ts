@@ -20,7 +20,18 @@ describe('target-resolver', () => {
 
   it('returns undefined when browser query throws', async () => {
     fakeBrowser.tabs.query = vi.fn().mockRejectedValue(new Error('no window'));
-    await expect(resolveTarget()).resolves.toBeUndefined();
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+    try {
+      await expect(resolveTarget()).resolves.toBeUndefined();
+    } finally {
+      consoleErrorSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    }
   });
 
   it('extracts tab id from numeric or SendMessageOptions targets', () => {

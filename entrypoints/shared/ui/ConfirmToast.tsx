@@ -274,6 +274,11 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
         </button>
         <span>Esc to cancel</span>
       </div>
+      {toast.status !== 'pending' && toast.statusMessage ? (
+        <p className="mt-2 rounded border border-danger-200 bg-danger-50 px-2 py-1 text-[11px] font-medium text-danger-600">
+          {toast.statusMessage}
+        </p>
+      ) : null}
     </div>
   );
 };
