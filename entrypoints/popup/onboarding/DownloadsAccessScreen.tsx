@@ -56,10 +56,8 @@ export function DownloadsAccessScreen({
       <header className="space-y-1">
         <h1 className="text-lg font-semibold">Enable Downloads Access</h1>
         <p className="text-xs leading-relaxed text-default-500">
-          Chrome cannot grant folder access from a popup. Click below to open a
-          setup tab, then select a subfolder such as{' '}
-          <span className="font-semibold">Downloads/NewName</span>. When you
-          return to the popup, NewName will detect the permission automatically.
+          Choose where NewName should save and rename files. Click below to open
+          the setup page, finish the quick prompt, and you&apos;re all set.
         </p>
       </header>
 
@@ -93,8 +91,8 @@ export function DownloadsAccessScreen({
       </div>
 
       <footer className="text-[11px] leading-relaxed text-default-400">
-        Skipping keeps NewName from renaming files automatically. You can grant
-        access later to enable post-download renames and undo.
+        Skipping keeps NewName from renaming files automatically. Grant access
+        later to enable post-download renames and undo.
       </footer>
     </div>
   );

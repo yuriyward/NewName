@@ -32,6 +32,18 @@ const DOWNLOAD_TRACKING_PRUNE_INTERVAL_MS = 15 * 60_000;
 
 const downloadTracking = new Map<number, DownloadTrackingEntry>();
 
+browser.runtime.onInstalled.addListener((details) => {
+  if (details.reason !== 'install') {
+    return;
+  }
+  const setupUrl = browser.runtime.getURL('/downloads-permission.html');
+  void browser.tabs.create({ url: setupUrl }).catch((error) => {
+    debugLogger.warn('[Background] Failed to open setup tab after install', {
+      error,
+    });
+  });
+});
+
 function initializeBackground(): void {
   const confirmToastController = createConfirmToastController({
     async onUserDecision(entry, decision, helpers) {

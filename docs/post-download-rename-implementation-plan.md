@@ -153,8 +153,8 @@ browser.downloads.onChanged.addListener(async (delta) => {
 
 #### Managed Downloads Subfolder & Pre-Routing
 
-- **Chrome restriction:** File System Access rejects the root of well-known folders (e.g., `Downloads`). Requesting it triggers `DOMException: SecurityError`; subfolders like `Downloads/NewName` are allowed.
-- **Onboarding UX:** When a `SecurityError` occurs, surface guidance (“Create or select Downloads/NewName”) and re-open the picker with `startIn: 'downloads'` so users can create/select the managed directory.
+- **Chrome restriction:** File System Access rejects the root of well-known folders (e.g., `Downloads`). Requesting it triggers `DOMException: SecurityError`; subfolders like `Downloads/Organized` or `Downloads/Client Files` are allowed.
+- **Onboarding UX:** When a `SecurityError` occurs, surface guidance (“Create or select a subfolder inside Downloads, then choose it”) and re-open the picker with `startIn: 'downloads'` so users can create/select the managed directory.
 - **Handle metadata:** Persist the granted directory handle **and** a sanitized relative path (defaulting to `handle.name`) in IndexedDB. Background contexts reuse this metadata to build suggestions and restore permissions after restart.
 - **Download routing:** Inside `onDeterminingFilename`, prefix every suggestion with the managed path so Chrome writes directly into the granted folder. For example:
   ```typescript
@@ -336,20 +336,45 @@ export interface DirectoryHandleWithPermission {
   permission: PermissionState;
 }
 
+export interface DownloadsAccessResult {
+  handle: FileSystemDirectoryHandle;
+  managedRelativePath: string;
+  parentDirectoryName: string;
+  createdManagedFolder: boolean;
+}
+
 /**
  * Request Downloads directory access from user
  * Must be called from user gesture (button click)
  */
-export async function requestDownloadsAccess(): Promise<FileSystemDirectoryHandle> {
+export async function requestDownloadsAccess(): Promise<DownloadsAccessResult> {
   try {
-    const handle = await window.showDirectoryPicker({
+    const selected = await window.showDirectoryPicker({
       startIn: 'downloads',
       mode: 'readwrite',
+      id: 'newname-downloads',
     });
-    return handle;
+
+    const managedRelativePath =
+      normalizeRelativePath(selected.name) ?? selected.name;
+
+    return {
+      handle: selected,
+      managedRelativePath,
+      parentDirectoryName: selected.name,
+      createdManagedFolder: false,
+    };
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new Error('User cancelled directory picker');
+    }
+    if (
+      error instanceof DOMException &&
+      error.message.toLowerCase().includes('system folder')
+    ) {
+      throw new Error(
+        'Chrome blocks system folders. Create a subfolder inside Downloads and select it.',
+      );
     }
     throw error;
   }
@@ -361,14 +386,14 @@ export async function requestDownloadsAccess(): Promise<FileSystemDirectoryHandl
 export async function verifyDirectoryPermission(
   handle: FileSystemDirectoryHandle
 ): Promise<PermissionState> {
-  const permission = await handle.queryPermission({ mode: 'readwrite' });
-  if (permission === 'granted') {
-    return 'granted';
+  const permission = await handle.queryPermission?.({ mode: 'readwrite' });
+  if (permission === 'granted' || permission === 'prompt') {
+    return permission;
   }
 
   // Try to request permission
-  const requested = await handle.requestPermission({ mode: 'readwrite' });
-  return requested;
+  const requested = await handle.requestPermission?.({ mode: 'readwrite' });
+  return requested ?? 'denied';
 }
 
 /**
@@ -381,7 +406,13 @@ export async function isHandleValid(
 
   try {
     const permission = await verifyDirectoryPermission(handle);
-    return permission === 'granted';
+    if (permission === 'granted') {
+      return true;
+    }
+    const requested = await handle.requestPermission?.({
+      mode: 'readwrite',
+    });
+    return requested === 'granted';
   } catch {
     return false;
   }

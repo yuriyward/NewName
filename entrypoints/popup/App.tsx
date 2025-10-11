@@ -214,7 +214,8 @@ function App(): JSX.Element {
         <DownloadsAccessScreen
           onComplete={() => {
             setShowOnboarding(false);
-            setHasDownloadsAccess(true);
+            setHasDownloadsAccess(null);
+            setDownloadsAccessChecked(false);
             void refreshDownloadsAccess();
           }}
           onSkip={() => {

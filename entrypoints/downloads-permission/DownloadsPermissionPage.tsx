@@ -1,5 +1,7 @@
-import { CheckCircleIcon } from '@heroicons/react/24/outline';
-import { Alert } from '@heroui/alert';
+import {
+  CheckCircleIcon,
+  ShieldExclamationIcon,
+} from '@heroicons/react/24/outline';
 import { type JSX, useEffect, useState } from 'react';
 import {
   ManagedSubfolderRequiredError,
@@ -15,8 +17,14 @@ import { markOnboardingCompleted } from '@/entrypoints/shared/onboarding/onboard
 type RequestState =
   | { status: 'idle' }
   | { status: 'pending' }
-  | { status: 'success'; grantedAt: number }
-  | { status: 'error'; message: string };
+  | {
+      status: 'success';
+      grantedAt: number;
+      managedRelativePath: string;
+      createdManagedFolder: boolean;
+      parentDirectoryName: string;
+    }
+  | { status: 'error'; message: string; hint?: string };
 
 export function DownloadsPermissionPage(): JSX.Element {
   const [state, setState] = useState<RequestState>({ status: 'idle' });
@@ -39,15 +47,26 @@ export function DownloadsPermissionPage(): JSX.Element {
     }
     setState({ status: 'pending' });
     try {
-      const handle = await requestDownloadsAccess();
+      const {
+        handle,
+        managedRelativePath,
+        createdManagedFolder,
+        parentDirectoryName,
+      } = await requestDownloadsAccess();
       const permission = await verifyDirectoryPermission(handle);
       if (permission !== 'granted') {
         throw new Error('Permission not granted');
       }
-      await storeDirectoryHandle(handle);
+      await storeDirectoryHandle(handle, { relativePath: managedRelativePath });
       await updateLastVerified();
       await markOnboardingCompleted();
-      setState({ status: 'success', grantedAt: Date.now() });
+      setState({
+        status: 'success',
+        grantedAt: Date.now(),
+        managedRelativePath,
+        createdManagedFolder,
+        parentDirectoryName,
+      });
     } catch (err) {
       console.error('[DownloadsPermissionPage] Granting access failed', err, {
         lastPickerError:
@@ -60,17 +79,11 @@ export function DownloadsPermissionPage(): JSX.Element {
       const message =
         err instanceof Error ? err.message : 'Something went wrong';
       if (err instanceof ManagedSubfolderRequiredError) {
-        const details = err.details;
-        const advice =
-          'Chrome blocks the root Downloads folder. Create or choose a subfolder inside Downloads (for example “NewName”) and select it.';
-        if (details) {
-          setState({
-            status: 'error',
-            message: `${advice} Chrome reported: "${details.message}" (code: ${details.name}).`,
-          });
-        } else {
-          setState({ status: 'error', message: advice });
-        }
+        setState({
+          status: 'error',
+          message: 'Pick a regular folder to continue.',
+          hint: 'Chrome keeps system folders read-only. Create or choose a folder inside it (for example “Organized”) and select that instead.',
+        });
         return;
       }
       if (message === 'User cancelled directory picker') {
@@ -84,15 +97,30 @@ export function DownloadsPermissionPage(): JSX.Element {
             name?: string;
             message?: string;
           };
-          setState({
-            status: 'error',
-            message: `No folder selected. Chrome reported: "${detailMessage ?? 'Unknown'}" (code: ${name ?? 'Unknown'}).`,
-          });
+          if (
+            name === 'AbortError' ||
+            (detailMessage &&
+              /Failed to execute 'showDirectoryPicker'/.test(detailMessage))
+          ) {
+            setState({
+              status: 'error',
+              message: 'Chrome blocked that folder.',
+              hint: 'Create a subfolder inside it or choose a different folder, then try again.',
+            });
+          } else {
+            setState({
+              status: 'error',
+              message: 'No folder selected. Please choose one to continue.',
+              hint:
+                detailMessage && name
+                  ? `Chrome said: “${detailMessage}” (code: ${name}).`
+                  : undefined,
+            });
+          }
         } else {
           setState({
             status: 'error',
-            message:
-              'No folder selected. Choose a subfolder inside Downloads to continue.',
+            message: 'No folder selected. Please choose one to continue.',
           });
         }
         return;
@@ -100,12 +128,19 @@ export function DownloadsPermissionPage(): JSX.Element {
       if (message === 'Permission not granted') {
         setState({
           status: 'error',
-          message:
-            'Allow read and write access so NewName can rename files after download.',
+          message: 'Please allow access so NewName can manage your files.',
+          hint: 'When Chrome asks for permission, click “Allow”.',
         });
         return;
       }
-      setState({ status: 'error', message });
+      setState({
+        status: 'error',
+        message: 'Something went wrong. Try again.',
+        hint:
+          message && message !== 'Something went wrong'
+            ? `Chrome said: “${message}”.`
+            : undefined,
+      });
     }
   }
 
@@ -120,36 +155,61 @@ export function DownloadsPermissionPage(): JSX.Element {
             Grant access to your managed Downloads folder
           </h1>
           <p className="text-sm leading-relaxed text-default-500">
-            Chrome requires a full tab to approve folder access for extensions.
-            When prompted, create or select a subfolder inside Downloads (for
-            example <span className="font-semibold">Downloads/NewName</span>)
-            and click <span className="font-semibold">Select</span>. NewName
-            will use this folder to safely rename files after they complete.
+            You&apos;re almost done. Use the picker to make or choose any folder
+            you want NewName to manage (for example{' '}
+            <span className="font-semibold">Downloads/Organized</span> or{' '}
+            <span className="font-semibold">Desktop/NewName</span>). Select it,
+            allow the prompt, and NewName will take it from there.
           </p>
         </header>
 
         {state.status === 'success' ? (
-          <Alert
-            color="success"
-            variant="flat"
-            className="flex items-start gap-3 text-sm"
-          >
-            <CheckCircleIcon className="mt-0.5 h-5 w-5 flex-none" />
-            <div className="space-y-1">
-              <p className="font-medium">
-                Access granted. You can close this tab and return to the popup.
-              </p>
-              <p className="text-xs text-success-600">
-                Granted at {new Date(state.grantedAt).toLocaleTimeString()}.
-              </p>
+          <div className="rounded-2xl border border-success-200 bg-success-50/80 p-5 shadow-sm">
+            <div className="flex flex-wrap items-start gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-success-100 text-success-700">
+                <CheckCircleIcon className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1 space-y-2 text-sm text-success-800">
+                <div className="space-y-1">
+                  <p className="font-semibold">All set! Access granted.</p>
+                  <p className="text-xs text-success-600">
+                    Granted at {new Date(state.grantedAt).toLocaleTimeString()}.
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white/70 px-3 py-2 text-xs text-success-700 shadow-inner">
+                  <p className="font-medium">Managed folder</p>
+                  <p className="truncate font-mono text-[11px] uppercase tracking-wide text-success-600">
+                    {state.managedRelativePath}
+                  </p>
+                  {state.createdManagedFolder ? (
+                    <p className="mt-1 text-[11px] text-success-500">
+                      We created this folder for you.
+                    </p>
+                  ) : null}
+                </div>
+                <p className="text-xs text-success-700">
+                  You can close this tab and return to the popup whenever
+                  you&apos;re ready.
+                </p>
+              </div>
             </div>
-          </Alert>
+          </div>
         ) : null}
 
         {state.status === 'error' ? (
-          <Alert color="warning" variant="flat" className="text-sm leading-6">
-            {state.message}
-          </Alert>
+          <div className="rounded-2xl border border-warning-200 bg-warning-50/80 p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-warning-100 text-warning-700">
+                <ShieldExclamationIcon className="h-5 w-5" />
+              </span>
+              <div className="space-y-1 text-sm text-warning-800">
+                <p className="font-semibold">{state.message}</p>
+                {state.hint ? (
+                  <p className="text-xs text-warning-700">{state.hint}</p>
+                ) : null}
+              </div>
+            </div>
+          </div>
         ) : null}
 
         <section className="space-y-3 rounded-lg border border-default-200 bg-default-50/40 p-4">
@@ -161,28 +221,20 @@ export function DownloadsPermissionPage(): JSX.Element {
               <span className="mt-0.5 h-5 w-5 rounded-full bg-primary/10 text-center text-[11px] leading-5 text-primary">
                 1
               </span>
-              <span>
-                Click “Grant access”. Chrome will open a folder picker.
-              </span>
+              <span>Click “Grant access”. A folder window appears.</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="mt-0.5 h-5 w-5 rounded-full bg-primary/10 text-center text-[11px] leading-5 text-primary">
                 2
               </span>
-              <span>
-                Create or choose a subfolder inside Downloads (for example{' '}
-                <code className="rounded bg-default-100 px-1 py-0.5 text-[12px]">
-                  Downloads/NewName
-                </code>
-                ) and press <span className="font-semibold">Select</span>.
-              </span>
+              <span>Pick or create the folder you want NewName to use.</span>
             </li>
             <li className="flex items-start gap-3">
               <span className="mt-0.5 h-5 w-5 rounded-full bg-primary/10 text-center text-[11px] leading-5 text-primary">
                 3
               </span>
               <span>
-                Approve the follow-up permission prompt for read & write.
+                Press “Select” and approve the Chrome permission prompt.
               </span>
             </li>
           </ol>
@@ -219,10 +271,7 @@ export function DownloadsPermissionPage(): JSX.Element {
         </div>
 
         <footer className="mt-auto space-y-1 text-xs text-default-400">
-          <p>
-            Having trouble? Make sure you&apos;re on Chrome 122 or later and
-            that the folder isn&apos;t synced or protected by another app.
-          </p>
+          <p>Having trouble? Make sure you&apos;re on Chrome 122 or later.</p>
           <p>
             If the picker keeps failing, report the error code shown above so we
             can investigate.

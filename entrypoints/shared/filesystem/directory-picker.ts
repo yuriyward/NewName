@@ -2,6 +2,8 @@
  * Directory picker and permission management for the File System Access API.
  */
 
+import { normalizeRelativePath } from '@/entrypoints/shared/filesystem/handle-storage';
+
 export interface DirectoryHandleWithPermission {
   handle: FileSystemDirectoryHandle;
   permission: PermissionState;
@@ -10,7 +12,17 @@ export interface DirectoryHandleWithPermission {
 type DirectoryPickerOptions = {
   startIn?: string;
   mode?: 'read' | 'readwrite';
+  id?: string;
 };
+
+export interface DownloadsAccessResult {
+  handle: FileSystemDirectoryHandle;
+  managedRelativePath: string;
+  parentDirectoryName: string;
+  createdManagedFolder: boolean;
+}
+
+const DIRECTORY_PICKER_ID = 'newname-downloads';
 
 function getPermissionFns(handle: FileSystemDirectoryHandle): {
   query?: (descriptor?: {
@@ -52,7 +64,7 @@ export class ManagedSubfolderRequiredError extends Error {
   }
 }
 
-export async function requestDownloadsAccess(): Promise<FileSystemDirectoryHandle> {
+export async function requestDownloadsAccess(): Promise<DownloadsAccessResult> {
   const picker = (
     window as typeof window & {
       showDirectoryPicker?: (
@@ -66,11 +78,13 @@ export async function requestDownloadsAccess(): Promise<FileSystemDirectoryHandl
   }
 
   try {
-    const handle = await picker({
+    const selectedHandle = await picker({
       startIn: 'downloads',
       mode: 'readwrite',
+      id: DIRECTORY_PICKER_ID,
     });
-    return handle;
+    const ensured = await buildResultForSelection(selectedHandle);
+    return ensured;
   } catch (error) {
     if (error instanceof DOMException) {
       const context = { name: error.name, message: error.message };
@@ -93,6 +107,39 @@ export async function requestDownloadsAccess(): Promise<FileSystemDirectoryHandl
       ? error
       : new Error('Failed to select directory');
   }
+}
+
+async function buildResultForSelection(
+  selectedHandle: FileSystemDirectoryHandle,
+): Promise<DownloadsAccessResult> {
+  const normalizedName = normalizeRelativePath(selectedHandle.name);
+  let managedRelativePath =
+    normalizedName.length > 0 ? normalizedName : selectedHandle.name;
+
+  // Some users may grant access to nested folders (e.g., Downloads/Finance/2025).
+  // Attempt to resolve the full relative path when the browser surfaces it.
+  try {
+    const segments = await selectedHandle.resolve(selectedHandle);
+    if (Array.isArray(segments) && segments.length > 0) {
+      const joined = normalizeRelativePath(segments.join('/'));
+      if (joined.length > 0) {
+        managedRelativePath = joined;
+      }
+    }
+  } catch (error) {
+    console.warn(
+      '[DirectoryPicker] Failed to resolve selected folder path accurately',
+      error,
+    );
+  }
+
+  return {
+    handle: selectedHandle,
+    managedRelativePath:
+      normalizeRelativePath(managedRelativePath) || selectedHandle.name,
+    parentDirectoryName: selectedHandle.name,
+    createdManagedFolder: false,
+  };
 }
 
 function isSystemDirectoryError(error: DOMException): boolean {
