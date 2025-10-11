@@ -1,88 +1,23 @@
 /**
  * Download coordination logic for onDeterminingFilename events
  */
-import type { browser } from 'wxt/browser';
-import { detectSensitiveContent } from '@/entrypoints/shared/classification/sensitive-content';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
-import type { DebugContext } from '@/entrypoints/shared/debug/types';
-import { getManagedRelativePath } from '@/entrypoints/shared/filesystem/handle-storage';
-import {
-  buildManagedPath,
-  normalizeDownloadPath,
-  normalizeManagedPrefix,
-} from '@/entrypoints/shared/filesystem/path-helpers';
-import { addHistoryItem } from '@/entrypoints/shared/history/history';
-import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
-import { enqueueMediaAnalysis } from '@/entrypoints/shared/integrations/mediainfo/media-analysis-queue';
-import type { MediaAnalysisRequest } from '@/entrypoints/shared/integrations/mediainfo/messages';
-import {
-  evaluateInstantBaseline,
-  evaluateInstantBaselineDebug,
-  type InstantBaselineComputation,
-} from '@/entrypoints/shared/pipeline/instant-baseline-strategy';
-import type { InstantBaselineEvaluation } from '@/entrypoints/shared/pipeline/instant-baseline-types';
-import { resolveConfirmToastRoute } from '@/entrypoints/shared/settings/confirm-toast-routing';
-import type {
-  FileType,
-  Settings,
-} from '@/entrypoints/shared/settings/settings';
+import type { Settings } from '@/entrypoints/shared/settings/settings';
 import type { PageContextService } from '@/entrypoints/shared/state/page-context-service';
-import {
-  basename,
-  fallbackNameFromUrl,
-} from '@/entrypoints/shared/utils/filename';
-import { randomId } from '@/entrypoints/shared/utils/id';
-import {
-  type DownloadTrackingEntry,
-  recordDownloadTracking,
-} from './download-tracking';
-import {
-  applyMediaAnalysisResponse,
-  toMediaDebugSettings,
-} from './media-orchestrator';
+import { basename } from '@/entrypoints/shared/utils/filename';
+import { buildDownloadPlan } from './download-plan';
+import { applyPostDownloadActions } from './download-post-actions';
+import type { DownloadTrackingEntry } from './download-tracking';
+import type {
+  DeterminingItem,
+  DeterminingListener,
+  SuggestCallback,
+  SuggestPayload,
+} from './download-types';
 import { maybeShowRenameOverlay } from './rename-overlay';
 import type { SuggestController } from './suggest-controller';
 import { createSuggestController } from './suggest-controller';
 import type { ConfirmToastController } from './toast/confirmation-controller';
-
-export type DeterminingListener = Parameters<
-  typeof browser.downloads.onDeterminingFilename.addListener
->[0];
-
-export type DeterminingItem = Parameters<DeterminingListener>[0];
-export type SuggestCallback = Parameters<DeterminingListener>[1];
-export type SuggestPayload = Parameters<SuggestCallback>[0];
-
-/**
- * Check if the file type is a media file (audio or video).
- */
-export function isMediaFileType(
-  fileType: FileType,
-): fileType is Extract<FileType, 'audio' | 'video'> {
-  return fileType === 'audio' || fileType === 'video';
-}
-
-/**
- * Check if renaming is enabled for the given file type.
- */
-export function shouldRenameType(
-  settings: Settings,
-  fileType: keyof Settings['perType'],
-): boolean {
-  const behavior = settings.perType[fileType]?.behavior ?? 'auto';
-  if (behavior === 'off') return false;
-  return true;
-}
-
-type DownloadItemNumeric = Partial<Record<'id' | 'tabId', number>>;
-
-function getNumericProperty(
-  target: DownloadItemNumeric,
-  key: keyof DownloadItemNumeric,
-): number | undefined {
-  const value = target[key];
-  return typeof value === 'number' ? value : undefined;
-}
 
 /**
  * Process the determining filename event and suggest a renamed filename if applicable.
@@ -100,89 +35,31 @@ export async function processDeterminingFilename(
   try {
     await pageContextService.prune();
 
-    const settings = readSettings();
-    const url = item.finalUrl ?? item.url;
-    const filename = item.filename ?? fallbackNameFromUrl(url);
-    const rawDownloadId = getNumericProperty(item, 'id');
-    const downloadId =
-      rawDownloadId !== undefined ? String(rawDownloadId) : undefined;
-    const initiatingTabId = getNumericProperty(item, 'tabId');
-    const pageContext = await pageContextService.read({
-      tabId: initiatingTabId,
-      url: item.referrer,
+    const plan = await buildDownloadPlan({
+      item,
+      pageContextService,
+      readSettings,
     });
 
-    const signals = {
-      url,
-      referrer: item.referrer,
-      filename,
-      mime: item.mime,
-      startTime: item.startTime,
-      page: pageContext,
-    };
-
-    let computation: InstantBaselineComputation;
-    let debugContext: DebugContext | null = null;
-
-    if (debugLogger.isEnabled()) {
-      const downloadId = debugLogger.createDownloadId();
-      debugContext = evaluateInstantBaselineDebug(
-        signals,
-        settings,
-        downloadId,
-      );
-      debugLogger.startContext(downloadId, debugContext);
-      computation = {
-        evaluation: debugContext.evaluation,
-        inputs: debugContext.strategy.inputs,
-      };
-    } else {
-      computation = evaluateInstantBaseline(signals, settings);
-    }
-
-    const evaluation: InstantBaselineEvaluation = computation.evaluation;
-    const typeEnabled = shouldRenameType(settings, evaluation.fileType);
-    const renameCandidate = typeEnabled ? evaluation.rename : undefined;
-
-    const managedPrefixRaw = await getManagedRelativePath();
-    const managedPrefix = normalizeManagedPrefix(managedPrefixRaw);
-
-    const originalRelativePath = normalizeDownloadPath(
-      evaluation.originalPath && evaluation.originalPath.length > 0
-        ? evaluation.originalPath
-        : filename,
-    );
-
-    const renameRelativePath = renameCandidate
-      ? normalizeDownloadPath(renameCandidate.path)
-      : originalRelativePath;
-
-    const suggestionOriginalPath =
-      managedPrefix !== null
-        ? buildManagedPath(managedPrefix, originalRelativePath)
-        : originalRelativePath;
-
-    const suggestionRenamePath =
-      managedPrefix !== null
-        ? buildManagedPath(managedPrefix, renameRelativePath)
-        : renameRelativePath;
-
-    const historyId = randomId();
-
-    const sensitiveDetection = detectSensitiveContent({
-      originalPath: evaluation.originalPath,
-      proposedPath: renameCandidate?.path,
-      url,
-      reasonTags: evaluation.reasonTags,
-    });
-
-    const confirmRoute = resolveConfirmToastRoute({
+    const {
       settings,
-      fileType: evaluation.fileType,
-      signals: {
-        sensitiveReasons: sensitiveDetection.reasons,
-      },
-    });
+      filename,
+      historyId,
+      downloadId,
+      initiatingTabId,
+      renameCandidate,
+      suggestionOriginalPath,
+      suggestionRenamePath,
+      confirmRoute,
+      sensitiveDetection,
+      evaluation,
+      typeEnabled,
+      renameRelativePath,
+      originalRelativePath,
+      managedPrefix,
+    } = plan;
+
+    const baseFilename = basename(filename);
 
     if (renameCandidate) {
       const proposedDisplayPath =
@@ -191,7 +68,7 @@ export async function processDeterminingFilename(
       if (confirmRoute.kind === 'toast') {
         const submitted = trySuggestFilename(
           controller,
-          managedPrefix !== null ? suggestionOriginalPath : null,
+          suggestionOriginalPath,
         );
         if (!submitted) {
           return;
@@ -201,7 +78,7 @@ export async function processDeterminingFilename(
           await confirmToastController.queueConfirmation({
             historyId,
             downloadId,
-            originalFilename: basename(filename),
+            originalFilename: baseFilename,
             proposedFilename: renameCandidate.filename,
             proposedPath: renameRelativePath,
             displayProposedPath: proposedDisplayPath,
@@ -233,7 +110,7 @@ export async function processDeterminingFilename(
           await maybeShowRenameOverlay({
             settings,
             tabId: initiatingTabId,
-            originalFilename: basename(filename),
+            originalFilename: baseFilename,
             finalFilename: renameCandidate.filename,
             downloadId,
           });
@@ -246,22 +123,19 @@ export async function processDeterminingFilename(
         suggestionIssued = true;
         debugLogger.log('[NewName] Auto rename overlay dispatch', {
           tabId: initiatingTabId,
-          original: basename(filename),
+          original: baseFilename,
           final: renameCandidate.filename,
         });
         await maybeShowRenameOverlay({
           settings,
           tabId: initiatingTabId,
-          originalFilename: basename(filename),
+          originalFilename: baseFilename,
           finalFilename: renameCandidate.filename,
           downloadId,
         });
       }
     } else {
-      const submitted = trySuggestFilename(
-        controller,
-        managedPrefix !== null ? suggestionOriginalPath : null,
-      );
+      const submitted = trySuggestFilename(controller, suggestionOriginalPath);
       if (!submitted) {
         return;
       }
@@ -269,137 +143,21 @@ export async function processDeterminingFilename(
       return;
     }
 
-    const historyDecision: InstantBaselineEvaluation['decision'] =
-      renameCandidate
-        ? evaluation.decision
-        : {
-            ...evaluation.decision,
-            outcome: 'keep',
-            reasons:
-              evaluation.decision.outcome === 'rename' && !typeEnabled
-                ? [...evaluation.decision.reasons, 'file-type-disabled']
-                : evaluation.decision.reasons,
-          };
-
     const finalFilename = renameCandidate
       ? renameCandidate.filename
-      : basename(filename);
-    const debugSettings = toMediaDebugSettings(settings);
+      : baseFilename;
 
-    await addHistoryItem({
-      id: historyId,
-      ts: Date.now(),
-      path: renameCandidate ? renameRelativePath : originalRelativePath,
-      original: basename(filename),
-      final: finalFilename,
-      source: renameCandidate ? renameCandidate.source : evaluation.source,
-      fileType: evaluation.fileType,
-      phase: 'instant-baseline',
-      reasonTags: evaluation.reasonTags,
-      decision: historyDecision,
+    await applyPostDownloadActions({
+      plan,
+      evaluation,
+      renameCandidate,
+      typeEnabled,
+      finalFilename,
+      renameRelativePath,
+      originalRelativePath,
+      downloadTracking,
+      readSettings,
     });
-
-    if (rawDownloadId !== undefined) {
-      recordDownloadTracking(downloadTracking, rawDownloadId, {
-        historyId,
-        debug: debugSettings,
-        url,
-        filename: finalFilename,
-        createdAt: Date.now(),
-      });
-    }
-
-    if (debugContext) {
-      debugLogger.finishContext(debugContext.downloadId, {
-        evaluation: renameCandidate
-          ? evaluation
-          : {
-              ...evaluation,
-              decision: historyDecision,
-            },
-      });
-    }
-
-    // Schedule PDF analysis rename for auto-renamed PDFs (after 5 seconds)
-    if (
-      evaluation.fileType === 'pdf' &&
-      renameCandidate &&
-      confirmRoute.kind !== 'toast'
-    ) {
-      // Import dynamically to avoid circular dependency
-      void import('./rename-orchestrator')
-        .then(({ schedulePdfAnalysisForDownload }) => {
-          void schedulePdfAnalysisForDownload({
-            historyId,
-            currentPath: renameRelativePath,
-            currentFilename: finalFilename,
-            fileType: evaluation.fileType,
-          }).catch((error) => {
-            debugLogger.error(
-              '[DownloadCoordinator] Failed to schedule PDF analysis',
-              { historyId, error },
-            );
-          });
-        })
-        .catch((error) => {
-          debugLogger.error(
-            '[DownloadCoordinator] Failed to import rename orchestrator',
-            { historyId, error },
-          );
-        });
-    }
-
-    // Schedule media metadata analysis in background (non-blocking)
-    if (
-      isMediaFileType(evaluation.fileType) &&
-      url &&
-      settings.metadataToggles.mediaSpecs &&
-      typeEnabled &&
-      !url.startsWith('data:')
-    ) {
-      const mediaRequest: MediaAnalysisRequest = {
-        requestId: randomId(),
-        historyId,
-        downloadId,
-        url,
-        originalFilename: finalFilename,
-        fileType: evaluation.fileType,
-        debug: debugSettings,
-      };
-
-      logMediaDebug(debugSettings, 'queue-request', {
-        requestId: mediaRequest.requestId,
-        historyId,
-        url,
-      });
-
-      // Fire and forget - don't block the download
-      void enqueueMediaAnalysis(mediaRequest)
-        .then((response) => {
-          logMediaDebug(debugSettings, 'queue-response', {
-            requestId: mediaRequest.requestId,
-            status: response.status,
-          });
-          return applyMediaAnalysisResponse(
-            historyId,
-            url,
-            mediaRequest.requestId,
-            debugSettings,
-            response,
-            downloadId,
-            readSettings,
-          );
-        })
-        .catch((error: unknown) => {
-          logMediaDebug(debugSettings, 'queue-failure', {
-            requestId: mediaRequest.requestId,
-            error:
-              error instanceof Error
-                ? error.message
-                : 'Unknown media analysis error',
-          });
-        });
-    }
   } catch (error) {
     debugLogger.error('Instant Baseline rename failed', { error });
     if (!suggestionIssued) {

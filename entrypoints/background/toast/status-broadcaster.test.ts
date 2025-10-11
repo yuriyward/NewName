@@ -78,13 +78,24 @@ describe('emitStatus', () => {
       .mockRejectedValueOnce(new Error('tab offline'))
       .mockResolvedValueOnce({ ok: true });
 
-    await emitStatus(
-      {
-        proposal,
-        visibleOnTabs: new Set([3, 4]),
-      },
-      'timeout',
-    );
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+    try {
+      await emitStatus(
+        {
+          proposal,
+          visibleOnTabs: new Set([3, 4]),
+        },
+        'timeout',
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    }
 
     expect(sendConfirmToastStatus).toHaveBeenCalledTimes(2);
   });

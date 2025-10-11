@@ -1,8 +1,15 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import * as directoryPicker from './directory-picker';
 import {
   type RenameOptions,
-  type RenameResult,
   renameFile,
   renameFileNative,
   supportsNativeMove,
@@ -19,9 +26,7 @@ vi.mock('@/entrypoints/shared/debug/logger', () => ({
 
 // Mock FileSystemHandle global
 if (typeof globalThis.FileSystemHandle === 'undefined') {
-  (
-    globalThis as { FileSystemHandle?: { prototype: Record<string, unknown> } }
-  ).FileSystemHandle = {
+  (globalThis as unknown as Record<string, unknown>).FileSystemHandle = {
     prototype: {},
   };
 }
@@ -131,7 +136,6 @@ describe('rename-operations', () => {
       queryPermission: vi.fn().mockResolvedValue('granted'),
       requestPermission: vi.fn().mockResolvedValue('granted'),
     } as unknown as FileSystemDirectoryHandle;
-
   });
 
   describe('renameFile', () => {
@@ -254,8 +258,15 @@ describe('rename-operations', () => {
 
     it('returns error when permission is denied', async () => {
       verifyDirectoryPermissionSpy.mockResolvedValue('denied');
-      vi.mocked(mockRootHandle.queryPermission).mockResolvedValue('denied');
-      vi.mocked(mockRootHandle.requestPermission).mockResolvedValue('denied');
+      const queryPermission = mockRootHandle.queryPermission;
+      const requestPermission = mockRootHandle.requestPermission;
+      if (!queryPermission || !requestPermission) {
+        throw new Error(
+          'Expected permission APIs to be available in test setup',
+        );
+      }
+      vi.mocked(queryPermission).mockResolvedValue('denied');
+      vi.mocked(requestPermission).mockResolvedValue('denied');
 
       const options: RenameOptions = {
         relativePath: 'old-file.pdf',
@@ -398,9 +409,6 @@ describe('rename-operations', () => {
 
   describe('supportsNativeMove', () => {
     it('returns true if move() is available in FileSystemHandle prototype', () => {
-      // Save original prototype
-      const originalProto = FileSystemHandle.prototype;
-
       // Mock move() method
       Object.defineProperty(FileSystemHandle.prototype, 'move', {
         value: vi.fn(),

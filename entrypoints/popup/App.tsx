@@ -11,6 +11,7 @@ import { Tab, Tabs } from '@heroui/tabs';
 import { useTheme } from '@heroui/use-theme';
 import type { JSX } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
 import {
   getHistory,
@@ -25,7 +26,6 @@ import {
   updateSettings,
 } from '@/entrypoints/shared/settings/settings';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { DownloadsAccessScreen } from './onboarding/DownloadsAccessScreen';
 
 function App(): JSX.Element {

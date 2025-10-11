@@ -101,7 +101,6 @@ describe('handle-storage', () => {
     });
 
     it('stores handle with custom relative path', async () => {
-      const now = Date.now();
       await storeDirectoryHandle(mockDirectoryHandle, {
         relativePath: 'Organized/Work',
       });
@@ -445,7 +444,7 @@ describe('handle-storage', () => {
     });
 
     it('handles very long relative paths', async () => {
-      const longPath = 'a/'.repeat(100) + 'file.pdf';
+      const longPath = `${'a/'.repeat(100)}file.pdf`;
       await storeDirectoryHandle(mockDirectoryHandle, {
         relativePath: longPath,
       });
@@ -493,12 +492,6 @@ describe('handle-storage', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {});
       mockGet.mockRejectedValue(new Error('Read failed'));
-
-      const storedInfo: StoredHandleInfo = {
-        handle: mockDirectoryHandle,
-        grantedAt: Date.now(),
-        lastVerified: Date.now(),
-      };
 
       // This should be wrapped internally
       mockGet.mockRejectedValue(new Error('IndexedDB read error'));

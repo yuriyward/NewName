@@ -3,12 +3,12 @@
  * Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { ReadChunkFunc } from 'mediainfo.js';
 import {
   isSandboxMessage,
   postToParent,
 } from '@/entrypoints/offscreen/bridge/sandbox-protocol';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
   analyzeMediaFromBlob,
   MEDIAINFO_CHUNK_SIZE,

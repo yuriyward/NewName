@@ -99,6 +99,33 @@ async function resolveConflict(
   return `${basename} - ${Date.now()}${extension}`;
 }
 
+/**
+ * Rename a file located inside the granted directory handle.
+ *
+ * The operation copies the original file into a new handle and then deletes the
+ * source entry because the File System Access API does not yet support moving
+ * OPFS-external handles. For large files (larger than `streamThresholdBytes`,
+ * default 10 MB) the copy is streamed to avoid buffering the entire payload in
+ * memory.
+ *
+ * Retry behaviour:
+ * - Transient DOMExceptions (`NoModificationAllowedError`, `NotAllowedError`,
+ *   `InvalidModificationError`) trigger up to `maxRetries` attempts with
+ *   `retryDelayMs` between tries (defaults: 3 retries, 1000 ms delay).
+ * - The retry counter resets only after a successful rename; failures exit the
+ *   loop early once the limit is hit.
+ *
+ * Errors:
+ * - Permission loss before starting returns `{ success: false, error:
+ *   'Permission denied for Downloads directory' }`.
+ * - Exhausting retries returns `{ success: false }` with the most recent
+ *   `DOMException.name` as the error message where available.
+ * - The function never throws; it resolves with a `RenameResult` describing the
+ *   outcome.
+ *
+ * Conflict resolution appends ` - <n>` (or a timestamp) when the destination
+ * filename already exists.
+ */
 export async function renameFile({
   relativePath,
   newFilename,
@@ -237,8 +264,11 @@ export async function renameFileNative(
 
   try {
     const handle = await dirHandle.getFileHandle(oldFilename);
-    // @ts-expect-error: move() is not yet included in TypeScript lib DOM types.
-    await handle.move(newFilename);
+    const move = handle.move;
+    if (typeof move !== 'function') {
+      throw new Error('Native move() not available on handle');
+    }
+    await move.call(handle, newFilename);
     return {
       success: true,
       finalName: newFilename,

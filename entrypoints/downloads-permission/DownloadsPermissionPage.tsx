@@ -3,6 +3,7 @@ import {
   ShieldExclamationIcon,
 } from '@heroicons/react/24/outline';
 import { type JSX, useEffect, useState } from 'react';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
   ManagedSubfolderRequiredError,
   requestDownloadsAccess,
@@ -13,7 +14,6 @@ import {
   updateLastVerified,
 } from '@/entrypoints/shared/filesystem/handle-storage';
 import { markOnboardingCompleted } from '@/entrypoints/shared/onboarding/onboarding-state';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
 
 type RequestState =
   | { status: 'idle' }
@@ -26,6 +26,67 @@ type RequestState =
       parentDirectoryName: string;
     }
   | { status: 'error'; message: string; hint?: string };
+
+function classifyPermissionError(
+  err: unknown,
+  lastPickerError: unknown,
+): { message: string; hint?: string } {
+  if (err instanceof ManagedSubfolderRequiredError) {
+    return {
+      message: 'Pick a regular folder to continue.',
+      hint: 'Chrome keeps system folders read-only. Create or choose a folder inside it (for example “Organized”) and select that instead.',
+    };
+  }
+
+  const message = err instanceof Error ? err.message : 'Something went wrong';
+
+  if (message === 'User cancelled directory picker') {
+    if (lastPickerError && typeof lastPickerError === 'object') {
+      const { name, message: detailMessage } = lastPickerError as {
+        name?: string;
+        message?: string;
+      };
+
+      if (
+        name === 'AbortError' ||
+        (detailMessage &&
+          /Failed to execute 'showDirectoryPicker'/.test(detailMessage))
+      ) {
+        return {
+          message: 'Chrome blocked that folder.',
+          hint: 'Create a subfolder inside it or choose a different folder, then try again.',
+        };
+      }
+
+      return {
+        message: 'No folder selected. Please choose one to continue.',
+        hint:
+          detailMessage && name
+            ? `Chrome said: “${detailMessage}” (code: ${name}).`
+            : undefined,
+      };
+    }
+
+    return {
+      message: 'No folder selected. Please choose one to continue.',
+    };
+  }
+
+  if (message === 'Permission not granted') {
+    return {
+      message: 'Please allow access so NewName can manage your files.',
+      hint: 'When Chrome asks for permission, click “Allow”.',
+    };
+  }
+
+  return {
+    message: 'Something went wrong. Try again.',
+    hint:
+      message && message !== 'Something went wrong'
+        ? `Chrome said: “${message}”.`
+        : undefined,
+  };
+}
 
 export function DownloadsPermissionPage(): JSX.Element {
   const [state, setState] = useState<RequestState>({ status: 'idle' });
@@ -75,74 +136,15 @@ export function DownloadsPermissionPage(): JSX.Element {
             __newNameLastDirectoryPickerError?: unknown;
           }
         ).__newNameLastDirectoryPickerError ?? null;
-      debugLogger.error(
-        '[DownloadsPermissionPage] Granting access failed',
-        { error: err, lastPickerError },
-      );
-      const message =
-        err instanceof Error ? err.message : 'Something went wrong';
-      if (err instanceof ManagedSubfolderRequiredError) {
-        setState({
-          status: 'error',
-          message: 'Pick a regular folder to continue.',
-          hint: 'Chrome keeps system folders read-only. Create or choose a folder inside it (for example “Organized”) and select that instead.',
-        });
-        return;
-      }
-      if (message === 'User cancelled directory picker') {
-        const debugHint = (
-          window as typeof window & {
-            __newNameLastDirectoryPickerError?: unknown;
-          }
-        ).__newNameLastDirectoryPickerError;
-        if (debugHint && typeof debugHint === 'object') {
-          const { name, message: detailMessage } = debugHint as {
-            name?: string;
-            message?: string;
-          };
-          if (
-            name === 'AbortError' ||
-            (detailMessage &&
-              /Failed to execute 'showDirectoryPicker'/.test(detailMessage))
-          ) {
-            setState({
-              status: 'error',
-              message: 'Chrome blocked that folder.',
-              hint: 'Create a subfolder inside it or choose a different folder, then try again.',
-            });
-          } else {
-            setState({
-              status: 'error',
-              message: 'No folder selected. Please choose one to continue.',
-              hint:
-                detailMessage && name
-                  ? `Chrome said: “${detailMessage}” (code: ${name}).`
-                  : undefined,
-            });
-          }
-        } else {
-          setState({
-            status: 'error',
-            message: 'No folder selected. Please choose one to continue.',
-          });
-        }
-        return;
-      }
-      if (message === 'Permission not granted') {
-        setState({
-          status: 'error',
-          message: 'Please allow access so NewName can manage your files.',
-          hint: 'When Chrome asks for permission, click “Allow”.',
-        });
-        return;
-      }
+      debugLogger.error('[DownloadsPermissionPage] Granting access failed', {
+        error: err,
+        lastPickerError,
+      });
+      const { message, hint } = classifyPermissionError(err, lastPickerError);
       setState({
         status: 'error',
-        message: 'Something went wrong. Try again.',
-        hint:
-          message && message !== 'Something went wrong'
-            ? `Chrome said: “${message}”.`
-            : undefined,
+        message,
+        hint,
       });
     }
   }

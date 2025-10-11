@@ -104,14 +104,11 @@ export async function fetchAndAnalyzeFromUrl(
     const elapsed = performance.now() - start;
     const message =
       error instanceof Error ? error.message : 'Streaming analysis failed';
-    debugLogger.error(
-      '[SandboxBridge] Streaming analysis failed',
-      {
-        requestId: request.requestId,
-        error: message,
-        elapsedMs: Math.round(elapsed),
-      },
-    );
+    debugLogger.error('[SandboxBridge] Streaming analysis failed', {
+      requestId: request.requestId,
+      error: message,
+      elapsedMs: Math.round(elapsed),
+    });
 
     return {
       status: 'error',

@@ -208,8 +208,7 @@ export async function executePdfAnalysisRename(
       return;
     }
 
-    const { currentPath, targetName, scheduledAt } =
-      item.pendingAnalysisRename;
+    const { currentPath, targetName, scheduledAt } = item.pendingAnalysisRename;
 
     // Validate pending state
     if (!currentPath || !targetName || !Number.isFinite(scheduledAt)) {

@@ -15,7 +15,9 @@ vi.mock('./handle-storage', () => ({
   ),
 }));
 
-const normalizeRelativePathMock = vi.mocked(handleStorage.normalizeRelativePath);
+const normalizeRelativePathMock = vi.mocked(
+  handleStorage.normalizeRelativePath,
+);
 
 // Mock window global for browser APIs
 if (typeof window === 'undefined') {
@@ -211,7 +213,7 @@ describe('directory-picker', () => {
 
       mockShowDirectoryPicker.mockResolvedValue(handleWithSlashes);
 
-      const result = await requestDownloadsAccess();
+      await requestDownloadsAccess();
 
       // normalizeRelativePath should strip slashes
       expect(handleStorage.normalizeRelativePath).toHaveBeenCalled();

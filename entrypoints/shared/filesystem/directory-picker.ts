@@ -89,7 +89,10 @@ export async function requestDownloadsAccess(): Promise<DownloadsAccessResult> {
   } catch (error) {
     if (error instanceof DOMException) {
       const context = { name: error.name, message: error.message };
-      debugLogger.error('[DirectoryPicker] showDirectoryPicker failed', context);
+      debugLogger.error(
+        '[DirectoryPicker] showDirectoryPicker failed',
+        context,
+      );
       (
         globalThis as typeof globalThis & {
           __newNameLastDirectoryPickerError?: unknown;
@@ -103,12 +106,12 @@ export async function requestDownloadsAccess(): Promise<DownloadsAccessResult> {
       }
       throw new Error(error.message || 'Failed to select directory');
     }
-      debugLogger.error('[DirectoryPicker] Non-DOMException failure', error);
-      throw error instanceof Error
-        ? error
-        : new Error('Failed to select directory');
-    }
+    debugLogger.error('[DirectoryPicker] Non-DOMException failure', error);
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to select directory');
   }
+}
 
 async function buildResultForSelection(
   selectedHandle: FileSystemDirectoryHandle,
