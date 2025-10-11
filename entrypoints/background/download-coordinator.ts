@@ -327,8 +327,8 @@ export async function processDeterminingFilename(
       confirmRoute.kind !== 'toast'
     ) {
       // Import dynamically to avoid circular dependency
-      void import('./rename-orchestrator').then(
-        ({ schedulePdfAnalysisForDownload }) => {
+      void import('./rename-orchestrator')
+        .then(({ schedulePdfAnalysisForDownload }) => {
           void schedulePdfAnalysisForDownload({
             historyId,
             currentPath: renameRelativePath,
@@ -336,12 +336,17 @@ export async function processDeterminingFilename(
             fileType: evaluation.fileType,
           }).catch((error) => {
             debugLogger.error(
-              '[NewName] Failed to schedule PDF analysis',
-              error,
+              '[DownloadCoordinator] Failed to schedule PDF analysis',
+              { historyId, error },
             );
           });
-        },
-      );
+        })
+        .catch((error) => {
+          debugLogger.error(
+            '[DownloadCoordinator] Failed to import rename orchestrator',
+            { historyId, error },
+          );
+        });
     }
 
     // Schedule media metadata analysis in background (non-blocking)

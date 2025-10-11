@@ -53,6 +53,14 @@ async function scheduleAnalysisAlarm(
   currentName: string,
   fileType: string,
 ): Promise<void> {
+  // Validate inputs
+  if (!historyId || historyId.trim().length === 0) {
+    debugLogger.error(
+      '[RenameOrchestrator] Invalid historyId for analysis scheduling',
+    );
+    return;
+  }
+
   if (fileType !== 'pdf') {
     debugLogger.log(
       '[RenameOrchestrator] Skipping analysis rename for file type',
@@ -70,31 +78,57 @@ async function scheduleAnalysisAlarm(
     return;
   }
 
-  console.info('[NewName] PDF analysis rename scheduled', {
+  if (!targetName || targetName.trim().length === 0) {
+    debugLogger.error(
+      '[RenameOrchestrator] Generated invalid target name for analysis',
+      currentName,
+    );
+    return;
+  }
+
+  debugLogger.log('[RenameOrchestrator] Scheduling PDF analysis rename', {
     historyId,
     delayMs: PDF_ANALYSIS_DELAY_MS,
     currentPath,
     targetName,
   });
 
-  // Store current state in history for alarm handler to retrieve
-  await updateHistoryItem(historyId, (item) => ({
-    ...item,
-    pendingAnalysisRename: {
-      currentPath,
-      currentName,
-      targetName,
-      scheduledAt: Date.now(),
-    },
-  }));
+  try {
+    // Store current state in history for alarm handler to retrieve
+    const updated = await updateHistoryItem(historyId, (item) => ({
+      ...item,
+      pendingAnalysisRename: {
+        currentPath,
+        currentName,
+        targetName,
+        scheduledAt: Date.now(),
+      },
+    }));
 
-  // Schedule alarm (persists across service worker restarts)
-  const alarmName = `pdf-analysis-${historyId}`;
-  await browser.alarms.create(alarmName, {
-    delayInMinutes: PDF_ANALYSIS_DELAY_MINUTES,
-  });
+    if (!updated) {
+      debugLogger.warn(
+        '[RenameOrchestrator] Failed to update history for analysis scheduling',
+        historyId,
+      );
+      return;
+    }
 
-  debugLogger.log('[RenameOrchestrator] PDF analysis alarm created', alarmName);
+    // Schedule alarm (persists across service worker restarts)
+    const alarmName = `pdf-analysis-${historyId}`;
+    await browser.alarms.create(alarmName, {
+      delayInMinutes: PDF_ANALYSIS_DELAY_MINUTES,
+    });
+
+    debugLogger.log(
+      '[RenameOrchestrator] PDF analysis alarm created',
+      alarmName,
+    );
+  } catch (error) {
+    debugLogger.error(
+      '[RenameOrchestrator] Failed to schedule PDF analysis alarm',
+      error,
+    );
+  }
 }
 
 /**
@@ -138,87 +172,140 @@ async function schedulePdfAnalysisRename(
 export async function executePdfAnalysisRename(
   historyId: string,
 ): Promise<void> {
-  console.info('[NewName] PDF analysis rename executing', { historyId });
-
-  // Retrieve history item
-  const item = await getHistoryItem(historyId);
-  if (!item) {
-    debugLogger.warn(
-      '[RenameOrchestrator] History entry not found for PDF analysis',
-      historyId,
-    );
-    return;
-  }
-
-  if (!item.pendingAnalysisRename) {
-    debugLogger.log(
-      '[RenameOrchestrator] No pending analysis rename found',
-      historyId,
-    );
-    return;
-  }
-
-  const { currentPath, targetName } = item.pendingAnalysisRename;
-
-  // Get directory handle
-  const handle = await getStoredDirectoryHandle();
-  if (!handle || !(await isHandleValid(handle))) {
-    debugLogger.warn(
-      '[RenameOrchestrator] Missing or invalid Downloads directory handle for analysis rename',
-    );
-    return;
-  }
-
-  console.info('[NewName] PDF analysis rename starting', {
+  debugLogger.log('[RenameOrchestrator] Executing PDF analysis rename', {
     historyId,
-    from: currentPath,
-    to: targetName,
   });
 
-  const result = await renameFile({
-    relativePath: currentPath,
-    newFilename: targetName,
-    rootHandle: handle,
-  });
+  try {
+    // Validate input
+    if (!historyId || historyId.trim().length === 0) {
+      debugLogger.error(
+        '[RenameOrchestrator] Invalid historyId for PDF analysis execution',
+      );
+      return;
+    }
 
-  if (!result.success) {
-    console.warn(
-      '[NewName] PDF analysis rename failed',
-      historyId,
-      result.error,
-    );
-    debugLogger.warn(
-      '[RenameOrchestrator] PDF analysis rename failed',
-      historyId,
-      result.error,
-    );
+    // Retrieve history item
+    const item = await getHistoryItem(historyId);
+    if (!item) {
+      debugLogger.warn(
+        '[RenameOrchestrator] History entry not found for PDF analysis',
+        historyId,
+      );
+      // Clear the alarm since history item is missing
+      await browser.alarms.clear(`pdf-analysis-${historyId}`);
+      return;
+    }
 
-    // Clear pending state even on failure
+    if (!item.pendingAnalysisRename) {
+      debugLogger.log(
+        '[RenameOrchestrator] No pending analysis rename found',
+        historyId,
+      );
+      return;
+    }
+
+    const { currentPath, targetName } = item.pendingAnalysisRename;
+
+    // Validate pending state
+    if (!currentPath || !targetName) {
+      debugLogger.error(
+        '[RenameOrchestrator] Invalid pending state for PDF analysis',
+        { historyId, currentPath, targetName },
+      );
+      await clearPendingAnalysisState(historyId);
+      return;
+    }
+
+    // Get directory handle and verify permissions
+    const handle = await getStoredDirectoryHandle();
+    if (!handle || !(await isHandleValid(handle))) {
+      debugLogger.warn(
+        '[RenameOrchestrator] Missing or invalid Downloads directory handle for analysis rename',
+        historyId,
+      );
+      // Don't clear pending state - user might restore permissions
+      return;
+    }
+
+    debugLogger.log('[RenameOrchestrator] Starting PDF analysis rename', {
+      historyId,
+      from: currentPath,
+      to: targetName,
+    });
+
+    // Execute rename
+    const result = await renameFile({
+      relativePath: currentPath,
+      newFilename: targetName,
+      rootHandle: handle,
+    });
+
+    if (!result.success) {
+      debugLogger.warn('[RenameOrchestrator] PDF analysis rename failed', {
+        historyId,
+        error: result.error,
+        retriesUsed: result.retriesUsed,
+      });
+
+      // Clear pending state even on failure
+      await clearPendingAnalysisState(historyId);
+      return;
+    }
+
+    // Update history with final result and clear pending state
+    try {
+      await updateHistoryItem(historyId, (item) =>
+        applyHistoryUpdate(
+          { ...item, pendingAnalysisRename: undefined },
+          result.finalName,
+          result.finalPath,
+        ),
+      );
+
+      debugLogger.log('[RenameOrchestrator] PDF analysis rename complete', {
+        historyId,
+        finalName: result.finalName,
+        finalPath: result.finalPath,
+        method: result.method,
+      });
+    } catch (error) {
+      debugLogger.error(
+        '[RenameOrchestrator] Failed to update history after PDF analysis rename',
+        { historyId, error },
+      );
+    }
+  } catch (error) {
+    debugLogger.error('[RenameOrchestrator] PDF analysis rename exception', {
+      historyId,
+      error,
+    });
+    // Attempt to clear pending state on unexpected errors
+    await clearPendingAnalysisState(historyId).catch(() => {
+      // Ignore cleanup errors
+    });
+  }
+}
+
+/**
+ * Helper to clear pending analysis state from history
+ */
+async function clearPendingAnalysisState(historyId: string): Promise<void> {
+  try {
     await updateHistoryItem(historyId, (item) => ({
       ...item,
       pendingAnalysisRename: undefined,
     }));
-    return;
+    debugLogger.log(
+      '[RenameOrchestrator] Cleared pending analysis state',
+      historyId,
+    );
+  } catch (error) {
+    debugLogger.warn(
+      '[RenameOrchestrator] Failed to clear pending analysis state',
+      { historyId, error },
+    );
   }
-
-  // Update history with final result and clear pending state
-  await updateHistoryItem(historyId, (item) =>
-    applyHistoryUpdate(
-      { ...item, pendingAnalysisRename: undefined },
-      result.finalName,
-      result.finalPath,
-    ),
-  );
-
-  console.info('[NewName] PDF analysis rename complete', {
-    historyId,
-    finalName: result.finalName,
-    finalPath: result.finalPath,
-  });
-  debugLogger.log(
-    '[RenameOrchestrator] PDF analysis rename complete',
-    historyId,
-  );
 }
 
 function deriveRelativeOriginalPath(entry: ConfirmToastEntry): string {
@@ -327,7 +414,17 @@ export async function executeApply(
   await helpers.emitStatus('applied');
 
   // Schedule delayed PDF analysis rename (uses alarms, survives service worker termination)
-  await schedulePdfAnalysisRename(entry, result.finalPath, result.finalName);
+  // Fire and forget - don't block on scheduling
+  void schedulePdfAnalysisRename(
+    entry,
+    result.finalPath,
+    result.finalName,
+  ).catch((error) => {
+    debugLogger.error(
+      '[RenameOrchestrator] Failed to schedule PDF analysis from apply',
+      { historyId: entry.historyId, error },
+    );
+  });
 }
 
 /**
