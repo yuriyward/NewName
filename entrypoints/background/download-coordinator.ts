@@ -113,6 +113,7 @@ export async function processDeterminingFilename(
             originalFilename: baseFilename,
             finalFilename: renameCandidate.filename,
             downloadId,
+            kind: 'instant-baseline',
           });
         }
       } else {
@@ -132,6 +133,7 @@ export async function processDeterminingFilename(
           originalFilename: baseFilename,
           finalFilename: renameCandidate.filename,
           downloadId,
+          kind: 'instant-baseline',
         });
       }
     } else {

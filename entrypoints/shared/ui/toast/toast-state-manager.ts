@@ -57,14 +57,11 @@ export function createToastStateManager() {
     return confirmToasts.delete(toastId);
   }
 
-  function addRenameToast(
-    toast: RenameToastProposal,
-    duration: number,
-  ): RenameToastState {
+  function addRenameToast(toast: RenameToastProposal): RenameToastState {
     const now = Date.now();
+    const duration = toast.durationMs;
     const state: RenameToastState = {
       ...toast,
-      durationMs: duration,
       remainingMs: duration,
       dismissAt: now + duration,
       paused: false,

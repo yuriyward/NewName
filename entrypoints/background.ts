@@ -132,6 +132,15 @@ function initializeBackground(): void {
           enabled: true,
           level: 'verbose' as const,
         },
+        confirmToast: {
+          autoApplyDelaySeconds: 10,
+          showReasonTags: true,
+          renameNotifications: {
+            instantBaseline: false,
+            contextualUpgrade: true,
+          },
+          renameToastDurationSeconds: 5,
+        },
       });
       console.info(
         '[NewName] Dev override: mode set to balanced with verbose debug',

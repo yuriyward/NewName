@@ -70,19 +70,20 @@ export class ConfirmToastManager {
 
   showRenameResult(toast: RenameToastProposal): void {
     this.lifecycle.clearRemovalTimer(toast.toastId);
-    this.state.addRenameToast(toast, TOAST_TIMING.RENAME_DISPLAY_DURATION_MS);
-    this.lifecycle.scheduleRemoval(
-      toast.toastId,
-      TOAST_TIMING.RENAME_DISPLAY_DURATION_MS,
-      () => {
-        this.state.removeRenameToast(toast.toastId);
-        this.render();
-        this.keyboard.ensureKeyListener();
-        if (!this.state.hasRenameToasts()) {
-          this.lifecycle.stopRenameTicker();
-        }
-      },
-    );
+    const duration =
+      typeof toast.durationMs === 'number' && toast.durationMs > 0
+        ? toast.durationMs
+        : TOAST_TIMING.RENAME_DISPLAY_DURATION_MS;
+    const normalizedToast = { ...toast, durationMs: duration };
+    this.state.addRenameToast(normalizedToast);
+    this.lifecycle.scheduleRemoval(toast.toastId, duration, () => {
+      this.state.removeRenameToast(toast.toastId);
+      this.render();
+      this.keyboard.ensureKeyListener();
+      if (!this.state.hasRenameToasts()) {
+        this.lifecycle.stopRenameTicker();
+      }
+    });
     this.lifecycle.startRenameTicker(this.state.renameToasts, () =>
       this.render(),
     );

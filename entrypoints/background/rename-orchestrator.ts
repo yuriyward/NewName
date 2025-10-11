@@ -27,6 +27,7 @@ import type {
   ConfirmToastDecisionMessage,
   ConfirmToastStatusState,
 } from '@/entrypoints/shared/toast/types';
+import { maybeShowRenameOverlay } from './rename-overlay';
 import type { ConfirmToastEntry } from './toast/confirmation-controller';
 
 const PDF_ANALYSIS_DELAY_MS = 5_000;
@@ -208,7 +209,8 @@ export async function executePdfAnalysisRename(
       return;
     }
 
-    const { currentPath, targetName, scheduledAt } = item.pendingAnalysisRename;
+    const { currentPath, currentName, targetName, scheduledAt } =
+      item.pendingAnalysisRename;
 
     // Validate pending state
     if (!currentPath || !targetName || !Number.isFinite(scheduledAt)) {
@@ -276,6 +278,21 @@ export async function executePdfAnalysisRename(
           result.finalPath,
         ),
       );
+
+      try {
+        const settings = await getSettings();
+        await maybeShowRenameOverlay({
+          settings,
+          originalFilename: currentName,
+          finalFilename: result.finalName,
+          kind: 'contextual-upgrade',
+        });
+      } catch (overlayError) {
+        debugLogger.warn(
+          '[RenameOrchestrator] Failed to show contextual upgrade overlay',
+          overlayError,
+        );
+      }
 
       debugLogger.log('[RenameOrchestrator] PDF analysis rename complete', {
         historyId,

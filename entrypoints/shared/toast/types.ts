@@ -71,6 +71,7 @@ export interface RenameToastProposal {
   originalFilename: string;
   finalFilename: string;
   downloadId?: string;
+  durationMs: number;
 }
 
 export interface ShowRenameToastMessage {
