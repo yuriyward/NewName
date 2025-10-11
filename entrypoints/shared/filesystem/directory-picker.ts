@@ -2,6 +2,7 @@
  * Directory picker and permission management for the File System Access API.
  */
 
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { normalizeRelativePath } from '@/entrypoints/shared/filesystem/handle-storage';
 
 export interface DirectoryHandleWithPermission {
@@ -88,7 +89,7 @@ export async function requestDownloadsAccess(): Promise<DownloadsAccessResult> {
   } catch (error) {
     if (error instanceof DOMException) {
       const context = { name: error.name, message: error.message };
-      console.error('[DirectoryPicker] showDirectoryPicker failed', context);
+      debugLogger.error('[DirectoryPicker] showDirectoryPicker failed', context);
       (
         globalThis as typeof globalThis & {
           __newNameLastDirectoryPickerError?: unknown;
@@ -102,12 +103,12 @@ export async function requestDownloadsAccess(): Promise<DownloadsAccessResult> {
       }
       throw new Error(error.message || 'Failed to select directory');
     }
-    console.error('[DirectoryPicker] Non-DOMException failure', error);
-    throw error instanceof Error
-      ? error
-      : new Error('Failed to select directory');
+      debugLogger.error('[DirectoryPicker] Non-DOMException failure', error);
+      throw error instanceof Error
+        ? error
+        : new Error('Failed to select directory');
+    }
   }
-}
 
 async function buildResultForSelection(
   selectedHandle: FileSystemDirectoryHandle,
@@ -127,7 +128,7 @@ async function buildResultForSelection(
       }
     }
   } catch (error) {
-    console.warn(
+    debugLogger.warn(
       '[DirectoryPicker] Failed to resolve selected folder path accurately',
       error,
     );

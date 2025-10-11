@@ -232,7 +232,10 @@ function initializeBackground(): void {
           logMediaDebug(info.debug, 'download-bytes-final', payload);
         })
         .catch((error) => {
-          console.error('Failed to log download bytes', error);
+          debugLogger.error('[Background] Failed to log download bytes', {
+            error,
+            downloadId: delta.id,
+          });
         });
     }
   });

@@ -215,9 +215,9 @@ export async function processDeterminingFilename(
             allowAlwaysApply: settings.mode !== 'careful',
           });
         } catch (error) {
-          console.error(
-            'Failed to queue confirm toast; falling back to direct rename',
-            error,
+          debugLogger.error(
+            '[DownloadCoordinator] Failed to queue confirm toast; falling back to direct rename',
+            { error },
           );
           const fallbackSubmitted = trySuggestFilename(
             controller,
@@ -401,7 +401,7 @@ export async function processDeterminingFilename(
         });
     }
   } catch (error) {
-    console.error('Instant Baseline rename failed', error);
+    debugLogger.error('Instant Baseline rename failed', { error });
     if (!suggestionIssued) {
       controller.ensureDefault();
     }
@@ -439,7 +439,7 @@ export function createDeterminingListener(
       downloadTracking,
       confirmToastController,
     ).catch((error) => {
-      console.error('Instant Baseline rename unhandled failure', error);
+      debugLogger.error('Instant Baseline rename unhandled failure', { error });
     });
     // Always return true since this implementation always calls suggest() asynchronously
     // via processDeterminingFilename. According to Chrome's downloads API, returning true

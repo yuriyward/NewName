@@ -13,6 +13,7 @@ import {
   updateLastVerified,
 } from '@/entrypoints/shared/filesystem/handle-storage';
 import { markOnboardingCompleted } from '@/entrypoints/shared/onboarding/onboarding-state';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 
 type RequestState =
   | { status: 'idle' }
@@ -68,14 +69,16 @@ export function DownloadsPermissionPage(): JSX.Element {
         parentDirectoryName,
       });
     } catch (err) {
-      console.error('[DownloadsPermissionPage] Granting access failed', err, {
-        lastPickerError:
-          (
-            window as typeof window & {
-              __newNameLastDirectoryPickerError?: unknown;
-            }
-          ).__newNameLastDirectoryPickerError ?? null,
-      });
+      const lastPickerError =
+        (
+          window as typeof window & {
+            __newNameLastDirectoryPickerError?: unknown;
+          }
+        ).__newNameLastDirectoryPickerError ?? null;
+      debugLogger.error(
+        '[DownloadsPermissionPage] Granting access failed',
+        { error: err, lastPickerError },
+      );
       const message =
         err instanceof Error ? err.message : 'Something went wrong';
       if (err instanceof ManagedSubfolderRequiredError) {

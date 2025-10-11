@@ -6,6 +6,7 @@
  * offscreen documents and service workers.
  */
 import { createStore, del, get, set } from 'idb-keyval';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 
 const STORE_NAME = 'newname-filesystem';
 const STORE_OBJECT_STORE = 'handles';
@@ -41,7 +42,9 @@ export async function getStoredDirectoryHandle(): Promise<FileSystemDirectoryHan
     const info = await getStoredHandleInfo();
     return info?.handle ?? null;
   } catch (error) {
-    console.error('[FileSystem] Failed to load stored directory handle', error);
+    debugLogger.error('[FileSystem] Failed to load stored directory handle', {
+      error,
+    });
     return null;
   }
 }
@@ -86,7 +89,7 @@ export async function getManagedRelativePath(): Promise<string | null> {
       },
       fsStore,
     ).catch((error) => {
-      console.warn(
+      debugLogger.warn(
         '[FileSystem] Failed to update managed path metadata',
         error,
       );
@@ -115,7 +118,7 @@ async function getStoredHandleInfo(): Promise<StoredHandleInfo | null> {
     }
     return info;
   } catch (error) {
-    console.error('[FileSystem] Failed to read handle info', error);
+    debugLogger.error('[FileSystem] Failed to read handle info', { error });
     return null;
   }
 }

@@ -3,6 +3,7 @@
  * Coordinates analysis requests and response handling.
  */
 
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { ANALYSIS_TIMEOUT_MS } from '@/entrypoints/shared/integrations/mediainfo/constants';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import type {
@@ -103,11 +104,14 @@ export async function fetchAndAnalyzeFromUrl(
     const elapsed = performance.now() - start;
     const message =
       error instanceof Error ? error.message : 'Streaming analysis failed';
-    console.error('[SandboxBridge] Streaming analysis failed', {
-      requestId: request.requestId,
-      error: message,
-      elapsedMs: Math.round(elapsed),
-    });
+    debugLogger.error(
+      '[SandboxBridge] Streaming analysis failed',
+      {
+        requestId: request.requestId,
+        error: message,
+        elapsedMs: Math.round(elapsed),
+      },
+    );
 
     return {
       status: 'error',

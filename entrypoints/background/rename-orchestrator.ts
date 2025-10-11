@@ -30,6 +30,7 @@ import type { ConfirmToastEntry } from './toast/confirmation-controller';
 
 const PDF_ANALYSIS_DELAY_MS = 5_000;
 const PDF_ANALYSIS_DELAY_MINUTES = PDF_ANALYSIS_DELAY_MS / 60_000;
+const MAX_PENDING_ANALYSIS_AGE_MS = 24 * 60 * 60 * 1_000; // 24 hours
 
 export interface RenameOrchestratorHelpers {
   emitStatus(state: ConfirmToastStatusState, message?: string): Promise<void>;
@@ -207,13 +208,14 @@ export async function executePdfAnalysisRename(
       return;
     }
 
-    const { currentPath, targetName } = item.pendingAnalysisRename;
+    const { currentPath, targetName, scheduledAt } =
+      item.pendingAnalysisRename;
 
     // Validate pending state
-    if (!currentPath || !targetName) {
+    if (!currentPath || !targetName || !Number.isFinite(scheduledAt)) {
       debugLogger.error(
         '[RenameOrchestrator] Invalid pending state for PDF analysis',
-        { historyId, currentPath, targetName },
+        { historyId, currentPath, targetName, scheduledAt },
       );
       await clearPendingAnalysisState(historyId);
       return;
@@ -226,7 +228,16 @@ export async function executePdfAnalysisRename(
         '[RenameOrchestrator] Missing or invalid Downloads directory handle for analysis rename',
         historyId,
       );
-      // Don't clear pending state - user might restore permissions
+      const pendingAge = Date.now() - scheduledAt;
+      if (pendingAge > MAX_PENDING_ANALYSIS_AGE_MS) {
+        debugLogger.warn(
+          '[RenameOrchestrator] Pending analysis rename expired after permission loss',
+          { historyId, pendingAge },
+        );
+        await clearPendingAnalysisState(historyId);
+        await browser.alarms.clear(`pdf-analysis-${historyId}`);
+      }
+      // Don't clear pending state immediately; user might restore permissions.
       return;
     }
 

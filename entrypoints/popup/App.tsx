@@ -25,6 +25,7 @@ import {
   updateSettings,
 } from '@/entrypoints/shared/settings/settings';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { DownloadsAccessScreen } from './onboarding/DownloadsAccessScreen';
 
 function App(): JSX.Element {
@@ -75,7 +76,9 @@ function App(): JSX.Element {
             permitted = false;
           }
         } catch (err) {
-          console.warn('Querying directory permission failed', err);
+          debugLogger.warn('Querying directory permission failed', {
+            error: err,
+          });
           permitted = false;
         }
       }
@@ -83,7 +86,7 @@ function App(): JSX.Element {
       setShowOnboarding(!permitted && state.status !== 'skipped');
       setAccessCheckError(null);
     } catch (err) {
-      console.error('Failed to evaluate onboarding state', err);
+      debugLogger.error('Failed to evaluate onboarding state', { error: err });
       setAccessCheckError(
         err instanceof Error
           ? err.message
@@ -113,7 +116,7 @@ function App(): JSX.Element {
         setLoading(false);
       })
       .catch((err) => {
-        console.error('Failed to load settings', err);
+        debugLogger.error('Failed to load settings', { error: err });
         if (!active) return;
         setError('Unable to load settings. Please reopen the popup.');
         setLoading(false);
@@ -159,7 +162,7 @@ function App(): JSX.Element {
       setHistory(items);
       setHistoryLoaded(true);
     } catch (err) {
-      console.error('Failed to load history', err);
+      debugLogger.error('Failed to load history', { error: err });
     }
   }, [historyLoaded]);
 
@@ -188,7 +191,7 @@ function App(): JSX.Element {
       setStrategy(value);
       setSavedAt(Date.now());
     } catch (err) {
-      console.error('Failed to update strategy', err);
+      debugLogger.error('Failed to update strategy', { error: err });
       setError('Could not save changes. Try again.');
     } finally {
       setSaving(false);
@@ -238,7 +241,7 @@ function App(): JSX.Element {
           setTheme(newTheme);
           setSettingsTheme(newTheme);
           updateSettings({ theme: newTheme }).catch((err) => {
-            console.error('Failed to save theme', err);
+            debugLogger.error('Failed to save theme', { error: err });
           });
         }}
         className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-default-600 hover:text-default-900 transition-colors cursor-pointer"

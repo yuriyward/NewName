@@ -122,10 +122,12 @@ export function createConfirmToastController(
     try {
       await sendShowConfirmToast(payload, target);
     } catch (error) {
-      console.error(
+      debugLogger.error(
         '[ConfirmToast] Failed to dispatch toast to content script',
-        payload.proposal.toastId,
-        error,
+        {
+          toastId: payload.proposal.toastId,
+          error,
+        },
       );
       throw error instanceof Error ? error : new Error(String(error));
     }

@@ -1,6 +1,7 @@
 import { Alert } from '@heroui/alert';
 import { type JSX, useState } from 'react';
 import { browser } from 'wxt/browser';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { markOnboardingSkipped } from '@/entrypoints/shared/onboarding/onboarding-state';
 
 export interface DownloadsAccessScreenProps {
@@ -26,7 +27,9 @@ export function DownloadsAccessScreen({
       // Close the popup so the user can focus on the setup tab.
       window.close();
     } catch (err) {
-      console.error('[DownloadsAccessScreen] Failed to open setup tab', err);
+      debugLogger.error('[DownloadsAccessScreen] Failed to open setup tab', {
+        error: err,
+      });
       setError(
         err instanceof Error
           ? err.message
@@ -42,7 +45,9 @@ export function DownloadsAccessScreen({
       await markOnboardingSkipped();
       onSkip();
     } catch (err) {
-      console.error('[DownloadsAccessScreen] Failed to skip onboarding', err);
+      debugLogger.error('[DownloadsAccessScreen] Failed to skip onboarding', {
+        error: err,
+      });
       setError(
         err instanceof Error
           ? err.message
