@@ -35,6 +35,8 @@ export interface RenameOrchestratorHelpers {
   emitStatus(state: ConfirmToastStatusState, message?: string): Promise<void>;
 }
 
+// TODO(#???): Temporary Phase 1 placeholder until real PDF analysis rename lands.
+// Keeps the initial integration observable in builds without touching real filenames.
 function appendTestSuffix(filename: string): string {
   const { base, extension } = stripExtension(filename);
   if (base.endsWith('-test')) {

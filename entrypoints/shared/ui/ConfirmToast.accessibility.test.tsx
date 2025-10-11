@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';
 import { ConfirmToast } from './ConfirmToast';
 
@@ -32,8 +32,16 @@ function createToast(
 }
 
 describe('ConfirmToast accessibility', () => {
-  it('renders a polite countdown announcement region', () => {
+  beforeAll(() => {
+    vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-10-10T12:00:00Z'));
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
+  it('renders a polite countdown announcement region', () => {
     const toast = createToast();
 
     const markup = renderToStaticMarkup(

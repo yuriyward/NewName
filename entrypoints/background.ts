@@ -117,42 +117,21 @@ function initializeBackground(): void {
   initializeBackgroundDebug();
 
   const pageContextService = registerPageContextService();
-
-  // void (async () => {
-  //   try {
-  //     const current = await getSettings();
-  //     const desiredDebug = {
-  //       ...current.debug,
-  //       enabled: true,
-  //       level: 'verbose' as const,
-  //     };
-  //     if (
-  //       current.mode !== 'careful' ||
-  //       current.debug.enabled !== desiredDebug.enabled ||
-  //       current.debug.level !== desiredDebug.level
-  //     ) {
-  //       await updateSettings({
-  //         mode: 'careful',
-  //         debug: desiredDebug,
-  //       });
-  //       console.info(
-  //         '[NewName] Dev override: mode set to careful with verbose debug',
-  //       );
-  //     }
-  //   } catch (error) {
-  //     console.warn('[NewName] Failed to apply dev settings override', error);
-  //   }
-  // })();
-
-  void (async () => {
-    await updateSettings({
-      mode: 'balanced',
-      debug: {
-        enabled: true,
-        level: 'verbose' as const,
-      },
-    });
-  })();
+  if (import.meta.env.DEV) {
+    // Development mode override
+    void (async () => {
+      await updateSettings({
+        mode: 'balanced',
+        debug: {
+          enabled: true,
+          level: 'verbose' as const,
+        },
+      });
+      console.info(
+        '[NewName] Dev override: mode set to balanced with verbose debug',
+      );
+    })();
+  }
 
   onExtensionMessage('resolveRuntimeContext', ({ sender }) => ({
     tabId: sender.tab?.id ?? undefined,
