@@ -1,6 +1,7 @@
 /**
  * Orchestrates file rename operations in response to toast actions.
  */
+import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { isHandleValid } from '@/entrypoints/shared/filesystem/directory-picker';
 import {
@@ -9,10 +10,14 @@ import {
 } from '@/entrypoints/shared/filesystem/handle-storage';
 import { renameFile } from '@/entrypoints/shared/filesystem/rename-operations';
 import {
+  getHistoryItem,
   type HistoryItem,
   updateHistoryItem,
 } from '@/entrypoints/shared/history/history';
-import { splitPath } from '@/entrypoints/shared/pipeline/path-utils';
+import {
+  splitPath,
+  stripExtension,
+} from '@/entrypoints/shared/pipeline/path-utils';
 import {
   getSettings,
   updateSettings,
@@ -23,8 +28,197 @@ import type {
 } from '@/entrypoints/shared/toast/types';
 import type { ConfirmToastEntry } from './toast/confirmation-controller';
 
+const PDF_ANALYSIS_DELAY_MS = 5_000;
+const PDF_ANALYSIS_DELAY_MINUTES = PDF_ANALYSIS_DELAY_MS / 60_000;
+
 export interface RenameOrchestratorHelpers {
   emitStatus(state: ConfirmToastStatusState, message?: string): Promise<void>;
+}
+
+function appendTestSuffix(filename: string): string {
+  const { base, extension } = stripExtension(filename);
+  if (base.endsWith('-test')) {
+    return filename;
+  }
+  const updatedBase = `${base}-test`;
+  return extension ? `${updatedBase}.${extension}` : updatedBase;
+}
+
+/**
+ * Core logic for scheduling PDF analysis alarm
+ */
+async function scheduleAnalysisAlarm(
+  historyId: string,
+  currentPath: string,
+  currentName: string,
+  fileType: string,
+): Promise<void> {
+  if (fileType !== 'pdf') {
+    debugLogger.log(
+      '[RenameOrchestrator] Skipping analysis rename for file type',
+      fileType,
+    );
+    return;
+  }
+
+  const targetName = appendTestSuffix(currentName);
+  if (targetName === currentName) {
+    debugLogger.log(
+      '[RenameOrchestrator] Analysis rename already applied to filename',
+      currentName,
+    );
+    return;
+  }
+
+  console.info('[NewName] PDF analysis rename scheduled', {
+    historyId,
+    delayMs: PDF_ANALYSIS_DELAY_MS,
+    currentPath,
+    targetName,
+  });
+
+  // Store current state in history for alarm handler to retrieve
+  await updateHistoryItem(historyId, (item) => ({
+    ...item,
+    pendingAnalysisRename: {
+      currentPath,
+      currentName,
+      targetName,
+      scheduledAt: Date.now(),
+    },
+  }));
+
+  // Schedule alarm (persists across service worker restarts)
+  const alarmName = `pdf-analysis-${historyId}`;
+  await browser.alarms.create(alarmName, {
+    delayInMinutes: PDF_ANALYSIS_DELAY_MINUTES,
+  });
+
+  debugLogger.log('[RenameOrchestrator] PDF analysis alarm created', alarmName);
+}
+
+/**
+ * Schedule PDF analysis rename for auto-downloaded files (called from download-coordinator)
+ */
+export async function schedulePdfAnalysisForDownload(params: {
+  historyId: string;
+  currentPath: string;
+  currentFilename: string;
+  fileType: string;
+}): Promise<void> {
+  await scheduleAnalysisAlarm(
+    params.historyId,
+    params.currentPath,
+    params.currentFilename,
+    params.fileType,
+  );
+}
+
+/**
+ * Schedule a delayed PDF analysis rename using chrome.alarms API
+ * (survives service worker termination unlike setTimeout)
+ */
+async function schedulePdfAnalysisRename(
+  entry: ConfirmToastEntry,
+  currentPath: string,
+  currentName: string,
+): Promise<void> {
+  await scheduleAnalysisAlarm(
+    entry.historyId,
+    currentPath,
+    currentName,
+    entry.proposal.fileType,
+  );
+}
+
+/**
+ * Execute PDF analysis rename (called by alarm handler)
+ * Can be invoked even after service worker restart
+ */
+export async function executePdfAnalysisRename(
+  historyId: string,
+): Promise<void> {
+  console.info('[NewName] PDF analysis rename executing', { historyId });
+
+  // Retrieve history item
+  const item = await getHistoryItem(historyId);
+  if (!item) {
+    debugLogger.warn(
+      '[RenameOrchestrator] History entry not found for PDF analysis',
+      historyId,
+    );
+    return;
+  }
+
+  if (!item.pendingAnalysisRename) {
+    debugLogger.log(
+      '[RenameOrchestrator] No pending analysis rename found',
+      historyId,
+    );
+    return;
+  }
+
+  const { currentPath, targetName } = item.pendingAnalysisRename;
+
+  // Get directory handle
+  const handle = await getStoredDirectoryHandle();
+  if (!handle || !(await isHandleValid(handle))) {
+    debugLogger.warn(
+      '[RenameOrchestrator] Missing or invalid Downloads directory handle for analysis rename',
+    );
+    return;
+  }
+
+  console.info('[NewName] PDF analysis rename starting', {
+    historyId,
+    from: currentPath,
+    to: targetName,
+  });
+
+  const result = await renameFile({
+    relativePath: currentPath,
+    newFilename: targetName,
+    rootHandle: handle,
+  });
+
+  if (!result.success) {
+    console.warn(
+      '[NewName] PDF analysis rename failed',
+      historyId,
+      result.error,
+    );
+    debugLogger.warn(
+      '[RenameOrchestrator] PDF analysis rename failed',
+      historyId,
+      result.error,
+    );
+
+    // Clear pending state even on failure
+    await updateHistoryItem(historyId, (item) => ({
+      ...item,
+      pendingAnalysisRename: undefined,
+    }));
+    return;
+  }
+
+  // Update history with final result and clear pending state
+  await updateHistoryItem(historyId, (item) =>
+    applyHistoryUpdate(
+      { ...item, pendingAnalysisRename: undefined },
+      result.finalName,
+      result.finalPath,
+    ),
+  );
+
+  console.info('[NewName] PDF analysis rename complete', {
+    historyId,
+    finalName: result.finalName,
+    finalPath: result.finalPath,
+  });
+  debugLogger.log(
+    '[RenameOrchestrator] PDF analysis rename complete',
+    historyId,
+  );
 }
 
 function deriveRelativeOriginalPath(entry: ConfirmToastEntry): string {
@@ -131,6 +325,9 @@ export async function executeApply(
     method: result.method,
   });
   await helpers.emitStatus('applied');
+
+  // Schedule delayed PDF analysis rename (uses alarms, survives service worker termination)
+  await schedulePdfAnalysisRename(entry, result.finalPath, result.finalName);
 }
 
 /**

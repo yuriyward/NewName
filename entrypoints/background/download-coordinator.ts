@@ -320,6 +320,30 @@ export async function processDeterminingFilename(
       });
     }
 
+    // Schedule PDF analysis rename for auto-renamed PDFs (after 5 seconds)
+    if (
+      evaluation.fileType === 'pdf' &&
+      renameCandidate &&
+      confirmRoute.kind !== 'toast'
+    ) {
+      // Import dynamically to avoid circular dependency
+      void import('./rename-orchestrator').then(
+        ({ schedulePdfAnalysisForDownload }) => {
+          void schedulePdfAnalysisForDownload({
+            historyId,
+            currentPath: renameRelativePath,
+            currentFilename: finalFilename,
+            fileType: evaluation.fileType,
+          }).catch((error) => {
+            debugLogger.error(
+              '[NewName] Failed to schedule PDF analysis',
+              error,
+            );
+          });
+        },
+      );
+    }
+
     // Schedule media metadata analysis in background (non-blocking)
     if (
       isMediaFileType(evaluation.fileType) &&

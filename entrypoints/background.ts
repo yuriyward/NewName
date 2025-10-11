@@ -290,6 +290,23 @@ function initializeBackground(): void {
     }
     return { ok: true };
   });
+
+  // Handle delayed PDF analysis renames via alarms
+  browser.alarms.onAlarm.addListener(async (alarm) => {
+    if (alarm.name.startsWith('pdf-analysis-')) {
+      const historyId = alarm.name.replace('pdf-analysis-', '');
+      debugLogger.log('[Alarms] PDF analysis rename triggered', historyId);
+
+      try {
+        const { executePdfAnalysisRename } = await import(
+          './background/rename-orchestrator'
+        );
+        await executePdfAnalysisRename(historyId);
+      } catch (error) {
+        debugLogger.error('[Alarms] PDF analysis rename failed', error);
+      }
+    }
+  });
 }
 
 export default defineBackground(() => {

@@ -18,6 +18,13 @@ export interface UpgradeProposal {
   generatedAt: number;
 }
 
+export interface PendingAnalysisRename {
+  currentPath: string;
+  currentName: string;
+  targetName: string;
+  scheduledAt: number;
+}
+
 export interface HistoryItem {
   id: string;
   ts: number;
@@ -32,6 +39,7 @@ export interface HistoryItem {
   decision?: InstantBaselineDecision;
   media?: HistoryMediaMetadata;
   upgrade?: UpgradeProposal;
+  pendingAnalysisRename?: PendingAnalysisRename;
 }
 
 export interface HistoryMediaMetadata {
@@ -201,6 +209,29 @@ function isUpgradeProposal(value: unknown): value is UpgradeProposal {
   return true;
 }
 
+function isPendingAnalysisRename(
+  value: unknown,
+): value is PendingAnalysisRename {
+  if (!isPlainObject(value)) return false;
+  const maybe = value as Partial<PendingAnalysisRename>;
+  if (typeof maybe.currentPath !== 'string' || maybe.currentPath.length === 0) {
+    return false;
+  }
+  if (typeof maybe.currentName !== 'string' || maybe.currentName.length === 0) {
+    return false;
+  }
+  if (typeof maybe.targetName !== 'string' || maybe.targetName.length === 0) {
+    return false;
+  }
+  if (
+    typeof maybe.scheduledAt !== 'number' ||
+    !Number.isFinite(maybe.scheduledAt)
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function isValidHistoryItem(entry: unknown): entry is HistoryItem {
   if (!entry || typeof entry !== 'object') return false;
   const maybe = entry as Partial<HistoryItem>;
@@ -231,6 +262,12 @@ function isValidHistoryItem(entry: unknown): entry is HistoryItem {
     return false;
   }
   if (maybe.upgrade !== undefined && !isUpgradeProposal(maybe.upgrade)) {
+    return false;
+  }
+  if (
+    maybe.pendingAnalysisRename !== undefined &&
+    !isPendingAnalysisRename(maybe.pendingAnalysisRename)
+  ) {
     return false;
   }
   return true;
@@ -293,4 +330,9 @@ export async function updateHistoryItem(
 
 export async function getHistory(): Promise<HistoryItem[]> {
   return readHistory();
+}
+
+export async function getHistoryItem(id: string): Promise<HistoryItem | null> {
+  const history = await readHistory();
+  return history.find((item) => item.id === id) ?? null;
 }
