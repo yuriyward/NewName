@@ -85,8 +85,11 @@ export async function applyMediaAnalysisResponse(
             proposedFilename: enhanced.filename,
             proposedPath: pathDir + enhanced.filename,
             confidence: 'suggested',
+            autoApply: true,
             reasonTags: ['media-specs', 'contextual-upgrade'],
             generatedAt: analyzedAt,
+            source: 'metadata',
+            summary: response.summary?.general?.title,
           };
 
           logMediaDebug(debug, 'upgrade-proposed', {

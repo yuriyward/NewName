@@ -131,25 +131,24 @@ browser.runtime.onInstalled.addListener((details) => {
 
 ### 🟡 Phase 2: Background Analysis & Upgrade Pipeline — PARTIAL
 
-#### 2.1 Upgrade Coordinator — ❌ MISSING
+#### 2.1 Upgrade Coordinator — 🟡 PARTIAL
 
-**Planned Location:** `entrypoints/background/upgrade/coordinator.ts`
+**Location:** `entrypoints/background/upgrade/coordinator.ts`
 
-**Status:** **NOT IMPLEMENTED**
+**Status:** Core coordinator implemented with AI decision contract; waiting on real analyzers.
 
-**Missing Components:**
-- ❌ `downloads.onChanged` listener for completed downloads
-- ❌ `shouldAnalyze()` decision logic
-- ❌ `requestUpgradeAnalysis()` coordination
-- ❌ `scoreUpgrade()` comparison logic
-- ❌ Upgrade toast queuing
+**Shipped:**
+- ✅ Hooks into `downloads.onChanged` with download-tracking bridge
+- ✅ Replays history + settings to decide whether to analyze (`shouldAnalyzeUpgrade`)
+- ✅ Accepts structured AI proposal (`autoApply`, `source`, `reasonTags`) and queues toast/auto-apply
+- ✅ Persists `history.upgrade` with metadata for later actions
 
-**Current Workaround:**
-- ✅ PDF analysis scheduling exists in `rename-orchestrator.ts`
-- ⚠️ Uses placeholder `-test` suffix instead of real analysis
-- ⚠️ No scoring or upgrade threshold logic
+**Missing / TODO:**
+- ❌ Real `requestAnalysis` wiring to offscreen pipelines (currently uses mock summary)
+- ❌ Auto-apply heuristics for metadata vs AI results may need tuning once analyzers land
+- ⚠️ Telemetry hooks to log AI keep/rename decisions
 
-**Impact:** Contextual Upgrade (Phase 2) is not functional. Files get instant baseline names only, no post-download improvements.
+**Impact:** Coordinator is ready for real analyzers; once Phase 2 engines return `shouldRename`, the flow surfaces upgrades without heuristic scoring.
 
 ---
 

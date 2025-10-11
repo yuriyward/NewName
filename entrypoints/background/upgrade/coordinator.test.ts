@@ -65,7 +65,6 @@ vi.mock('@/entrypoints/shared/integrations/chrome-ai/adapter', () => ({
 }));
 
 const { createUpgradeCoordinator } = await import('./coordinator');
-const { scoreUpgradeProposal } = await import('./scoring');
 
 function createConfirmToastControllerMock(): ConfirmToastController {
   return {
@@ -88,7 +87,7 @@ function createConfirmToastControllerMock(): ConfirmToastController {
           triggerSources: options.triggerSources,
           autoApplyAt: null,
           autoApplyDelaySeconds: options.autoApplyDelaySeconds,
-          allowAutoApply: false,
+          allowAutoApply: Boolean(options.autoApplyDelaySeconds),
           allowAlwaysApply: options.allowAlwaysApply,
         },
         historyId: options.historyId,
@@ -103,37 +102,6 @@ function createConfirmToastControllerMock(): ConfirmToastController {
     emitStatus: vi.fn(async () => {}),
   };
 }
-
-describe('scoreUpgradeProposal', () => {
-  it('computes positive delta for richer upgrade', () => {
-    const current = 'document.pdf';
-    const proposal = {
-      proposedFilename: 'project-roadmap-q3-summary.pdf',
-      proposedPath: 'project-roadmap-q3-summary.pdf',
-      confidence: 'suggested' as const,
-      reasonTags: ['Title', 'Contextual-Upgrade'],
-      generatedAt: Date.now(),
-    };
-
-    const score = scoreUpgradeProposal(current, proposal);
-    expect(score.delta).toBeGreaterThan(0);
-    expect(score.proposedScore).toBeGreaterThan(score.currentScore);
-  });
-
-  it('penalises identical names', () => {
-    const current = 'invoice.pdf';
-    const proposal = {
-      proposedFilename: 'invoice.pdf',
-      proposedPath: 'invoice.pdf',
-      confidence: 'alternative' as const,
-      reasonTags: ['mock-summary'],
-      generatedAt: Date.now(),
-    };
-
-    const score = scoreUpgradeProposal(current, proposal);
-    expect(score.lexicalDelta).toBe(0);
-  });
-});
 
 describe('createUpgradeCoordinator', () => {
   beforeEach(() => {
@@ -154,7 +122,7 @@ describe('createUpgradeCoordinator', () => {
     ]);
   });
 
-  it('queues upgrade toast when score threshold met', async () => {
+  it('queues upgrade toast when AI requests rename', async () => {
     const historyItem: HistoryItem = {
       id: 'history-1',
       ts: Date.now(),
@@ -200,11 +168,11 @@ describe('createUpgradeCoordinator', () => {
 
     expect(confirmController.queueConfirmation).toHaveBeenCalledTimes(1);
     const updated = historyStore.get(historyItem.id);
-    expect(updated?.upgrade).toBeTruthy();
-    expect(updated?.upgrade?.proposedFilename).toContain('refined');
+    expect(updated?.upgrade?.source).toBe('ai');
+    expect(updated?.upgrade?.autoApply).toBe(false);
   });
 
-  it('skips upgrade when analysis returns null', async () => {
+  it('skips queue when analysis decides to keep original', async () => {
     const historyItem: HistoryItem = {
       id: 'history-2',
       ts: Date.now(),
@@ -223,13 +191,6 @@ describe('createUpgradeCoordinator', () => {
         reasons: [],
         signals: { inputsUsed: [], missingInputs: [] },
       },
-      upgrade: {
-        proposedFilename: 'notes.pdf',
-        proposedPath: 'docs/notes.pdf',
-        confidence: 'alternative',
-        reasonTags: ['mock'],
-        generatedAt: Date.now(),
-      },
     };
     historyStore.set(historyItem.id, historyItem);
 
@@ -238,21 +199,84 @@ describe('createUpgradeCoordinator', () => {
       confirmToastController: confirmController,
       readSettings: () => DEFAULT_SETTINGS,
       requestAnalysis: async () => null,
-      now: () => Date.now(),
     });
 
     const delta = {
-      id: 99,
+      id: 77,
       state: { current: 'complete' },
     } as BrowserDownloadDelta;
 
-    await coordinator.handleDownloadChange(delta, {
+    const tracking: DownloadTrackingEntry = {
       historyId: historyItem.id,
       filename: historyItem.final,
       url: 'https://example.com/notes.pdf',
       createdAt: Date.now(),
-    });
+    };
+
+    await coordinator.handleDownloadChange(delta, tracking);
 
     expect(confirmController.queueConfirmation).not.toHaveBeenCalled();
+    expect(updateHistoryItem).not.toHaveBeenCalled();
+  });
+
+  it('propagates auto-apply recommendation', async () => {
+    const historyItem: HistoryItem = {
+      id: 'history-3',
+      ts: Date.now(),
+      path: 'docs/notes.pdf',
+      original: 'notes.pdf',
+      final: 'notes.pdf',
+      source: 'on-device',
+      fileType: 'pdf',
+      phase: 'instant-baseline',
+      reasonTags: ['Original'],
+      decision: {
+        outcome: 'keep',
+        strategy: 'keep-original',
+        confidence: 0,
+        guardrail: 'strategy-unavailable',
+        reasons: [],
+        signals: { inputsUsed: [], missingInputs: [] },
+      },
+    };
+    historyStore.set(historyItem.id, historyItem);
+
+    const confirmController = createConfirmToastControllerMock();
+    const coordinator = createUpgradeCoordinator({
+      confirmToastController: confirmController,
+      readSettings: () => DEFAULT_SETTINGS,
+      requestAnalysis: async ({ now }) => ({
+        proposedFilename: 'notes-summary.pdf',
+        proposedPath: 'notes-summary.pdf',
+        confidence: 'high',
+        autoApply: true,
+        reasonTags: ['ai'],
+        generatedAt: now,
+        source: 'ai',
+      }),
+    });
+
+    const delta = {
+      id: 88,
+      state: { current: 'complete' },
+    } as BrowserDownloadDelta;
+
+    const tracking: DownloadTrackingEntry = {
+      historyId: historyItem.id,
+      filename: historyItem.final,
+      url: 'https://example.com/notes.pdf',
+      createdAt: Date.now(),
+    };
+
+    await coordinator.handleDownloadChange(delta, tracking);
+
+    const queueCalls = (
+      confirmController.queueConfirmation as ReturnType<typeof vi.fn>
+    ).mock.calls;
+    expect(queueCalls.length).toBe(1);
+    const [{ autoApplyDelaySeconds }] = queueCalls[0];
+    expect(autoApplyDelaySeconds).toBe(
+      DEFAULT_SETTINGS.confirmToast.autoApplyDelaySeconds,
+    );
   });
 });

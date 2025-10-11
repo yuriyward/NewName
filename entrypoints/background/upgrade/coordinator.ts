@@ -15,7 +15,6 @@ import type { Settings } from '@/entrypoints/shared/settings/settings';
 import type { DownloadTrackingEntry } from '../download-tracking';
 import { shouldAnalyzeUpgrade } from './eligibility';
 import { requestMockUpgradeAnalysis } from './mock-analysis';
-import { scoreUpgradeProposal, UPGRADE_SCORE_THRESHOLD } from './scoring';
 import type {
   BrowserDownloadDelta,
   BrowserDownloadItem,
@@ -42,14 +41,20 @@ function normaliseDownloadItem(item: unknown): BrowserDownloadItem {
   };
 }
 
-function ensureProposalTimestamp(
+function normalizeProposal(
   proposal: UpgradeProposal,
   now: number,
 ): UpgradeProposal {
-  if (proposal.generatedAt) {
-    return proposal;
-  }
-  return { ...proposal, generatedAt: now };
+  return {
+    proposedFilename: proposal.proposedFilename,
+    proposedPath: proposal.proposedPath,
+    confidence: proposal.confidence,
+    autoApply: proposal.autoApply ?? false,
+    reasonTags: proposal.reasonTags ?? [],
+    generatedAt: proposal.generatedAt ?? now,
+    source: proposal.source ?? 'ai',
+    summary: proposal.summary,
+  };
 }
 
 export function createUpgradeCoordinator(
@@ -115,8 +120,11 @@ export function createUpgradeCoordinator(
     proposal: UpgradeProposal,
     settings: Settings,
     downloadId: number,
-    scoreDelta: number,
   ): Promise<void> {
+    const autoApplyDelaySeconds = proposal.autoApply
+      ? settings.confirmToast.autoApplyDelaySeconds
+      : null;
+
     try {
       await confirmToastController.queueConfirmation({
         historyId: historyItem.id,
@@ -131,14 +139,15 @@ export function createUpgradeCoordinator(
         sensitiveReasons: [],
         sensitiveMatches: [],
         triggerSources: ['contextual-upgrade'],
-        autoApplyDelaySeconds: settings.confirmToast.autoApplyDelaySeconds,
+        autoApplyDelaySeconds,
         allowAlwaysApply: settings.mode !== 'careful',
       });
 
       debugLogger.log('[UpgradeCoordinator] Upgrade toast queued', {
         historyId: historyItem.id,
         downloadId,
-        delta: scoreDelta,
+        source: proposal.source,
+        confidence: proposal.confidence,
       });
     } catch (error) {
       debugLogger.error('[UpgradeCoordinator] Queue confirmation failed', {
@@ -196,31 +205,12 @@ export function createUpgradeCoordinator(
         return;
       }
 
-      const proposalWithTimestamp = ensureProposalTimestamp(proposal, now);
-      const score = scoreUpgradeProposal(
-        historyItem.final,
-        proposalWithTimestamp,
-      );
-
-      if (
-        score.delta < UPGRADE_SCORE_THRESHOLD ||
-        score.proposedScore <= score.currentScore
-      ) {
-        debugLogger.log(
-          '[UpgradeCoordinator] Skipping upgrade, score below threshold',
-          {
-            historyId,
-            downloadId: delta.id,
-            score,
-          },
-        );
-        return;
-      }
+      const normalizedProposal = normalizeProposal(proposal, now);
 
       try {
         const updated = await updateHistoryItem(historyId, (item) => ({
           ...item,
-          upgrade: proposalWithTimestamp,
+          upgrade: normalizedProposal,
         }));
         if (updated) {
           historyItem = updated;
@@ -237,10 +227,9 @@ export function createUpgradeCoordinator(
 
       await queueUpgradeToast(
         historyItem,
-        proposalWithTimestamp,
+        normalizedProposal,
         settings,
         delta.id,
-        score.delta,
       );
     },
   };

@@ -244,12 +244,13 @@ All variants share the same post-processing: apply separator preference, enforce
 * Contextual Upgrade for audio/video relies on metadata-only; no content analysis (keyframe/audio extraction) to maintain reliability and performance.
 * For archives, optionally inspect manifest/file list for better naming.
 
-### 5.7 Scoring & compare
+### 5.7 Decision contract (AI-driven)
 
-* Compute **score** = weighted sum (MetadataHelpfulness, SourceClarity, StructureQuality) minus (ExistingNameQuality, Ambiguity).
-* For media files, scoring prioritizes metadata enrichment (duration/resolution tags, archive manifest insights) over content analysis.
-* Use `phase1Decision.confidence` as the baseline; when the Instant Baseline stage kept the original, treat the baseline as 0 but carry through `decision.reasons` to inform messaging.
-* If `best.score - baseline >= delta` (e.g., +10) → surface **Upgrade**.
+* Phase 2 analyzers return a **single structured contract**: `{ shouldRename: boolean, proposedName, source, autoApply, reasonTags, summary }`.
+* When `shouldRename === false`, the coordinator records the analysis (for telemetry/debug) and **does nothing**—Phase 1’s deterministic name stands.
+* When `shouldRename === true`, analyzers must also supply the replacement filename and supporting reason tags. The coordinator trusts the AI decision; no lexical scoring or heuristic comparisons.
+* `source` differentiates deterministic metadata upgrades (`'metadata'`) from generative AI (`'ai'`).
+* `autoApply === true` allows the coordinator to auto-apply (respecting user settings) without surfacing a toast; otherwise it queues a confirmation with the supplied `reasonTags` and `summary`.
 
 ### 5.7 Post-save rename
 

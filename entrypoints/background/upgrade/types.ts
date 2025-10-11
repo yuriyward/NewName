@@ -37,15 +37,6 @@ export interface UpgradeAnalysisInput {
   now: number;
 }
 
-export interface UpgradeScore {
-  currentScore: number;
-  proposedScore: number;
-  lexicalDelta: number;
-  reasonTagBonus: number;
-  confidenceBonus: number;
-  delta: number;
-}
-
 export interface UpgradeCoordinatorParams {
   confirmToastController: ConfirmToastController;
   readSettings: () => Settings;

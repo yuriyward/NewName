@@ -5,12 +5,26 @@ import type { MediaMetadataSummary } from '@/entrypoints/shared/integrations/med
 import type { InstantBaselineDecision } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
 
+export type UpgradeProposalSource = 'ai' | 'metadata';
+
 export interface UpgradeProposal {
   proposedFilename: string;
   proposedPath: string;
   confidence: 'high' | 'suggested' | 'alternative';
+  /**
+   * When true, the proposal is deemed safe to apply automatically without additional user review.
+   * Useful for deterministic metadata upgrades or very high-confidence AI results.
+   */
+  autoApply: boolean;
+  /**
+   * Machine-readable reason tags backing up the proposal (displayed in confirmations/history).
+   */
   reasonTags: string[];
   generatedAt: number;
+  /** Describes whether the rename comes from deterministic metadata enrichment or AI analysis. */
+  source: UpgradeProposalSource;
+  /** Optional natural language summary for UI surfaces. */
+  summary?: string;
 }
 
 export interface PendingAnalysisRename {

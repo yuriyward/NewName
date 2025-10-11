@@ -146,6 +146,9 @@ export function isUpgradeProposal(value: unknown): value is UpgradeProposal {
   ) {
     return false;
   }
+  if (maybe.autoApply !== undefined && typeof maybe.autoApply !== 'boolean') {
+    return false;
+  }
   if (!isStringArray(maybe.reasonTags)) {
     return false;
   }
@@ -153,6 +156,16 @@ export function isUpgradeProposal(value: unknown): value is UpgradeProposal {
     typeof maybe.generatedAt !== 'number' ||
     !Number.isFinite(maybe.generatedAt)
   ) {
+    return false;
+  }
+  if (
+    maybe.source !== undefined &&
+    maybe.source !== 'ai' &&
+    maybe.source !== 'metadata'
+  ) {
+    return false;
+  }
+  if (maybe.summary !== undefined && typeof maybe.summary !== 'string') {
     return false;
   }
   return true;

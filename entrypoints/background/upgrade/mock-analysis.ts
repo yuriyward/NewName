@@ -84,7 +84,10 @@ export async function requestMockUpgradeAnalysis(
     proposedFilename,
     proposedPath,
     confidence: 'suggested',
+    autoApply: false,
     reasonTags: ['mock-summary', 'contextual-upgrade'],
     generatedAt: now,
+    source: 'ai',
+    summary: `${enrichedBase} (mock)`,
   };
 }

@@ -273,13 +273,6 @@ Can...
 **Exports**:
 - `export requestMockUpgradeAnalysis` - item implementation
 
-### background/upgrade/scoring.ts
-**Purpose**: Lexical scoring engine for upgrade proposal evaluation
-
-**Exports**:
-- `export UPGRADE_SCORE_THRESHOLD` - Lexical scoring engine for upgrade proposal evaluation
-- `export scoreUpgradeProposal` - item implementation
-
 ### background/upgrade/types.ts
 **Purpose**: Type definitions for contextual upgrade pipeline
 
@@ -288,7 +281,6 @@ Can...
 - `export BrowserDownloadItem` - Minimal subset of download item fields used by the upgrad...
 - `export UpgradeAnalysisInput` - item implementation
 - `export UpgradeCoordinatorParams` - item implementation
-- `export UpgradeScore` - item implementation
 
 ### content.ts
 **Purpose**: Content script for page context extraction and messaging
@@ -1008,4 +1000,3 @@ Handles automatic th...
 
 **Exports**:
 - `export randomId` - Generate a random ID for tracking downloads and history i...
-
