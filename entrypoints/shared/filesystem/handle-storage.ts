@@ -16,27 +16,29 @@ export interface StoredHandleInfo {
   handle: FileSystemDirectoryHandle;
   grantedAt: number;
   lastVerified: number;
+  managedRelativePath?: string;
 }
 
 const DOWNLOADS_KEY = 'downloads-handle';
 
 export async function storeDirectoryHandle(
   handle: FileSystemDirectoryHandle,
+  options: { relativePath?: string } = {},
 ): Promise<void> {
   const payload: StoredHandleInfo = {
     handle,
     grantedAt: Date.now(),
     lastVerified: Date.now(),
+    managedRelativePath: normalizeRelativePath(
+      options.relativePath ?? handle.name,
+    ),
   };
   await set(DOWNLOADS_KEY, payload, fsStore);
 }
 
 export async function getStoredDirectoryHandle(): Promise<FileSystemDirectoryHandle | null> {
   try {
-    const info = await get<StoredHandleInfo | undefined>(
-      DOWNLOADS_KEY,
-      fsStore,
-    );
+    const info = await getStoredHandleInfo();
     return info?.handle ?? null;
   } catch (error) {
     console.error('[FileSystem] Failed to load stored directory handle', error);
@@ -65,4 +67,55 @@ export async function getHandleMetadata(): Promise<Pick<
     grantedAt: info.grantedAt,
     lastVerified: info.lastVerified,
   };
+}
+
+export async function getManagedRelativePath(): Promise<string | null> {
+  const info = await getStoredHandleInfo();
+  if (!info) {
+    return null;
+  }
+  const relativePath = normalizeRelativePath(
+    info.managedRelativePath ?? info.handle?.name ?? '',
+  );
+  if (relativePath && relativePath !== info.managedRelativePath) {
+    await set(
+      DOWNLOADS_KEY,
+      {
+        ...info,
+        managedRelativePath: relativePath,
+      },
+      fsStore,
+    ).catch((error) => {
+      console.warn(
+        '[FileSystem] Failed to update managed path metadata',
+        error,
+      );
+    });
+  }
+  return relativePath || null;
+}
+
+export function normalizeRelativePath(value: string | undefined): string {
+  if (!value) return '';
+  const forward = value.replace(/\\/g, '/');
+  return forward
+    .replace(/^\/+|\/+$/g, '')
+    .replace(/\.+$/g, '')
+    .trim();
+}
+
+async function getStoredHandleInfo(): Promise<StoredHandleInfo | null> {
+  try {
+    const info = await get<StoredHandleInfo | undefined>(
+      DOWNLOADS_KEY,
+      fsStore,
+    );
+    if (!info) {
+      return null;
+    }
+    return info;
+  } catch (error) {
+    console.error('[FileSystem] Failed to read handle info', error);
+    return null;
+  }
 }

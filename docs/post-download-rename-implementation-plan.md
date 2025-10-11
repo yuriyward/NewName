@@ -151,6 +151,19 @@ browser.downloads.onChanged.addListener(async (delta) => {
 });
 ```
 
+#### Managed Downloads Subfolder & Pre-Routing
+
+- **Chrome restriction:** File System Access rejects the root of well-known folders (e.g., `Downloads`). Requesting it triggers `DOMException: SecurityError`; subfolders like `Downloads/NewName` are allowed.
+- **Onboarding UX:** When a `SecurityError` occurs, surface guidance (“Create or select Downloads/NewName”) and re-open the picker with `startIn: 'downloads'` so users can create/select the managed directory.
+- **Handle metadata:** Persist the granted directory handle **and** a sanitized relative path (defaulting to `handle.name`) in IndexedDB. Background contexts reuse this metadata to build suggestions and restore permissions after restart.
+- **Download routing:** Inside `onDeterminingFilename`, prefix every suggestion with the managed path so Chrome writes directly into the granted folder. For example:
+  ```typescript
+  suggest({ filename: `${managedPrefix}/${relativePath}` });
+  ```
+  Even “keep original” flows route into the subfolder, so upgrade/undo always operate within the granted scope.
+- **Confirm toast payload:** Carry both the relative path (for rename operations) and the display path (managed prefix + relative path) through toast proposals so the UI shows the real location without leaking absolute system paths.
+- **History entries:** Store paths relative to the managed folder (`Report.pdf`, `project/video.mp4`). Compose the display path on demand, which keeps history oblivious to future folder migrations.
+
 **Offscreen Document Lifecycle:**
 ```typescript
 /**

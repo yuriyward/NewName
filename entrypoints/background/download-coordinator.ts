@@ -5,6 +5,12 @@ import type { browser } from 'wxt/browser';
 import { detectSensitiveContent } from '@/entrypoints/shared/classification/sensitive-content';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { DebugContext } from '@/entrypoints/shared/debug/types';
+import { getManagedRelativePath } from '@/entrypoints/shared/filesystem/handle-storage';
+import {
+  buildManagedPath,
+  normalizeDownloadPath,
+  normalizeManagedPrefix,
+} from '@/entrypoints/shared/filesystem/path-helpers';
 import { addHistoryItem } from '@/entrypoints/shared/history/history';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { enqueueMediaAnalysis } from '@/entrypoints/shared/integrations/mediainfo/media-analysis-queue';
@@ -35,6 +41,7 @@ import {
   toMediaDebugSettings,
 } from './media-orchestrator';
 import { maybeShowRenameOverlay } from './rename-overlay';
+import type { SuggestController } from './suggest-controller';
 import { createSuggestController } from './suggest-controller';
 import type { ConfirmToastController } from './toast/confirmation-controller';
 
@@ -137,6 +144,29 @@ export async function processDeterminingFilename(
     const typeEnabled = shouldRenameType(settings, evaluation.fileType);
     const renameCandidate = typeEnabled ? evaluation.rename : undefined;
 
+    const managedPrefixRaw = await getManagedRelativePath();
+    const managedPrefix = normalizeManagedPrefix(managedPrefixRaw);
+
+    const originalRelativePath = normalizeDownloadPath(
+      evaluation.originalPath && evaluation.originalPath.length > 0
+        ? evaluation.originalPath
+        : filename,
+    );
+
+    const renameRelativePath = renameCandidate
+      ? normalizeDownloadPath(renameCandidate.path)
+      : originalRelativePath;
+
+    const suggestionOriginalPath =
+      managedPrefix !== null
+        ? buildManagedPath(managedPrefix, originalRelativePath)
+        : originalRelativePath;
+
+    const suggestionRenamePath =
+      managedPrefix !== null
+        ? buildManagedPath(managedPrefix, renameRelativePath)
+        : renameRelativePath;
+
     const historyId = randomId();
 
     const sensitiveDetection = detectSensitiveContent({
@@ -155,8 +185,14 @@ export async function processDeterminingFilename(
     });
 
     if (renameCandidate) {
+      const proposedDisplayPath =
+        managedPrefix !== null ? suggestionRenamePath : renameRelativePath;
+
       if (confirmRoute.kind === 'toast') {
-        const submitted = controller.trySuggest();
+        const submitted = trySuggestFilename(
+          controller,
+          managedPrefix !== null ? suggestionOriginalPath : null,
+        );
         if (!submitted) {
           return;
         }
@@ -167,7 +203,8 @@ export async function processDeterminingFilename(
             downloadId,
             originalFilename: basename(filename),
             proposedFilename: renameCandidate.filename,
-            proposedPath: renameCandidate.path,
+            proposedPath: renameRelativePath,
+            displayProposedPath: proposedDisplayPath,
             fileType: evaluation.fileType,
             mode: settings.mode,
             reasonTags: evaluation.reasonTags,
@@ -182,9 +219,10 @@ export async function processDeterminingFilename(
             'Failed to queue confirm toast; falling back to direct rename',
             error,
           );
-          const fallbackSubmitted = controller.trySuggest({
-            filename: renameCandidate.path,
-          });
+          const fallbackSubmitted = trySuggestFilename(
+            controller,
+            suggestionRenamePath,
+          );
           if (!fallbackSubmitted) {
             return;
           }
@@ -201,9 +239,7 @@ export async function processDeterminingFilename(
           });
         }
       } else {
-        const submitted = controller.trySuggest({
-          filename: renameCandidate.path,
-        });
+        const submitted = trySuggestFilename(controller, suggestionRenamePath);
         if (!submitted) {
           return;
         }
@@ -222,7 +258,10 @@ export async function processDeterminingFilename(
         });
       }
     } else {
-      const submitted = controller.trySuggest();
+      const submitted = trySuggestFilename(
+        controller,
+        managedPrefix !== null ? suggestionOriginalPath : null,
+      );
       if (!submitted) {
         return;
       }
@@ -250,7 +289,7 @@ export async function processDeterminingFilename(
     await addHistoryItem({
       id: historyId,
       ts: Date.now(),
-      path: renameCandidate ? renameCandidate.path : evaluation.originalPath,
+      path: renameCandidate ? renameRelativePath : originalRelativePath,
       original: basename(filename),
       final: finalFilename,
       source: renameCandidate ? renameCandidate.source : evaluation.source,
@@ -340,6 +379,17 @@ export async function processDeterminingFilename(
   } finally {
     controller.finish();
   }
+}
+
+function trySuggestFilename(
+  controller: SuggestController<SuggestPayload>,
+  path: string | null,
+): boolean {
+  const trimmed = path?.trim() ?? '';
+  if (trimmed.length > 0) {
+    return controller.trySuggest({ filename: trimmed });
+  }
+  return controller.trySuggest();
 }
 
 /**

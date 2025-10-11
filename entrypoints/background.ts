@@ -63,7 +63,10 @@ function initializeBackground(): void {
             await helpers.emitStatus('dismissed');
         }
       } catch (error) {
-        debugLogger.error('[ConfirmToast] Failed to process user decision', error);
+        debugLogger.error(
+          '[ConfirmToast] Failed to process user decision',
+          error,
+        );
         await helpers.emitStatus(
           'error',
           error instanceof Error ? error.message : String(error),

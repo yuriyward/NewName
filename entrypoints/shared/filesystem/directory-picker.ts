@@ -40,6 +40,18 @@ function getPermissionFns(handle: FileSystemDirectoryHandle): {
  *
  * Must be triggered from a user gesture (e.g., button click).
  */
+export class ManagedSubfolderRequiredError extends Error {
+  constructor(
+    public readonly details?: {
+      name: string;
+      message: string;
+    },
+  ) {
+    super('Select a subfolder inside Downloads');
+    this.name = 'ManagedSubfolderRequiredError';
+  }
+}
+
 export async function requestDownloadsAccess(): Promise<FileSystemDirectoryHandle> {
   const picker = (
     window as typeof window & {
@@ -60,12 +72,44 @@ export async function requestDownloadsAccess(): Promise<FileSystemDirectoryHandl
     });
     return handle;
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('User cancelled directory picker');
+    if (error instanceof DOMException) {
+      const context = { name: error.name, message: error.message };
+      console.error('[DirectoryPicker] showDirectoryPicker failed', context);
+      (
+        globalThis as typeof globalThis & {
+          __newNameLastDirectoryPickerError?: unknown;
+        }
+      ).__newNameLastDirectoryPickerError = context;
+      if (error.name === 'AbortError') {
+        throw new Error('User cancelled directory picker');
+      }
+      if (isSystemDirectoryError(error)) {
+        throw new ManagedSubfolderRequiredError(context);
+      }
+      throw new Error(error.message || 'Failed to select directory');
     }
-    throw error;
+    console.error('[DirectoryPicker] Non-DOMException failure', error);
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to select directory');
   }
 }
+
+function isSystemDirectoryError(error: DOMException): boolean {
+  const message = String(error.message || '').toLowerCase();
+  if (!message) {
+    return false;
+  }
+  return SYSTEM_DIRECTORY_PATTERNS.some((pattern) => pattern.test(message));
+}
+
+const SYSTEM_DIRECTORY_PATTERNS: readonly RegExp[] = [
+  /contains system files/, // Chrome macOS wording for restricted roots
+  /system folder/,
+  /root directory/,
+  /top[-\s]?level downloads/,
+  /not allowed to open this folder/,
+];
 
 /**
  * Verify (and if necessary request) read/write permission for the given handle.

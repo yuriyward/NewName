@@ -16,6 +16,7 @@ import {
   getHistory,
   type HistoryItem,
 } from '@/entrypoints/shared/history/history';
+import { getOnboardingState } from '@/entrypoints/shared/onboarding/onboarding-state';
 import { STRATEGY_OPTIONS } from '@/entrypoints/shared/pipeline/strategy-options';
 import {
   getSettings,
@@ -25,7 +26,6 @@ import {
 } from '@/entrypoints/shared/settings/settings';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import { DownloadsAccessScreen } from './onboarding/DownloadsAccessScreen';
-import { getOnboardingState } from './onboarding/onboarding-state';
 
 function App(): JSX.Element {
   const { theme, setTheme } = useTheme();

@@ -1,17 +1,7 @@
 import { Alert } from '@heroui/alert';
 import { type JSX, useState } from 'react';
-import {
-  requestDownloadsAccess,
-  verifyDirectoryPermission,
-} from '@/entrypoints/shared/filesystem/directory-picker';
-import {
-  storeDirectoryHandle,
-  updateLastVerified,
-} from '@/entrypoints/shared/filesystem/handle-storage';
-import {
-  markOnboardingCompleted,
-  markOnboardingSkipped,
-} from './onboarding-state';
+import { browser } from 'wxt/browser';
+import { markOnboardingSkipped } from '@/entrypoints/shared/onboarding/onboarding-state';
 
 export interface DownloadsAccessScreenProps {
   onComplete: () => void;
@@ -22,41 +12,43 @@ export function DownloadsAccessScreen({
   onComplete,
   onSkip,
 }: DownloadsAccessScreenProps): JSX.Element {
-  const [busy, setBusy] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleGrantAccess(): Promise<void> {
-    if (busy) return;
-    setBusy(true);
+  async function handleOpenSetupTab(): Promise<void> {
+    if (opening) return;
+    setOpening(true);
     setError(null);
     try {
-      const handle = await requestDownloadsAccess();
-      const permission = await verifyDirectoryPermission(handle);
-      if (permission !== 'granted') {
-        throw new Error('Permission not granted');
-      }
-      await storeDirectoryHandle(handle);
-      await updateLastVerified();
-      await markOnboardingCompleted();
+      const url = browser.runtime.getURL('/downloads-permission.html');
+      await browser.tabs.create({ url });
       onComplete();
+      // Close the popup so the user can focus on the setup tab.
+      window.close();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Something went wrong';
-      if (message === 'User cancelled directory picker') {
-        setError('Choose your Downloads folder to enable automatic renaming.');
-      } else if (message === 'Permission not granted') {
-        setError('Allow access so NewName can rename files after download.');
-      } else {
-        setError(message);
-      }
+      console.error('[DownloadsAccessScreen] Failed to open setup tab', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Could not open the setup tab. Please try again.',
+      );
     } finally {
-      setBusy(false);
+      setOpening(false);
     }
   }
 
   async function handleSkip(): Promise<void> {
-    await markOnboardingSkipped();
-    onSkip();
+    try {
+      await markOnboardingSkipped();
+      onSkip();
+    } catch (err) {
+      console.error('[DownloadsAccessScreen] Failed to skip onboarding', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to skip onboarding right now.',
+      );
+    }
   }
 
   return (
@@ -64,9 +56,10 @@ export function DownloadsAccessScreen({
       <header className="space-y-1">
         <h1 className="text-lg font-semibold">Enable Downloads Access</h1>
         <p className="text-xs leading-relaxed text-default-500">
-          NewName needs access to your Downloads folder so it can rename files
-          after they finish downloading. You can change this later from the
-          popup.
+          Chrome cannot grant folder access from a popup. Click below to open a
+          setup tab, then select a subfolder such as{' '}
+          <span className="font-semibold">Downloads/NewName</span>. When you
+          return to the popup, NewName will detect the permission automatically.
         </p>
       </header>
 
@@ -80,19 +73,19 @@ export function DownloadsAccessScreen({
         <button
           type="button"
           onClick={() => {
-            void handleGrantAccess();
+            void handleOpenSetupTab();
           }}
-          disabled={busy}
+          disabled={opening}
           className="inline-flex items-center justify-center rounded bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busy ? 'Requesting access…' : 'Allow Downloads Access'}
+          {opening ? 'Opening…' : 'Open setup tab'}
         </button>
         <button
           type="button"
           onClick={() => {
             void handleSkip();
           }}
-          disabled={busy}
+          disabled={opening}
           className="inline-flex items-center justify-center rounded border border-default-300 px-3 py-2 text-sm font-semibold text-default-600 transition hover:bg-default-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Skip for now

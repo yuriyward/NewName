@@ -1,5 +1,5 @@
 /**
- * Persistence for onboarding progress in the popup experience.
+ * Persistence helpers for onboarding progress shared across extension contexts.
  */
 import { getStorageAdapter } from '@/entrypoints/shared/settings/storage-state';
 

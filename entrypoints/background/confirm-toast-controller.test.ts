@@ -55,6 +55,7 @@ const BASE_OPTIONS = {
   originalFilename: 'original.pdf',
   proposedFilename: 'renamed.pdf',
   proposedPath: '/downloads/renamed.pdf',
+  displayProposedPath: '/downloads/renamed.pdf',
   fileType: 'pdf' as const,
   mode: 'balanced' as const,
   reasonTags: ['Legal'],

@@ -18,6 +18,7 @@ export interface ConfirmToastProposal {
   originalFilename: string;
   proposedFilename: string;
   proposedPath: string;
+  displayProposedPath: string;
   fileType: FileType;
   mode: Mode;
   reasonTags: string[];

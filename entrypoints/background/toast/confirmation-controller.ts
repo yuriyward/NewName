@@ -34,6 +34,7 @@ export interface QueueConfirmToastOptions {
   originalFilename: string;
   proposedFilename: string;
   proposedPath: string;
+  displayProposedPath: string;
   fileType: FileType;
   mode: Mode;
   reasonTags: string[];
@@ -162,6 +163,7 @@ export function createConfirmToastController(
         originalFilename: options.originalFilename,
         proposedFilename: options.proposedFilename,
         proposedPath: options.proposedPath,
+        displayProposedPath: options.displayProposedPath,
         fileType: options.fileType,
         mode: options.mode,
         reasonTags: options.reasonTags,

@@ -20,6 +20,7 @@ const proposal: ConfirmToastProposal = {
   originalFilename: 'report.pdf',
   proposedFilename: 'renamed.pdf',
   proposedPath: '/downloads/renamed.pdf',
+  displayProposedPath: '/downloads/renamed.pdf',
   fileType: 'pdf',
   mode: 'balanced',
   reasonTags: [],
