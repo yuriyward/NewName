@@ -1,6 +1,6 @@
 import path from 'node:path';
 import type { BrowserContext, Download } from '@playwright/test';
-import type { HistoryItem } from '@/entrypoints/shared/history/history';
+import type { HistoryItem } from '@/entrypoints/shared/history/types';
 import {
   waitForFinalFilenameFromExtension,
   waitForHistoryEntry,

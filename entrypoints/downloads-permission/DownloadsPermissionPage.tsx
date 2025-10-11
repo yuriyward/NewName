@@ -245,6 +245,31 @@ export function DownloadsPermissionPage(): JSX.Element {
           </ol>
         </section>
 
+        {state.status === 'error' ? (
+          <section className="space-y-3 rounded-lg border border-default-200 bg-default-50/80 p-4 text-xs text-default-600">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-default-500">
+              Blocked the prompt?
+            </h2>
+            <ol className="space-y-2 leading-relaxed">
+              <li>
+                Click the padlock icon in Chrome&apos;s address bar and choose
+                “Site settings”.
+              </li>
+              <li>
+                Set “File system access” (or “Additional permissions → Folder
+                access”) to “Allow”, then close the tab that opened.
+              </li>
+              <li>
+                Return here, reload the page, and press “Grant access” again.
+              </li>
+              <li>
+                If you still can&apos;t find the toggle, open
+                chrome://settings/content/fileSystemWrite and allow NewName.
+              </li>
+            </ol>
+          </section>
+        ) : null}
+
         <div className="flex flex-wrap gap-3">
           <button
             type="button"

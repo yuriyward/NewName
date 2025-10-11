@@ -13,10 +13,8 @@ import type { JSX } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
-import {
-  getHistory,
-  type HistoryItem,
-} from '@/entrypoints/shared/history/history';
+import { getHistory } from '@/entrypoints/shared/history/history';
+import type { HistoryItem } from '@/entrypoints/shared/history/types';
 import { getOnboardingState } from '@/entrypoints/shared/onboarding/onboarding-state';
 import { STRATEGY_OPTIONS } from '@/entrypoints/shared/pipeline/strategy-options';
 import {

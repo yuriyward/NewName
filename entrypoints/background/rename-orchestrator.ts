@@ -11,9 +11,10 @@ import {
 import { renameFile } from '@/entrypoints/shared/filesystem/rename-operations';
 import {
   getHistoryItem,
-  type HistoryItem,
   updateHistoryItem,
 } from '@/entrypoints/shared/history/history';
+import type { HistoryItem } from '@/entrypoints/shared/history/types';
+import { MAX_PENDING_ANALYSIS_AGE_MS } from '@/entrypoints/shared/history/types';
 import {
   splitPath,
   stripExtension,
@@ -30,7 +31,6 @@ import type { ConfirmToastEntry } from './toast/confirmation-controller';
 
 const PDF_ANALYSIS_DELAY_MS = 5_000;
 const PDF_ANALYSIS_DELAY_MINUTES = PDF_ANALYSIS_DELAY_MS / 60_000;
-const MAX_PENDING_ANALYSIS_AGE_MS = 24 * 60 * 60 * 1_000; // 24 hours
 
 export interface RenameOrchestratorHelpers {
   emitStatus(state: ConfirmToastStatusState, message?: string): Promise<void>;
@@ -222,11 +222,14 @@ export async function executePdfAnalysisRename(
 
     // Get directory handle and verify permissions
     const handle = await getStoredDirectoryHandle();
+    const alarmName = `pdf-analysis-${historyId}`;
     if (!handle || !(await isHandleValid(handle))) {
       debugLogger.warn(
         '[RenameOrchestrator] Missing or invalid Downloads directory handle for analysis rename',
         historyId,
       );
+      // Stop rescheduling alarms until the user restores permissions.
+      await browser.alarms.clear(alarmName);
       const pendingAge = Date.now() - scheduledAt;
       if (pendingAge > MAX_PENDING_ANALYSIS_AGE_MS) {
         debugLogger.warn(
@@ -234,7 +237,6 @@ export async function executePdfAnalysisRename(
           { historyId, pendingAge },
         );
         await clearPendingAnalysisState(historyId);
-        await browser.alarms.clear(`pdf-analysis-${historyId}`);
       }
       // Don't clear pending state immediately; user might restore permissions.
       return;

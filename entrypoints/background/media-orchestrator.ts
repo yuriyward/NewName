@@ -1,10 +1,8 @@
 /**
  * Media analysis orchestration and upgrade proposal generation
  */
-import {
-  type UpgradeProposal,
-  updateHistoryItem,
-} from '@/entrypoints/shared/history/history';
+import { updateHistoryItem } from '@/entrypoints/shared/history/history';
+import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type { MediaDebugSettings } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import type { MediaAnalysisResponse } from '@/entrypoints/shared/integrations/mediainfo/messages';
