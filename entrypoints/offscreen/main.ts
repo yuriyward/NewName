@@ -5,6 +5,7 @@ import { attachConsoleHelpers } from '@/entrypoints/shared/debug/console-helpers
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { sendExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import { initializeMediaAnalysisHandler } from './media-analysis-handler';
+import { initializeTextAnalysisHandler } from './text-analysis-handler';
 
 // Wrap in IIFE to ensure immediate execution
 (async () => {
@@ -17,6 +18,7 @@ import { initializeMediaAnalysisHandler } from './media-analysis-handler';
 
   // Initialize handlers first
   initializeMediaAnalysisHandler();
+  initializeTextAnalysisHandler();
 
   console.log('[Offscreen] Handlers initialized', {
     timestamp: Date.now(),

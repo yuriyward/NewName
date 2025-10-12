@@ -2,6 +2,7 @@ import { isTextExtension } from '@/entrypoints/shared/classification/file-types'
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type { TextUpgradeAnalysisRequest } from '@/entrypoints/shared/integrations/text-analysis/types';
+import { requestTextIngestion } from '@/entrypoints/shared/messaging/extension-messaging';
 import {
   basename,
   extractExtension,
@@ -66,15 +67,38 @@ async function requestTextUpgradeAnalysisStub(
   const requestId = `text-${input.historyItem.id}-${input.now}`;
   const request = buildTextRequest(input, requestId);
 
-  debugLogger.log(
-    '[TextUpgradeAnalysis] Skipping (Phase A stub - AI integration pending)',
-    {
+  try {
+    const response = await requestTextIngestion(request);
+    if (response.status === 'ingested') {
+      debugLogger.log('[TextUpgradeAnalysis] Text ingress prepared', {
+        requestId,
+        filename: request.filename,
+        readBytes: response.metrics.readBytes,
+        truncated: response.truncated,
+      });
+    } else if (
+      response.status === 'unavailable' ||
+      response.status === 'skipped'
+    ) {
+      debugLogger.log('[TextUpgradeAnalysis] Text ingress unavailable', {
+        requestId,
+        status: response.status,
+        reason: response.reason,
+        message: response.message,
+      });
+    } else if (response.status === 'error') {
+      debugLogger.warn('[TextUpgradeAnalysis] Text ingress error', {
+        requestId,
+        error: response.error,
+        details: response.details,
+      });
+    }
+  } catch (error) {
+    debugLogger.warn('[TextUpgradeAnalysis] Text ingestion request failed', {
       requestId,
-      filename: request.filename,
-      fileType: request.fileType,
-      maxBytes: request.settings.maxBytes,
-    },
-  );
+      error,
+    });
+  }
 
   return null;
 }

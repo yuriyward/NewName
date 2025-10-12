@@ -1,8 +1,8 @@
 # AI Text Upgrade Implementation Plan
 
-**Author:** Codex Planning Session  
-**Date:** 2025-10-12  
-**Status:** Draft / Ready for Estimation  
+**Author:** Codex Planning Session
+**Date:** 2025-10-12
+**Status:** Draft / Ready for Estimation
 **Related:** post-download-rename-implementation-plan.md, phase-2-implementation-epics.md, ai/docs/ai-chrome-*.md
 
 ---
@@ -136,4 +136,3 @@ Deliver contextual upgrade support for text-based downloads (Markdown, plain tex
 1. Review plan with stakeholders; adjust estimates and dependencies.
 2. Create subtasks under Phase 2 epics (range fetcher, offscreen text pipeline, AI integrations).
 3. Prioritize Phase A foundations immediately to unblock parallel development of PDF/image analyzers.
-

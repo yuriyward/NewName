@@ -1,3 +1,5 @@
+import { basename as extractFileName } from '@/entrypoints/shared/utils/filename';
+
 /**
  * Page context extraction and URL analysis utilities
  */
@@ -24,11 +26,6 @@ function safeDecode(value: string): string {
   } catch {
     return value;
   }
-}
-
-function extractFileName(path: string): string {
-  const parts = path.split(/[\\/]+/);
-  return parts[parts.length - 1] ?? path;
 }
 
 export function deriveDomainBrand(url: URL): string | null {

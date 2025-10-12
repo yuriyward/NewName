@@ -7,6 +7,7 @@ import type {
   FileType,
   Settings,
 } from '@/entrypoints/shared/settings/settings';
+import type { TextEncoding } from '@/entrypoints/shared/utils/encoding';
 
 export type TextAnalysisMode = 'on-device' | 'hybrid' | 'off';
 
@@ -49,6 +50,21 @@ export interface TextUpgradeAnalysisSuccess {
   };
 }
 
+export interface TextUpgradeIngestionResult {
+  status: 'ingested';
+  requestId: string;
+  analyzedAt: number;
+  text: string;
+  encoding: TextEncoding;
+  originalLength: number;
+  truncated: boolean;
+  sizeBytes?: number;
+  metrics: {
+    readBytes: number;
+    elapsedMs: number;
+  };
+}
+
 export interface TextUpgradeAnalysisUnavailable {
   status: 'unavailable';
   requestId: string;
@@ -79,6 +95,7 @@ export interface TextUpgradeAnalysisError {
 
 export type TextUpgradeAnalysisResponse =
   | TextUpgradeAnalysisSuccess
+  | TextUpgradeIngestionResult
   | TextUpgradeAnalysisUnavailable
   | TextUpgradeAnalysisSkipped
   | TextUpgradeAnalysisError;

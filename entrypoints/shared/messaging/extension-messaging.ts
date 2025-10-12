@@ -9,6 +9,10 @@ import type {
   MediaAnalysisResponse,
 } from '@/entrypoints/shared/integrations/mediainfo/messages';
 import type {
+  TextUpgradeAnalysisRequest,
+  TextUpgradeAnalysisResponse,
+} from '@/entrypoints/shared/integrations/text-analysis/types';
+import type {
   ConfirmToastDecisionMessage,
   ConfirmToastProposal,
   ConfirmToastStatusMessage,
@@ -32,6 +36,13 @@ export interface ExtensionMessagingProtocol {
   requestMediaAnalysis(
     payload: MediaAnalysisRequest,
   ): Promise<MediaAnalysisResponse>;
+
+  /**
+   * Request text ingestion and analysis preparation inside the offscreen document.
+   */
+  requestTextIngestion(
+    payload: TextUpgradeAnalysisRequest,
+  ): Promise<TextUpgradeAnalysisResponse>;
 
   /**
    * Ensure the offscreen document and MediaInfo WASM are ready to accept analysis requests.
@@ -81,6 +92,13 @@ export async function requestMediaAnalysis(
   payload: MediaAnalysisRequest,
 ): Promise<MediaAnalysisResponse> {
   const result = await sendExtensionMessage('requestMediaAnalysis', payload);
+  return await result;
+}
+
+export async function requestTextIngestion(
+  payload: TextUpgradeAnalysisRequest,
+): Promise<TextUpgradeAnalysisResponse> {
+  const result = await sendExtensionMessage('requestTextIngestion', payload);
   return await result;
 }
 
