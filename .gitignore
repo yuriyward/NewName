@@ -34,3 +34,4 @@ tmp/
 *.njsproj
 *.sln
 *.sw?
+docs/SGR-docs.md

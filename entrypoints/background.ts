@@ -25,6 +25,7 @@ import {
 import { ensureSettingsCache } from './background/settings-cache';
 import { createConfirmToastController } from './background/toast/confirmation-controller';
 import { createUpgradeCoordinator } from './background/upgrade/coordinator';
+import { createTextUpgradeAnalysisRequester } from './background/upgrade/text-analysis-request';
 
 const readSettings = ensureSettingsCache();
 
@@ -118,6 +119,7 @@ function initializeBackground(): void {
   const upgradeCoordinator = createUpgradeCoordinator({
     confirmToastController,
     readSettings,
+    requestAnalysis: createTextUpgradeAnalysisRequester(),
   });
 
   void upgradeCoordinator.cleanupOrphanedAlarms();

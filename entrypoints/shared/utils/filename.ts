@@ -12,6 +12,30 @@ export function basename(path: string): string {
 }
 
 /**
+ * Extract the file extension from a filename, handling multi-part extensions.
+ * Returns the extension in lowercase without the leading dot, or null if no extension found.
+ *
+ * @param name - The filename or path to extract the extension from
+ * @returns The extension in lowercase, or null if no valid extension exists
+ *
+ * @example
+ * extractExtension('file.txt') // 'txt'
+ * extractExtension('archive.tar.gz') // 'gz'
+ * extractExtension('/path/to/file.PDF') // 'pdf'
+ * extractExtension('no-extension') // null
+ * extractExtension('.hidden') // null
+ */
+export function extractExtension(name: string | undefined): string | null {
+  if (!name) return null;
+  const base = basename(name);
+  const dotIndex = base.lastIndexOf('.');
+  if (dotIndex <= 0 || dotIndex === base.length - 1) {
+    return null;
+  }
+  return base.slice(dotIndex + 1).toLowerCase();
+}
+
+/**
  * Generate a fallback filename from a URL when no filename is provided.
  */
 export function fallbackNameFromUrl(

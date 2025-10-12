@@ -2,9 +2,12 @@
  * Main entry point for MediaInfo integration and media file analysis
  */
 import type { MediaInfoResult, ReadChunkFunc } from 'mediainfo.js';
+import {
+  type RangeFetchOptions,
+  RangeFetchReader,
+} from '@/entrypoints/shared/integrations/range-fetcher';
 import { type MediaMetadataSummary, summariseMediaInfo } from './media-summary';
 import { getMediaInfoInstance, MEDIAINFO_CHUNK_SIZE } from './mediainfo-loader';
-import { type RangeFetchOptions, RangeFetchReader } from './range-reader';
 
 export interface AnalyzeMediaFromUrlOptions extends RangeFetchOptions {
   readonly chunkSize?: number;

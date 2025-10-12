@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { extractExtension } from '@/entrypoints/shared/utils/filename';
 import {
   deriveDomainBrand,
-  extractExtension,
   extractFileName,
   extractResolutionFromFilename,
   safeDecode,
