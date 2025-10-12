@@ -13,13 +13,15 @@ import type { ConfirmToastController } from '../toast/confirmation-controller';
  * Keeps us decoupled from the full browser typings until we wire the real APIs.
  */
 export interface BrowserDownloadItem {
-  id?: number;
+  id: number;
   filename?: string;
   totalBytes?: number;
   bytesReceived: number;
   state?: string;
   url?: string;
 }
+
+export const MOCK_UPGRADE_ALARM_PREFIX = 'mock-upgrade-';
 
 export interface BrowserDownloadDelta {
   id: number;

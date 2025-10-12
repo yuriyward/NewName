@@ -31,6 +31,18 @@ interface PostActionsOptions {
   ) => Promise<void>;
 }
 
+function shouldScheduleUpgrade(
+  fileType: InstantBaselineEvaluation['fileType'],
+  renameCandidate: InstantBaselineEvaluation['rename'] | undefined,
+  plan: DownloadPlan,
+): boolean {
+  return (
+    fileType === 'pdf' &&
+    Boolean(renameCandidate) &&
+    plan.confirmRoute.kind !== 'toast'
+  );
+}
+
 export async function applyPostDownloadActions({
   plan,
   evaluation,
@@ -89,11 +101,7 @@ export async function applyPostDownloadActions({
     });
   }
 
-  if (
-    evaluation.fileType === 'pdf' &&
-    renameCandidate &&
-    plan.confirmRoute.kind !== 'toast'
-  ) {
+  if (shouldScheduleUpgrade(evaluation.fileType, renameCandidate, plan)) {
     void scheduleUpgradeAnalysis({
       historyId: plan.historyId,
       downloadId: plan.rawDownloadId,

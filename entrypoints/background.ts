@@ -302,6 +302,9 @@ function initializeBackground(): void {
     if (handled) {
       return;
     }
+    debugLogger.log('[UpgradeCoordinator] Alarm ignored by coordinator', {
+      alarmName: alarm.name,
+    });
   });
 }
 
