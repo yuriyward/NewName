@@ -114,7 +114,13 @@ export function createUpgradeExecutor(
     now,
     historyItem,
   }: ProcessUpgradeAnalysisParams): Promise<void> {
-    const resolution = await resolveDownloadItem(downloadId);
+    const resolution = await resolveDownloadItem(downloadId, {
+      historyId,
+      historyPath: historyItem.path,
+      historyPhase: historyItem.phase,
+      historySource: historyItem.source,
+      pendingReason: historyItem.pendingUpgradeAnalysis?.reason,
+    });
     if (resolution.status !== 'success') {
       const context = {
         historyId,

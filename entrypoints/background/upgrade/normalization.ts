@@ -1,6 +1,9 @@
 import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
-import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
+import type {
+  HistoryItem,
+  UpgradeProposal,
+} from '@/entrypoints/shared/history/types';
 import type { BrowserDownloadItem } from './types';
 
 export type ResolveDownloadFailureReason =
@@ -16,6 +19,15 @@ export type ResolveDownloadResult =
       reason: ResolveDownloadFailureReason;
       error?: unknown;
     };
+
+export interface ResolveDownloadItemContext {
+  historyId?: HistoryItem['id'];
+  historyPath?: HistoryItem['path'];
+  historyPhase?: HistoryItem['phase'];
+  historySource?: HistoryItem['source'];
+  pendingReason?: string;
+  [key: string]: unknown;
+}
 
 export function normaliseDownloadItem(
   item: unknown,
@@ -66,16 +78,26 @@ export function normalizeProposal(
 
 export async function resolveDownloadItem(
   downloadId: number,
+  context?: ResolveDownloadItemContext,
 ): Promise<ResolveDownloadResult> {
+  const baseLogContext = createLogContext(downloadId, context);
   try {
     const [raw] = await browser.downloads.search({ id: downloadId });
     if (!raw) {
+      debugLogger.warn(
+        '[UpgradeNormalization] Download item not found',
+        withReason(baseLogContext, 'not-found'),
+      );
       return { status: 'failure', reason: 'not-found' };
     }
 
     const downloadItem = normaliseDownloadItem(raw);
     if (!downloadItem) {
       const error = new Error('Download item payload missing required fields');
+      debugLogger.error(
+        '[UpgradeNormalization] Download item payload invalid',
+        withReason(baseLogContext, 'invalid-payload', error),
+      );
       return {
         status: 'failure',
         reason: 'invalid-payload',
@@ -89,11 +111,10 @@ export async function resolveDownloadItem(
       ? 'permission-denied'
       : 'unexpected-error';
 
-    debugLogger.warn('[UpgradeNormalization] Failed to resolve download item', {
-      downloadId,
-      reason,
-      error,
-    });
+    debugLogger.warn(
+      '[UpgradeNormalization] Failed to resolve download item',
+      withReason(baseLogContext, reason, error),
+    );
 
     return { status: 'failure', reason, error };
   }
@@ -120,4 +141,35 @@ function isPermissionDenied(error: unknown): boolean {
   }
 
   return false;
+}
+
+function createLogContext(
+  downloadId: number,
+  context?: ResolveDownloadItemContext,
+): Record<string, unknown> {
+  if (!context) {
+    return { downloadId };
+  }
+  return {
+    downloadId,
+    ...context,
+  };
+}
+
+function withReason(
+  base: Record<string, unknown>,
+  reason: ResolveDownloadFailureReason,
+  error?: unknown,
+): Record<string, unknown> {
+  if (error) {
+    return {
+      ...base,
+      reason,
+      error,
+    };
+  }
+  return {
+    ...base,
+    reason,
+  };
 }

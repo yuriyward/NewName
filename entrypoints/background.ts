@@ -30,6 +30,7 @@ const readSettings = ensureSettingsCache();
 
 const PAGE_CONTEXT_PRUNE_INTERVAL_MS = 5 * 60_000;
 const DOWNLOAD_TRACKING_PRUNE_INTERVAL_MS = 15 * 60_000;
+const UPGRADE_ALARM_RECONCILE_INTERVAL_MS = 15 * 60_000;
 
 const downloadTracking = new Map<number, DownloadTrackingEntry>();
 
@@ -118,6 +119,8 @@ function initializeBackground(): void {
     confirmToastController,
     readSettings,
   });
+
+  void upgradeCoordinator.cleanupOrphanedAlarms();
 
   registerInstallDateListener();
   initializeBackgroundDebug();
@@ -280,6 +283,10 @@ function initializeBackground(): void {
   setInterval(() => {
     void pageContextService.prune();
   }, PAGE_CONTEXT_PRUNE_INTERVAL_MS);
+
+  setInterval(() => {
+    void upgradeCoordinator.cleanupOrphanedAlarms();
+  }, UPGRADE_ALARM_RECONCILE_INTERVAL_MS);
 
   const settings = readSettings();
   if (settings.debug.enabled) {

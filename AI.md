@@ -125,11 +125,13 @@ background/ # 11 files, 2 directories
   │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
-  ├─ upgrade/ # 5 files
+  ├─ upgrade/ # 7 files
   │ ├─ coordinator.ts # Contextual upgrade coordinator for completed downloads
   │ ├─ eligibility.ts # Eligibility checks for contextual upgrade analysis
+  │ ├─ executor.ts # 4 exports
   │ ├─ mock-analysis.ts # Mock AI-powered contextual upgrade proposal generator
-  │ ├─ scoring.ts # Lexical scoring engine for upgrade proposal evaluation
+  │ ├─ normalization.ts # 6 exports
+  │ ├─ scheduler.ts # 4 exports
   │ └─ types.ts # Type definitions for contextual upgrade pipeline
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
   ├─ download-plan.ts # Download plan builder with evaluation and path resolution

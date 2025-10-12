@@ -9,11 +9,13 @@ background/ # 11 files, 2 directories
   │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
-  ├─ upgrade/ # 5 files
+  ├─ upgrade/ # 7 files
   │ ├─ coordinator.ts # Contextual upgrade coordinator for completed downloads
   │ ├─ eligibility.ts # Eligibility checks for contextual upgrade analysis
+  │ ├─ executor.ts # 4 exports
   │ ├─ mock-analysis.ts # Mock AI-powered contextual upgrade proposal generator
-  │ ├─ scoring.ts # Lexical scoring engine for upgrade proposal evaluation
+  │ ├─ normalization.ts # 6 exports
+  │ ├─ scheduler.ts # 4 exports
   │ └─ types.ts # Type definitions for contextual upgrade pipeline
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
   ├─ download-plan.ts # Download plan builder with evaluation and path resolution
@@ -256,20 +258,48 @@ content.ts # Content script for page context extraction and messaging
 **Exports**:
 - `export UpgradeCoordinator` - item implementation
 - `export createUpgradeCoordinator` - item implementation
-- `export ScheduleUpgradeAnalysisParams` - item implementation
 
 ### background/upgrade/eligibility.ts
 **Purpose**: Eligibility checks for contextual upgrade analysis
 
 **Exports**:
-- `export UPGRADE_RECENT_WINDOW_MS` - Eligibility checks for contextual upgrade analysis
-- `export shouldAnalyzeUpgrade` - Eligibility checks for contextual upgrade analysis
+- `export UPGRADE_RECENT_WINDOW_MS` - Cooldown used to avoid re-running contextual upgrades imm...
+- `export shouldAnalyzeUpgrade` - Cooldown used to avoid re-running contextual upgrades imm...
+
+### background/upgrade/executor.ts
+**Purpose**: 4 exports
+
+**Exports**:
+- `export ProcessUpgradeAnalysisParams` - item implementation
+- `export UpgradeExecutor` - item implementation
+- `export UpgradeExecutorDependencies` - item implementation
+- `export createUpgradeExecutor` - item implementation
 
 ### background/upgrade/mock-analysis.ts
 **Purpose**: Mock AI-powered contextual upgrade proposal generator
 
 **Exports**:
 - `export requestMockUpgradeAnalysis` - item implementation
+
+### background/upgrade/normalization.ts
+**Purpose**: 6 exports
+
+**Exports**:
+- `export ResolveDownloadItemContext` - item implementation
+- `export ResolveDownloadFailureReason` - item implementation
+- `export ResolveDownloadResult` - item implementation
+- `export normaliseDownloadItem` - item implementation
+- `export normalizeProposal` - item implementation
+- `export resolveDownloadItem` - item implementation
+
+### background/upgrade/scheduler.ts
+**Purpose**: 4 exports
+
+**Exports**:
+- `export UpgradeScheduler` - item implementation
+- `export UpgradeSchedulerDependencies` - item implementation
+- `export BrowserAlarm` - item implementation
+- `export createUpgradeScheduler` - item implementation
 
 ### background/upgrade/types.ts
 **Purpose**: Type definitions for contextual upgrade pipeline
@@ -280,6 +310,7 @@ content.ts # Content script for page context extraction and messaging
 - `export ScheduleUpgradeAnalysisParams` - item implementation
 - `export UpgradeAnalysisInput` - item implementation
 - `export UpgradeCoordinatorParams` - item implementation
+- `export MOCK_UPGRADE_ALARM_PREFIX` - item implementation
 
 ### content.ts
 **Purpose**: Content script for page context extraction and messaging
@@ -515,6 +546,7 @@ content.ts # Content script for page context extraction and messaging
 - `export HistoryMediaMetadata` - item implementation
 - `export PendingUpgradeAnalysis` - item implementation
 - `export UpgradeProposal` - Type definitions for history items and metadata
+- `export UpgradeProposalSource` - Type definitions for history items and metadata
 - `export MAX_PENDING_ANALYSIS_AGE_MS` - item implementation
 
 ### shared/history/validation.ts
@@ -999,3 +1031,4 @@ Handles automatic th...
 
 **Exports**:
 - `export randomId` - Generate a random ID for tracking downloads and history i...
+

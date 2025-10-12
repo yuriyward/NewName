@@ -20,6 +20,7 @@ export interface UpgradeCoordinator {
   ): Promise<void>;
   scheduleMockAnalysis(params: ScheduleUpgradeAnalysisParams): Promise<void>;
   handleAlarm(alarm: BrowserAlarm): Promise<boolean>;
+  cleanupOrphanedAlarms(): Promise<void>;
 }
 
 export function createUpgradeCoordinator(
@@ -84,5 +85,6 @@ export function createUpgradeCoordinator(
     },
     scheduleMockAnalysis: scheduler.scheduleMockAnalysis,
     handleAlarm: scheduler.handleAlarm,
+    cleanupOrphanedAlarms: scheduler.cleanupOrphanedAlarms,
   };
 }

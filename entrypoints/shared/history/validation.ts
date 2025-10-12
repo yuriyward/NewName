@@ -178,7 +178,8 @@ export function isPendingUpgradeAnalysis(
   const maybe = value as Partial<PendingUpgradeAnalysis>;
   if (
     typeof maybe.downloadId !== 'number' ||
-    !Number.isFinite(maybe.downloadId)
+    !Number.isSafeInteger(maybe.downloadId) ||
+    maybe.downloadId < 0
   ) {
     return false;
   }

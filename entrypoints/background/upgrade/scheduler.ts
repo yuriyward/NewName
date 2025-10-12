@@ -23,6 +23,7 @@ export interface UpgradeSchedulerDependencies {
 export interface UpgradeScheduler {
   scheduleMockAnalysis(params: ScheduleUpgradeAnalysisParams): Promise<void>;
   handleAlarm(alarm: BrowserAlarm): Promise<boolean>;
+  cleanupOrphanedAlarms(): Promise<void>;
 }
 
 export function createUpgradeScheduler(
@@ -122,8 +123,39 @@ export function createUpgradeScheduler(
     return true;
   }
 
+  async function cleanupOrphanedAlarms(): Promise<void> {
+    try {
+      const alarms = await browser.alarms.getAll();
+      const upgradeAlarms = alarms.filter((alarm) =>
+        alarm.name.startsWith(MOCK_UPGRADE_ALARM_PREFIX),
+      );
+
+      await Promise.all(
+        upgradeAlarms.map(async (alarm) => {
+          const historyId = alarm.name.slice(MOCK_UPGRADE_ALARM_PREFIX.length);
+          const historyItem = await getHistoryItem(historyId);
+          if (!historyItem?.pendingUpgradeAnalysis) {
+            await browser.alarms.clear(alarm.name);
+            debugLogger.log(
+              '[UpgradeScheduler] Cleared orphaned upgrade alarm',
+              {
+                alarmName: alarm.name,
+                historyId,
+              },
+            );
+          }
+        }),
+      );
+    } catch (error) {
+      debugLogger.error('[UpgradeScheduler] Failed to cleanup upgrade alarms', {
+        error,
+      });
+    }
+  }
+
   return {
     scheduleMockAnalysis,
     handleAlarm,
+    cleanupOrphanedAlarms,
   };
 }
