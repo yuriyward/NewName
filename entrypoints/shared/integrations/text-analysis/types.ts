@@ -30,6 +30,9 @@ export interface TextUpgradeAnalysisRequest {
     languagePreference: Settings['language'];
     mode: TextAnalysisMode;
     maxBytes: number;
+    maxFilenameLength: Settings['maxLen'];
+    separator: Settings['separator'];
+    transliterateAscii: Settings['transliterateAscii'];
   };
 }
 

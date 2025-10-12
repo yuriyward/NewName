@@ -13,6 +13,7 @@ import type {
   TextUpgradeIngestionResult,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
+import { runTextUpgradePipeline } from './text-analysis-ai';
 
 const DEFAULT_MAX_BYTES = 128 * 1024; // 128 KB
 
@@ -106,6 +107,11 @@ export function initializeTextAnalysisHandler(): void {
           truncated: response.truncated,
           elapsedMs,
         });
+      }
+
+      const aiResponse = await runTextUpgradePipeline(request, response);
+      if (aiResponse) {
+        return aiResponse;
       }
 
       return response satisfies TextUpgradeAnalysisResponse;

@@ -53,6 +53,9 @@ function buildTextRequest(
       languagePreference: settings.language,
       mode: settings.cloud.enabled ? 'hybrid' : 'on-device',
       maxBytes: TEXT_ANALYSIS_MAX_BYTES,
+      maxFilenameLength: settings.maxLen,
+      separator: settings.separator,
+      transliterateAscii: settings.transliterateAscii,
     },
   };
 }
@@ -69,8 +72,19 @@ async function requestTextUpgradeAnalysisStub(
 
   try {
     const response = await requestTextIngestion(request);
+    if (response.status === 'success') {
+      debugLogger.log('[TextUpgradeAnalysis] Proposal received', {
+        requestId,
+        filename: request.filename,
+        language: response.language,
+        confidence: response.languageConfidence,
+        truncated: response.truncatedInput,
+      });
+      return response.proposal;
+    }
+
     if (response.status === 'ingested') {
-      debugLogger.log('[TextUpgradeAnalysis] Text ingress prepared', {
+      debugLogger.log('[TextUpgradeAnalysis] Text ingestion complete (no AI)', {
         requestId,
         filename: request.filename,
         readBytes: response.metrics.readBytes,
@@ -80,14 +94,14 @@ async function requestTextUpgradeAnalysisStub(
       response.status === 'unavailable' ||
       response.status === 'skipped'
     ) {
-      debugLogger.log('[TextUpgradeAnalysis] Text ingress unavailable', {
+      debugLogger.log('[TextUpgradeAnalysis] Text analysis unavailable', {
         requestId,
         status: response.status,
         reason: response.reason,
         message: response.message,
       });
     } else if (response.status === 'error') {
-      debugLogger.warn('[TextUpgradeAnalysis] Text ingress error', {
+      debugLogger.warn('[TextUpgradeAnalysis] Text analysis error', {
         requestId,
         error: response.error,
         details: response.details,
