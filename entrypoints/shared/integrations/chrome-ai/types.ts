@@ -60,3 +60,60 @@ export type ChromeSummarizerConstructor = {
     options: ChromeSummarizerOptions,
   ) => Promise<ChromeSummarizerInstance>;
 };
+
+export type ChromeLanguageModelAvailability =
+  | 'no'
+  | 'unavailable'
+  | 'after-download'
+  | 'readily'
+  | 'processing';
+
+export interface ChromeLanguageModelCapabilities {
+  available: ChromeLanguageModelAvailability;
+  reason?: string;
+}
+
+export type ChromeLanguageModelMessageRole = 'system' | 'user' | 'assistant';
+
+export interface ChromeLanguageModelPromptMessage {
+  role: ChromeLanguageModelMessageRole;
+  content: string;
+}
+
+export interface ChromeLanguageModelCreateOptions {
+  signal?: AbortSignal;
+  systemPrompt?: string;
+  initialPrompts?: ChromeLanguageModelPromptMessage[];
+  temperature?: number;
+  topK?: number;
+}
+
+export interface ChromeLanguageModelPromptOptions {
+  responseConstraint?: unknown;
+  omitResponseConstraintInput?: boolean;
+  signal?: AbortSignal;
+}
+
+export interface ChromeLanguageModelSession {
+  prompt: (
+    input: string | ChromeLanguageModelPromptMessage[],
+    options?: ChromeLanguageModelPromptOptions,
+  ) => Promise<string>;
+  destroy?: () => void;
+  clone?: (options?: {
+    signal?: AbortSignal;
+  }) => Promise<ChromeLanguageModelSession>;
+  inputUsage?: number;
+  inputQuota?: number;
+}
+
+export interface ChromeLanguageModelConstructor {
+  capabilities?: () => Promise<ChromeLanguageModelCapabilities>;
+  params?: () => Promise<{
+    defaultTemperature?: number;
+    defaultTopK?: number;
+  }>;
+  create: (
+    options?: ChromeLanguageModelCreateOptions,
+  ) => Promise<ChromeLanguageModelSession>;
+}

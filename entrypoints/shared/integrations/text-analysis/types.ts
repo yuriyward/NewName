@@ -1,7 +1,4 @@
-import type {
-  UpgradeProposal,
-  UpgradeProposalSource,
-} from '@/entrypoints/shared/history/types';
+import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type { InstantBaselineDecision } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type {
   FileType,
@@ -9,7 +6,13 @@ import type {
 } from '@/entrypoints/shared/settings/settings';
 import type { TextEncoding } from '@/entrypoints/shared/utils/encoding';
 
-export type TextAnalysisMode = 'on-device' | 'hybrid' | 'off';
+export type TextAnalysisMode =
+  | 'off'
+  | 'on-device-only'
+  | 'hybrid-ask'
+  | 'hybrid-always';
+
+export type TextUpgradeModelSource = 'on-device' | 'cloud';
 
 export interface TextUpgradeAnalysisRequest {
   requestId: string;
@@ -44,8 +47,10 @@ export interface TextUpgradeAnalysisSuccess {
   summary?: string;
   language?: string;
   languageConfidence?: number;
-  modelSource: UpgradeProposalSource;
+  modelSource: TextUpgradeModelSource;
   truncatedInput?: boolean;
+  promptConfidence?: number;
+  promptUsed?: boolean;
   metrics?: {
     bytesFetched: number;
     requests: number;
@@ -96,9 +101,18 @@ export interface TextUpgradeAnalysisError {
   details?: string;
 }
 
+export interface TextUpgradeAnalysisPermission {
+  status: 'permission-required';
+  requestId: string;
+  analyzedAt: number;
+  reason: 'cloud-consent-required';
+  message?: string;
+}
+
 export type TextUpgradeAnalysisResponse =
   | TextUpgradeAnalysisSuccess
   | TextUpgradeIngestionResult
   | TextUpgradeAnalysisUnavailable
   | TextUpgradeAnalysisSkipped
-  | TextUpgradeAnalysisError;
+  | TextUpgradeAnalysisError
+  | TextUpgradeAnalysisPermission;

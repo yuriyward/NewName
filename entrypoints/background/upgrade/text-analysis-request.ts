@@ -1,7 +1,10 @@
 import { isTextExtension } from '@/entrypoints/shared/classification/file-types';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
-import type { TextUpgradeAnalysisRequest } from '@/entrypoints/shared/integrations/text-analysis/types';
+import type {
+  TextAnalysisMode,
+  TextUpgradeAnalysisRequest,
+} from '@/entrypoints/shared/integrations/text-analysis/types';
 import { requestTextIngestion } from '@/entrypoints/shared/messaging/extension-messaging';
 import {
   basename,
@@ -51,13 +54,30 @@ function buildTextRequest(
     },
     settings: {
       languagePreference: settings.language,
-      mode: settings.cloud.enabled ? 'hybrid' : 'on-device',
+      mode: resolveTextAnalysisMode(settings),
       maxBytes: TEXT_ANALYSIS_MAX_BYTES,
       maxFilenameLength: settings.maxLen,
       separator: settings.separator,
       transliterateAscii: settings.transliterateAscii,
     },
   };
+}
+
+function resolveTextAnalysisMode(
+  settings: UpgradeAnalysisInput['settings'],
+): TextAnalysisMode {
+  if (!settings.cloud.enabled) {
+    return 'on-device-only';
+  }
+
+  switch (settings.cloud.textFallbackMode) {
+    case 'always':
+      return 'hybrid-always';
+    case 'ask':
+      return 'hybrid-ask';
+    default:
+      return 'on-device-only';
+  }
 }
 
 async function requestTextUpgradeAnalysisStub(
@@ -79,8 +99,19 @@ async function requestTextUpgradeAnalysisStub(
         language: response.language,
         confidence: response.languageConfidence,
         truncated: response.truncatedInput,
+        modelSource: response.modelSource,
+        promptConfidence: response.promptConfidence,
       });
       return response.proposal;
+    }
+
+    if (response.status === 'permission-required') {
+      debugLogger.log('[TextUpgradeAnalysis] Cloud fallback requires consent', {
+        requestId,
+        filename: request.filename,
+        reason: response.reason,
+      });
+      return null;
     }
 
     if (response.status === 'ingested') {

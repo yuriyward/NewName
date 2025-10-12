@@ -29,6 +29,12 @@ type PartialPerType = Partial<Record<FileType, Partial<PerTypeBehavior>>>;
 
 type FallbackSettings = Partial<Settings>;
 
+function isCloudTextFallbackMode(
+  value: unknown,
+): value is CloudSettings['textFallbackMode'] {
+  return value === 'off' || value === 'ask' || value === 'always';
+}
+
 export function isMode(value: unknown): value is Mode {
   return (
     value === 'balanced' ||
@@ -120,6 +126,9 @@ export function sanitizeCloudSettings(
       typeof input?.dataMinimize === 'boolean'
         ? input.dataMinimize
         : defaults.dataMinimize,
+    textFallbackMode: isCloudTextFallbackMode(input?.textFallbackMode)
+      ? input.textFallbackMode
+      : defaults.textFallbackMode,
   };
 }
 

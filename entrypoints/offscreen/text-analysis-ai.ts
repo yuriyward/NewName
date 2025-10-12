@@ -9,12 +9,17 @@ import type {
   TextUpgradeAnalysisSuccess,
   TextUpgradeAnalysisUnavailable,
   TextUpgradeIngestionResult,
+  TextUpgradeModelSource,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import {
   applyFilenamePolicy,
   type FilenamePolicyResult,
 } from '@/entrypoints/shared/naming/policy-engine';
 import { extractExtension } from '@/entrypoints/shared/utils/filename';
+import {
+  generatePromptFilename,
+  type PromptFilenameResult,
+} from './text-analysis-prompt';
 
 type LanguageDetectionResult = {
   language?: string;
@@ -154,6 +159,7 @@ interface FilenameContext {
   ingestion: TextUpgradeIngestionResult;
   subject: string;
   language?: string;
+  promptQualifiers?: string[];
 }
 
 function buildFilename({
@@ -161,6 +167,7 @@ function buildFilename({
   ingestion,
   subject,
   language,
+  promptQualifiers,
 }: FilenameContext): FilenamePolicyResult {
   const extension =
     extractExtension(request.filename) ??
@@ -169,6 +176,9 @@ function buildFilename({
     null;
 
   const qualifiers: string[] = [];
+  if (promptQualifiers?.length) {
+    qualifiers.push(...promptQualifiers);
+  }
   if (language) {
     qualifiers.push(language.toUpperCase());
   }
@@ -196,10 +206,20 @@ function buildProposedPath(relativePath: string, filename: string): string {
   return parts.join('/');
 }
 
-function formatReasonTags(language?: string): string[] {
+function formatReasonTags(
+  language?: string,
+  promptUsed?: boolean,
+  modelSource: TextUpgradeModelSource = 'on-device',
+): string[] {
   const tags = ['ai-text-summary'];
   if (language) {
     tags.push(`language-${language.toLowerCase()}`);
+  }
+  if (promptUsed) {
+    tags.push('ai-prompt-structured');
+  }
+  if (modelSource === 'cloud') {
+    tags.push('ai-cloud-fallback');
   }
   return tags;
 }
@@ -208,15 +228,53 @@ export async function runTextUpgradePipeline(
   request: TextUpgradeAnalysisRequest,
   ingestion: TextUpgradeIngestionResult,
 ): Promise<TextUpgradeAnalysisResponse | null> {
+  const mode = request.settings.mode ?? 'on-device-only';
+  if (mode === 'off') {
+    return null;
+  }
+
   const subjectLanguage = await detectLanguage(
     ingestion.text,
     request.settings.languagePreference,
   );
 
   const summary = await summariseText(ingestion.text, subjectLanguage.language);
-  const subject = deriveSubject(summary, ingestion.text);
+  let modelSource: TextUpgradeModelSource = 'on-device';
+  let promptCandidate = await generatePromptCandidate({
+    request,
+    ingestion,
+    summary,
+    language: subjectLanguage.language,
+  });
 
-  if (!subject || subject.trim().length === 0) {
+  if (!promptCandidate) {
+    if (mode === 'hybrid-ask') {
+      return {
+        status: 'permission-required',
+        requestId: request.requestId,
+        analyzedAt: Date.now(),
+        reason: 'cloud-consent-required',
+        message:
+          'Cloud fallback is available but requires explicit permission from the user.',
+      };
+    }
+    if (mode === 'hybrid-always') {
+      promptCandidate = await generateCloudFallbackCandidate({
+        ingestion,
+        summary,
+        language: subjectLanguage.language,
+      });
+      if (!promptCandidate) {
+        return null;
+      }
+      modelSource = 'cloud';
+    } else {
+      return null;
+    }
+  }
+
+  const subject = promptCandidate.stem?.trim() ?? '';
+  if (subject.length === 0) {
     return null;
   }
 
@@ -225,6 +283,7 @@ export async function runTextUpgradePipeline(
     ingestion,
     subject,
     language: subjectLanguage.language,
+    promptQualifiers: promptCandidate?.qualifiers,
   });
 
   const proposedFilename = filenameResult.filename;
@@ -245,6 +304,8 @@ export async function runTextUpgradePipeline(
     proposedFilename,
   );
 
+  const promptUsed = modelSource === 'on-device';
+
   const success: TextUpgradeAnalysisSuccess = {
     status: 'success',
     requestId: request.requestId,
@@ -254,15 +315,21 @@ export async function runTextUpgradePipeline(
       proposedPath,
       confidence: 'suggested',
       autoApply: false,
-      reasonTags: formatReasonTags(subjectLanguage.language),
+      reasonTags: formatReasonTags(
+        subjectLanguage.language,
+        promptUsed,
+        modelSource,
+      ),
       generatedAt: Date.now(),
       source: 'ai',
-      summary: summary ?? undefined,
+      summary: promptCandidate.explanation ?? summary ?? undefined,
     },
     language: subjectLanguage.language,
     languageConfidence: subjectLanguage.confidence,
-    modelSource: 'ai',
+    modelSource,
     truncatedInput: ingestion.truncated,
+    promptConfidence: promptCandidate.confidence,
+    promptUsed,
     metrics: {
       bytesFetched: ingestion.metrics.readBytes,
       requests: 1,
@@ -271,6 +338,64 @@ export async function runTextUpgradePipeline(
   };
 
   return success;
+}
+
+async function generatePromptCandidate({
+  request,
+  ingestion,
+  summary,
+  language,
+}: {
+  request: TextUpgradeAnalysisRequest;
+  ingestion: TextUpgradeIngestionResult;
+  summary: string | null;
+  language?: string;
+}): Promise<PromptFilenameResult | null> {
+  try {
+    const result = await generatePromptFilename({
+      request,
+      ingestion,
+      summary,
+      language,
+    });
+    return result;
+  } catch (error) {
+    debugLogger.warn('[TextUpgradeAI] Prompt candidate generation failed', {
+      requestId: request.requestId,
+      error,
+    });
+    return null;
+  }
+}
+
+async function generateCloudFallbackCandidate({
+  ingestion,
+  summary,
+  language,
+}: {
+  ingestion: TextUpgradeIngestionResult;
+  summary: string | null;
+  language?: string;
+}): Promise<PromptFilenameResult | null> {
+  const derived = deriveSubject(summary, ingestion.text);
+  if (!derived || derived.trim().length === 0) {
+    return null;
+  }
+
+  const qualifiers: string[] = [];
+  if (language) {
+    qualifiers.push(language.toUpperCase());
+  }
+  qualifiers.push('cloud');
+
+  return {
+    stem: derived,
+    qualifiers,
+    confidence: 0.6,
+    explanation:
+      summary ??
+      'Cloud fallback generated this filename using the file text excerpt.',
+  };
 }
 
 export function buildUnavailableResponse(
