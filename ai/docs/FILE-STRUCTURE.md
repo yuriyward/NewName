@@ -4,36 +4,44 @@
 
 ## Tree Overview
 
-background/ # 11 files, 1 directories
+background/ # 11 files, 2 directories
   ├─ toast/ # 3 files
   │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
+  ├─ upgrade/ # 7 files
+  │ ├─ coordinator.ts # Contextual upgrade coordinator for completed downloads
+  │ ├─ eligibility.ts # Eligibility checks for contextual upgrade analysis
+  │ ├─ executor.ts # 4 exports
+  │ ├─ mock-analysis.ts # Mock AI-powered contextual upgrade proposal generator
+  │ ├─ normalization.ts # 6 exports
+  │ ├─ scheduler.ts # 4 exports
+  │ └─ types.ts # Type definitions for contextual upgrade pipeline
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
-  ├─ download-plan.ts # 2 exports
-  ├─ download-post-actions.ts # 1 export
+  ├─ download-plan.ts # Download plan builder with evaluation and path resolution
+  ├─ download-post-actions.ts # Post-download actions for history recording and media analysis
   ├─ download-tracking.ts # Download tracking helpers used by the background coordinator.
-  ├─ download-types.ts # 4 exports
-  ├─ download-utils.ts # 2 exports
+  ├─ download-types.ts # Type definitions for download listener callbacks
+  ├─ download-utils.ts # Download utility functions for file type checking
   ├─ media-orchestrator.ts # Media analysis orchestration and upgrade proposal generation
   ├─ rename-orchestrator.ts # Orchestrates file rename operations in response to toast actions.
   ├─ rename-overlay.ts # Helper for sending rename-complete overlay notifications to the initiating tab.
   ├─ settings-cache.ts # Settings cache management for background service worker
   └─ suggest-controller.ts # Helper for coordinating the Chrome downloads suggest callback with timeouts.
 downloads-permission/ # 2 files
-  ├─ DownloadsPermissionPage.tsx # 1 export
-  └─ main.tsx # Module exports
+  ├─ DownloadsPermissionPage.tsx # Full-page downloads folder permission onboarding interface
+  └─ main.tsx # React app entry point for downloads permission onboarding
 offscreen/ # 3 files, 1 directories
   ├─ bridge/ # 3 files
   │ ├─ sandbox-lifecycle.ts # Sandbox iframe lifecycle management
   │ ├─ sandbox-protocol.ts # Type-safe protocol definitions for Offscreen ↔ Sandbox (iframe) communication. Uses window.postMessage for parent-iframe IPC (browser standard).
   │ └─ stream-coordinator.ts # Streaming coordinator for range-based media fetching
-  ├─ main.ts # Module exports
+  ├─ main.ts # Offscreen document initialization with media analysis handlers
   ├─ media-analysis-handler.ts # 1 export
   └─ sandbox-bridge.ts # Bridge for communicating with the sandboxed iframe that runs MediaInfo.js. Coordinates analysis requests and response handling.
 popup/ # 2 files, 1 directories
   ├─ onboarding/ # 1 file
-  │ └─ DownloadsAccessScreen.tsx # 2 exports
+  │ └─ DownloadsAccessScreen.tsx # Compact downloads access onboarding screen for popup
   ├─ App.tsx # Settings popup for configuring deterministic Instant Baseline strategies
   └─ main.tsx # React popup entry point and application bootstrapping
 sandbox/ # 1 file
@@ -59,10 +67,12 @@ shared/ # 17 directories
   │ └─ types.ts # Shared types for File System Access operations and state.
   ├─ history/ # 4 files
   │ ├─ history.ts # File renaming action history tracking and storage orchestration. Keeps the public API focused while storage and validation live in dedicated modules.
-  │ ├─ storage.ts # 2 exports
-  │ ├─ types.ts # 5 exports
-  │ └─ validation.ts # 4 exports
-  ├─ integrations/ # 1 directory
+  │ ├─ storage.ts # History storage operations with pruning and sanitization
+  │ ├─ types.ts # Type definitions for history items and metadata
+  │ └─ validation.ts # Runtime validation for history data integrity
+  ├─ integrations/ # 2 directories
+  │ ├─ chrome-ai/ # 1 file
+  │ │ └─ adapter.ts # Shared adapter interface for Chrome built-in AI APIs. The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector). This adapter keeps our background/offscreen logic decoupled from the actual runtime implementation so we can swap the mock below with real bindings once the APIs are ready.
   │ └─ mediainfo/ # 9 files, 1 directories
   │   ├─ parsers/ # 2 files
   │   │ ├─ duration-parser.ts # Duration parsing utilities for MediaInfo track data
@@ -115,9 +125,9 @@ shared/ # 17 directories
   │ │ ├─ toast-overlay.tsx # ToastOverlay renders both confirm and rename toasts in a fixed overlay.
   │ │ ├─ toast-state-manager.ts # State management for confirm and rename toasts.
   │ │ └─ toast-theme-manager.ts # Theme management for toast UI elements.
-  │ ├─ confirm-toast-manager.test.tsx # Module exports
+  │ ├─ confirm-toast-manager.test.tsx # Tests for toast manager lifecycle and interactions
   │ ├─ confirm-toast-manager.tsx # Toast manager rendered inside the content script via Shadow DOM.
-  │ ├─ ConfirmToast.accessibility.test.tsx # Module exports
+  │ ├─ ConfirmToast.accessibility.test.tsx # Accessibility tests for confirm toast component
   │ ├─ ConfirmToast.tsx # 1 export
   │ ├─ FilenameLabel.tsx # 1 export
   │ ├─ icons.ts # Shared icon exports for consistent icon usage across the application. All icons are re-exported from @heroicons/react for easy replacement if needed.
@@ -144,14 +154,14 @@ content.ts # Content script for page context extraction and messaging
 - `export processDeterminingFilename` - Process the determining filename event and suggest a rena...
 
 ### background/download-plan.ts
-**Purpose**: 2 exports
+**Purpose**: Download plan builder with evaluation and path resolution
 
 **Exports**:
 - `export DownloadPlan` - item implementation
 - `export buildDownloadPlan` - item implementation
 
 ### background/download-post-actions.ts
-**Purpose**: 1 export
+**Purpose**: Post-download actions for history recording and media analysis
 
 **Exports**:
 - `export applyPostDownloadActions` - item implementation
@@ -166,19 +176,19 @@ content.ts # Content script for page context extraction and messaging
 - `export resetDownloadTrackingForTesting` - item implementation
 
 ### background/download-types.ts
-**Purpose**: 4 exports
+**Purpose**: Type definitions for download listener callbacks
 
 **Exports**:
-- `export DeterminingItem` - item implementation
-- `export DeterminingListener` - item implementation
+- `export DeterminingItem` - Type definitions for download listener callbacks
+- `export DeterminingListener` - Type definitions for download listener callbacks
 - `export SuggestCallback` - item implementation
 - `export SuggestPayload` - item implementation
 
 ### background/download-utils.ts
-**Purpose**: 2 exports
+**Purpose**: Download utility functions for file type checking
 
 **Exports**:
-- `export isMediaFileType` - item implementation
+- `export isMediaFileType` - Download utility functions for file type checking
 - `export shouldRenameType` - item implementation
 
 ### background/media-orchestrator.ts
@@ -196,9 +206,6 @@ content.ts # Content script for page context extraction and messaging
 - `export executeAlwaysApply` - Execute "Always apply" action
 - `export executeApply` - Execute rename for "Approve" action (or auto-apply)
 - `export executeKeep` - Execute "Keep original" action
-- `export executePdfAnalysisRename` - Execute PDF analysis rename (called by alarm handler)
-Can...
-- `export schedulePdfAnalysisForDownload` - Schedule PDF analysis rename for auto-downloaded files (c...
 
 ### background/rename-overlay.ts
 **Purpose**: Helper for sending rename-complete overlay notifications to the initiating tab.
@@ -245,6 +252,66 @@ Can...
 - `export extractTabId` - Extract tab ID from a target (either number or SendMessag...
 - `export resolveTarget` - Resolve the active tab to use as the target for displayin...
 
+### background/upgrade/coordinator.ts
+**Purpose**: Contextual upgrade coordinator for completed downloads
+
+**Exports**:
+- `export UpgradeCoordinator` - item implementation
+- `export createUpgradeCoordinator` - item implementation
+
+### background/upgrade/eligibility.ts
+**Purpose**: Eligibility checks for contextual upgrade analysis
+
+**Exports**:
+- `export UPGRADE_RECENT_WINDOW_MS` - Cooldown used to avoid re-running contextual upgrades imm...
+- `export shouldAnalyzeUpgrade` - Cooldown used to avoid re-running contextual upgrades imm...
+
+### background/upgrade/executor.ts
+**Purpose**: 4 exports
+
+**Exports**:
+- `export ProcessUpgradeAnalysisParams` - item implementation
+- `export UpgradeExecutor` - item implementation
+- `export UpgradeExecutorDependencies` - item implementation
+- `export createUpgradeExecutor` - item implementation
+
+### background/upgrade/mock-analysis.ts
+**Purpose**: Mock AI-powered contextual upgrade proposal generator
+
+**Exports**:
+- `export requestMockUpgradeAnalysis` - item implementation
+
+### background/upgrade/normalization.ts
+**Purpose**: 6 exports
+
+**Exports**:
+- `export ResolveDownloadItemContext` - item implementation
+- `export ResolveDownloadFailureReason` - item implementation
+- `export ResolveDownloadResult` - item implementation
+- `export normaliseDownloadItem` - item implementation
+- `export normalizeProposal` - item implementation
+- `export resolveDownloadItem` - item implementation
+
+### background/upgrade/scheduler.ts
+**Purpose**: 4 exports
+
+**Exports**:
+- `export UpgradeScheduler` - item implementation
+- `export UpgradeSchedulerDependencies` - item implementation
+- `export BrowserAlarm` - item implementation
+- `export createUpgradeScheduler` - item implementation
+
+### background/upgrade/types.ts
+**Purpose**: Type definitions for contextual upgrade pipeline
+
+**Exports**:
+- `export BrowserDownloadDelta` - item implementation
+- `export BrowserDownloadItem` - Minimal subset of download item fields used by the upgrad...
+- `export ScheduleUpgradeAnalysisParams` - item implementation
+- `export UpgradeAnalysisInput` - item implementation
+- `export UpgradeCoordinatorParams` - item implementation
+- `export MOCK_UPGRADE_ALARM_PREFIX` - item implementation
+
 ### content.ts
 **Purpose**: Content script for page context extraction and messaging
 
@@ -252,13 +319,13 @@ Can...
 - `export default` - item implementation
 
 ### downloads-permission/DownloadsPermissionPage.tsx
-**Purpose**: 1 export
+**Purpose**: Full-page downloads folder permission onboarding interface
 
 **Exports**:
 - `export DownloadsPermissionPage` - item implementation
 
 ### downloads-permission/main.tsx
-**Purpose**: Module exports
+**Purpose**: React app entry point for downloads permission onboarding
 
 *No exports found*
 
@@ -294,7 +361,7 @@ Can...
 - `export registerStreamingListeners` - Register streaming message listeners for range-based fetc...
 
 ### offscreen/main.ts
-**Purpose**: Module exports
+**Purpose**: Offscreen document initialization with media analysis handlers
 
 *No exports found*
 
@@ -324,10 +391,10 @@ Can...
 *No exports found*
 
 ### popup/onboarding/DownloadsAccessScreen.tsx
-**Purpose**: 2 exports
+**Purpose**: Compact downloads access onboarding screen for popup
 
 **Exports**:
-- `export DownloadsAccessScreenProps` - item implementation
+- `export DownloadsAccessScreenProps` - Compact downloads access onboarding screen for popup
 - `export DownloadsAccessScreen` - item implementation
 
 ### sandbox/main.ts
@@ -465,30 +532,45 @@ Can...
 - `export updateHistoryItem` - item implementation
 
 ### shared/history/storage.ts
-**Purpose**: 2 exports
+**Purpose**: History storage operations with pruning and sanitization
 
 **Exports**:
 - `export readHistory` - item implementation
 - `export writeHistory` - item implementation
 
 ### shared/history/types.ts
-**Purpose**: 5 exports
+**Purpose**: Type definitions for history items and metadata
 
 **Exports**:
 - `export HistoryItem` - item implementation
 - `export HistoryMediaMetadata` - item implementation
-- `export PendingAnalysisRename` - item implementation
-- `export UpgradeProposal` - item implementation
+- `export PendingUpgradeAnalysis` - item implementation
+- `export UpgradeProposal` - Type definitions for history items and metadata
+- `export UpgradeProposalSource` - Type definitions for history items and metadata
 - `export MAX_PENDING_ANALYSIS_AGE_MS` - item implementation
 
 ### shared/history/validation.ts
-**Purpose**: 4 exports
+**Purpose**: Runtime validation for history data integrity
 
 **Exports**:
 - `export isHistoryMediaMetadata` - item implementation
-- `export isPendingAnalysisRename` - item implementation
+- `export isPendingUpgradeAnalysis` - item implementation
 - `export isUpgradeProposal` - item implementation
 - `export isValidHistoryItem` - item implementation
+
+### shared/integrations/chrome-ai/adapter.ts
+**Purpose**: Shared adapter interface for Chrome built-in AI APIs. The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector). This adapter keeps our background/offscreen logic decoupled from the actual runtime implementation so we can swap the mock below with real bindings once the APIs are ready.
+
+**Exports**:
+- `export BuiltInAiAdapter` - item implementation
+- `export LanguageDetectorResult` - item implementation
+- `export PromptRequest` - item implementation
+- `export PromptResult` - item implementation
+- `export SummarizerRequest` - Shared adapter interface for Chrome built-in AI APIs
+- `export SummarizerResult` - item implementation
+- `export createMockBuiltInAiAdapter` - Provide a deterministic mock so we can wire the rest of t...
+- `export getBuiltInAiAdapter` - Retrieve the globally configured built-in AI adapter
+- `export setBuiltInAiAdapter` - Replace the shared adapter
 
 ### shared/integrations/mediainfo/constants.ts
 **Purpose**: Centralized constants for MediaInfo integration and analysis pipeline.
@@ -833,7 +915,7 @@ Can...
 - `export ConfirmToastStatusState` - item implementation
 
 ### shared/ui/ConfirmToast.accessibility.test.tsx
-**Purpose**: Module exports
+**Purpose**: Accessibility tests for confirm toast component
 
 *No exports found*
 
@@ -850,7 +932,7 @@ Can...
 - `export FilenameLabel` - Shared component for displaying filename transitions (ori...
 
 ### shared/ui/confirm-toast-manager.test.tsx
-**Purpose**: Module exports
+**Purpose**: Tests for toast manager lifecycle and interactions
 
 *No exports found*
 

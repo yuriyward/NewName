@@ -1,3 +1,6 @@
+/**
+ * Compact downloads access onboarding screen for popup
+ */
 import { Alert } from '@heroui/alert';
 import { type JSX, useState } from 'react';
 import { browser } from 'wxt/browser';

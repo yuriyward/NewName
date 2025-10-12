@@ -1,3 +1,6 @@
+/**
+ * Download utility functions for file type checking
+ */
 import type {
   FileType,
   Settings,

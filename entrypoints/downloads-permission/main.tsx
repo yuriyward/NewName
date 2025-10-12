@@ -1,3 +1,6 @@
+/**
+ * React app entry point for downloads permission onboarding
+ */
 import { HeroUIProvider } from '@heroui/react';
 import React from 'react';
 import ReactDOM from 'react-dom/client';

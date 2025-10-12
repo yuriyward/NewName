@@ -57,7 +57,7 @@ The core foundation (Phase 1) is fully implemented and functional. Phase 2 has m
 | `executeApply()` | ✅ | Handles "Apply" action with rename execution |
 | `executeKeep()` | ✅ | Handles "Keep original" action |
 | `executeAlwaysApply()` | ✅ | Updates per-type settings + executes rename |
-| `schedulePdfAnalysisRename()` | ✅ BONUS | Schedules delayed analysis rename using `chrome.alarms` |
+| `scheduleMockAnalysis()` (UpgradeCoordinator) | ✅ BONUS | Schedules delayed AI upgrade using `chrome.alarms` |
 | `executePdfAnalysisRename()` | ✅ BONUS | Executes scheduled rename (alarm handler) |
 
 **Key Features:**
@@ -131,25 +131,24 @@ browser.runtime.onInstalled.addListener((details) => {
 
 ### 🟡 Phase 2: Background Analysis & Upgrade Pipeline — PARTIAL
 
-#### 2.1 Upgrade Coordinator — ❌ MISSING
+#### 2.1 Upgrade Coordinator — 🟡 PARTIAL
 
-**Planned Location:** `entrypoints/background/upgrade-coordinator.ts`
+**Location:** `entrypoints/background/upgrade/coordinator.ts`
 
-**Status:** **NOT IMPLEMENTED**
+**Status:** Core coordinator implemented with AI decision contract; waiting on real analyzers.
 
-**Missing Components:**
-- ❌ `downloads.onChanged` listener for completed downloads
-- ❌ `shouldAnalyze()` decision logic
-- ❌ `requestUpgradeAnalysis()` coordination
-- ❌ `scoreUpgrade()` comparison logic
-- ❌ Upgrade toast queuing
+**Shipped:**
+- ✅ Hooks into `downloads.onChanged` with download-tracking bridge
+- ✅ Replays history + settings to decide whether to analyze (`shouldAnalyzeUpgrade`)
+- ✅ Accepts structured AI proposal (`autoApply`, `source`, `reasonTags`) and queues toast/auto-apply
+- ✅ Persists `history.upgrade` with metadata for later actions
 
-**Current Workaround:**
-- ✅ PDF analysis scheduling exists in `rename-orchestrator.ts`
-- ⚠️ Uses placeholder `-test` suffix instead of real analysis
-- ⚠️ No scoring or upgrade threshold logic
+**Missing / TODO:**
+- ❌ Real `requestAnalysis` wiring to offscreen pipelines (currently uses mock summary)
+- ❌ Auto-apply heuristics for metadata vs AI results may need tuning once analyzers land
+- ⚠️ Telemetry hooks to log AI keep/rename decisions
 
-**Impact:** Contextual Upgrade (Phase 2) is not functional. Files get instant baseline names only, no post-download improvements.
+**Impact:** Coordinator is ready for real analyzers; once Phase 2 engines return `shouldRename`, the flow surfaces upgrades without heuristic scoring.
 
 ---
 
@@ -279,7 +278,7 @@ interface HistoryItem {
   decision?: InstantBaselineDecision;      // ✅ Instant Baseline metadata
   media?: HistoryMediaMetadata;            // ✅ Media analysis results
   upgrade?: UpgradeProposal;               // ✅ Upgrade proposal tracking
-  pendingAnalysisRename?: PendingAnalysisRename; // ✅ Scheduled rename state
+  pendingUpgradeAnalysis?: PendingUpgradeAnalysis; // ✅ Scheduled AI upgrade state
 }
 ```
 
@@ -410,7 +409,7 @@ No test results provided. Recommended to run through the checklist in plan §Tes
 ### Immediate Priorities
 
 1. **Implement Upgrade Coordinator** (Phase 2.1)
-   - Create `upgrade-coordinator.ts`
+   - Create `upgrade/coordinator.ts`
    - Add `downloads.onChanged` listener
    - Implement scoring and threshold logic
    - Wire upgrade toast queuing

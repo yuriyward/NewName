@@ -1,3 +1,6 @@
+/**
+ * Full-page downloads folder permission onboarding interface
+ */
 import {
   CheckCircleIcon,
   ShieldExclamationIcon,

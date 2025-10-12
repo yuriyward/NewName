@@ -1,3 +1,6 @@
+/**
+ * History storage operations with pruning and sanitization
+ */
 import { browser } from 'wxt/browser';
 import {
   type HistoryItem,
@@ -14,14 +17,14 @@ function clearStalePendingAnalysis(
   item: HistoryItem,
   now: number,
 ): HistoryItem {
-  const pending = item.pendingAnalysisRename;
+  const pending = item.pendingUpgradeAnalysis;
   if (!pending) return item;
   if (now - pending.scheduledAt <= MAX_PENDING_ANALYSIS_AGE_MS) {
     return item;
   }
   return {
     ...item,
-    pendingAnalysisRename: undefined,
+    pendingUpgradeAnalysis: undefined,
   };
 }
 

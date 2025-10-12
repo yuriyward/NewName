@@ -1,3 +1,6 @@
+/**
+ * Tests for toast manager lifecycle and interactions
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   ConfirmToastProposal,
@@ -181,6 +184,7 @@ describe('ConfirmToastManager', () => {
       originalFilename: 'video.mov',
       finalFilename: 'Vacation.mov',
       downloadId: 'download-1',
+      durationMs: 4_000,
     });
 
     let renameToasts = getRenameToastState();

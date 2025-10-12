@@ -10,8 +10,15 @@ This is a browser extension (WXT + React 19) that intelligently cleans up messy 
 - Smart file name analysis and pattern detection
 - Suggested file names with context-aware templates
 - Auto-rename flows with undo/preview support
+- Post-download file renaming via File System Access API
+- Post-download file analysis via MediaInfo.js WASM
+- Post-download file analysis via built-in AI
 - Scoped rules per folder and project
 - Activity history and quick revert
+
+### Rename Pipeline (Two-Phase)
+- Phase 1: Instant Baseline - Synchronous, deterministic strategies
+- Phase 2: Contextual Upgrade - Asynchronous, AI-enhanced
 
 ## Development Commands
 
@@ -78,7 +85,7 @@ Built with WXT framework and React 19, using Tailwind CSS v4. Entry points live 
 - Keep each file focused on a single responsibility.
 - Prefer direct imports across domains; do not create circular dependencies.
 
-### 🔍 Reuse-First Development
+### Reuse-First Development
 
 Always search before building new functionality:
 - Scan `entrypoints/shared/` for existing utilities (validation, parsing, async, dates/formatters).
@@ -91,46 +98,66 @@ Always search before building new functionality:
 - Limit to 3 concerns per file; extract helpers for clarity.
 - Extract shared logic after 2+ uses.
 
+### Storage Strategy
+
+- **IndexedDB** (`idb-keyval`) - File System Access handles, large blobs
+- **WXT Storage** (`storage` from WXT) - Settings, preferences, history
+
+## Static references
+
+- `WebExt-Core.md` - @webext-core patterns (messaging, storage, proxy services)
+- `ai-chrome-*.md` - Chrome Built-in AI APIs (Prompt, Summarizer, Language Detection)
+- `mediainfo-research.md` - MediaInfo.js integration patterns
+- `chrome-service-worker-long-running-tasks.md` - Alarms API for persistent operations
+
 ## AI-Generated Documentation Hub
 
 The `ai/` directory hosts both static and auto-generated docs.
-- `ai/docs/README.md` — docs index
-- `ai/docs/FILE-STRUCTURE.md` — auto-generated from code via TypeDoc
-- Script: `node scripts/generate-structure-docs.js`
+- `ai/docs/README.md` - docs index
+- `ai/docs/FILE-STRUCTURE.md` - auto-generated from code via TypeDoc
+- Script: `bun run docs` (or `node scripts/generate-structure-docs.js`)
 
 <!-- AUTO-GENERATED TREE START -->
 
 ```
-background/ # 11 files, 1 directories
+background/ # 11 files, 2 directories
   ├─ toast/ # 3 files
   │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
+  ├─ upgrade/ # 7 files
+  │ ├─ coordinator.ts # Contextual upgrade coordinator for completed downloads
+  │ ├─ eligibility.ts # Eligibility checks for contextual upgrade analysis
+  │ ├─ executor.ts # 4 exports
+  │ ├─ mock-analysis.ts # Mock AI-powered contextual upgrade proposal generator
+  │ ├─ normalization.ts # 6 exports
+  │ ├─ scheduler.ts # 4 exports
+  │ └─ types.ts # Type definitions for contextual upgrade pipeline
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
-  ├─ download-plan.ts # 2 exports
-  ├─ download-post-actions.ts # 1 export
+  ├─ download-plan.ts # Download plan builder with evaluation and path resolution
+  ├─ download-post-actions.ts # Post-download actions for history recording and media analysis
   ├─ download-tracking.ts # Download tracking helpers used by the background coordinator.
-  ├─ download-types.ts # 4 exports
-  ├─ download-utils.ts # 2 exports
+  ├─ download-types.ts # Type definitions for download listener callbacks
+  ├─ download-utils.ts # Download utility functions for file type checking
   ├─ media-orchestrator.ts # Media analysis orchestration and upgrade proposal generation
   ├─ rename-orchestrator.ts # Orchestrates file rename operations in response to toast actions.
   ├─ rename-overlay.ts # Helper for sending rename-complete overlay notifications to the initiating tab.
   ├─ settings-cache.ts # Settings cache management for background service worker
   └─ suggest-controller.ts # Helper for coordinating the Chrome downloads suggest callback with timeouts.
 downloads-permission/ # 2 files
-  ├─ DownloadsPermissionPage.tsx # 1 export
-  └─ main.tsx # Module exports
+  ├─ DownloadsPermissionPage.tsx # Full-page downloads folder permission onboarding interface
+  └─ main.tsx # React app entry point for downloads permission onboarding
 offscreen/ # 3 files, 1 directories
   ├─ bridge/ # 3 files
   │ ├─ sandbox-lifecycle.ts # Sandbox iframe lifecycle management
   │ ├─ sandbox-protocol.ts # Type-safe protocol definitions for Offscreen ↔ Sandbox (iframe) communication. Uses window.postMessage for parent-iframe IPC (browser standard).
   │ └─ stream-coordinator.ts # Streaming coordinator for range-based media fetching
-  ├─ main.ts # Module exports
+  ├─ main.ts # Offscreen document initialization with media analysis handlers
   ├─ media-analysis-handler.ts # 1 export
   └─ sandbox-bridge.ts # Bridge for communicating with the sandboxed iframe that runs MediaInfo.js. Coordinates analysis requests and response handling.
 popup/ # 2 files, 1 directories
   ├─ onboarding/ # 1 file
-  │ └─ DownloadsAccessScreen.tsx # 2 exports
+  │ └─ DownloadsAccessScreen.tsx # Compact downloads access onboarding screen for popup
   ├─ App.tsx # Settings popup for configuring deterministic Instant Baseline strategies
   └─ main.tsx # React popup entry point and application bootstrapping
 sandbox/ # 1 file
@@ -154,9 +181,14 @@ shared/ # 17 directories
   │ ├─ path-helpers.ts # Utilities for normalising download paths and managed subfolder prefixes.
   │ ├─ rename-operations.ts # Core file rename operations built on top of the File System Access API. Implements the copy+delete fallback until FileSystemHandle.move() ships for non-OPFS files. Supports nested paths, streaming for large files, and Windows reserved-name sanitisation.
   │ └─ types.ts # Shared types for File System Access operations and state.
-  ├─ history/ # 1 file
-  │ └─ history.ts # File renaming action history tracking and storage
-  ├─ integrations/ # 1 directory
+  ├─ history/ # 4 files
+  │ ├─ history.ts # File renaming action history tracking and storage orchestration. Keeps the public API focused while storage and validation live in dedicated modules.
+  │ ├─ storage.ts # History storage operations with pruning and sanitization
+  │ ├─ types.ts # Type definitions for history items and metadata
+  │ └─ validation.ts # Runtime validation for history data integrity
+  ├─ integrations/ # 2 directories
+  │ ├─ chrome-ai/ # 1 file
+  │ │ └─ adapter.ts # Shared adapter interface for Chrome built-in AI APIs. The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector). This adapter keeps our background/offscreen logic decoupled from the actual runtime implementation so we can swap the mock below with real bindings once the APIs are ready.
   │ └─ mediainfo/ # 9 files, 1 directories
   │   ├─ parsers/ # 2 files
   │   │ ├─ duration-parser.ts # Duration parsing utilities for MediaInfo track data
@@ -209,9 +241,9 @@ shared/ # 17 directories
   │ │ ├─ toast-overlay.tsx # ToastOverlay renders both confirm and rename toasts in a fixed overlay.
   │ │ ├─ toast-state-manager.ts # State management for confirm and rename toasts.
   │ │ └─ toast-theme-manager.ts # Theme management for toast UI elements.
-  │ ├─ confirm-toast-manager.test.tsx # Module exports
+  │ ├─ confirm-toast-manager.test.tsx # Tests for toast manager lifecycle and interactions
   │ ├─ confirm-toast-manager.tsx # Toast manager rendered inside the content script via Shadow DOM.
-  │ ├─ ConfirmToast.accessibility.test.tsx # Module exports
+  │ ├─ ConfirmToast.accessibility.test.tsx # Accessibility tests for confirm toast component
   │ ├─ ConfirmToast.tsx # 1 export
   │ ├─ FilenameLabel.tsx # 1 export
   │ ├─ icons.ts # Shared icon exports for consistent icon usage across the application. All icons are re-exported from @heroicons/react for easy replacement if needed.

@@ -17,6 +17,7 @@ export interface RenameOverlayOptions {
   originalFilename: string;
   finalFilename: string;
   downloadId?: string;
+  kind?: 'instant-baseline' | 'contextual-upgrade';
 }
 
 async function resolveTarget(
@@ -59,9 +60,26 @@ export async function maybeShowRenameOverlay(
     downloadId,
   } = options;
 
-  const overlayEnabled =
-    settings.confirmToast?.showRenameNotifications ??
-    DEFAULT_SETTINGS.confirmToast.showRenameNotifications;
+  const kind = options.kind ?? 'instant-baseline';
+  const renameDurationSeconds =
+    settings.confirmToast?.renameToastDurationSeconds ??
+    DEFAULT_SETTINGS.confirmToast.renameToastDurationSeconds;
+  const durationMs = Math.max(0, Math.round(renameDurationSeconds * 1000));
+  const overlayEnabled = (() => {
+    const renameNotifications =
+      settings.confirmToast?.renameNotifications ??
+      DEFAULT_SETTINGS.confirmToast.renameNotifications;
+    if (kind === 'contextual-upgrade') {
+      const contextual = renameNotifications?.contextualUpgrade;
+      return typeof contextual === 'boolean'
+        ? contextual
+        : DEFAULT_SETTINGS.confirmToast.renameNotifications.contextualUpgrade;
+    }
+    const instant = renameNotifications?.instantBaseline;
+    return typeof instant === 'boolean'
+      ? instant
+      : DEFAULT_SETTINGS.confirmToast.renameNotifications.instantBaseline;
+  })();
 
   if (!overlayEnabled) return;
   if (settings.mode === 'silent') return;
@@ -91,6 +109,7 @@ export async function maybeShowRenameOverlay(
           originalFilename,
           finalFilename,
           downloadId,
+          durationMs,
         },
       },
       target,

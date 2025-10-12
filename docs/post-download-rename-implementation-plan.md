@@ -298,15 +298,15 @@ async function ensureOffscreen() {
    ├─ Media: already analyzed in Phase 1 (use existing)
    └─ Generate upgrade proposal with reason tags
    ↓
-4. Score upgrade vs. baseline
-   ├─ Compare metadata richness
-   ├─ Calculate confidence delta
-   └─ Threshold check (e.g., +10 points)
+4. AI decision contract
+   ├─ Analyzer decides `shouldRename`
+   ├─ If `false`: log + exit (Phase 1 name stands)
+   ├─ If `true`: emit `{ proposedName, source, autoApply, reasonTags, summary }`
    ↓
-5. If upgrade score high enough:
-   ├─ Store proposal in history.upgrade
-   ├─ Queue confirm toast with upgrade flag
-   └─ Show "Better name found" notification
+5. If AI says rename:
+   ├─ Store proposal in `history.upgrade`
+   ├─ Queue confirm toast (or auto-apply when `autoApply === true`)
+   └─ Show "Better name found" notification with reason tags
    ↓
 6. User clicks Apply → RenameOrchestrator executes rename
 ```
@@ -1013,14 +1013,14 @@ const confirmToastController = createConfirmToastController({
 
 #### 2.1 Upgrade Coordinator
 
-**Location:** `entrypoints/background/upgrade-coordinator.ts`
+**Location:** `entrypoints/background/upgrade/coordinator.ts`
 
 **Responsibilities:**
 - Listen to `downloads.onChanged` for completed downloads
-- Check if file needs analysis (settings, history confidence)
-- Coordinate with offscreen document for analysis
-- Score upgrade proposals vs. baseline
-- Queue upgrade toasts when threshold met
+- Check if file needs analysis (settings, Phase 1 decision, cooldown)
+- Coordinate with offscreen document for AI/metadata analysis
+- Persist returned proposal (only when AI says rename)
+- Auto-apply or queue upgrade toasts based on proposal metadata
 
 **Key Logic:**
 ```typescript
@@ -1044,18 +1044,22 @@ browser.downloads.onChanged.addListener(async (delta) => {
     baseline: historyItem.decision,
   });
 
-  // Score upgrade
-  const score = scoreUpgrade(proposal, historyItem);
-
-  if (score.delta >= UPGRADE_THRESHOLD) {
-    // Queue upgrade toast
-    await confirmToastController.queueConfirmation({
-      historyId: historyItem.id,
-      originalFilename: historyItem.final, // Current name
-      proposedFilename: proposal.name,
-      // ... other fields
-    });
+  // AI decides keep vs rename
+  if (!proposal) {
+    return; // Analyzer opted to keep original name
   }
+
+  await confirmToastController.queueConfirmation({
+    historyId: historyItem.id,
+    originalFilename: historyItem.final,
+    proposedFilename: proposal.proposedFilename,
+    proposedPath: proposal.proposedPath,
+    reasonTags: proposal.reasonTags,
+    autoApplyDelaySeconds: proposal.autoApply
+      ? settings.confirmToast.autoApplyDelaySeconds
+      : null,
+    // ... other fields
+  });
 });
 ```
 

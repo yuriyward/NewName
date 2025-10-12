@@ -24,11 +24,13 @@ import {
 } from './background/rename-orchestrator';
 import { ensureSettingsCache } from './background/settings-cache';
 import { createConfirmToastController } from './background/toast/confirmation-controller';
+import { createUpgradeCoordinator } from './background/upgrade/coordinator';
 
 const readSettings = ensureSettingsCache();
 
 const PAGE_CONTEXT_PRUNE_INTERVAL_MS = 5 * 60_000;
 const DOWNLOAD_TRACKING_PRUNE_INTERVAL_MS = 15 * 60_000;
+const UPGRADE_ALARM_RECONCILE_INTERVAL_MS = 15 * 60_000;
 
 const downloadTracking = new Map<number, DownloadTrackingEntry>();
 
@@ -113,6 +115,13 @@ function initializeBackground(): void {
     },
   });
 
+  const upgradeCoordinator = createUpgradeCoordinator({
+    confirmToastController,
+    readSettings,
+  });
+
+  void upgradeCoordinator.cleanupOrphanedAlarms();
+
   registerInstallDateListener();
   initializeBackgroundDebug();
 
@@ -125,6 +134,15 @@ function initializeBackground(): void {
         debug: {
           enabled: true,
           level: 'verbose' as const,
+        },
+        confirmToast: {
+          autoApplyDelaySeconds: 10,
+          showReasonTags: true,
+          renameNotifications: {
+            instantBaseline: false,
+            contextualUpgrade: true,
+          },
+          renameToastDurationSeconds: 5,
         },
       });
       console.info(
@@ -199,6 +217,14 @@ function initializeBackground(): void {
 
   browser.downloads.onChanged.addListener((delta) => {
     const info = downloadTracking.get(delta.id);
+
+    void upgradeCoordinator.handleDownloadChange(delta, info).catch((error) => {
+      debugLogger.error('[UpgradeCoordinator] Unhandled failure', {
+        downloadId: delta.id,
+        error,
+      });
+    });
+
     if (!info) return;
 
     const state = delta.state?.current;
@@ -246,6 +272,7 @@ function initializeBackground(): void {
       readSettings,
       downloadTracking,
       confirmToastController,
+      upgradeCoordinator.scheduleMockAnalysis,
     ),
   );
 
@@ -256,6 +283,10 @@ function initializeBackground(): void {
   setInterval(() => {
     void pageContextService.prune();
   }, PAGE_CONTEXT_PRUNE_INTERVAL_MS);
+
+  setInterval(() => {
+    void upgradeCoordinator.cleanupOrphanedAlarms();
+  }, UPGRADE_ALARM_RECONCILE_INTERVAL_MS);
 
   const settings = readSettings();
   if (settings.debug.enabled) {
@@ -273,21 +304,14 @@ function initializeBackground(): void {
     return { ok: true };
   });
 
-  // Handle delayed PDF analysis renames via alarms
   browser.alarms.onAlarm.addListener(async (alarm) => {
-    if (alarm.name.startsWith('pdf-analysis-')) {
-      const historyId = alarm.name.replace('pdf-analysis-', '');
-      debugLogger.log('[Alarms] PDF analysis rename triggered', historyId);
-
-      try {
-        const { executePdfAnalysisRename } = await import(
-          './background/rename-orchestrator'
-        );
-        await executePdfAnalysisRename(historyId);
-      } catch (error) {
-        debugLogger.error('[Alarms] PDF analysis rename failed', error);
-      }
+    const handled = await upgradeCoordinator.handleAlarm(alarm);
+    if (handled) {
+      return;
     }
+    debugLogger.log('[UpgradeCoordinator] Alarm ignored by coordinator', {
+      alarmName: alarm.name,
+    });
   });
 }
 

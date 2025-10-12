@@ -1,3 +1,6 @@
+/**
+ * Post-download actions for history recording and media analysis
+ */
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { addHistoryItem } from '@/entrypoints/shared/history/history';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
@@ -11,6 +14,7 @@ import type { DownloadTrackingEntry } from './download-tracking';
 import { recordDownloadTracking } from './download-tracking';
 import { isMediaFileType } from './download-utils';
 import { applyMediaAnalysisResponse } from './media-orchestrator';
+import type { ScheduleUpgradeAnalysisParams } from './upgrade/types';
 
 interface PostActionsOptions {
   plan: DownloadPlan;
@@ -22,6 +26,21 @@ interface PostActionsOptions {
   originalRelativePath: string;
   downloadTracking: Map<number, DownloadTrackingEntry>;
   readSettings: () => Settings;
+  scheduleUpgradeAnalysis: (
+    params: ScheduleUpgradeAnalysisParams,
+  ) => Promise<void>;
+}
+
+function shouldScheduleUpgrade(
+  fileType: InstantBaselineEvaluation['fileType'],
+  renameCandidate: InstantBaselineEvaluation['rename'] | undefined,
+  plan: DownloadPlan,
+): boolean {
+  return (
+    fileType === 'pdf' &&
+    Boolean(renameCandidate) &&
+    plan.confirmRoute.kind !== 'toast'
+  );
 }
 
 export async function applyPostDownloadActions({
@@ -34,6 +53,7 @@ export async function applyPostDownloadActions({
   originalRelativePath,
   downloadTracking,
   readSettings,
+  scheduleUpgradeAnalysis,
 }: PostActionsOptions): Promise<void> {
   const historyDecision: InstantBaselineEvaluation['decision'] = renameCandidate
     ? evaluation.decision
@@ -81,16 +101,19 @@ export async function applyPostDownloadActions({
     });
   }
 
-  if (
-    evaluation.fileType === 'pdf' &&
-    renameCandidate &&
-    plan.confirmRoute.kind !== 'toast'
-  ) {
-    void schedulePdfAnalysisSafely({
+  if (shouldScheduleUpgrade(evaluation.fileType, renameCandidate, plan)) {
+    void scheduleUpgradeAnalysis({
       historyId: plan.historyId,
-      currentPath: renameRelativePath,
-      currentFilename: finalFilename,
+      downloadId: plan.rawDownloadId,
       fileType: evaluation.fileType,
+    }).catch((error) => {
+      debugLogger.error(
+        '[DownloadCoordinator] Upgrade analysis scheduling failed',
+        {
+          historyId: plan.historyId,
+          error,
+        },
+      );
     });
   }
 
@@ -142,29 +165,5 @@ export async function applyPostDownloadActions({
               : 'Unknown media analysis error',
         });
       });
-  }
-}
-
-async function schedulePdfAnalysisSafely(params: {
-  historyId: string;
-  currentPath: string;
-  currentFilename: string;
-  fileType: InstantBaselineEvaluation['fileType'];
-}): Promise<void> {
-  try {
-    const { schedulePdfAnalysisForDownload } = await import(
-      './rename-orchestrator'
-    );
-    await schedulePdfAnalysisForDownload({
-      historyId: params.historyId,
-      currentPath: params.currentPath,
-      currentFilename: params.currentFilename,
-      fileType: params.fileType,
-    });
-  } catch (error) {
-    debugLogger.error('[DownloadCoordinator] PDF analysis scheduling failed', {
-      historyId: params.historyId,
-      error,
-    });
   }
 }

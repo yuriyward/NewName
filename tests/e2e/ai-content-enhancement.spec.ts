@@ -125,63 +125,60 @@ test.describe('Contextual Upgrade - AI Enhancement Pipeline (Future)', () => {
   });
 
   test.describe('Upgrade Decision Logic (PRD Section 8)', () => {
-    test('should calculate improvement scores and offer upgrades', async ({
-      page,
-    }) => {
+    test('should rely on AI keep/rename contract', async ({ page }) => {
       await page.goto('/scenarios/design/figma-component.html');
 
-      // PRD: Score 0-100; upgrade if best.score - instantBaselineScore >= +10
-
-      const instantBaselineScore = 45; // Hypothetical: basic context only
-      const contextualUpgradeScore = 75; // Hypothetical: with AI content analysis
-
-      const scoreDelta = contextualUpgradeScore - instantBaselineScore;
-      const shouldOfferUpgrade = scoreDelta >= 10;
-
-      expect(shouldOfferUpgrade).toBe(true);
-
-      // Test scoring components (PRD Section 8):
-      const scoringFactors = {
-        contentTitleConfidence: 35, // "Navbar Fix - Dialog Component"
-        recognizedDocType: 0, // Not a document
-        helpfulMetadata: 10, // Design context
-        sourceClarity: 15, // Figma domain
-        existingNameQuality: -20, // "Screenshot 2025..." is poor
-        ambiguity: -5, // Minor ambiguity
+      const instantBaselineDecision = {
+        strategy: 'page-title-with-date',
+        renameApplied: true,
+        reasonTags: ['page-title', 'date'],
       };
 
-      const calculatedScore = Object.values(scoringFactors).reduce(
-        (sum, score) => sum + score,
-        0,
-      );
+      expect(instantBaselineDecision.renameApplied).toBe(true);
 
-      expect(calculatedScore).toBe(35); // Should be above threshold for renaming
+      const aiDecision = {
+        shouldRename: true,
+        proposedFilename: 'Navbar Fix - Dialog Component - 2025-08-21.png',
+        source: 'ai' as const,
+        autoApply: false,
+        reasonTags: ['headline', 'figma-context'],
+        summary: 'AI headline summarises dialog fix task',
+      };
 
-      console.log('Contextual Upgrade scoring breakdown:', scoringFactors);
-      console.log('Calculated score:', calculatedScore);
+      expect(aiDecision.shouldRename).toBe(true);
+      expect(aiDecision.reasonTags).toContain('headline');
+      expect(aiDecision.autoApply).toBe(false);
+
+      const coordinatorOutcome = aiDecision.shouldRename
+        ? 'queue-upgrade-toast'
+        : 'keep-original';
+
+      expect(coordinatorOutcome).toBe('queue-upgrade-toast');
+
+      console.log('Contextual Upgrade AI decision:', {
+        instantBaselineDecision,
+        aiDecision,
+        coordinatorOutcome,
+      });
     });
 
-    test('should preserve good existing names (negative scoring)', async () => {
-      // PRD: "Existing name already clear … −30"
+    test('should keep originals when AI says no rename', async () => {
+      const aiDecision = {
+        shouldRename: false,
+        reasonTags: ['no-additional-context'],
+        source: 'ai' as const,
+      };
 
-      const goodExistingNames = [
-        'Q4-Financial-Report-2025.pdf',
-        'Meeting-Notes-Sprint-Planning-2025-09-20.txt',
-        'Figma-Component-Export-Navbar-Dialog.png',
-      ];
+      expect(aiDecision.shouldRename).toBe(false);
 
-      for (const filename of goodExistingNames) {
-        // These should get negative points and be preserved
-        const hasGoodStructure = filename.includes('-') && filename.length > 20;
-        const hasContext =
-          filename.match(/\d{4}-\d{2}-\d{2}/) || filename.includes('-');
-        const existingNamePenalty = hasGoodStructure && hasContext ? -30 : 0;
+      const coordinatorOutcome = aiDecision.shouldRename
+        ? 'queue-upgrade-toast'
+        : 'keep-original';
 
-        expect(existingNamePenalty).toBe(-30);
-        console.log(
-          `Good existing name: ${filename} (penalty: ${existingNamePenalty})`,
-        );
-      }
+      expect(coordinatorOutcome).toBe('keep-original');
+      console.log(
+        'AI decided to keep original filename due to sufficient context',
+      );
     });
   });
 

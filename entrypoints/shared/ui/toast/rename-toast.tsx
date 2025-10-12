@@ -6,7 +6,6 @@ import type { RenameToastProposal } from '@/entrypoints/shared/toast/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
 
 export interface RenameToastState extends RenameToastProposal {
-  durationMs: number;
   remainingMs: number;
   dismissAt: number | null;
   paused: boolean;

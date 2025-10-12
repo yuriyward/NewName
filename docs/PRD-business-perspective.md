@@ -69,7 +69,7 @@ People accumulate poorly named files; retrieval is slow. Current renamers are ru
 
   * **Born-digital:** extract text → **Summarizer(type:'headline')** → candidate(s).
   * **Scanned/low-text:** MuPDF WASM rasterize first pages → Prompt (image) or OCR fallback.
-* **Compare & Decide:** If upgraded title scores higher → show **Upgrade** notification with reasoning and Apply/Details.
+* **Compare & Decide:** AI decides `keep` vs `rename`. When it returns a replacement name, surface an **Upgrade** notification (or auto-apply when confidence + settings allow) with the AI’s reason tags.
 
 ### Post-save Operations — Upgrade & Undo
 

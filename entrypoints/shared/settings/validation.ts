@@ -167,16 +167,35 @@ export function sanitizeConfirmToast(
       ? normalizedDelay
       : defaults.autoApplyDelaySeconds;
 
+  const rawRenameDuration =
+    typeof input?.renameToastDurationSeconds === 'number'
+      ? input.renameToastDurationSeconds
+      : Number(input?.renameToastDurationSeconds);
+  const normalizedRenameDuration = Number.isFinite(rawRenameDuration)
+    ? Math.round(rawRenameDuration as number)
+    : defaults.renameToastDurationSeconds;
+  const clampedRenameDuration = Math.min(
+    Math.max(1, normalizedRenameDuration),
+    30,
+  );
+
   return {
     autoApplyDelaySeconds: clampedDelay,
     showReasonTags:
       typeof input?.showReasonTags === 'boolean'
         ? input.showReasonTags
         : defaults.showReasonTags,
-    showRenameNotifications:
-      typeof input?.showRenameNotifications === 'boolean'
-        ? input.showRenameNotifications
-        : defaults.showRenameNotifications,
+    renameNotifications: {
+      instantBaseline:
+        typeof input?.renameNotifications?.instantBaseline === 'boolean'
+          ? input.renameNotifications.instantBaseline
+          : defaults.renameNotifications.instantBaseline,
+      contextualUpgrade:
+        typeof input?.renameNotifications?.contextualUpgrade === 'boolean'
+          ? input.renameNotifications.contextualUpgrade
+          : defaults.renameNotifications.contextualUpgrade,
+    },
+    renameToastDurationSeconds: clampedRenameDuration,
   };
 }
 

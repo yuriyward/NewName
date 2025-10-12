@@ -154,110 +154,6 @@ export async function executeDelayedRename(historyId: string): Promise<void> {
 
 ---
 
-## Real-World Example: PDF Analysis Rename
-
-### Use Case
-
-After instant baseline renames a PDF, schedule a delayed rename to append `-test` suffix (simulating background analysis that takes 5 seconds).
-
-### Implementation
-
-**Schedule in download flow:**
-```typescript
-// entrypoints/background/download-coordinator.ts
-
-if (evaluation.fileType === 'pdf' && renameCandidate) {
-  void import('./rename-orchestrator').then(({ schedulePdfAnalysisForDownload }) => {
-    void schedulePdfAnalysisForDownload({
-      historyId,
-      currentPath: renameRelativePath,
-      currentFilename: finalFilename,
-      fileType: evaluation.fileType,
-    });
-  });
-}
-```
-
-**Core scheduling logic:**
-```typescript
-// entrypoints/background/rename-orchestrator.ts
-
-const PDF_ANALYSIS_DELAY_MS = 5_000;
-const PDF_ANALYSIS_DELAY_MINUTES = PDF_ANALYSIS_DELAY_MS / 60_000;
-
-async function scheduleAnalysisAlarm(
-  historyId: string,
-  currentPath: string,
-  currentName: string,
-  fileType: string,
-): Promise<void> {
-  if (fileType !== 'pdf') return;
-
-  const targetName = appendTestSuffix(currentName);
-
-  // Store state
-  await updateHistoryItem(historyId, (item) => ({
-    ...item,
-    pendingAnalysisRename: {
-      currentPath,
-      currentName,
-      targetName,
-      scheduledAt: Date.now(),
-    },
-  }));
-
-  // Schedule alarm
-  await browser.alarms.create(`pdf-analysis-${historyId}`, {
-    delayInMinutes: PDF_ANALYSIS_DELAY_MINUTES,
-  });
-}
-```
-
-**Alarm handler:**
-```typescript
-// entrypoints/background.ts
-
-browser.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name.startsWith('pdf-analysis-')) {
-    const historyId = alarm.name.replace('pdf-analysis-', '');
-    const { executePdfAnalysisRename } = await import('./background/rename-orchestrator');
-    await executePdfAnalysisRename(historyId);
-  }
-});
-```
-
-**Execution:**
-```typescript
-// entrypoints/background/rename-orchestrator.ts
-
-export async function executePdfAnalysisRename(historyId: string): Promise<void> {
-  const item = await getHistoryItem(historyId);
-  if (!item?.pendingAnalysisRename) return;
-
-  const { currentPath, targetName } = item.pendingAnalysisRename;
-  const handle = await getStoredDirectoryHandle();
-
-  const result = await renameFile({
-    relativePath: currentPath,
-    newFilename: targetName,
-    rootHandle: handle,
-  });
-
-  await updateHistoryItem(historyId, (item) => ({
-    ...item,
-    final: result.finalName,
-    path: result.finalPath,
-    pendingAnalysisRename: undefined,
-  }));
-}
-```
-
-### Timeline Example
-
-```
-16:02:36.868  Instant baseline rename
-              historia_transakcji_XXX.pdf → historia_transakcji_XXX_2025-10-11.pdf
-
 16:02:36.898  Alarm scheduled (5 seconds)
 
 16:02:41.920  Alarm fires (5.013s later)
@@ -570,3 +466,79 @@ When converting `setTimeout` to alarms:
 | OS integration | Native messaging |
 
 Your delayed operations will now survive service worker termination, browser restarts, and system sleep. 🎯
+## Real-World Example: Delayed Contextual Upgrade
+
+### Use Case
+
+After Instant Baseline applies a deterministic rename for a PDF, defer the AI-powered upgrade so the service worker can sleep and resume when the alarm fires. The mock AI returns a filename with a `-test` suffix to simulate the later improvement.
+
+### Implementation
+
+**Schedule in download flow:**
+```typescript
+// entrypoints/background/download-coordinator.ts
+
+if (evaluation.fileType === 'pdf' && renameCandidate && plan.confirmRoute.kind !== 'toast') {
+  void scheduleUpgradeAnalysis({
+    historyId: plan.historyId,
+    downloadId: plan.rawDownloadId,
+    fileType: evaluation.fileType,
+  });
+}
+```
+
+**Upgrade coordinator stores pending state and creates alarm:**
+```typescript
+// entrypoints/background/upgrade/coordinator.ts
+
+await updateHistoryItem(historyId, (item) => ({
+  ...item,
+  pendingUpgradeAnalysis: {
+    downloadId,
+    scheduledAt: now,
+    reason: 'mock-delayed-upgrade',
+  },
+}));
+
+await browser.alarms.create(`mock-upgrade-${historyId}`, {
+  delayInMinutes: 5_000 / 60_000, // 5 seconds
+});
+```
+
+**Alarm handler wakes service worker and reuses coordinator logic:**
+```typescript
+// entrypoints/background.ts
+
+browser.alarms.onAlarm.addListener(async (alarm) => {
+  const handled = await upgradeCoordinator.handleAlarm(alarm);
+  if (handled) return;
+  // other alarm handlers...
+});
+```
+
+**Coordinator processes pending analysis when alarm fires:**
+```typescript
+// entrypoints/background/upgrade/coordinator.ts
+
+const pending = historyItem.pendingUpgradeAnalysis;
+if (!pending) return true;
+
+const downloadItem = await browser.downloads.search({ id: pending.downloadId }).then(([item]) => item);
+const proposal = await requestMockUpgradeAnalysis({
+  downloadId: pending.downloadId,
+  downloadItem,
+  historyItem,
+  settings,
+  now,
+});
+
+// Persist proposal and queue toast/auto-apply
+```
+
+### Timeline Example
+
+```
+16:02:36.868  Instant Baseline → historia_transakcji_XXX_2025-10-11.pdf
+16:02:36.880  scheduleMockAnalysis() stores pending state + creates `mock-upgrade-<historyId>` alarm
+16:02:41.888  Alarm fires → UpgradeCoordinator recomputes name (`-test` suffix) and queues toast
+```

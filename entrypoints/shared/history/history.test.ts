@@ -109,3 +109,55 @@ describe('history media metadata updates', () => {
     ).rejects.toThrowError('Invalid history item update');
   });
 });
+
+describe('history pending upgrade analysis updates', () => {
+  beforeEach(() => {
+    fakeBrowser.reset();
+  });
+
+  it('persists pending upgrade analysis with a valid downloadId', async () => {
+    const baseItem = createBaseHistoryItem();
+    await addHistoryItem(baseItem);
+
+    const scheduledAt = Date.now() + 500;
+
+    const updated = await updateHistoryItem(baseItem.id, (item) => ({
+      ...item,
+      pendingUpgradeAnalysis: {
+        downloadId: 123,
+        scheduledAt,
+        reason: 'mock-delayed-upgrade',
+      },
+    }));
+
+    expect(updated?.pendingUpgradeAnalysis?.downloadId).toBe(123);
+    expect(updated?.pendingUpgradeAnalysis?.scheduledAt).toBe(scheduledAt);
+  });
+
+  it('rejects pending upgrade analysis with an invalid downloadId', async () => {
+    const baseItem = createBaseHistoryItem();
+    await addHistoryItem(baseItem);
+
+    await expect(
+      updateHistoryItem(baseItem.id, (item) => ({
+        ...item,
+        pendingUpgradeAnalysis: {
+          downloadId: -1,
+          scheduledAt: Date.now() + 1_000,
+          reason: 'mock-delayed-upgrade',
+        },
+      })),
+    ).rejects.toThrowError('Invalid history item update');
+
+    await expect(
+      updateHistoryItem(baseItem.id, (item) => ({
+        ...item,
+        pendingUpgradeAnalysis: {
+          downloadId: Number.MAX_SAFE_INTEGER + 1,
+          scheduledAt: Date.now() + 1_000,
+          reason: 'mock-delayed-upgrade',
+        },
+      })),
+    ).rejects.toThrowError('Invalid history item update');
+  });
+});

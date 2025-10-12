@@ -55,8 +55,13 @@ export interface ConfirmToastSettings {
   autoApplyDelaySeconds: number;
   /** Whether to display sensitive reason tags inside the toast */
   showReasonTags: boolean;
-  /** Whether to surface a follow-up notification after rename completes */
-  showRenameNotifications: boolean;
+  /** Fine-grained control over rename completion notifications */
+  renameNotifications: {
+    instantBaseline: boolean;
+    contextualUpgrade: boolean;
+  };
+  /** Duration in seconds before rename notifications auto-dismiss */
+  renameToastDurationSeconds: number;
 }
 
 export type Theme = 'light' | 'dark';
@@ -135,7 +140,11 @@ export const DEFAULT_SETTINGS: Settings = {
   confirmToast: {
     autoApplyDelaySeconds: 10,
     showReasonTags: true,
-    showRenameNotifications: true,
+    renameNotifications: {
+      instantBaseline: true,
+      contextualUpgrade: true,
+    },
+    renameToastDurationSeconds: 3,
   },
   localization: {
     uiLocale: 'browser',
