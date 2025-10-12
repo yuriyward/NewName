@@ -204,9 +204,6 @@ content.ts # Content script for page context extraction and messaging
 - `export executeAlwaysApply` - Execute "Always apply" action
 - `export executeApply` - Execute rename for "Approve" action (or auto-apply)
 - `export executeKeep` - Execute "Keep original" action
-- `export executePdfAnalysisRename` - Execute PDF analysis rename (called by alarm handler)
-Can...
-- `export schedulePdfAnalysisForDownload` - Schedule PDF analysis rename for auto-downloaded files (c...
 
 ### background/rename-overlay.ts
 **Purpose**: Helper for sending rename-complete overlay notifications to the initiating tab.
@@ -259,6 +256,7 @@ Can...
 **Exports**:
 - `export UpgradeCoordinator` - item implementation
 - `export createUpgradeCoordinator` - item implementation
+- `export ScheduleUpgradeAnalysisParams` - item implementation
 
 ### background/upgrade/eligibility.ts
 **Purpose**: Eligibility checks for contextual upgrade analysis
@@ -279,6 +277,7 @@ Can...
 **Exports**:
 - `export BrowserDownloadDelta` - item implementation
 - `export BrowserDownloadItem` - Minimal subset of download item fields used by the upgrad...
+- `export ScheduleUpgradeAnalysisParams` - item implementation
 - `export UpgradeAnalysisInput` - item implementation
 - `export UpgradeCoordinatorParams` - item implementation
 
@@ -514,7 +513,7 @@ Can...
 **Exports**:
 - `export HistoryItem` - item implementation
 - `export HistoryMediaMetadata` - item implementation
-- `export PendingAnalysisRename` - item implementation
+- `export PendingUpgradeAnalysis` - item implementation
 - `export UpgradeProposal` - Type definitions for history items and metadata
 - `export MAX_PENDING_ANALYSIS_AGE_MS` - item implementation
 
@@ -523,7 +522,7 @@ Can...
 
 **Exports**:
 - `export isHistoryMediaMetadata` - item implementation
-- `export isPendingAnalysisRename` - item implementation
+- `export isPendingUpgradeAnalysis` - item implementation
 - `export isUpgradeProposal` - item implementation
 - `export isValidHistoryItem` - item implementation
 

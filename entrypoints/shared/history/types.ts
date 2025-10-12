@@ -27,11 +27,10 @@ export interface UpgradeProposal {
   summary?: string;
 }
 
-export interface PendingAnalysisRename {
-  currentPath: string;
-  currentName: string;
-  targetName: string;
+export interface PendingUpgradeAnalysis {
+  downloadId: number;
   scheduledAt: number;
+  reason: 'mock-delayed-upgrade';
 }
 
 export interface HistoryItem {
@@ -48,7 +47,7 @@ export interface HistoryItem {
   decision?: InstantBaselineDecision;
   media?: HistoryMediaMetadata;
   upgrade?: UpgradeProposal;
-  pendingAnalysisRename?: PendingAnalysisRename;
+  pendingUpgradeAnalysis?: PendingUpgradeAnalysis;
 }
 
 export interface HistoryMediaMetadata {

@@ -18,15 +18,21 @@ import { requestMockUpgradeAnalysis } from './mock-analysis';
 import type {
   BrowserDownloadDelta,
   BrowserDownloadItem,
+  ScheduleUpgradeAnalysisParams,
   UpgradeAnalysisInput,
   UpgradeCoordinatorParams,
 } from './types';
+
+type AlarmCallback = Parameters<typeof browser.alarms.onAlarm.addListener>[0];
+type BrowserAlarm = Parameters<AlarmCallback>[0];
 
 export interface UpgradeCoordinator {
   handleDownloadChange(
     delta: BrowserDownloadDelta,
     tracking: DownloadTrackingEntry | undefined,
   ): Promise<void>;
+  scheduleMockAnalysis(params: ScheduleUpgradeAnalysisParams): Promise<void>;
+  handleAlarm(alarm: BrowserAlarm): Promise<boolean>;
 }
 
 function normaliseDownloadItem(item: unknown): BrowserDownloadItem {
@@ -66,6 +72,9 @@ export function createUpgradeCoordinator(
     requestAnalysis,
     now: nowFn = () => Date.now(),
   } = params;
+
+  const MOCK_ALARM_PREFIX = 'mock-upgrade-';
+  const MOCK_ANALYSIS_DELAY_MS = 5_000;
 
   async function resolveDownloadItem(
     downloadId: number,
@@ -158,6 +167,155 @@ export function createUpgradeCoordinator(
     }
   }
 
+  async function processAnalysis({
+    historyId,
+    downloadId,
+    settings,
+    now,
+    historyItem,
+  }: {
+    historyId: string;
+    downloadId: number;
+    settings: Settings;
+    now: number;
+    historyItem: HistoryItem;
+  }): Promise<void> {
+    const downloadItem = await resolveDownloadItem(downloadId);
+    if (!downloadItem) {
+      return;
+    }
+
+    const proposal = await runAnalysis(
+      downloadId,
+      historyItem,
+      downloadItem,
+      settings,
+      now,
+    );
+    if (!proposal) {
+      return;
+    }
+
+    const normalizedProposal = normalizeProposal(proposal, now);
+
+    try {
+      const updated = await updateHistoryItem(historyId, (item) => ({
+        ...item,
+        pendingUpgradeAnalysis: undefined,
+        upgrade: normalizedProposal,
+      }));
+      if (updated) {
+        historyItem = updated;
+      }
+    } catch (error) {
+      debugLogger.warn(
+        '[UpgradeCoordinator] Failed to persist upgrade proposal',
+        {
+          historyId,
+          error,
+        },
+      );
+    }
+
+    await queueUpgradeToast(
+      historyItem,
+      normalizedProposal,
+      settings,
+      downloadId,
+    );
+  }
+
+  async function scheduleMockAnalysis({
+    historyId,
+    downloadId,
+    fileType,
+  }: ScheduleUpgradeAnalysisParams): Promise<void> {
+    if (fileType !== 'pdf') {
+      return;
+    }
+    if (downloadId === undefined) {
+      debugLogger.warn(
+        '[UpgradeCoordinator] Cannot schedule mock analysis without download id',
+        { historyId },
+      );
+      return;
+    }
+
+    const now = nowFn();
+    try {
+      const updated = await updateHistoryItem(historyId, (item) => ({
+        ...item,
+        pendingUpgradeAnalysis: {
+          downloadId,
+          scheduledAt: now,
+          reason: 'mock-delayed-upgrade',
+        },
+      }));
+
+      if (!updated) {
+        debugLogger.warn(
+          '[UpgradeCoordinator] Failed to store pending mock analysis',
+          { historyId },
+        );
+        return;
+      }
+
+      const alarmName = `${MOCK_ALARM_PREFIX}${historyId}`;
+      await browser.alarms.create(alarmName, {
+        delayInMinutes: MOCK_ANALYSIS_DELAY_MS / 60_000,
+      });
+
+      debugLogger.log('[UpgradeCoordinator] Mock analysis scheduled', {
+        historyId,
+        downloadId,
+        alarmName,
+      });
+    } catch (error) {
+      debugLogger.error(
+        '[UpgradeCoordinator] Failed to schedule mock upgrade analysis',
+        { historyId, error },
+      );
+    }
+  }
+
+  async function handleAlarm(alarm: BrowserAlarm): Promise<boolean> {
+    if (!alarm.name.startsWith(MOCK_ALARM_PREFIX)) {
+      return false;
+    }
+    const historyId = alarm.name.slice(MOCK_ALARM_PREFIX.length);
+    const now = nowFn();
+    const settings = readSettings();
+
+    const historyItem = await getHistoryItem(historyId);
+    if (!historyItem) {
+      debugLogger.warn('[UpgradeCoordinator] Alarm fired for missing history', {
+        historyId,
+      });
+      return true;
+    }
+
+    const pending = historyItem.pendingUpgradeAnalysis;
+    if (!pending) {
+      debugLogger.log(
+        '[UpgradeCoordinator] No pending upgrade analysis for alarm',
+        historyId,
+      );
+      return true;
+    }
+
+    const downloadId = pending.downloadId;
+
+    await processAnalysis({
+      historyId,
+      downloadId,
+      settings,
+      now,
+      historyItem,
+    });
+
+    return true;
+  }
+
   return {
     async handleDownloadChange(delta, tracking) {
       if (!tracking) {
@@ -173,7 +331,7 @@ export function createUpgradeCoordinator(
       const settings = readSettings();
       const now = nowFn();
 
-      let historyItem = await getHistoryItem(historyId);
+      const historyItem = await getHistoryItem(historyId);
       if (!historyItem) {
         debugLogger.warn(
           '[UpgradeCoordinator] History item missing for download',
@@ -189,48 +347,15 @@ export function createUpgradeCoordinator(
         return;
       }
 
-      const downloadItem = await resolveDownloadItem(delta.id);
-      if (!downloadItem) {
-        return;
-      }
-
-      const proposal = await runAnalysis(
-        delta.id,
-        historyItem,
-        downloadItem,
+      await processAnalysis({
+        historyId,
+        downloadId: delta.id,
         settings,
         now,
-      );
-      if (!proposal) {
-        return;
-      }
-
-      const normalizedProposal = normalizeProposal(proposal, now);
-
-      try {
-        const updated = await updateHistoryItem(historyId, (item) => ({
-          ...item,
-          upgrade: normalizedProposal,
-        }));
-        if (updated) {
-          historyItem = updated;
-        }
-      } catch (error) {
-        debugLogger.warn(
-          '[UpgradeCoordinator] Failed to persist upgrade proposal',
-          {
-            historyId,
-            error,
-          },
-        );
-      }
-
-      await queueUpgradeToast(
         historyItem,
-        normalizedProposal,
-        settings,
-        delta.id,
-      );
+      });
     },
+    scheduleMockAnalysis,
+    handleAlarm,
   };
 }

@@ -4,7 +4,7 @@
 import type {
   HistoryItem,
   HistoryMediaMetadata,
-  PendingAnalysisRename,
+  PendingUpgradeAnalysis,
   UpgradeProposal,
 } from '@/entrypoints/shared/history/types';
 import type { MediaMetadataSummary } from '@/entrypoints/shared/integrations/mediainfo/media-summary';
@@ -171,18 +171,18 @@ export function isUpgradeProposal(value: unknown): value is UpgradeProposal {
   return true;
 }
 
-export function isPendingAnalysisRename(
+export function isPendingUpgradeAnalysis(
   value: unknown,
-): value is PendingAnalysisRename {
+): value is PendingUpgradeAnalysis {
   if (!isPlainObject(value)) return false;
-  const maybe = value as Partial<PendingAnalysisRename>;
-  if (typeof maybe.currentPath !== 'string' || maybe.currentPath.length === 0) {
+  const maybe = value as Partial<PendingUpgradeAnalysis>;
+  if (
+    typeof maybe.downloadId !== 'number' ||
+    !Number.isFinite(maybe.downloadId)
+  ) {
     return false;
   }
-  if (typeof maybe.currentName !== 'string' || maybe.currentName.length === 0) {
-    return false;
-  }
-  if (typeof maybe.targetName !== 'string' || maybe.targetName.length === 0) {
+  if (maybe.reason !== undefined && maybe.reason !== 'mock-delayed-upgrade') {
     return false;
   }
   if (
@@ -227,8 +227,8 @@ export function isValidHistoryItem(entry: unknown): entry is HistoryItem {
     return false;
   }
   if (
-    maybe.pendingAnalysisRename !== undefined &&
-    !isPendingAnalysisRename(maybe.pendingAnalysisRename)
+    maybe.pendingUpgradeAnalysis !== undefined &&
+    !isPendingUpgradeAnalysis(maybe.pendingUpgradeAnalysis)
   ) {
     return false;
   }

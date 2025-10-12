@@ -37,6 +37,12 @@ export interface UpgradeAnalysisInput {
   now: number;
 }
 
+export interface ScheduleUpgradeAnalysisParams {
+  historyId: string;
+  downloadId?: number;
+  fileType: HistoryItem['fileType'];
+}
+
 export interface UpgradeCoordinatorParams {
   confirmToastController: ConfirmToastController;
   readSettings: () => Settings;

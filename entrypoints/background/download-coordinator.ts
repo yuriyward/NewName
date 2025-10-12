@@ -18,6 +18,7 @@ import { maybeShowRenameOverlay } from './rename-overlay';
 import type { SuggestController } from './suggest-controller';
 import { createSuggestController } from './suggest-controller';
 import type { ConfirmToastController } from './toast/confirmation-controller';
+import type { ScheduleUpgradeAnalysisParams } from './upgrade/types';
 
 /**
  * Process the determining filename event and suggest a renamed filename if applicable.
@@ -29,6 +30,9 @@ export async function processDeterminingFilename(
   readSettings: () => Settings,
   downloadTracking: Map<number, DownloadTrackingEntry>,
   confirmToastController: ConfirmToastController,
+  scheduleUpgradeAnalysis: (
+    params: ScheduleUpgradeAnalysisParams,
+  ) => Promise<void>,
 ): Promise<void> {
   const controller = createSuggestController(suggest);
   let suggestionIssued = false;
@@ -159,6 +163,7 @@ export async function processDeterminingFilename(
       originalRelativePath,
       downloadTracking,
       readSettings,
+      scheduleUpgradeAnalysis,
     });
   } catch (error) {
     debugLogger.error('Instant Baseline rename failed', { error });
@@ -189,6 +194,9 @@ export function createDeterminingListener(
   readSettings: () => Settings,
   downloadTracking: Map<number, DownloadTrackingEntry>,
   confirmToastController: ConfirmToastController,
+  scheduleUpgradeAnalysis: (
+    params: ScheduleUpgradeAnalysisParams,
+  ) => Promise<void>,
 ): DeterminingListener {
   return (item, suggest) => {
     void processDeterminingFilename(
@@ -198,6 +206,7 @@ export function createDeterminingListener(
       readSettings,
       downloadTracking,
       confirmToastController,
+      scheduleUpgradeAnalysis,
     ).catch((error) => {
       debugLogger.error('Instant Baseline rename unhandled failure', { error });
     });

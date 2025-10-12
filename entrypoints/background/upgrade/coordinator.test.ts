@@ -120,6 +120,7 @@ describe('createUpgradeCoordinator', () => {
         url: 'https://example.com/report.pdf',
       },
     ]);
+    fakeBrowser.alarms.create = vi.fn();
   });
 
   it('queues upgrade toast when AI requests rename', async () => {
@@ -278,5 +279,83 @@ describe('createUpgradeCoordinator', () => {
     expect(autoApplyDelaySeconds).toBe(
       DEFAULT_SETTINGS.confirmToast.autoApplyDelaySeconds,
     );
+  });
+  it('schedules mock analysis with alarm when requested', async () => {
+    const historyItem: HistoryItem = {
+      id: 'history-4',
+      ts: Date.now(),
+      path: 'docs/notes.pdf',
+      original: 'notes.pdf',
+      final: 'notes.pdf',
+      source: 'on-device',
+      fileType: 'pdf',
+      phase: 'instant-baseline',
+      reasonTags: [],
+    };
+    historyStore.set(historyItem.id, historyItem);
+
+    updateHistoryItem.mockImplementation(async (id, apply) => {
+      const current = historyStore.get(id);
+      if (!current) return null;
+      const next = apply(current);
+      if (!next) return null;
+      historyStore.set(id, next);
+      return next;
+    });
+
+    const coordinator = createUpgradeCoordinator({
+      confirmToastController: createConfirmToastControllerMock(),
+      readSettings: () => DEFAULT_SETTINGS,
+    });
+
+    await coordinator.scheduleMockAnalysis({
+      historyId: historyItem.id,
+      downloadId: 100,
+      fileType: 'pdf',
+    });
+
+    expect(fakeBrowser.alarms.create).toHaveBeenCalledTimes(1);
+    const updated = historyStore.get(historyItem.id);
+    expect(updated?.pendingUpgradeAnalysis).toBeTruthy();
+    expect(updated?.pendingUpgradeAnalysis?.downloadId).toBe(100);
+  });
+
+  it('handles mock analysis alarm and queues upgrade proposal', async () => {
+    const historyItem: HistoryItem = {
+      id: 'history-5',
+      ts: Date.now(),
+      path: 'docs/notes.pdf',
+      original: 'notes.pdf',
+      final: 'notes.pdf',
+      source: 'on-device',
+      fileType: 'pdf',
+      phase: 'instant-baseline',
+      reasonTags: ['Original'],
+      pendingUpgradeAnalysis: {
+        downloadId: 42,
+        scheduledAt: Date.now(),
+        reason: 'mock-delayed-upgrade',
+      },
+    };
+    historyStore.set(historyItem.id, historyItem);
+
+    const confirmController = createConfirmToastControllerMock();
+    const coordinator = createUpgradeCoordinator({
+      confirmToastController: confirmController,
+      readSettings: () => DEFAULT_SETTINGS,
+      now: () => Date.now(),
+    });
+
+    const alarm = {
+      name: 'mock-upgrade-history-5',
+      scheduledTime: Date.now(),
+    } as Parameters<typeof coordinator.handleAlarm>[0];
+
+    await coordinator.handleAlarm(alarm);
+
+    expect(confirmController.queueConfirmation).toHaveBeenCalledTimes(1);
+    const updated = historyStore.get(historyItem.id);
+    expect(updated?.pendingUpgradeAnalysis).toBeUndefined();
+    expect(updated?.upgrade).toBeTruthy();
   });
 });

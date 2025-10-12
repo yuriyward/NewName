@@ -57,7 +57,7 @@ The core foundation (Phase 1) is fully implemented and functional. Phase 2 has m
 | `executeApply()` | ✅ | Handles "Apply" action with rename execution |
 | `executeKeep()` | ✅ | Handles "Keep original" action |
 | `executeAlwaysApply()` | ✅ | Updates per-type settings + executes rename |
-| `schedulePdfAnalysisRename()` | ✅ BONUS | Schedules delayed analysis rename using `chrome.alarms` |
+| `scheduleMockAnalysis()` (UpgradeCoordinator) | ✅ BONUS | Schedules delayed AI upgrade using `chrome.alarms` |
 | `executePdfAnalysisRename()` | ✅ BONUS | Executes scheduled rename (alarm handler) |
 
 **Key Features:**
@@ -278,7 +278,7 @@ interface HistoryItem {
   decision?: InstantBaselineDecision;      // ✅ Instant Baseline metadata
   media?: HistoryMediaMetadata;            // ✅ Media analysis results
   upgrade?: UpgradeProposal;               // ✅ Upgrade proposal tracking
-  pendingAnalysisRename?: PendingAnalysisRename; // ✅ Scheduled rename state
+  pendingUpgradeAnalysis?: PendingUpgradeAnalysis; // ✅ Scheduled AI upgrade state
 }
 ```
 
