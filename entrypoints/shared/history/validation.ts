@@ -105,7 +105,13 @@ function isInstantBaselineDecision(
   ) {
     return false;
   }
-  if (maybe.confidence !== 0 && maybe.confidence !== 100) return false;
+  if (
+    maybe.confidence !== 0 &&
+    maybe.confidence !== 50 &&
+    maybe.confidence !== 100
+  ) {
+    return false;
+  }
   if (
     maybe.guardrail !== 'strategy-applied' &&
     maybe.guardrail !== 'strategy-unavailable'

@@ -35,7 +35,7 @@ export interface InstantBaselineDecisionSignals {
 export interface InstantBaselineDecision {
   outcome: 'rename' | 'keep';
   strategy: InstantBaselineStrategy;
-  confidence: 0 | 100;
+  confidence: 0 | 50 | 100;
   guardrail: InstantBaselineGuardrail;
   reasons: string[];
   signals: InstantBaselineDecisionSignals;

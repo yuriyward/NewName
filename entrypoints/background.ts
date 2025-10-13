@@ -24,6 +24,7 @@ import {
 } from './background/rename-orchestrator';
 import { ensureSettingsCache } from './background/settings-cache';
 import { createConfirmToastController } from './background/toast/confirmation-controller';
+import { createCloudConsentManager } from './background/upgrade/cloud-consent-manager';
 import { createUpgradeCoordinator } from './background/upgrade/coordinator';
 import { createTextUpgradeAnalysisRequester } from './background/upgrade/text-analysis-request';
 
@@ -48,6 +49,7 @@ browser.runtime.onInstalled.addListener((details) => {
 });
 
 function initializeBackground(): void {
+  const cloudConsentManager = createCloudConsentManager();
   const confirmToastController = createConfirmToastController({
     async onUserDecision(entry, decision, helpers) {
       debugLogger.log(
@@ -119,7 +121,26 @@ function initializeBackground(): void {
   const upgradeCoordinator = createUpgradeCoordinator({
     confirmToastController,
     readSettings,
-    requestAnalysis: createTextUpgradeAnalysisRequester(),
+    requestAnalysis: createTextUpgradeAnalysisRequester({
+      requestCloudConsent: (context) =>
+        cloudConsentManager.requestConsent(context),
+      applyCloudAlways: async () => {
+        const current = readSettings();
+        if (
+          current.cloud.textFallbackMode === 'always' &&
+          current.cloud.enabled
+        ) {
+          return;
+        }
+        await updateSettings({
+          cloud: {
+            ...current.cloud,
+            enabled: true,
+            textFallbackMode: 'always',
+          },
+        });
+      },
+    }),
   });
 
   void upgradeCoordinator.cleanupOrphanedAlarms();
@@ -158,6 +179,15 @@ function initializeBackground(): void {
     frameId: sender.frameId,
     url: sender.url ?? sender.tab?.url ?? null,
   }));
+
+  onExtensionMessage('requestCloudConsentDetails', async ({ data }) => {
+    return cloudConsentManager.getDetails(data.token);
+  });
+
+  onExtensionMessage('submitCloudConsentDecision', async ({ data }) => {
+    await cloudConsentManager.submitDecision(data.token, data.decision);
+    return { ok: true };
+  });
 
   onExtensionMessage('syncConfirmToasts', ({ sender }) => {
     const tabId = sender.tab?.id;

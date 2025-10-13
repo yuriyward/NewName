@@ -116,3 +116,15 @@ export type TextUpgradeAnalysisResponse =
   | TextUpgradeAnalysisSkipped
   | TextUpgradeAnalysisError
   | TextUpgradeAnalysisPermission;
+
+export type CloudConsentDecision = 'allow-once' | 'allow-always' | 'deny';
+
+export interface CloudConsentRequestDetails {
+  token: string;
+  historyId: string;
+  downloadId?: number;
+  filename: string;
+  relativePath: string;
+  baselineName: string;
+  requestedAt: number;
+}

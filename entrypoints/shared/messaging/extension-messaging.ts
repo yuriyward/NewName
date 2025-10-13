@@ -9,6 +9,8 @@ import type {
   MediaAnalysisResponse,
 } from '@/entrypoints/shared/integrations/mediainfo/messages';
 import type {
+  CloudConsentDecision,
+  CloudConsentRequestDetails,
   TextUpgradeAnalysisRequest,
   TextUpgradeAnalysisResponse,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
@@ -43,6 +45,21 @@ export interface ExtensionMessagingProtocol {
   requestTextIngestion(
     payload: TextUpgradeAnalysisRequest,
   ): Promise<TextUpgradeAnalysisResponse>;
+
+  /**
+   * Retrieve pending cloud consent request details.
+   */
+  requestCloudConsentDetails(payload: {
+    token: string;
+  }): Promise<CloudConsentRequestDetails | null>;
+
+  /**
+   * Submit a cloud consent decision from the user interface.
+   */
+  submitCloudConsentDecision(payload: {
+    token: string;
+    decision: CloudConsentDecision;
+  }): { ok: true };
 
   /**
    * Ensure the offscreen document and MediaInfo WASM are ready to accept analysis requests.
@@ -99,6 +116,27 @@ export async function requestTextIngestion(
   payload: TextUpgradeAnalysisRequest,
 ): Promise<TextUpgradeAnalysisResponse> {
   const result = await sendExtensionMessage('requestTextIngestion', payload);
+  return await result;
+}
+
+export async function requestCloudConsentDetails(payload: {
+  token: string;
+}): Promise<CloudConsentRequestDetails | null> {
+  const result = await sendExtensionMessage(
+    'requestCloudConsentDetails',
+    payload,
+  );
+  return await result;
+}
+
+export async function submitCloudConsentDecision(payload: {
+  token: string;
+  decision: CloudConsentDecision;
+}): Promise<{ ok: true }> {
+  const result = await sendExtensionMessage(
+    'submitCloudConsentDecision',
+    payload,
+  );
   return await result;
 }
 
