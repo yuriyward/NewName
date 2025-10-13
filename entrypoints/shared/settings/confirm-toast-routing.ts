@@ -19,7 +19,8 @@ export type ConfirmToastSkipReason =
   | 'per-type-off'
   | 'balanced-auto'
   | 'custom-auto'
-  | 'default-auto';
+  | 'default-auto'
+  | 'inline-media';
 
 export interface ConfirmToastSignals {
   /**
