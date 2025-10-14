@@ -3,6 +3,10 @@
  */
 
 import {
+  getAiModelTelemetrySnapshot,
+  resetAiModelTelemetry,
+} from '@/entrypoints/shared/integrations/chrome-ai/telemetry';
+import {
   getLastKnownSettings,
   updateSettings,
 } from '@/entrypoints/shared/settings/settings';
@@ -33,6 +37,24 @@ export function attachConsoleHelpers(): void {
       getLatestDebugContext: () => {
         const contexts = debugLogger.getAllContexts();
         return contexts[0] || null;
+      },
+
+      // AI telemetry
+      getAiModelTelemetry: async () => {
+        const snapshot = await getAiModelTelemetrySnapshot();
+        const summary = summariseTelemetry(snapshot);
+        console.table(summary.modelTotals, [
+          'status',
+          'downloadStarts',
+          'downloadCompletes',
+        ]);
+        console.table(summary.errorsByModel);
+        console.table(summary.pipelineBlocked);
+        console.table(summary.pipelineRouted);
+        return snapshot;
+      },
+      resetAiModelTelemetry: () => {
+        return resetAiModelTelemetry();
       },
 
       // Logger controls
@@ -69,6 +91,9 @@ NewName Debug Console Helpers:
   newNameDebug.getLatestDebugContext() - Get latest debug session
   newNameDebug.exportDebugData()       - Download debug data as JSON
 
+  newNameDebug.getAiModelTelemetry()   - Inspect on-device AI telemetry counters
+  newNameDebug.resetAiModelTelemetry() - Clear AI telemetry counters
+
   newNameDebug.debugHelp()             - Show this help
         `);
       },
@@ -91,4 +116,59 @@ export function initializeBackgroundDebug(): void {
   if (settings.debug.enabled) {
     console.log(`NewName debug mode active (${settings.debug.level})`);
   }
+}
+
+function summariseTelemetry(
+  snapshot: Awaited<ReturnType<typeof getAiModelTelemetrySnapshot>>,
+): {
+  modelTotals: Array<{
+    model: string;
+    status: string;
+    downloadStarts: number;
+    downloadCompletes: number;
+  }>;
+} & {
+  errorsByModel: Array<{ model: string; errorCode: string; count: number }>;
+} & {
+  pipelineBlocked: Array<{ key: string; count: number }>;
+} & {
+  pipelineRouted: Array<{ source: string; count: number }>;
+} {
+  const modelTotals = Object.entries(snapshot.statusTransitions).map(
+    ([model, counters]) => ({
+      model,
+      status:
+        Object.entries(counters)
+          .filter(([, value]) => value > 0)
+          .map(([state, value]) => `${state}:${value}`)
+          .join(', ') || 'none',
+      downloadStarts:
+        snapshot.downloadStarts[
+          model as keyof typeof snapshot.downloadStarts
+        ] ?? 0,
+      downloadCompletes:
+        snapshot.downloadCompletes[
+          model as keyof typeof snapshot.downloadCompletes
+        ] ?? 0,
+    }),
+  );
+
+  const errorsByModel = Object.entries(snapshot.errors).flatMap(
+    ([model, errors]) =>
+      Object.entries(errors).map(([errorCode, count]) => ({
+        model,
+        errorCode,
+        count,
+      })),
+  );
+
+  const pipelineBlocked = Object.entries(snapshot.pipelineBlocked).map(
+    ([key, count]) => ({ key, count }),
+  );
+
+  const pipelineRouted = Object.entries(snapshot.pipelineRouted).map(
+    ([source, count]) => ({ source, count }),
+  );
+
+  return { modelTotals, errorsByModel, pipelineBlocked, pipelineRouted };
 }

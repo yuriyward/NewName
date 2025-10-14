@@ -1,6 +1,7 @@
 import { isTextExtension } from '@/entrypoints/shared/classification/file-types';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
+import { ensureOffscreenReady } from '@/entrypoints/shared/integrations/mediainfo/offscreen-coordinator';
 import type {
   CloudConsentDecision,
   TextAnalysisMode,
@@ -159,6 +160,7 @@ async function requestTextUpgradeAnalysis(
   const request = buildTextRequest(input, requestId);
 
   try {
+    await ensureOffscreenReady();
     const response = await requestTextIngestion(request);
     if (response.status === 'success') {
       return handleSuccessfulResponse(requestId, request, response);
@@ -218,6 +220,7 @@ async function requestTextUpgradeAnalysis(
       );
 
       try {
+        await ensureOffscreenReady();
         const retryResponse = await requestTextIngestion(retryRequest);
         if (retryResponse.status === 'success') {
           return handleSuccessfulResponse(

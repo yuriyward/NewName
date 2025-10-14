@@ -24,9 +24,27 @@ export function extractTabId(
  * Resolve the active tab to use as the target for displaying a toast.
  * Returns the tab ID if found, or undefined if unable to resolve.
  */
-export async function resolveTarget(): Promise<
-  number | SendMessageOptions | undefined
-> {
+export async function resolveTarget(
+  preferred?: number | SendMessageOptions,
+): Promise<number | SendMessageOptions | undefined> {
+  const preferredTabId = extractTabId(preferred);
+  if (preferredTabId !== undefined) {
+    try {
+      const tab = await browser.tabs.get(preferredTabId);
+      if (tab?.id !== undefined) {
+        return preferred;
+      }
+    } catch (error) {
+      debugLogger.warn(
+        '[ConfirmToast] Preferred tab unavailable, falling back to active tab',
+        {
+          tabId: preferredTabId,
+          error,
+        },
+      );
+    }
+  }
+
   try {
     const [activeTab] = await browser.tabs.query({
       active: true,

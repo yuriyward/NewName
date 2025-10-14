@@ -5,14 +5,20 @@
 import type { SendMessageOptions } from '@webext-core/messaging';
 import { defineExtensionMessaging } from '@webext-core/messaging';
 import type {
+  AiModelId,
+  AiModelStatusMap,
+} from '@/entrypoints/shared/integrations/chrome-ai/model-status';
+import type {
   MediaAnalysisRequest,
   MediaAnalysisResponse,
 } from '@/entrypoints/shared/integrations/mediainfo/messages';
 import type {
   CloudConsentDecision,
   CloudConsentRequestDetails,
+  TextAnalysisMode,
   TextUpgradeAnalysisRequest,
   TextUpgradeAnalysisResponse,
+  TextUpgradeModelSource,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import type {
   ConfirmToastDecisionMessage,
@@ -21,6 +27,21 @@ import type {
   ShowConfirmToastMessage,
   ShowRenameToastMessage,
 } from '@/entrypoints/shared/toast/types';
+
+export interface EnsureAiModelsRequestPayload {
+  ids: readonly AiModelId[];
+}
+
+export type AiPipelineTelemetryPayload =
+  | {
+      type: 'blocked';
+      mode: TextAnalysisMode;
+      reason: string;
+    }
+  | {
+      type: 'routed';
+      source: TextUpgradeModelSource;
+    };
 
 export interface ExtensionMessagingProtocol {
   /**
@@ -60,6 +81,18 @@ export interface ExtensionMessagingProtocol {
     token: string;
     decision: CloudConsentDecision;
   }): { ok: true };
+
+  /**
+   * Ensure the requested Chrome on-device AI models are ready.
+   */
+  ensureAiModelsReady(
+    payload: EnsureAiModelsRequestPayload,
+  ): Promise<AiModelStatusMap>;
+
+  /**
+   * Record AI pipeline telemetry events in the background context.
+   */
+  recordAiPipelineTelemetry(payload: AiPipelineTelemetryPayload): { ok: true };
 
   /**
    * Ensure the offscreen document and MediaInfo WASM are ready to accept analysis requests.
@@ -135,6 +168,23 @@ export async function submitCloudConsentDecision(payload: {
 }): Promise<{ ok: true }> {
   const result = await sendExtensionMessage(
     'submitCloudConsentDecision',
+    payload,
+  );
+  return await result;
+}
+
+export async function ensureAiModelsReadyRemote(
+  payload: EnsureAiModelsRequestPayload,
+): Promise<AiModelStatusMap> {
+  const result = await sendExtensionMessage('ensureAiModelsReady', payload);
+  return await result;
+}
+
+export async function recordAiPipelineTelemetryRemote(
+  payload: AiPipelineTelemetryPayload,
+): Promise<{ ok: true }> {
+  const result = await sendExtensionMessage(
+    'recordAiPipelineTelemetry',
     payload,
   );
   return await result;

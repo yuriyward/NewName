@@ -1,6 +1,8 @@
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type {
+  ChromeLanguageModelAvailabilityOptions,
   ChromeLanguageModelConstructor,
+  ChromeLanguageModelIODescriptor,
   ChromeLanguageModelSession,
 } from '@/entrypoints/shared/integrations/chrome-ai/types';
 import type {
@@ -26,6 +28,7 @@ interface PromptContext {
 const PROMPT_TIMEOUT_MS = 5_000;
 const PROMPT_TEXT_SLICE = 4_000;
 const MAX_QUALIFIERS = 4;
+const SUPPORTED_PROMPT_OUTPUT_LANGUAGES = new Set(['en', 'es', 'ja']);
 
 const PROMPT_SCHEMA = {
   type: 'object',
@@ -71,7 +74,8 @@ export async function generatePromptFilename(
     return null;
   }
 
-  if (!(await isPromptAvailable(modelCtor))) {
+  const availabilityOptions = buildAvailabilityOptions(context);
+  if (!(await isPromptAvailable(modelCtor, availabilityOptions))) {
     return null;
   }
 
@@ -80,9 +84,22 @@ export async function generatePromptFilename(
   let session: ChromeLanguageModelSession | null = null;
 
   try {
+    const expectedInputs = buildPromptInputs(context);
+    const expectedOutputs = buildPromptOutputs(context);
+    const outputLanguage = expectedOutputs[0]?.language ?? 'en';
+
+    console.log('[PromptAI] create() options:', {
+      expectedInputs,
+      expectedOutputs,
+      outputLanguage,
+    });
+
     session = await modelCtor.create({
       signal: controller.signal,
       systemPrompt: buildSystemPrompt(),
+      expectedInputs,
+      expectedOutputs,
+      outputLanguage,
     });
 
     const promptInput = buildPromptInput(context);
@@ -141,9 +158,10 @@ function resolveLanguageModel(): ChromeLanguageModelConstructor | null {
 
 async function isPromptAvailable(
   ctor: ChromeLanguageModelConstructor,
+  options: ChromeLanguageModelAvailabilityOptions,
 ): Promise<boolean> {
   try {
-    const capabilities = await ctor.capabilities?.();
+    const capabilities = await ctor.capabilities?.(options);
     if (!capabilities) {
       return true;
     }
@@ -155,6 +173,99 @@ async function isPromptAvailable(
     });
     return false;
   }
+}
+
+function buildAvailabilityOptions(
+  context: PromptContext,
+): ChromeLanguageModelAvailabilityOptions {
+  const expectedInputs = buildPromptInputs(context);
+  const expectedOutputs = buildPromptOutputs(context);
+  const outputLanguage = expectedOutputs[0]?.language;
+  return {
+    expectedInputs,
+    expectedOutputs,
+    outputLanguage,
+  } satisfies ChromeLanguageModelAvailabilityOptions;
+}
+
+function buildPromptInputs(
+  context: PromptContext,
+): ChromeLanguageModelIODescriptor[] {
+  const languages = resolvePromptInputLanguages(context);
+  if (languages && languages.length > 0) {
+    return [
+      {
+        type: 'text' as const,
+        language: languages[0],
+        languages,
+      },
+    ];
+  }
+  const fallback = resolvePromptOutputLanguage(context);
+  return [
+    {
+      type: 'text' as const,
+      language: fallback,
+      languages: [fallback],
+    },
+  ];
+}
+
+function buildPromptOutputs(
+  context: PromptContext,
+): ChromeLanguageModelIODescriptor[] {
+  const language = resolvePromptOutputLanguage(context);
+  return [
+    {
+      type: 'text' as const,
+      language,
+      languages: [language],
+    },
+  ];
+}
+
+function resolvePromptInputLanguages(
+  context: PromptContext,
+): string[] | undefined {
+  const preference = context.request.settings.languagePreference;
+  if (preference && preference !== 'auto' && preference !== 'browser') {
+    return [preference.toLowerCase()];
+  }
+  if (context.language && context.language.trim().length > 0) {
+    return [context.language.toLowerCase()];
+  }
+  if (preference === 'browser') {
+    const locale = navigator.language?.split('-')[0];
+    if (locale) {
+      return [locale.toLowerCase()];
+    }
+  }
+  return undefined;
+}
+
+function resolvePromptOutputLanguage(context: PromptContext): string {
+  const preference = context.request.settings.languagePreference;
+  if (preference && preference !== 'auto' && preference !== 'browser') {
+    return normaliseOutputLanguage(preference);
+  }
+  if (context.language && context.language.trim().length > 0) {
+    return normaliseOutputLanguage(context.language);
+  }
+  if (preference === 'browser') {
+    const locale = navigator.language?.split('-')[0];
+    if (locale) {
+      return normaliseOutputLanguage(locale);
+    }
+  }
+  return 'en';
+}
+
+function normaliseOutputLanguage(candidate: string): string {
+  const lower = candidate.toLowerCase();
+  if (SUPPORTED_PROMPT_OUTPUT_LANGUAGES.has(lower)) {
+    return lower;
+  }
+  return 'en';
 }
 
 function buildSystemPrompt(): string {

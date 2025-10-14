@@ -4,8 +4,21 @@
 import { browser } from 'wxt/browser';
 import { initializeBackgroundDebug } from '@/entrypoints/shared/debug/console-helpers';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import {
+  ensureAiModelsReady,
+  refreshAiModelStatuses,
+} from '@/entrypoints/shared/integrations/chrome-ai/model-status';
+import { registerAiModelStatusService } from '@/entrypoints/shared/integrations/chrome-ai/model-status-service';
+import {
+  recordAiPipelineBlocked,
+  recordAiPipelineRouted,
+} from '@/entrypoints/shared/integrations/chrome-ai/telemetry';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
+import type {
+  AiPipelineTelemetryPayload,
+  EnsureAiModelsRequestPayload,
+} from '@/entrypoints/shared/messaging/extension-messaging';
 import {
   onExtensionMessage,
   sendShowConfirmToast,
@@ -147,8 +160,13 @@ function initializeBackground(): void {
 
   registerInstallDateListener();
   initializeBackgroundDebug();
+  void refreshAiModelStatuses().catch((error) => {
+    debugLogger.warn('[AIModels] Initial availability probe failed', { error });
+  });
 
   const pageContextService = registerPageContextService();
+  registerAiModelStatusService();
+
   if (import.meta.env.DEV) {
     // Development mode override
     void (async () => {
@@ -186,6 +204,24 @@ function initializeBackground(): void {
 
   onExtensionMessage('submitCloudConsentDecision', async ({ data }) => {
     await cloudConsentManager.submitDecision(data.token, data.decision);
+    return { ok: true };
+  });
+
+  onExtensionMessage('ensureAiModelsReady', async ({ data }) => {
+    const payload = data as EnsureAiModelsRequestPayload;
+    const ids = payload.ids;
+    debugLogger.log('[AIModels] ensureAiModelsReady request', { ids });
+    const statuses = await ensureAiModelsReady({ ids });
+    return statuses;
+  });
+
+  onExtensionMessage('recordAiPipelineTelemetry', ({ data }) => {
+    const payload = data as AiPipelineTelemetryPayload;
+    if (payload.type === 'blocked') {
+      recordAiPipelineBlocked(payload.mode, payload.reason);
+    } else if (payload.type === 'routed') {
+      recordAiPipelineRouted(payload.source);
+    }
     return { ok: true };
   });
 

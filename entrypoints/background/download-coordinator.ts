@@ -134,6 +134,7 @@ export async function processDeterminingFilename(
             triggerSources: confirmRoute.sources,
             autoApplyDelaySeconds: confirmRoute.autoApplyDelaySeconds,
             allowAlwaysApply: settings.mode !== 'careful',
+            target: initiatingTabId,
           });
         } catch (error) {
           debugLogger.error(

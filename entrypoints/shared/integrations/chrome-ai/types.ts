@@ -16,7 +16,7 @@ export type ChromeLanguageDetection = {
 };
 
 export type ChromeLanguageDetectorInstance = {
-  detectLanguage: (input: string) => Promise<ChromeLanguageDetection[]>;
+  detect: (input: string) => Promise<ChromeLanguageDetection[]>;
   destroy?: () => void;
 };
 
@@ -40,6 +40,9 @@ export type ChromeSummarizerOptions = {
   format?: ChromeSummarizerFormat;
   length?: ChromeSummarizerLength;
   monitor?: (monitor: ChromeAIMonitor) => void;
+  expectedInputLanguages?: string[];
+  outputLanguage?: string;
+  sharedContext?: string;
 };
 
 export type ChromeSummarizerResult = {
@@ -49,13 +52,24 @@ export type ChromeSummarizerResult = {
 export type ChromeSummarizerInstance = {
   summarize: (
     input: string,
-    options?: { context?: string },
+    options?: {
+      context?: string;
+      outputLanguage?: string;
+      expectedInputLanguages?: string[];
+    },
   ) => Promise<ChromeSummarizerResult>;
   destroy?: () => void;
 };
 
+export type ChromeSummarizerAvailabilityOptions = {
+  expectedInputLanguages?: string[];
+  outputLanguage?: string;
+};
+
 export type ChromeSummarizerConstructor = {
-  availability?: () => Promise<string>;
+  availability?: (
+    options?: ChromeSummarizerAvailabilityOptions,
+  ) => Promise<string>;
   create: (
     options: ChromeSummarizerOptions,
   ) => Promise<ChromeSummarizerInstance>;
@@ -73,6 +87,12 @@ export interface ChromeLanguageModelCapabilities {
   reason?: string;
 }
 
+export interface ChromeLanguageModelAvailabilityOptions {
+  expectedInputs?: ChromeLanguageModelIODescriptor[];
+  expectedOutputs?: ChromeLanguageModelIODescriptor[];
+  outputLanguage?: string;
+}
+
 export type ChromeLanguageModelMessageRole = 'system' | 'user' | 'assistant';
 
 export interface ChromeLanguageModelPromptMessage {
@@ -80,12 +100,24 @@ export interface ChromeLanguageModelPromptMessage {
   content: string;
 }
 
+export type ChromeLanguageModelIOType = 'text' | 'audio' | 'image';
+
+export interface ChromeLanguageModelIODescriptor {
+  type: ChromeLanguageModelIOType;
+  language?: string;
+  languages?: string[];
+}
+
 export interface ChromeLanguageModelCreateOptions {
   signal?: AbortSignal;
+  monitor?: (monitor: ChromeAIMonitor) => void;
   systemPrompt?: string;
   initialPrompts?: ChromeLanguageModelPromptMessage[];
   temperature?: number;
   topK?: number;
+  expectedInputs?: ChromeLanguageModelIODescriptor[];
+  expectedOutputs?: ChromeLanguageModelIODescriptor[];
+  outputLanguage?: string;
 }
 
 export interface ChromeLanguageModelPromptOptions {
@@ -108,7 +140,12 @@ export interface ChromeLanguageModelSession {
 }
 
 export interface ChromeLanguageModelConstructor {
-  capabilities?: () => Promise<ChromeLanguageModelCapabilities>;
+  availability?: (
+    options?: ChromeLanguageModelAvailabilityOptions,
+  ) => Promise<string>;
+  capabilities?: (
+    options?: ChromeLanguageModelAvailabilityOptions,
+  ) => Promise<ChromeLanguageModelCapabilities>;
   params?: () => Promise<{
     defaultTemperature?: number;
     defaultTopK?: number;
