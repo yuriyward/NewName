@@ -141,20 +141,24 @@ export function resolveSummarizerInputLanguages(
 
 export function deriveErrorMessage(error: unknown): string {
   if (error instanceof Error) {
-    let message = error.message;
+    const original = error.message;
+    let message = original;
 
-    if (message.includes('service is not running')) {
-      message +=
-        ' Check chrome://on-device-internals to verify Gemini Nano status.';
-    } else if (message.includes('language detection model')) {
-      message +=
-        ' The Language Detector must be downloaded first before other models can use language features.';
-    } else if (message.includes('NotAllowedError')) {
-      message +=
-        ' This usually means user activation expired. Please click the button again.';
-    } else if (message.includes('storage') || message.includes('disk')) {
-      message +=
-        ' Ensure you have at least 10 GB free space. Models are auto-deleted if space drops below 10 GB.';
+    if (original.includes('Requires a user gesture')) {
+      message =
+        "Chrome put the download on pause because it's waiting for a fresh click. Tap the model button again and hang out on this tab so it can finish.";
+    } else if (original.includes('service is not running')) {
+      message =
+        "Chrome hasn't spun up Gemini Nano yet. Pop open chrome://on-device-internals to double-check the model status, then come back.";
+    } else if (original.includes('language detection model')) {
+      message =
+        'Chrome needs to grab the Language Detector model first. Start that download and the rest will follow automatically.';
+    } else if (original.includes('NotAllowedError')) {
+      message =
+        'Chrome lost the user gesture it needs. Give the button another click and keep this page focused while it downloads.';
+    } else if (original.includes('storage') || original.includes('disk')) {
+      message =
+        'Chrome is short on space. Clear up about 10 GB and the models will download smoothly—Chrome cleans them up if storage gets tight.';
     }
 
     return message;

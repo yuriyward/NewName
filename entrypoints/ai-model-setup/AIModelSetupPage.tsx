@@ -98,7 +98,7 @@ export function AIModelSetupPage(): JSX.Element {
   const [progress, setProgress] = useState<Record<AiModelId, ModelProgress>>(
     () => createInitialProgressMap(),
   );
-  const [isRunning, setIsRunning] = useState(false);
+  const [activeModelId, setActiveModelId] = useState<AiModelId | null>(null);
   const [abortController, setAbortController] =
     useState<AbortController | null>(null);
   const [diagnostics, setDiagnostics] = useState<SystemDiagnostics | null>(
@@ -106,6 +106,7 @@ export function AIModelSetupPage(): JSX.Element {
   );
   const [runningDiagnostics, setRunningDiagnostics] = useState(false);
   const [isWxtDevMode, setIsWxtDevMode] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     const profileInfo = detectFreshOrDevProfile();
@@ -113,8 +114,22 @@ export function AIModelSetupPage(): JSX.Element {
   }, []);
 
   useEffect(() => {
+    if (!storedLastError) return;
+    const hasErrorStatus = AI_MODEL_IDS.some(
+      (id) => snapshot.statuses[id].state === 'error',
+    );
+    if (!hasErrorStatus) {
+      setStoredLastError(null);
+      void clearAiModelSetupError();
+    }
+  }, [snapshot.statuses, storedLastError]);
+
+  useEffect(() => {
     let active = true;
     let unsubscribe: (() => void) | null = null;
+    const interval = window.setInterval(() => {
+      setNow(Date.now());
+    }, 30_000);
 
     (async () => {
       try {
@@ -142,6 +157,7 @@ export function AIModelSetupPage(): JSX.Element {
     return () => {
       active = false;
       unsubscribe?.();
+      window.clearInterval(interval);
     };
   }, []);
 
@@ -196,13 +212,6 @@ export function AIModelSetupPage(): JSX.Element {
     return () => window.clearTimeout(timeout);
   }, [completedAt, cancelled, setupError]);
 
-  const allReady = useMemo(() => {
-    return AI_MODEL_IDS.every((id) => {
-      const status = snapshot.statuses[id];
-      return status.state === 'available' || status.state === 'unsupported';
-    });
-  }, [snapshot.statuses]);
-
   const allUnavailable = useMemo(() => {
     return AI_MODEL_IDS.every((id) => {
       const status = snapshot.statuses[id];
@@ -210,19 +219,23 @@ export function AIModelSetupPage(): JSX.Element {
     });
   }, [snapshot.statuses]);
 
-  async function handleStartSetup(): Promise<void> {
-    if (isRunning) return;
+  async function handleStartSetup(modelId: AiModelId): Promise<void> {
+    if (activeModelId) return;
 
     setSetupError(null);
     setCancelled(false);
     setCompletedAt(null);
-    setProgress(createInitialProgressMap());
+    setProgress((previous) => {
+      const next = { ...previous };
+      next[modelId] = { started: false, completed: false };
+      return next;
+    });
     setStoredLastError(null);
     void clearAiModelSetupError();
 
     const controller = new AbortController();
     setAbortController(controller);
-    setIsRunning(true);
+    setActiveModelId(modelId);
     const preferredLanguage = detectPreferredLanguage();
     const supportedOutputLanguage =
       resolveSupportedPromptLanguage(preferredLanguage);
@@ -246,13 +259,15 @@ export function AIModelSetupPage(): JSX.Element {
     };
 
     console.log('[AISetupPage] Calling ensureAiModelsReady with:', {
+      modelId,
       preferredLanguage,
       supportedOutputLanguage,
       languageModelOptions,
     });
 
     try {
-      await ensureAiModelsReady({
+      const result = await ensureAiModelsReady({
+        ids: [modelId],
         signal: controller.signal,
         onProgress: handleProgressEvent,
         summarizer: {
@@ -264,15 +279,21 @@ export function AIModelSetupPage(): JSX.Element {
         },
         languageModel: languageModelOptions,
       });
-      try {
-        const recorded = await markAiModelSetupCompleted();
-        setCompletedAt(recorded.setupCompletedAt ?? Date.now());
-        setStoredLastError(null);
-      } catch (recordError) {
-        debugLogger.warn('[AISetupPage] Failed to record setup completion', {
-          error: recordError,
-        });
-        setCompletedAt(Date.now());
+      const allReadyNow = AI_MODEL_IDS.every((id) => {
+        const status = result[id];
+        return status?.state === 'available' || status?.state === 'unsupported';
+      });
+      if (allReadyNow) {
+        try {
+          const recorded = await markAiModelSetupCompleted();
+          setCompletedAt(recorded.setupCompletedAt ?? Date.now());
+          setStoredLastError(null);
+        } catch (recordError) {
+          debugLogger.warn('[AISetupPage] Failed to record setup completion', {
+            error: recordError,
+          });
+          setCompletedAt(Date.now());
+        }
       }
       await refreshAfterRun();
     } catch (error) {
@@ -284,16 +305,22 @@ export function AIModelSetupPage(): JSX.Element {
       const code =
         error instanceof Error && error.name ? error.name : undefined;
       setSetupError(message);
-      try {
-        await recordAiModelSetupError({ message, code });
-      } catch (recordError) {
-        debugLogger.warn('[AISetupPage] Failed to record setup error', {
-          error: recordError,
-        });
+      const userActivationIssue = isUserActivationIssue(error, message);
+      if (userActivationIssue) {
+        setStoredLastError(null);
+        await clearAiModelSetupError();
+      } else {
+        try {
+          await recordAiModelSetupError({ message, code });
+        } catch (recordError) {
+          debugLogger.warn('[AISetupPage] Failed to record setup error', {
+            error: recordError,
+          });
+        }
       }
     } finally {
       setAbortController(null);
-      setIsRunning(false);
+      setActiveModelId(null);
     }
   }
 
@@ -375,12 +402,6 @@ export function AIModelSetupPage(): JSX.Element {
     if (!abortController) return;
     abortController.abort();
   }
-
-  const primaryButtonLabel = allReady
-    ? 'Re-check models'
-    : isRunning
-      ? 'Setting up…'
-      : 'Enable AI renaming';
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -496,12 +517,13 @@ export function AIModelSetupPage(): JSX.Element {
             {(() => {
               const activeError = setupError ?? storedLastError;
               if (!activeError) return null;
+              const errorDisplay = resolveSetupErrorMessage(activeError);
               return (
                 <InlineAlert
                   tone="danger"
                   icon={<ExclamationTriangleIcon className="h-5 w-5" />}
-                  title="Model setup failed"
-                  description={activeError}
+                  title={errorDisplay.title}
+                  description={errorDisplay.description}
                 />
               );
             })()}
@@ -510,8 +532,8 @@ export function AIModelSetupPage(): JSX.Element {
               <InlineAlert
                 tone="warning"
                 icon={<XMarkIcon className="h-5 w-5" />}
-                title="Setup cancelled"
-                description="Click “Enable AI renaming” again to resume the download."
+                title="Download cancelled"
+                description="Pick the model below to try the download again."
               />
             ) : null}
 
@@ -535,6 +557,11 @@ export function AIModelSetupPage(): JSX.Element {
                     status={snapshot.statuses[id]}
                     progress={progress[id]}
                     lastUpdated={snapshot.lastUpdated}
+                    now={now}
+                    onStart={() => handleStartSetup(id)}
+                    onCancel={handleCancel}
+                    isActive={activeModelId === id}
+                    disabled={Boolean(activeModelId && activeModelId !== id)}
                   />
                 ))}
               </div>
@@ -545,33 +572,24 @@ export function AIModelSetupPage(): JSX.Element {
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={handleStartSetup}
-            disabled={isRunning}
-            className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-primary-300"
+            onClick={handleRefreshStatus}
+            disabled={loading || Boolean(activeModelId)}
+            className="inline-flex items-center justify-center rounded-full border border-default-200 px-4 py-2 text-sm font-medium text-default-600 transition hover:border-default-300 hover:text-default-700 disabled:cursor-not-allowed disabled:border-default-200 disabled:text-default-400"
           >
-            {isRunning ? (
-              <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <BoltIcon className="mr-2 h-4 w-4" />
-            )}
-            {primaryButtonLabel}
+            <ArrowPathIcon
+              className={`mr-1.5 h-4 w-4 ${loading ? 'animate-spin text-default-400' : ''}`}
+            />
+            Re-check models
           </button>
 
-          {isRunning ? (
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="inline-flex items-center justify-center rounded-full border border-default-200 px-4 py-2 text-sm font-medium text-default-600 transition hover:border-default-300 hover:text-default-700"
-            >
-              Cancel
-            </button>
+          {activeModelId ? (
+            <p className="text-xs font-medium text-default-500">
+              Downloading {MODEL_LABELS[activeModelId]}…
+            </p>
           ) : null}
 
           <p className="text-xs text-default-400">
-            Last checked:{' '}
-            {snapshot.lastUpdated
-              ? new Date(snapshot.lastUpdated).toLocaleTimeString()
-              : 'not yet'}
+            {formatRefreshSummary(snapshot.lastUpdated, now)}
           </p>
         </div>
       </main>
@@ -583,10 +601,20 @@ function ModelStatusCard({
   status,
   progress,
   lastUpdated,
+  now,
+  onStart,
+  onCancel,
+  isActive,
+  disabled,
 }: {
   status: AiModelStatus;
   progress: ModelProgress;
   lastUpdated: number;
+  now: number;
+  onStart: () => void;
+  onCancel: () => void;
+  isActive: boolean;
+  disabled: boolean;
 }): JSX.Element {
   const tone = STATE_TONES[status.state];
   const stateDescription = STATE_DESCRIPTIONS[status.state];
@@ -597,6 +625,18 @@ function ModelStatusCard({
     status.state !== 'available' &&
     status.state !== 'unsupported' &&
     status.state !== 'unavailable';
+  const action = resolveModelAction(status.state);
+  const showStartButton = Boolean(action) && !isActive;
+  const activationTitle = status.requiresUserActivation
+    ? 'Chrome needs a user gesture to start downloads. Keep this tab focused.'
+    : undefined;
+  const actionTone = action?.tone ?? 'secondary';
+  const actionClasses =
+    actionTone === 'primary'
+      ? 'inline-flex items-center justify-center rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:bg-primary-300'
+      : 'inline-flex items-center justify-center rounded-full border border-default-200 px-3 py-1.5 text-xs font-medium text-default-600 transition hover:border-default-300 hover:text-default-700 disabled:cursor-not-allowed disabled:border-default-200 disabled:text-default-400';
+  const showActions = showStartButton || isActive;
+  const staleLabel = resolveStaleBadge(status, lastUpdated, now);
 
   return (
     <div className={`rounded-xl border bg-white/90 p-4 shadow-sm ${tone}`}>
@@ -606,11 +646,6 @@ function ModelStatusCard({
             {MODEL_LABELS[status.id]}
           </p>
           <p className="text-xs text-default-500">{stateDescription}</p>
-          {status.requiresUserActivation ? (
-            <p className="text-xs text-warning-600">
-              Requires a recent click. Stay on this page while setup runs.
-            </p>
-          ) : null}
           {status.detail ? (
             <p className="text-xs text-default-500">{status.detail}</p>
           ) : null}
@@ -626,14 +661,11 @@ function ModelStatusCard({
             </p>
           ) : null}
         </div>
-        <span className="text-xs text-default-400">
-          Updated{' '}
-          {status.lastUpdated
-            ? new Date(status.lastUpdated).toLocaleTimeString()
-            : lastUpdated
-              ? new Date(lastUpdated).toLocaleTimeString()
-              : 'just now'}
-        </span>
+        {staleLabel ? (
+          <span className="inline-flex items-center rounded-full bg-default-100 px-2.5 py-1 text-[11px] font-medium text-default-500">
+            {staleLabel}
+          </span>
+        ) : null}
       </div>
 
       {showGauge ? (
@@ -642,6 +674,36 @@ function ModelStatusCard({
         <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-success-100 px-3 py-1 text-xs font-medium text-success-700">
           <CheckCircleIcon className="h-4 w-4" />
           Ready
+        </div>
+      ) : null}
+      {showActions ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {showStartButton && action ? (
+            <button
+              type="button"
+              onClick={onStart}
+              disabled={disabled}
+              title={activationTitle}
+              className={actionClasses}
+            >
+              {action.tone === 'primary' ? (
+                <BoltIcon className="mr-1.5 h-3.5 w-3.5" />
+              ) : (
+                <ArrowPathIcon className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              {action.label}
+            </button>
+          ) : null}
+          {isActive ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="inline-flex items-center justify-center rounded-full border border-default-200 px-3 py-1.5 text-xs font-medium text-default-600 transition hover:border-default-300 hover:text-default-700"
+            >
+              <XMarkIcon className="mr-1.5 h-3.5 w-3.5" />
+              Cancel download
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -887,6 +949,138 @@ function InlineAlert({
       </div>
     </div>
   );
+}
+
+type ModelActionConfig = {
+  label: string;
+  tone: 'primary' | 'secondary';
+};
+
+function resolveModelAction(state: AiModelState): ModelActionConfig | null {
+  switch (state) {
+    case 'available':
+    case 'unsupported':
+      return null;
+    case 'downloadable':
+      return { label: 'Grab this model', tone: 'primary' };
+    case 'downloading':
+      return { label: 'Resume download', tone: 'primary' };
+    case 'error':
+      return { label: 'Try again', tone: 'primary' };
+    case 'unknown':
+      return { label: 'Check status', tone: 'secondary' };
+    case 'unavailable':
+      return { label: 'Check again', tone: 'secondary' };
+    default:
+      return null;
+  }
+}
+
+function resolveSetupErrorMessage(message: string): {
+  title: string;
+  description: string;
+} {
+  if (
+    message.includes('Requires a user gesture') ||
+    message.includes('user gesture it needs')
+  ) {
+    return {
+      title: 'Chrome is waiting for another click',
+      description:
+        'Give the model’s download button another tap and leave this tab in focus so Chrome keeps the download going.',
+    };
+  }
+  if (
+    message.includes('service is not running') ||
+    message.includes("hasn't spun up Gemini Nano")
+  ) {
+    return {
+      title: 'Gemini Nano needs a moment to start',
+      description:
+        'Pop open chrome://on-device-internals, make sure the models show up there, then hop back and retry the download.',
+    };
+  }
+  if (message.includes('Language Detector')) {
+    return {
+      title: 'Language Detector download is missing',
+      description:
+        'Start the Language Detector download first—the other models will unlock once that one finishes.',
+    };
+  }
+  if (message.includes('storage') || message.includes('space')) {
+    return {
+      title: 'Chrome needs a bit more free space',
+      description:
+        'Free up roughly 10 GB, then come back and hit the download again. Chrome will clear the models automatically if storage gets tight later.',
+    };
+  }
+  return {
+    title: 'Model setup ran into a snag',
+    description: message,
+  };
+}
+
+function isUserActivationIssue(error: unknown, message: string): boolean {
+  if (message.includes('Requires a user gesture')) return true;
+  if (message.includes('user gesture it needs')) return true;
+  if (message.includes('user activation')) return true;
+  if (error instanceof DOMException && error.name === 'NotAllowedError') {
+    return true;
+  }
+  if (error instanceof Error && error.name === 'NotAllowedError') {
+    return true;
+  }
+  return false;
+}
+
+function formatRefreshSummary(lastUpdated: number, now: number): string {
+  if (!lastUpdated) {
+    return 'Status check pending…';
+  }
+  const relative = formatRelativeTime(lastUpdated, now);
+  return `Statuses refreshed ${relative}.`;
+}
+
+function resolveStaleBadge(
+  status: AiModelStatus,
+  lastUpdated: number,
+  now: number,
+): string | null {
+  if (status.state === 'downloading') return null;
+  const reference = status.lastUpdated || lastUpdated;
+  if (!reference) {
+    return 'Waiting for first check';
+  }
+  const ageMs = now - reference;
+  if (ageMs <= 0) return null;
+  if (ageMs > 3 * 60 * 1000) {
+    return `Checked ${formatRelativeTime(reference, now)}`;
+  }
+  return null;
+}
+
+function formatRelativeTime(timestamp: number, now: number): string {
+  const diff = timestamp - now;
+  const seconds = Math.round(diff / 1000);
+  if (Math.abs(seconds) < 45) {
+    return 'just now';
+  }
+  const minutes = Math.round(seconds / 60);
+  if (Math.abs(minutes) < 45) {
+    const value = Math.abs(minutes);
+    const unit = value === 1 ? 'minute' : 'minutes';
+    return minutes < 0 ? `${value} ${unit} ago` : `in ${value} ${unit}`;
+  }
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 22) {
+    const value = Math.abs(hours);
+    const unit = value === 1 ? 'hour' : 'hours';
+    return hours < 0 ? `${value} ${unit} ago` : `in ${value} ${unit}`;
+  }
+  const days = Math.round(hours / 24);
+  const value = Math.abs(days);
+  const unit = value === 1 ? 'day' : 'days';
+  return days < 0 ? `${value} ${unit} ago` : `in ${value} ${unit}`;
 }
 
 function computeProgressPercent(

@@ -1,6 +1,6 @@
 chrome://flags/#prompt-api-for-gemini-nano
 https://chrome.dev/web-ai-demos/
-chrome://flags/#enable-ai-features
+chrome://flags/
 chrome://on-device-internals/
 https://chrome.dev/web-ai-demos/translation-language-detection-api-playground/
 
