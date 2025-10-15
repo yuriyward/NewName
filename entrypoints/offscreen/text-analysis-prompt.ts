@@ -1,4 +1,10 @@
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import {
+  detectBrowserLanguage,
+  getUserLanguagePreference,
+  normalizeLanguageCode,
+  resolveSupportedLanguage,
+} from '@/entrypoints/shared/integrations/chrome-ai/language-helpers';
 import type {
   ChromeLanguageModelAvailabilityOptions,
   ChromeLanguageModelConstructor,
@@ -227,45 +233,52 @@ function buildPromptOutputs(
 function resolvePromptInputLanguages(
   context: PromptContext,
 ): string[] | undefined {
-  const preference = context.request.settings.languagePreference;
-  if (preference && preference !== 'auto' && preference !== 'browser') {
-    return [preference.toLowerCase()];
+  const preference = getUserLanguagePreference({
+    languagePreference: context.request.settings.languagePreference,
+  });
+
+  if (preference !== 'auto' && preference !== 'browser') {
+    return [normalizeLanguageCode(preference)];
   }
+
   if (context.language && context.language.trim().length > 0) {
-    return [context.language.toLowerCase()];
+    return [normalizeLanguageCode(context.language)];
   }
+
   if (preference === 'browser') {
-    const locale = navigator.language?.split('-')[0];
-    if (locale) {
-      return [locale.toLowerCase()];
-    }
+    return [detectBrowserLanguage()];
   }
+
   return undefined;
 }
 
 function resolvePromptOutputLanguage(context: PromptContext): string {
-  const preference = context.request.settings.languagePreference;
-  if (preference && preference !== 'auto' && preference !== 'browser') {
-    return normaliseOutputLanguage(preference);
-  }
-  if (context.language && context.language.trim().length > 0) {
-    return normaliseOutputLanguage(context.language);
-  }
-  if (preference === 'browser') {
-    const locale = navigator.language?.split('-')[0];
-    if (locale) {
-      return normaliseOutputLanguage(locale);
-    }
-  }
-  return 'en';
-}
+  const preference = getUserLanguagePreference({
+    languagePreference: context.request.settings.languagePreference,
+  });
 
-function normaliseOutputLanguage(candidate: string): string {
-  const lower = candidate.toLowerCase();
-  if (SUPPORTED_PROMPT_OUTPUT_LANGUAGES.has(lower)) {
-    return lower;
+  if (preference !== 'auto' && preference !== 'browser') {
+    return resolveSupportedLanguage(
+      preference,
+      SUPPORTED_PROMPT_OUTPUT_LANGUAGES,
+    );
   }
-  return 'en';
+
+  if (context.language && context.language.trim().length > 0) {
+    return resolveSupportedLanguage(
+      context.language,
+      SUPPORTED_PROMPT_OUTPUT_LANGUAGES,
+    );
+  }
+
+  if (preference === 'browser') {
+    return resolveSupportedLanguage(
+      detectBrowserLanguage(),
+      SUPPORTED_PROMPT_OUTPUT_LANGUAGES,
+    );
+  }
+
+  return resolveSupportedLanguage(undefined, SUPPORTED_PROMPT_OUTPUT_LANGUAGES);
 }
 
 function buildSystemPrompt(): string {

@@ -1,4 +1,10 @@
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import {
+  detectBrowserLanguage,
+  getUserLanguagePreference,
+  normalizeLanguageCode,
+  resolveSupportedLanguage,
+} from '@/entrypoints/shared/integrations/chrome-ai/language-helpers';
 import type { AiModelStatusMap } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import type {
   ChromeLanguageDetectorConstructor,
@@ -74,12 +80,17 @@ async function detectLanguage(
   text: string,
   preference: TextUpgradeAnalysisRequest['settings']['languagePreference'],
 ): Promise<LanguageDetectionResult> {
-  if (preference && preference !== 'auto' && preference !== 'browser') {
-    return { language: preference, confidence: 1, source: 'preference' };
+  const effectivePreference = getUserLanguagePreference({
+    languagePreference: preference,
+  });
+
+  if (effectivePreference !== 'auto' && effectivePreference !== 'browser') {
+    const language = normalizeLanguageCode(effectivePreference);
+    return { language, confidence: 1, source: 'preference' };
   }
 
-  if (preference === 'browser') {
-    const browserLocale = navigator.language?.split('-')[0];
+  if (effectivePreference === 'browser') {
+    const browserLocale = detectBrowserLanguage();
     return {
       language: browserLocale,
       confidence: browserLocale ? 0.5 : undefined,
@@ -131,7 +142,7 @@ async function detectLanguage(
       const best = results?.[0];
       if (best?.detectedLanguage) {
         return {
-          language: best.detectedLanguage,
+          language: normalizeLanguageCode(best.detectedLanguage),
           confidence: best.confidence,
           source: 'detector',
         };
@@ -356,38 +367,43 @@ function formatReasonTags(
 function resolvePreferredOutputLanguage(
   request: TextUpgradeAnalysisRequest,
 ): string {
-  const preference = request.settings.languagePreference;
-  if (preference && preference !== 'auto' && preference !== 'browser') {
-    const normalised = preference.toLowerCase();
-    if (SUPPORTED_PROMPT_OUTPUT_LANGUAGES.has(normalised)) {
-      return normalised;
-    }
-  }
+  const preference = getUserLanguagePreference({
+    languagePreference: request.settings.languagePreference,
+  });
+
   if (preference === 'browser') {
-    const locale = navigator.language?.split('-')[0];
-    if (locale) {
-      const normalised = locale.toLowerCase();
-      if (SUPPORTED_PROMPT_OUTPUT_LANGUAGES.has(normalised)) {
-        return normalised;
-      }
-    }
+    const browserLanguage = detectBrowserLanguage();
+    return resolveSupportedLanguage(
+      browserLanguage,
+      SUPPORTED_PROMPT_OUTPUT_LANGUAGES,
+    );
   }
-  return 'en';
+
+  if (preference !== 'auto') {
+    return resolveSupportedLanguage(
+      preference,
+      SUPPORTED_PROMPT_OUTPUT_LANGUAGES,
+    );
+  }
+
+  return resolveSupportedLanguage(undefined, SUPPORTED_PROMPT_OUTPUT_LANGUAGES);
 }
 
 function resolveExpectedInputLanguages(
   request: TextUpgradeAnalysisRequest,
 ): string[] | undefined {
-  const preference = request.settings.languagePreference;
-  if (preference && preference !== 'auto' && preference !== 'browser') {
-    return [preference.toLowerCase()];
-  }
+  const preference = getUserLanguagePreference({
+    languagePreference: request.settings.languagePreference,
+  });
+
   if (preference === 'browser') {
-    const locale = navigator.language?.split('-')[0];
-    if (locale) {
-      return [locale.toLowerCase()];
-    }
+    return [detectBrowserLanguage()];
   }
+
+  if (preference !== 'auto') {
+    return [normalizeLanguageCode(preference)];
+  }
+
   return undefined;
 }
 
@@ -438,13 +454,9 @@ function _buildLanguageModelOutputs(
 // ============================================================
 function _resolveSummaryOutputLanguage(language?: string): string {
   if (language && language.trim().length > 0) {
-    return language.toLowerCase();
+    return normalizeLanguageCode(language);
   }
-  const locale = navigator.language?.split('-')[0];
-  if (locale) {
-    return locale.toLowerCase();
-  }
-  return 'en';
+  return detectBrowserLanguage();
 }
 
 function mapModelStatuses(statuses: AiModelStatusMap): Record<string, string> {
