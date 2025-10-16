@@ -1,3 +1,7 @@
+// ============================================================
+// Shared Types
+// ============================================================
+
 export type ChromeAIMonitorEvent = {
   loaded?: number;
   total?: number;
@@ -9,6 +13,10 @@ export type ChromeAIMonitor = {
     handler: (event: ChromeAIMonitorEvent) => void,
   ) => void;
 };
+
+// ============================================================
+// Language Detector API
+// ============================================================
 
 export type ChromeLanguageDetection = {
   detectedLanguage: string;
@@ -30,6 +38,10 @@ export type ChromeLanguageDetectorConstructor = {
     options?: ChromeLanguageDetectorOptions,
   ) => Promise<ChromeLanguageDetectorInstance>;
 };
+
+// ============================================================
+// Summarizer API
+// ============================================================
 
 export type ChromeSummarizerType = 'key-points' | 'tldr' | 'headline';
 export type ChromeSummarizerFormat = 'markdown' | 'text';
@@ -75,12 +87,20 @@ export type ChromeSummarizerConstructor = {
   ) => Promise<ChromeSummarizerInstance>;
 };
 
+// ============================================================
+// Language Model API
+// ============================================================
+
+export const CHROME_LANGUAGE_MODEL_AVAILABILITY_VALUES = [
+  'no',
+  'unavailable',
+  'after-download',
+  'readily',
+  'processing',
+] as const;
+
 export type ChromeLanguageModelAvailability =
-  | 'no'
-  | 'unavailable'
-  | 'after-download'
-  | 'readily'
-  | 'processing';
+  (typeof CHROME_LANGUAGE_MODEL_AVAILABILITY_VALUES)[number];
 
 export interface ChromeLanguageModelCapabilities {
   available: ChromeLanguageModelAvailability;

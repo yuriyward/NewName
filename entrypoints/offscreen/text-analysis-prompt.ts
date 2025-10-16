@@ -1,21 +1,15 @@
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
-  detectBrowserLanguage,
-  getUserLanguagePreference,
-  normalizeLanguageCode,
-  resolveSupportedLanguage,
-} from '@/entrypoints/shared/integrations/chrome-ai/language-helpers';
+  buildPromptInputs,
+  buildPromptOutputs,
+  type PromptContext,
+} from '@/entrypoints/shared/integrations/chrome-ai/prompt-language-resolver';
 import type {
   ChromeLanguageModelAvailabilityOptions,
   ChromeLanguageModelConstructor,
-  ChromeLanguageModelIODescriptor,
   ChromeLanguageModelSession,
 } from '@/entrypoints/shared/integrations/chrome-ai/types';
-import type {
-  TextAnalysisMode,
-  TextUpgradeAnalysisRequest,
-  TextUpgradeIngestionResult,
-} from '@/entrypoints/shared/integrations/text-analysis/types';
+import type { TextAnalysisMode } from '@/entrypoints/shared/integrations/text-analysis/types';
 
 export interface PromptFilenameResult {
   stem: string;
@@ -24,17 +18,11 @@ export interface PromptFilenameResult {
   explanation?: string;
 }
 
-interface PromptContext {
-  request: TextUpgradeAnalysisRequest;
-  ingestion: TextUpgradeIngestionResult;
-  summary: string | null;
-  language?: string;
-}
-
+// Configuration constants for Prompt API
 const PROMPT_TIMEOUT_MS = 5_000;
 const PROMPT_TEXT_SLICE = 4_000;
 const MAX_QUALIFIERS = 4;
-const SUPPORTED_PROMPT_OUTPUT_LANGUAGES = new Set(['en', 'es', 'ja']);
+const FALLBACK_OUTPUT_LANGUAGE = 'en';
 
 const PROMPT_SCHEMA = {
   type: 'object',
@@ -81,7 +69,7 @@ export async function generatePromptFilename(
   }
 
   const availabilityOptions = buildAvailabilityOptions(context);
-  if (!(await isPromptAvailable(modelCtor, availabilityOptions))) {
+  if (!(await checkPromptCapabilities(modelCtor, availabilityOptions))) {
     return null;
   }
 
@@ -92,7 +80,8 @@ export async function generatePromptFilename(
   try {
     const expectedInputs = buildPromptInputs(context);
     const expectedOutputs = buildPromptOutputs(context);
-    const outputLanguage = expectedOutputs[0]?.language ?? 'en';
+    const outputLanguage =
+      expectedOutputs[0]?.language ?? FALLBACK_OUTPUT_LANGUAGE;
 
     debugLogger.log('[PromptAI] create() options:', {
       expectedInputs,
@@ -119,6 +108,11 @@ export async function generatePromptFilename(
   } catch (error) {
     if (controller.signal.aborted) {
       debugLogger.warn('[TextUpgradeAI] Prompt session aborted due to timeout');
+    } else if (error instanceof DOMException) {
+      debugLogger.warn('[TextUpgradeAI] Prompt API error', {
+        name: error.name,
+        message: error.message,
+      });
     } else {
       debugLogger.warn('[TextUpgradeAI] Prompt session failed', { error });
     }
@@ -162,7 +156,7 @@ function resolveLanguageModel(): ChromeLanguageModelConstructor | null {
   return null;
 }
 
-async function isPromptAvailable(
+async function checkPromptCapabilities(
   ctor: ChromeLanguageModelConstructor,
   options: ChromeLanguageModelAvailabilityOptions,
 ): Promise<boolean> {
@@ -174,7 +168,7 @@ async function isPromptAvailable(
     const availability = capabilities.available;
     return availability === 'readily' || availability === 'processing';
   } catch (error) {
-    debugLogger.warn('[TextUpgradeAI] Prompt availability check failed', {
+    debugLogger.warn('[TextUpgradeAI] Prompt capabilities check failed', {
       error,
     });
     return false;
@@ -192,93 +186,6 @@ function buildAvailabilityOptions(
     expectedOutputs,
     outputLanguage,
   } satisfies ChromeLanguageModelAvailabilityOptions;
-}
-
-function buildPromptInputs(
-  context: PromptContext,
-): ChromeLanguageModelIODescriptor[] {
-  const languages = resolvePromptInputLanguages(context);
-  if (languages && languages.length > 0) {
-    return [
-      {
-        type: 'text' as const,
-        language: languages[0],
-        languages,
-      },
-    ];
-  }
-  const fallback = resolvePromptOutputLanguage(context);
-  return [
-    {
-      type: 'text' as const,
-      language: fallback,
-      languages: [fallback],
-    },
-  ];
-}
-
-function buildPromptOutputs(
-  context: PromptContext,
-): ChromeLanguageModelIODescriptor[] {
-  const language = resolvePromptOutputLanguage(context);
-  return [
-    {
-      type: 'text' as const,
-      language,
-      languages: [language],
-    },
-  ];
-}
-
-function resolvePromptInputLanguages(
-  context: PromptContext,
-): string[] | undefined {
-  const preference = getUserLanguagePreference({
-    languagePreference: context.request.settings.languagePreference,
-  });
-
-  if (preference !== 'auto' && preference !== 'browser') {
-    return [normalizeLanguageCode(preference)];
-  }
-
-  if (context.language && context.language.trim().length > 0) {
-    return [normalizeLanguageCode(context.language)];
-  }
-
-  if (preference === 'browser') {
-    return [detectBrowserLanguage()];
-  }
-
-  return undefined;
-}
-
-function resolvePromptOutputLanguage(context: PromptContext): string {
-  const preference = getUserLanguagePreference({
-    languagePreference: context.request.settings.languagePreference,
-  });
-
-  if (preference !== 'auto' && preference !== 'browser') {
-    return resolveSupportedLanguage(
-      preference,
-      SUPPORTED_PROMPT_OUTPUT_LANGUAGES,
-    );
-  }
-
-  if (context.language && context.language.trim().length > 0) {
-    return resolveSupportedLanguage(
-      context.language,
-      SUPPORTED_PROMPT_OUTPUT_LANGUAGES,
-    );
-  }
-
-  if (preference === 'browser') {
-    return resolveSupportedLanguage(
-      detectBrowserLanguage(),
-      SUPPORTED_PROMPT_OUTPUT_LANGUAGES,
-    );
-  }
-
-  return resolveSupportedLanguage(undefined, SUPPORTED_PROMPT_OUTPUT_LANGUAGES);
 }
 
 function buildSystemPrompt(): string {

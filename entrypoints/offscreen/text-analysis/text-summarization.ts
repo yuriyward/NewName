@@ -11,6 +11,7 @@ import type {
   ChromeSummarizerInstance,
   ChromeSummarizerOptions,
 } from '@/entrypoints/shared/integrations/chrome-ai/types';
+import { PREVIEW_LOG_LENGTH, SUMMARIZATION_SAMPLE_SIZE } from './constants';
 
 /**
  * Resolve Summarizer constructor from Chrome's global scope.
@@ -33,26 +34,8 @@ function resolveSummarizerCtor(): ChromeSummarizerConstructor | null {
 }
 
 /**
- * Fallback summary: extract first non-empty line, truncate to 160 chars
- */
-function fallbackSummary(text: string): string | null {
-  const lines = text
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  if (lines.length === 0) {
-    return null;
-  }
-  const first = lines[0];
-  if (first.length <= 160) {
-    return first;
-  }
-  return `${first.slice(0, 157).trimEnd()}…`;
-}
-
-/**
  * Generate a summary of text using Chrome's built-in Summarizer API.
- * Falls back to first line extraction if API unavailable.
+ * Returns null if the API is unavailable or fails.
  */
 export async function summarizeText(
   text: string,
@@ -65,7 +48,7 @@ export async function summarizeText(
       hasGlobal: !!SummarizerCtor,
       hasCreate: !!SummarizerCtor?.create,
     });
-    return fallbackSummary(text);
+    return null;
   }
 
   let summarizer: ChromeSummarizerInstance | null = null;
@@ -77,7 +60,7 @@ export async function summarizeText(
 
     console.log('[Summarizer] Availability check', {
       availability,
-      hasAvailability: availability !== null && availability !== undefined,
+      hasAvailability: !!availability,
       detectedLanguage: language,
     });
 
@@ -94,11 +77,11 @@ export async function summarizeText(
       availability === 'no' ||
       availability === 'unavailable'
     ) {
-      console.log('[Summarizer] API unavailable, using fallback', {
+      console.log('[Summarizer] API unavailable', {
         availability,
       });
-      console.log('[TextUpgradeAI] Summarizer unavailable, using fallback');
-      return fallbackSummary(text);
+      console.log('[TextUpgradeAI] Summarizer unavailable');
+      return null;
     }
 
     // Create summarizer with supported options per Chrome docs
@@ -120,7 +103,10 @@ export async function summarizeText(
     console.log('[Summarizer] Creating with options', createOptions);
     summarizer = await SummarizerCtor.create(createOptions);
 
-    const sample = text.length > 20_000 ? text.slice(0, 20_000) : text;
+    const sample =
+      text.length > SUMMARIZATION_SAMPLE_SIZE
+        ? text.slice(0, SUMMARIZATION_SAMPLE_SIZE)
+        : text;
 
     // Check input usage against quota if available
     let inputUsage: number | undefined;
@@ -136,12 +122,10 @@ export async function summarizeText(
           percentUsed: `${((inputUsage / inputQuota) * 100).toFixed(1)}%`,
         });
 
-        // If input exceeds quota, try with smaller sample
+        // If input exceeds quota, return null
         if (inputUsage > inputQuota) {
-          debugLogger.warn(
-            '[TextUpgradeAI] Input exceeds quota, using fallback',
-          );
-          return fallbackSummary(text);
+          debugLogger.warn('[TextUpgradeAI] Input exceeds quota');
+          return null;
         }
       } catch (usageError) {
         console.log('[TextUpgradeAI] Input usage check failed', {
@@ -153,7 +137,7 @@ export async function summarizeText(
 
     console.log('[Summarizer] Summarizing sample', {
       sampleLength: sample.length,
-      samplePreview: sample.slice(0, 100),
+      samplePreview: sample.slice(0, PREVIEW_LOG_LENGTH),
       language,
       inputUsage,
       inputQuota,
@@ -172,15 +156,15 @@ export async function summarizeText(
       summary: summary,
     });
 
-    // Return the AI summary if available, otherwise fallback
+    // Return the AI summary if available
     const trimmed = summary?.trim();
     if (trimmed && trimmed.length > 0) {
       return trimmed;
     }
-    return fallbackSummary(text);
+    return null;
   } catch (error) {
     debugLogger.warn('[TextUpgradeAI] Summarizer failed', { error });
-    return fallbackSummary(text);
+    return null;
   } finally {
     // CRITICAL: Always destroy to prevent memory leaks
     if (summarizer) {

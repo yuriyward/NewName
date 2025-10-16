@@ -6,6 +6,7 @@ import {
 } from '@/entrypoints/shared/integrations/chrome-ai/language-helpers';
 import type { ChromeLanguageDetectorConstructor } from '@/entrypoints/shared/integrations/chrome-ai/types';
 import type { TextUpgradeAnalysisRequest } from '@/entrypoints/shared/integrations/text-analysis/types';
+import { LANGUAGE_DETECTION_SAMPLE_SIZE } from './constants';
 
 export type LanguageDetectionResult = {
   language?: string;
@@ -35,14 +36,14 @@ export async function detectLanguage(
     };
   }
 
-  const LanguageDetectorCtor = (globalThis as { LanguageDetector?: unknown })
-    .LanguageDetector as ChromeLanguageDetectorConstructor | undefined;
+  const LanguageDetectorCtor = (
+    globalThis as typeof globalThis & {
+      LanguageDetector?: ChromeLanguageDetectorConstructor;
+    }
+  ).LanguageDetector;
 
   if (!LanguageDetectorCtor?.create) {
-    debugLogger.log('[TextUpgradeAI] LanguageDetector API not available', {
-      hasGlobal: !!LanguageDetectorCtor,
-      hasCreate: !!LanguageDetectorCtor?.create,
-    });
+    debugLogger.log('[TextUpgradeAI] LanguageDetector API not available');
     return { source: 'fallback' };
   }
 
@@ -75,7 +76,9 @@ export async function detectLanguage(
         return { source: 'fallback' };
       }
 
-      const results = await detector.detect(text.slice(0, 5_000));
+      const results = await detector.detect(
+        text.slice(0, LANGUAGE_DETECTION_SAMPLE_SIZE),
+      );
       const best = results?.[0];
       if (best?.detectedLanguage) {
         return {
