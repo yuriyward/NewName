@@ -107,6 +107,7 @@ function handleSuccessfulResponse(
     truncated: response.truncatedInput,
     modelSource: response.modelSource,
     promptConfidence: response.promptConfidence,
+    proposalSummary: response.proposal.summary,
   });
   return response.proposal;
 }

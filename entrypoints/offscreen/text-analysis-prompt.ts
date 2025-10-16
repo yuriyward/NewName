@@ -94,7 +94,7 @@ export async function generatePromptFilename(
     const expectedOutputs = buildPromptOutputs(context);
     const outputLanguage = expectedOutputs[0]?.language ?? 'en';
 
-    console.log('[PromptAI] create() options:', {
+    debugLogger.log('[PromptAI] create() options:', {
       expectedInputs,
       expectedOutputs,
       outputLanguage,

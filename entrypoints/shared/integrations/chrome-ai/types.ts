@@ -45,9 +45,7 @@ export type ChromeSummarizerOptions = {
   sharedContext?: string;
 };
 
-export type ChromeSummarizerResult = {
-  summary: string;
-};
+export type ChromeSummarizerResult = string;
 
 export type ChromeSummarizerInstance = {
   summarize: (
@@ -58,6 +56,8 @@ export type ChromeSummarizerInstance = {
       expectedInputLanguages?: string[];
     },
   ) => Promise<ChromeSummarizerResult>;
+  measureInputUsage?: (input: string) => Promise<number>;
+  inputQuota?: number;
   destroy?: () => void;
 };
 
