@@ -38,8 +38,9 @@ export async function emitStatus(
     try {
       await sendConfirmToastStatus(statusMessage, tabId);
     } catch (error) {
-      debugLogger.warn(
-        '[ConfirmToast] Failed to send status to tab',
+      // This is expected to fail for tabs that were closed or navigated to restricted URLs
+      debugLogger.log(
+        '[ConfirmToast] Failed to send status to tab (may be closed or restricted)',
         tabId,
         error,
       );

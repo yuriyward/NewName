@@ -168,8 +168,10 @@ export function createConfirmToastController(
     try {
       await sendShowConfirmToast(payload, target);
     } catch (error) {
-      debugLogger.error(
-        '[ConfirmToast] Failed to dispatch toast to content script',
+      // This is expected to fail for restricted tabs (chrome://, about:, etc.)
+      // where content scripts cannot be injected. Log at debug level.
+      debugLogger.log(
+        '[ConfirmToast] Failed to dispatch toast to content script (may be restricted URL)',
         {
           toastId: payload.proposal.toastId,
           error,

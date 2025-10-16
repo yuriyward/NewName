@@ -19,10 +19,7 @@ import type {
   AiPipelineTelemetryPayload,
   EnsureAiModelsRequestPayload,
 } from '@/entrypoints/shared/messaging/extension-messaging';
-import {
-  onExtensionMessage,
-  sendShowConfirmToast,
-} from '@/entrypoints/shared/messaging/extension-messaging';
+import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import { updateSettings } from '@/entrypoints/shared/settings/settings';
 import { registerPageContextService } from '@/entrypoints/shared/state/page-context-service';
 import { createDeterminingListener } from './background/download-coordinator';
@@ -37,6 +34,7 @@ import {
 } from './background/rename-orchestrator';
 import { ensureSettingsCache } from './background/settings-cache';
 import { createConfirmToastController } from './background/toast/confirmation-controller';
+import { createTabActivationBroadcaster } from './background/toast/tab-activation-broadcaster';
 import { createCloudConsentManager } from './background/upgrade/cloud-consent-manager';
 import { createUpgradeCoordinator } from './background/upgrade/coordinator';
 import { createTextUpgradeAnalysisRequester } from './background/upgrade/text-analysis-request';
@@ -260,28 +258,10 @@ function initializeBackground(): void {
   });
 
   // Re-broadcast pending toasts to newly active tabs
-  browser.tabs.onActivated.addListener((activeInfo) => {
-    const pendingToasts = confirmToastController.getAllPending();
-    if (pendingToasts.length === 0) return;
-
-    // Send all pending toasts to the newly active tab
-    for (const entry of pendingToasts) {
-      void sendShowConfirmToast({ proposal: entry.proposal }, activeInfo.tabId)
-        .then(() => {
-          // Track that this tab has received the toast
-          if (entry.visibleOnTabs) {
-            entry.visibleOnTabs.add(activeInfo.tabId);
-          }
-        })
-        .catch((error) => {
-          debugLogger.warn(
-            '[ConfirmToast] Failed to broadcast toast to tab',
-            activeInfo.tabId,
-            error,
-          );
-        });
-    }
-  });
+  const tabActivationBroadcaster = createTabActivationBroadcaster(
+    confirmToastController,
+  );
+  tabActivationBroadcaster.registerListener();
 
   browser.downloads.onChanged.addListener((delta) => {
     const info = downloadTracking.get(delta.id);
