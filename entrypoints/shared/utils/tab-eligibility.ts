@@ -58,11 +58,30 @@ export function isUrlEligibleForContentScript(
  * @returns true if the tab can receive toast messages, false otherwise
  */
 export function isTabEligibleForToast(
-  tab: { id?: number; url?: string } | null | undefined,
+  tab:
+    | {
+        id?: number;
+        url?: string | null;
+        pendingUrl?: string | null;
+      }
+    | null
+    | undefined,
 ): boolean {
   if (!tab || typeof tab.id !== 'number') {
     return false;
   }
 
-  return isUrlEligibleForContentScript(tab.url);
+  const candidateUrl =
+    typeof tab.url === 'string'
+      ? tab.url
+      : typeof tab.pendingUrl === 'string'
+        ? tab.pendingUrl
+        : undefined;
+
+  if (!candidateUrl) {
+    // Treat tabs without a visible URL (due to permissions) as eligible.
+    return true;
+  }
+
+  return isUrlEligibleForContentScript(candidateUrl);
 }

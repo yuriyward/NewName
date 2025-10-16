@@ -41,6 +41,26 @@ export type AiPipelineTelemetryPayload =
   | {
       type: 'routed';
       source: TextUpgradeModelSource;
+    }
+  | {
+      type: 'decision';
+      shouldRename: boolean;
+      reason: string;
+      confidence: number;
+    }
+  | {
+      type: 'generation-success';
+      confidence: number;
+    }
+  | {
+      type: 'generation-failure';
+      error: string;
+    }
+  | {
+      type: 'prompt-pipeline-complete';
+      decisionTimeMs: number;
+      generationTimeMs: number;
+      totalMs: number;
     };
 
 export interface ExtensionMessagingProtocol {

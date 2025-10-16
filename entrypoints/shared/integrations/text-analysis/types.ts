@@ -51,10 +51,13 @@ export interface TextUpgradeAnalysisSuccess {
   truncatedInput?: boolean;
   promptConfidence?: number;
   promptUsed?: boolean;
+  decisionReason?: string; // Why we decided to rename (from rename-decision module)
   metrics?: {
     bytesFetched: number;
     requests: number;
     elapsedMs: number;
+    promptCalls?: number; // Number of Prompt API calls made (decision + generation)
+    decisionConfidence?: number; // Confidence from the rename decision
   };
 }
 

@@ -23,8 +23,17 @@ import {
   extractStemFromBaseline,
   formatReasonTags,
 } from './filename-builder';
+import { generateFilenameStem } from './filename-generation';
 import { detectLanguage } from './language-detection';
-import { recordPipelineBlocked, recordPipelineRouted } from './telemetry';
+import { decideIfShouldRename } from './rename-decision';
+import {
+  recordDecisionMade,
+  recordGenerationFailure,
+  recordGenerationSuccess,
+  recordPipelineBlocked,
+  recordPipelineRouted,
+  recordPromptPipelineComplete,
+} from './telemetry';
 import { summarizeText } from './text-summarization';
 
 function mapModelStatuses(statuses: AiModelStatusMap): Record<string, string> {
@@ -66,13 +75,14 @@ export async function runTextUpgradePipeline(
   try {
     console.log('[TextUpgradeAI] Checking AI model availability', {
       requestId: request.requestId,
-      models: ['language-detector', 'summarizer'],
+      models: ['language-detector', 'summarizer', 'language-model'],
     });
 
     // Ask background context to prepare the required models
     // Model preparation uses default options (key-points, markdown, short, English)
+    // language-model is for Prompt API (decision + generation)
     modelStatuses = await ensureAiModelsReadyRemote({
-      ids: ['language-detector', 'summarizer'],
+      ids: ['language-detector', 'summarizer', 'language-model'],
     });
   } catch (error) {
     onDeviceReady = false;
@@ -110,7 +120,7 @@ export async function runTextUpgradePipeline(
   // Generate summary using Chrome's built-in Summarizer API
   const summary = await summarizeText(ingestion.text, subjectLanguage.language);
 
-  console.log('[TextUpgradeAI] Processing complete', {
+  console.log('[TextUpgradeAI] Language detection and summarization complete', {
     requestId: request.requestId,
     filename: request.filename,
     language: subjectLanguage.language,
@@ -122,13 +132,104 @@ export async function runTextUpgradePipeline(
 
   const modelSource: TextUpgradeModelSource = 'on-device';
 
-  // Use baseline filename as subject (without extension)
-  const subject = extractStemFromBaseline(
-    request.baseline.final || request.filename,
+  // ===================================================================
+  // PHASE 1: Rename Decision (Prompt API call #1)
+  // Decide if the current filename needs renaming
+  // ===================================================================
+  const decisionStartTime = Date.now();
+  const decision = await decideIfShouldRename(
+    {
+      currentFilename: request.baseline.final || request.filename,
+      summary: summary || undefined,
+      language: subjectLanguage.language,
+      originalName: request.filename,
+      fileType: request.fileType,
+    },
+    {
+      language: request.settings.languagePreference,
+      mode: request.settings.mode,
+    },
   );
+  const decisionElapsedMs = Date.now() - decisionStartTime;
+
+  // Track decision metrics
+  if (decision) {
+    recordDecisionMade(
+      decision.shouldRename,
+      decision.reason,
+      decision.confidence,
+    );
+  }
+
+  // If AI says don't rename or decision failed, respect that and keep baseline
+  if (!decision || !decision.shouldRename) {
+    console.log('[TextUpgradeAI] Keeping baseline filename', {
+      requestId: request.requestId,
+      filename: request.baseline.final,
+      hasDecision: !!decision,
+      reason: decision?.reason || 'no-decision',
+      confidence: decision?.confidence,
+      explanation: decision?.explanation,
+    });
+    return null; // No upgrade proposal - keep baseline
+  }
+
+  console.log('[TextUpgradeAI] Decision: rename needed', {
+    requestId: request.requestId,
+    reason: decision.reason,
+    confidence: decision.confidence,
+    explanation: decision.explanation,
+    decisionTimeMs: decisionElapsedMs,
+  });
+
+  // ===================================================================
+  // PHASE 2: Filename Generation (Prompt API call #2)
+  // Generate new filename stem based on content
+  // ===================================================================
+  const generationStartTime = Date.now();
+  let generatedStem: string | null = null;
+
+  if (summary && summary.trim().length > 0) {
+    generatedStem = await generateFilenameStem({
+      summary: summary,
+      language: subjectLanguage.language,
+      currentBaseline: request.baseline.final || request.filename,
+      settings: {
+        maxLength: request.settings.maxFilenameLength,
+        separator: request.settings.separator,
+        transliterateAscii: request.settings.transliterateAscii,
+      },
+    });
+  }
+
+  const generationElapsedMs = Date.now() - generationStartTime;
+
+  // Track generation metrics
+  if (generatedStem) {
+    recordGenerationSuccess(decision.confidence);
+    recordPromptPipelineComplete(decisionElapsedMs, generationElapsedMs);
+  } else {
+    recordGenerationFailure('no-stem-generated');
+  }
+
+  // Use AI-generated stem or fallback to baseline extraction
+  const subject =
+    generatedStem ||
+    extractStemFromBaseline(request.baseline.final || request.filename);
+
   if (!subject || subject.trim().length === 0) {
+    console.log('[TextUpgradeAI] No valid subject for filename', {
+      requestId: request.requestId,
+    });
     return null;
   }
+
+  console.log('[TextUpgradeAI] Filename generation complete', {
+    requestId: request.requestId,
+    generatedStem,
+    usedFallback: !generatedStem,
+    generationTimeMs: generationElapsedMs,
+  });
 
   const filenameResult = buildFilename({
     request,
@@ -155,7 +256,10 @@ export async function runTextUpgradePipeline(
     proposedFilename,
   );
 
-  const promptUsed = false; // No prompt API used in simplified version
+  const promptUsed = !!generatedStem; // Prompt API used if we generated a stem
+
+  // Determine auto-apply based on decision confidence
+  const shouldAutoApply = decision.confidence >= 0.9;
 
   const success: TextUpgradeAnalysisSuccess = {
     status: 'success',
@@ -164,8 +268,8 @@ export async function runTextUpgradePipeline(
     proposal: {
       proposedFilename,
       proposedPath,
-      confidence: 'suggested',
-      autoApply: false,
+      confidence: decision.confidence >= 0.8 ? 'high' : 'suggested',
+      autoApply: shouldAutoApply,
       reasonTags: formatReasonTags(
         subjectLanguage.language,
         promptUsed,
@@ -173,18 +277,23 @@ export async function runTextUpgradePipeline(
       ),
       generatedAt: Date.now(),
       source: 'ai',
-      summary: buildProposalSummary(subjectLanguage.language, summary),
+      summary:
+        decision.explanation ||
+        buildProposalSummary(subjectLanguage.language, summary),
     },
     language: subjectLanguage.language,
     languageConfidence: subjectLanguage.confidence,
     modelSource,
     truncatedInput: ingestion.truncated,
-    promptConfidence: undefined,
+    promptConfidence: decision.confidence,
     promptUsed,
+    decisionReason: decision.reason, // NEW: Include decision reason
     metrics: {
       bytesFetched: ingestion.metrics.readBytes,
       requests: 1,
       elapsedMs: ingestion.metrics.elapsedMs,
+      promptCalls: 2, // NEW: Decision + generation calls
+      decisionConfidence: decision.confidence, // NEW: Decision confidence
     },
   };
 
