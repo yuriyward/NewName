@@ -73,7 +73,7 @@ const FILENAME_GENERATION_SCHEMA = {
     },
     explanation: {
       type: 'string',
-      maxLength: 200,
+      maxLength: 100,
       description: 'Brief explanation of why this filename was chosen',
     },
   },
@@ -93,7 +93,7 @@ function buildGenerationPrompt(context: FilenameGenerationContext): string {
   });
 
   // Truncate summary if too long to avoid token limits
-  const summaryForPrompt = truncateForPrompt(context.summary, 1500);
+  const summaryForPrompt = truncateForPrompt(context.summary, 800);
 
   const policyRules = formatPolicyRules(context.settings);
 
@@ -104,31 +104,27 @@ function buildGenerationPrompt(context: FilenameGenerationContext): string {
         ? 'budget-meeting-notes'
         : 'budget_meeting_notes';
 
-  return `Generate a clear, descriptive filename based on this file's content:
+  return `Generate a descriptive filename based on this content:
 
 ${baseContext}
 
-Content summary for naming:
+Content summary:
 ${summaryForPrompt}
 
-**Filename Generation Rules:**
+**Rules:**
 ${policyRules}
 
 **Guidelines:**
-1. Focus on the main topic or subject from the summary
-2. Use existing filename style/delimiter if the baseline is well-formatted
-3. Create human-readable names, not technical identifiers
-4. Avoid redundant words from the summary
-5. Keep the stem concise but descriptive (aim for 3-6 words)
-6. Only add qualifiers if they provide meaningful context (version, category)
-7. Do NOT include the file extension in the stem
+- Focus on main topic from summary (3-6 words ideal)
+- Use human-readable names, avoid technical jargon
+- NO file extension in stem
+- Add qualifiers only if meaningful (version, category)
 
 **Examples:**
-- Summary: "Meeting notes discussing Q1 budget allocation" → stem: "${separatorExample}"
-- Summary: "API documentation for authentication endpoints" → stem: "API Authentication Docs"
-- Summary: "Project roadmap and timeline for 2024" → stem: "Project Roadmap 2024"
+- "Meeting notes discussing Q1 budget allocation" → "${separatorExample}"
+- "API documentation for authentication endpoints" → "API Authentication Docs"
 
-Generate a filename stem that best represents the content. Respond with JSON only.`;
+Respond with JSON: {"stem": "...", "confidence": 0.0-1.0, "explanation": "..."}`;
 }
 
 /**
@@ -305,7 +301,17 @@ export async function generateFilenameComplete(
     const prompt = buildGenerationPrompt(context);
     const response = await session.prompt(prompt, {
       responseConstraint: FILENAME_GENERATION_SCHEMA,
-      omitResponseConstraintInput: false,
+      omitResponseConstraintInput: true,
+    });
+
+    // Log token usage for debugging
+    console.log('[FilenameGeneration] Token usage after prompt', {
+      inputUsage: session.inputUsage,
+      inputQuota: session.inputQuota,
+      percentUsed:
+        session.inputUsage && session.inputQuota
+          ? `${((session.inputUsage / session.inputQuota) * 100).toFixed(1)}%`
+          : 'unknown',
     });
 
     const generation = parseStructuredResponse<FilenameGeneration>(

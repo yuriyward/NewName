@@ -248,7 +248,17 @@ export async function decideIfShouldRename(
     // Make the Prompt API call with JSON schema constraint
     const response = await session.prompt(prompt, {
       responseConstraint: RENAME_DECISION_SCHEMA,
-      omitResponseConstraintInput: false, // Include schema in context for better adherence
+      omitResponseConstraintInput: true, // Omit schema to save tokens (format guidance in prompt)
+    });
+
+    // Log token usage for debugging
+    console.log('[RenameDecision] Token usage after prompt', {
+      inputUsage: session.inputUsage,
+      inputQuota: session.inputQuota,
+      percentUsed:
+        session.inputUsage && session.inputQuota
+          ? `${((session.inputUsage / session.inputQuota) * 100).toFixed(1)}%`
+          : 'unknown',
     });
 
     console.log('[RenameDecision] Received response', {
