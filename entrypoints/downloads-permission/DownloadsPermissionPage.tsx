@@ -1,10 +1,8 @@
 /**
  * Full-page downloads folder permission onboarding interface
  */
-import {
-  CheckCircleIcon,
-  ShieldExclamationIcon,
-} from '@heroicons/react/24/outline';
+import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
+import ShieldExclamationIcon from '@heroicons/react/24/outline/ShieldExclamationIcon';
 import { type JSX, useEffect, useRef, useState } from 'react';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {

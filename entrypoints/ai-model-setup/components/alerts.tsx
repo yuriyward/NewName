@@ -1,4 +1,5 @@
-import { ArrowPathIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import ArrowPathIcon from '@heroicons/react/24/outline/ArrowPathIcon';
+import SparklesIcon from '@heroicons/react/24/outline/SparklesIcon';
 import type { JSX } from 'react';
 import { CopyableUrl } from './CopyableUrl';
 

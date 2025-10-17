@@ -1,8 +1,6 @@
-import {
-  CheckIcon,
-  InformationCircleIcon,
-  ShieldExclamationIcon,
-} from '@heroicons/react/24/outline';
+import CheckIcon from '@heroicons/react/24/outline/CheckIcon';
+import InformationCircleIcon from '@heroicons/react/24/outline/InformationCircleIcon';
+import ShieldExclamationIcon from '@heroicons/react/24/outline/ShieldExclamationIcon';
 import type { JSX } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';

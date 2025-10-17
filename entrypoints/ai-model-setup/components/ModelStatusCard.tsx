@@ -1,9 +1,7 @@
-import {
-  ArrowPathIcon,
-  BoltIcon,
-  CheckCircleIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+import ArrowPathIcon from '@heroicons/react/24/outline/ArrowPathIcon';
+import BoltIcon from '@heroicons/react/24/outline/BoltIcon';
+import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
+import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import type { JSX } from 'react';
 import type { AiModelStatus } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import { MODEL_LABELS, STATE_DESCRIPTIONS, STATE_TONES } from '../constants';

@@ -1,11 +1,9 @@
-import {
-  ArrowPathIcon,
-  CheckCircleIcon,
-  ClipboardDocumentIcon,
-  ExclamationTriangleIcon,
-  SparklesIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+import ArrowPathIcon from '@heroicons/react/24/outline/ArrowPathIcon';
+import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
+import ClipboardDocumentIcon from '@heroicons/react/24/outline/ClipboardDocumentIcon';
+import ExclamationTriangleIcon from '@heroicons/react/24/outline/ExclamationTriangleIcon';
+import SparklesIcon from '@heroicons/react/24/outline/SparklesIcon';
+import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import { type JSX, useState } from 'react';
 import type { SystemDiagnostics } from '@/entrypoints/shared/integrations/chrome-ai/diagnostics';
 import { CopyableUrl } from './CopyableUrl';

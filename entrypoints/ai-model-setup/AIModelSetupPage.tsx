@@ -1,9 +1,7 @@
-import {
-  ArrowPathIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+import ArrowPathIcon from '@heroicons/react/24/outline/ArrowPathIcon';
+import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
+import ExclamationTriangleIcon from '@heroicons/react/24/outline/ExclamationTriangleIcon';
+import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import { type JSX, useEffect, useMemo, useState } from 'react';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {

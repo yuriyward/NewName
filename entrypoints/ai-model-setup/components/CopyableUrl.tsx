@@ -1,4 +1,5 @@
-import { CheckIcon, ClipboardDocumentIcon } from '@heroicons/react/24/outline';
+import CheckIcon from '@heroicons/react/24/outline/CheckIcon';
+import ClipboardDocumentIcon from '@heroicons/react/24/outline/ClipboardDocumentIcon';
 import { type JSX, useState } from 'react';
 
 interface CopyableUrlProps {
