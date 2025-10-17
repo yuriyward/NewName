@@ -33,6 +33,13 @@ export function createTabActivationBroadcaster(
         // Check if the activated tab is eligible for content script injection
         try {
           const tab = await browser.tabs.get(activeInfo.tabId);
+          if (!tab) {
+            debugLogger.log('[ConfirmToast] Activated tab not found', {
+              tabId: activeInfo.tabId,
+            });
+            return;
+          }
+
           if (!isUrlEligibleForContentScript(tab.url)) {
             // Silently skip restricted tabs (chrome://, about:, etc.)
             debugLogger.log(

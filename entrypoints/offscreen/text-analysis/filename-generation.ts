@@ -11,7 +11,6 @@ import {
   createPromptSession,
   destroyPromptSession,
   formatPolicyRules,
-  looksLikeJson,
   parseStructuredResponse,
   truncateForPrompt,
 } from './prompt-helpers';
@@ -245,59 +244,18 @@ export async function generateFilenameStem(
     maxLength: context.settings.maxLength,
   });
 
-  let session: Awaited<ReturnType<typeof createPromptSession>> = null;
-
   try {
-    // Create session with moderate temperature for balanced creativity
-    session = await createPromptSession({
-      temperature: 0.4, // Moderate temperature = creative but controlled
-      topK: 20,
-      systemPrompt: GENERATION_SYSTEM_PROMPT,
-      outputLanguage: 'en', // Filenames in English for broad compatibility
-    });
-
-    if (!session) {
-      console.log('[FilenameGeneration] Failed to create prompt session');
-      return null;
-    }
-
-    // Build the generation prompt
-    const prompt = buildGenerationPrompt(context);
-
-    console.log('[FilenameGeneration] Calling Prompt API', {
-      promptLength: prompt.length,
-    });
-
-    // Make the Prompt API call with JSON schema constraint
-    const response = await session.prompt(prompt, {
-      responseConstraint: FILENAME_GENERATION_SCHEMA,
-      omitResponseConstraintInput: false, // Include schema for better adherence
-    });
-
-    console.log('[FilenameGeneration] Received response', {
-      responseLength: response.length,
-      looksLikeJson: looksLikeJson(response),
-    });
-
-    // Parse the structured JSON response
-    const generation = parseStructuredResponse<FilenameGeneration>(
-      response,
-      'filename-generation',
-    );
+    // Generate the complete filename object (stem + qualifiers)
+    const generation = await generateFilenameComplete(context);
 
     if (!generation) {
-      console.log('[FilenameGeneration] Failed to parse response');
+      console.log('[FilenameGeneration] Failed to generate complete filename');
       return null;
     }
 
-    // Validate the generation structure
-    if (!validateGenerationResponse(generation)) {
-      console.log('[FilenameGeneration] Response validation failed');
-      return null;
-    }
-
-    // Return the generated stem (qualifiers are stored in the generation object
-    // but are handled by the policy engine during filename composition)
+    // Return the generated stem (qualifiers are generated but not exposed in this
+    // function; use generateFilenameComplete() if qualifiers are needed).
+    // The stem is typically passed to buildFilename() which applies naming policies.
     const trimmedStem = generation.stem.trim();
 
     console.log('[FilenameGeneration] Generation successful', {
@@ -314,11 +272,6 @@ export async function generateFilenameStem(
       baseline: context.currentBaseline,
     });
     return null;
-  } finally {
-    // CRITICAL: Always destroy session to prevent memory leaks
-    if (session) {
-      destroyPromptSession(session);
-    }
   }
 }
 
@@ -385,23 +338,4 @@ export function isHighConfidenceGeneration(
   generation: FilenameGeneration,
 ): boolean {
   return generation.confidence >= 0.8;
-}
-
-/**
- * Sanitize the generated stem to ensure it's safe for filenames.
- * This is a safety check before passing to the policy engine.
- */
-export function sanitizeGeneratedStem(stem: string): string {
-  return (
-    stem
-      .trim()
-      // Remove any accidental file extensions
-      .replace(/\.(txt|md|doc|pdf|json|xml)$/i, '')
-      // Remove multiple spaces
-      .replace(/\s+/g, ' ')
-      // Remove leading/trailing special chars
-      .replace(/^[^a-zA-Z0-9]+/, '')
-      .replace(/[^a-zA-Z0-9]+$/, '')
-      .trim()
-  );
 }

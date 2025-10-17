@@ -29,6 +29,22 @@ export function resolveLanguageModelCtor(): ChromeLanguageModelConstructor | nul
 }
 
 /**
+ * Normalize language model options for Chrome version compatibility.
+ * Ensures both old (outputLanguage) and new (expectedOutputs) API formats are present.
+ * - outputLanguage: Old format (Chrome <140)
+ * - expectedOutputs: New format (Chrome 140+)
+ */
+function normalizeLanguageModelOptions(options?: {
+  outputLanguage?: string;
+}): ChromeLanguageModelCreateOptions {
+  const outputLang = options?.outputLanguage || 'en';
+  return {
+    outputLanguage: outputLang,
+    expectedOutputs: [{ type: 'text', languages: [outputLang] }],
+  };
+}
+
+/**
  * Check if the LanguageModel (Prompt API) is available and ready.
  * Returns availability status string or null if API not present.
  * Supports both old (outputLanguage) and new (expectedOutputs) API formats
@@ -45,19 +61,13 @@ export async function checkLanguageModelAvailability(options?: {
   }
 
   try {
-    // Ensure both API formats are present for Chrome version compatibility:
-    // - outputLanguage: Old format (Chrome <140)
-    // - expectedOutputs: New format (Chrome 140+)
-    const outputLang = options?.outputLanguage || 'en';
-    const availability = await LanguageModelCtor.availability({
-      outputLanguage: outputLang,
-      expectedOutputs: [{ type: 'text', languages: [outputLang] }],
-    });
+    const normalizedOptions = normalizeLanguageModelOptions(options);
+    const availability =
+      await LanguageModelCtor.availability(normalizedOptions);
 
     console.log('[PromptHelpers] Availability check', {
       availability,
-      outputLanguage: outputLang,
-      expectedOutputs: [{ type: 'text', languages: [outputLang] }],
+      ...normalizedOptions,
     });
 
     return availability;
@@ -84,27 +94,20 @@ export async function createPromptSession(
   }
 
   try {
-    // Ensure both API formats are present for Chrome version compatibility:
-    // - outputLanguage: Old format (Chrome <140)
-    // - expectedOutputs: New format (Chrome 140+)
-    const outputLang = options.outputLanguage || 'en';
-    const createOptions: ChromeLanguageModelCreateOptions = {
+    const normalizedOptions: ChromeLanguageModelCreateOptions = {
       ...options,
-      outputLanguage: outputLang,
-      expectedOutputs: options.expectedOutputs || [
-        { type: 'text', languages: [outputLang] },
-      ],
+      ...normalizeLanguageModelOptions(options),
     };
 
     console.log('[PromptHelpers] Creating prompt session', {
-      hasSystemPrompt: !!createOptions.systemPrompt,
-      temperature: createOptions.temperature,
-      topK: createOptions.topK,
-      outputLanguage: createOptions.outputLanguage,
-      expectedOutputs: createOptions.expectedOutputs,
+      hasSystemPrompt: !!normalizedOptions.systemPrompt,
+      temperature: normalizedOptions.temperature,
+      topK: normalizedOptions.topK,
+      outputLanguage: normalizedOptions.outputLanguage,
+      expectedOutputs: normalizedOptions.expectedOutputs,
     });
 
-    const session = await LanguageModelCtor.create(createOptions);
+    const session = await LanguageModelCtor.create(normalizedOptions);
 
     if (!session) {
       debugLogger.warn('[PromptHelpers] Session created but is null');
@@ -231,48 +234,6 @@ export function destroyPromptSession(
   } catch (error) {
     debugLogger.warn('[PromptHelpers] Session destruction failed', { error });
   }
-}
-
-/**
- * Check if a string appears to be a valid JSON object.
- * Quick pre-validation before attempting JSON.parse().
- */
-export function looksLikeJson(value: string): boolean {
-  const trimmed = value.trim();
-  return (
-    (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
-    (trimmed.startsWith('[') && trimmed.endsWith(']'))
-  );
-}
-
-/**
- * Get default prompt API parameters from the LanguageModel API.
- * Falls back to safe defaults if API not available.
- */
-export async function getDefaultPromptParams(): Promise<{
-  defaultTemperature: number;
-  defaultTopK: number;
-}> {
-  const LanguageModelCtor = resolveLanguageModelCtor();
-
-  if (LanguageModelCtor?.params) {
-    try {
-      const params = await LanguageModelCtor.params();
-      console.log('[PromptHelpers] Retrieved default params', params);
-      return {
-        defaultTemperature: params.defaultTemperature ?? 1.0,
-        defaultTopK: params.defaultTopK ?? 3,
-      };
-    } catch (error) {
-      debugLogger.warn('[PromptHelpers] Failed to get params', { error });
-    }
-  }
-
-  // Fallback to safe defaults
-  return {
-    defaultTemperature: 1.0,
-    defaultTopK: 3,
-  };
 }
 
 /**

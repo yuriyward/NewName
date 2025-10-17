@@ -12,7 +12,9 @@ describe('target-resolver', () => {
   });
 
   it('returns the tab id when active tab can be resolved', async () => {
-    fakeBrowser.tabs.query = vi.fn().mockResolvedValue([{ id: 99 }]);
+    fakeBrowser.tabs.query = vi
+      .fn()
+      .mockResolvedValue([{ id: 99, url: 'https://example.com' }]);
 
     const target = await resolveTarget();
     expect(target).toBe(99);

@@ -36,6 +36,10 @@ import {
 } from './telemetry';
 import { summarizeText } from './text-summarization';
 
+// Confidence thresholds for rename decision logic
+const HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD = 0.9;
+const HIGH_CONFIDENCE_DISPLAY_THRESHOLD = 0.8;
+
 function mapModelStatuses(statuses: AiModelStatusMap): Record<string, string> {
   return Object.fromEntries(
     Object.entries(statuses).map(([key, value]) => [key, value.state]),
@@ -137,19 +141,13 @@ export async function runTextUpgradePipeline(
   // Decide if the current filename needs renaming
   // ===================================================================
   const decisionStartTime = Date.now();
-  const decision = await decideIfShouldRename(
-    {
-      currentFilename: request.baseline.final || request.filename,
-      summary: summary || undefined,
-      language: subjectLanguage.language,
-      originalName: request.filename,
-      fileType: request.fileType,
-    },
-    {
-      language: request.settings.languagePreference,
-      mode: request.settings.mode,
-    },
-  );
+  const decision = await decideIfShouldRename({
+    currentFilename: request.baseline.final || request.filename,
+    summary: summary || undefined,
+    language: subjectLanguage.language,
+    originalName: request.filename,
+    fileType: request.fileType,
+  });
   const decisionElapsedMs = Date.now() - decisionStartTime;
 
   // Track decision metrics
@@ -259,7 +257,8 @@ export async function runTextUpgradePipeline(
   const promptUsed = !!generatedStem; // Prompt API used if we generated a stem
 
   // Determine auto-apply based on decision confidence
-  const shouldAutoApply = decision.confidence >= 0.9;
+  const shouldAutoApply =
+    decision.confidence >= HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD;
 
   const success: TextUpgradeAnalysisSuccess = {
     status: 'success',
@@ -268,7 +267,10 @@ export async function runTextUpgradePipeline(
     proposal: {
       proposedFilename,
       proposedPath,
-      confidence: decision.confidence >= 0.8 ? 'high' : 'suggested',
+      confidence:
+        decision.confidence >= HIGH_CONFIDENCE_DISPLAY_THRESHOLD
+          ? 'high'
+          : 'suggested',
       autoApply: shouldAutoApply,
       reasonTags: formatReasonTags(
         subjectLanguage.language,

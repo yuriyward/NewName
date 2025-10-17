@@ -11,7 +11,6 @@ import {
   buildBaseContextDescription,
   createPromptSession,
   destroyPromptSession,
-  looksLikeJson,
   parseStructuredResponse,
 } from './prompt-helpers';
 
@@ -211,12 +210,10 @@ Always respond with valid JSON matching the provided schema.`;
  * the decision or null if unavailable/failed.
  *
  * @param context - Information about the file and current name
- * @param settings - User settings (currently unused, reserved for future)
  * @returns RenameDecision object or null if decision cannot be made
  */
 export async function decideIfShouldRename(
   context: RenameDecisionContext,
-  _settings?: { language?: string; mode?: string },
 ): Promise<RenameDecision | null> {
   console.log('[RenameDecision] Starting decision analysis', {
     filename: context.currentFilename,
@@ -256,7 +253,6 @@ export async function decideIfShouldRename(
 
     console.log('[RenameDecision] Received response', {
       responseLength: response.length,
-      looksLikeJson: looksLikeJson(response),
     });
 
     // Parse the structured JSON response
@@ -296,19 +292,4 @@ export async function decideIfShouldRename(
       destroyPromptSession(session);
     }
   }
-}
-
-/**
- * Helper to determine if a decision has high confidence.
- * Used to decide whether to auto-apply or show confirmation.
- */
-export function isHighConfidenceDecision(decision: RenameDecision): boolean {
-  return decision.confidence >= 0.85;
-}
-
-/**
- * Helper to check if the decision reason indicates the name is already good.
- */
-export function isNameAlreadyGood(reason: RenameDecisionReason): boolean {
-  return reason === 'already-descriptive' || reason === 'contains-topic';
 }
