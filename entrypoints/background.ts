@@ -4,12 +4,22 @@
 import { browser } from 'wxt/browser';
 import { initializeBackgroundDebug } from '@/entrypoints/shared/debug/console-helpers';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import {
+  ensureAiModelsReady,
+  refreshAiModelStatuses,
+} from '@/entrypoints/shared/integrations/chrome-ai/model-status';
+import { registerAiModelStatusService } from '@/entrypoints/shared/integrations/chrome-ai/model-status-service';
+import {
+  recordAiPipelineBlocked,
+  recordAiPipelineRouted,
+} from '@/entrypoints/shared/integrations/chrome-ai/telemetry';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
-import {
-  onExtensionMessage,
-  sendShowConfirmToast,
+import type {
+  AiPipelineTelemetryPayload,
+  EnsureAiModelsRequestPayload,
 } from '@/entrypoints/shared/messaging/extension-messaging';
+import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import { updateSettings } from '@/entrypoints/shared/settings/settings';
 import { registerPageContextService } from '@/entrypoints/shared/state/page-context-service';
 import { createDeterminingListener } from './background/download-coordinator';
@@ -24,7 +34,10 @@ import {
 } from './background/rename-orchestrator';
 import { ensureSettingsCache } from './background/settings-cache';
 import { createConfirmToastController } from './background/toast/confirmation-controller';
+import { createTabActivationBroadcaster } from './background/toast/tab-activation-broadcaster';
+import { createCloudConsentManager } from './background/upgrade/cloud-consent-manager';
 import { createUpgradeCoordinator } from './background/upgrade/coordinator';
+import { createTextUpgradeAnalysisRequester } from './background/upgrade/text-analysis-request';
 
 const readSettings = ensureSettingsCache();
 
@@ -47,6 +60,7 @@ browser.runtime.onInstalled.addListener((details) => {
 });
 
 function initializeBackground(): void {
+  const cloudConsentManager = createCloudConsentManager();
   const confirmToastController = createConfirmToastController({
     async onUserDecision(entry, decision, helpers) {
       debugLogger.log(
@@ -118,14 +132,39 @@ function initializeBackground(): void {
   const upgradeCoordinator = createUpgradeCoordinator({
     confirmToastController,
     readSettings,
+    requestAnalysis: createTextUpgradeAnalysisRequester({
+      requestCloudConsent: (context) =>
+        cloudConsentManager.requestConsent(context),
+      applyCloudAlways: async () => {
+        const current = readSettings();
+        if (
+          current.cloud.textFallbackMode === 'always' &&
+          current.cloud.enabled
+        ) {
+          return;
+        }
+        await updateSettings({
+          cloud: {
+            ...current.cloud,
+            enabled: true,
+            textFallbackMode: 'always',
+          },
+        });
+      },
+    }),
   });
 
   void upgradeCoordinator.cleanupOrphanedAlarms();
 
   registerInstallDateListener();
   initializeBackgroundDebug();
+  void refreshAiModelStatuses().catch((error) => {
+    debugLogger.warn('[AIModels] Initial availability probe failed', { error });
+  });
 
   const pageContextService = registerPageContextService();
+  registerAiModelStatusService();
+
   if (import.meta.env.DEV) {
     // Development mode override
     void (async () => {
@@ -156,6 +195,33 @@ function initializeBackground(): void {
     frameId: sender.frameId,
     url: sender.url ?? sender.tab?.url ?? null,
   }));
+
+  onExtensionMessage('requestCloudConsentDetails', async ({ data }) => {
+    return cloudConsentManager.getDetails(data.token);
+  });
+
+  onExtensionMessage('submitCloudConsentDecision', async ({ data }) => {
+    await cloudConsentManager.submitDecision(data.token, data.decision);
+    return { ok: true };
+  });
+
+  onExtensionMessage('ensureAiModelsReady', async ({ data }) => {
+    const payload = data as EnsureAiModelsRequestPayload;
+    const ids = payload.ids;
+    debugLogger.log('[AIModels] ensureAiModelsReady request', { ids });
+    const statuses = await ensureAiModelsReady({ ids });
+    return statuses;
+  });
+
+  onExtensionMessage('recordAiPipelineTelemetry', ({ data }) => {
+    const payload = data as AiPipelineTelemetryPayload;
+    if (payload.type === 'blocked') {
+      recordAiPipelineBlocked(payload.mode, payload.reason);
+    } else if (payload.type === 'routed') {
+      recordAiPipelineRouted(payload.source);
+    }
+    return { ok: true };
+  });
 
   onExtensionMessage('syncConfirmToasts', ({ sender }) => {
     const tabId = sender.tab?.id;
@@ -192,28 +258,10 @@ function initializeBackground(): void {
   });
 
   // Re-broadcast pending toasts to newly active tabs
-  browser.tabs.onActivated.addListener((activeInfo) => {
-    const pendingToasts = confirmToastController.getAllPending();
-    if (pendingToasts.length === 0) return;
-
-    // Send all pending toasts to the newly active tab
-    for (const entry of pendingToasts) {
-      void sendShowConfirmToast({ proposal: entry.proposal }, activeInfo.tabId)
-        .then(() => {
-          // Track that this tab has received the toast
-          if (entry.visibleOnTabs) {
-            entry.visibleOnTabs.add(activeInfo.tabId);
-          }
-        })
-        .catch((error) => {
-          debugLogger.warn(
-            '[ConfirmToast] Failed to broadcast toast to tab',
-            activeInfo.tabId,
-            error,
-          );
-        });
-    }
-  });
+  const tabActivationBroadcaster = createTabActivationBroadcaster(
+    confirmToastController,
+  );
+  tabActivationBroadcaster.registerListener();
 
   browser.downloads.onChanged.addListener((delta) => {
     const info = downloadTracking.get(delta.id);

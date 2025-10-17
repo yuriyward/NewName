@@ -106,6 +106,7 @@ describe('settings persistence', () => {
         enabled: 'true',
         scope: ['pdf', 'video', 'bogus'],
         dataMinimize: 'false',
+        textFallbackMode: 'sometimes',
       },
       debug: { enabled: 'true', level: 'super' },
       notifyOnKeep: 'nope',
@@ -141,6 +142,9 @@ describe('settings persistence', () => {
     expect(settings.cloud.scope).toEqual(['pdf', 'video']);
     expect(settings.cloud.dataMinimize).toBe(
       DEFAULT_SETTINGS.cloud.dataMinimize,
+    );
+    expect(settings.cloud.textFallbackMode).toBe(
+      DEFAULT_SETTINGS.cloud.textFallbackMode,
     );
     expect(settings.debug.enabled).toBe(DEFAULT_SETTINGS.debug.enabled);
     expect(settings.debug.level).toBe(DEFAULT_SETTINGS.debug.level);

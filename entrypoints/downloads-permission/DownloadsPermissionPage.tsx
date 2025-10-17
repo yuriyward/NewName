@@ -1,11 +1,9 @@
 /**
  * Full-page downloads folder permission onboarding interface
  */
-import {
-  CheckCircleIcon,
-  ShieldExclamationIcon,
-} from '@heroicons/react/24/outline';
-import { type JSX, useEffect, useState } from 'react';
+import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
+import ShieldExclamationIcon from '@heroicons/react/24/outline/ShieldExclamationIcon';
+import { type JSX, useEffect, useRef, useState } from 'react';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
   ManagedSubfolderRequiredError,
@@ -13,6 +11,8 @@ import {
   verifyDirectoryPermission,
 } from '@/entrypoints/shared/filesystem/directory-picker';
 import {
+  getManagedRelativePath,
+  getStoredDirectoryHandle,
   storeDirectoryHandle,
   updateLastVerified,
 } from '@/entrypoints/shared/filesystem/handle-storage';
@@ -93,6 +93,36 @@ function classifyPermissionError(
 
 export function DownloadsPermissionPage(): JSX.Element {
   const [state, setState] = useState<RequestState>({ status: 'idle' });
+  const [hasStoredHandle, setHasStoredHandle] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    'grant' | 'restore' | null
+  >(null);
+  const storedHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const handle = await getStoredDirectoryHandle();
+        if (!active) return;
+        storedHandleRef.current = handle;
+        setHasStoredHandle(Boolean(handle));
+      } catch (err) {
+        if (!active) return;
+        debugLogger.warn(
+          '[DownloadsPermissionPage] Failed to load saved handle',
+          {
+            error: err,
+          },
+        );
+        storedHandleRef.current = null;
+        setHasStoredHandle(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (state.status !== 'success') return;
@@ -111,6 +141,7 @@ export function DownloadsPermissionPage(): JSX.Element {
       return;
     }
     setState({ status: 'pending' });
+    setPendingAction('grant');
     try {
       const {
         handle,
@@ -125,6 +156,8 @@ export function DownloadsPermissionPage(): JSX.Element {
       await storeDirectoryHandle(handle, { relativePath: managedRelativePath });
       await updateLastVerified();
       await markOnboardingCompleted();
+      storedHandleRef.current = handle;
+      setHasStoredHandle(true);
       setState({
         status: 'success',
         grantedAt: Date.now(),
@@ -150,6 +183,62 @@ export function DownloadsPermissionPage(): JSX.Element {
         hint,
       });
     }
+    setPendingAction(null);
+  }
+
+  async function handleRestoreExisting(): Promise<void> {
+    if (state.status === 'pending') {
+      return;
+    }
+
+    const handle = storedHandleRef.current;
+    if (!handle) {
+      setState({
+        status: 'error',
+        message: 'No saved folder found. Pick a folder first.',
+        hint: 'Choose a folder with “Grant access” and then allow “Allow on every visit” in Chrome.',
+      });
+      return;
+    }
+
+    setState({ status: 'pending' });
+    setPendingAction('restore');
+
+    try {
+      const permission = await verifyDirectoryPermission(handle);
+      if (permission !== 'granted') {
+        throw new Error('Permission not granted');
+      }
+
+      const managedRelativePath =
+        (await getManagedRelativePath()) ?? handle.name ?? 'downloads';
+
+      await updateLastVerified();
+      await markOnboardingCompleted();
+      setHasStoredHandle(true);
+      setState({
+        status: 'success',
+        grantedAt: Date.now(),
+        managedRelativePath,
+        createdManagedFolder: false,
+        parentDirectoryName: handle.name,
+      });
+    } catch (err) {
+      debugLogger.error(
+        '[DownloadsPermissionPage] Restoring saved access failed',
+        {
+          error: err,
+        },
+      );
+      const { message, hint } = classifyPermissionError(err, null);
+      setState({
+        status: 'error',
+        message,
+        hint,
+      });
+    } finally {
+      setPendingAction(null);
+    }
   }
 
   return (
@@ -170,6 +259,14 @@ export function DownloadsPermissionPage(): JSX.Element {
             allow the prompt, and NewName will take it from there.
           </p>
         </header>
+
+        {hasStoredHandle && state.status !== 'success' ? (
+          <div className="rounded-lg border border-default-200 bg-default-50/60 px-3 py-2 text-xs text-default-600">
+            Saved folder detected. Click “Re-enable existing folder” below and
+            choose “Allow on every visit” in Chrome&apos;s prompt to stay
+            connected.
+          </div>
+        ) : null}
 
         {state.status === 'success' ? (
           <div className="rounded-2xl border border-success-200 bg-success-50/80 p-5 shadow-sm">
@@ -286,8 +383,30 @@ export function DownloadsPermissionPage(): JSX.Element {
                 : 'hover:opacity-90'
             }`}
           >
-            {state.status === 'pending' ? 'Requesting access…' : 'Grant access'}
+            {state.status === 'pending' && pendingAction === 'grant'
+              ? 'Requesting access…'
+              : 'Grant access'}
           </button>
+          {hasStoredHandle ? (
+            <button
+              type="button"
+              onClick={() => {
+                void handleRestoreExisting();
+              }}
+              disabled={
+                state.status === 'pending' || state.status === 'success'
+              }
+              className={`inline-flex items-center justify-center rounded-md border border-default-300 px-4 py-2 text-sm font-semibold text-default-600 transition ${
+                state.status === 'pending' || state.status === 'success'
+                  ? 'cursor-not-allowed opacity-60'
+                  : 'hover:bg-default-100'
+              }`}
+            >
+              {state.status === 'pending' && pendingAction === 'restore'
+                ? 'Re-enabling…'
+                : 'Re-enable existing folder'}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => {

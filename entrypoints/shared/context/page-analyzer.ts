@@ -1,3 +1,5 @@
+import { basename as extractFileName } from '@/entrypoints/shared/utils/filename';
+
 /**
  * Page context extraction and URL analysis utilities
  */
@@ -24,16 +26,6 @@ function safeDecode(value: string): string {
   } catch {
     return value;
   }
-}
-
-function extractFileName(path: string): string {
-  const parts = path.split(/[\\/]+/);
-  return parts[parts.length - 1] ?? path;
-}
-
-function extractExtension(name: string): string | null {
-  const match = /\.([A-Za-z0-9]{1,8})$/u.exec(name);
-  return match ? match[1] : null;
 }
 
 export function deriveDomainBrand(url: URL): string | null {
@@ -76,4 +68,4 @@ export function extractResolutionFromFilename(filename: string): string | null {
   return `${match[1]}x${match[2]}`;
 }
 
-export { extractFileName, extractExtension, safeDecode };
+export { extractFileName, safeDecode };

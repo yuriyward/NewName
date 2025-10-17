@@ -59,6 +59,8 @@ export function DownloadsAccessScreen({
     }
   }
 
+  const disableActions = opening;
+
   return (
     <div className="flex flex-col gap-4">
       <header className="space-y-1">
@@ -81,7 +83,7 @@ export function DownloadsAccessScreen({
           onClick={() => {
             void handleOpenSetupTab();
           }}
-          disabled={opening}
+          disabled={disableActions}
           className="inline-flex items-center justify-center rounded bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {opening ? 'Opening…' : 'Open setup tab'}
@@ -91,7 +93,7 @@ export function DownloadsAccessScreen({
           onClick={() => {
             void handleSkip();
           }}
-          disabled={opening}
+          disabled={disableActions}
           className="inline-flex items-center justify-center rounded border border-default-300 px-3 py-2 text-sm font-semibold text-default-600 transition hover:bg-default-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Skip for now

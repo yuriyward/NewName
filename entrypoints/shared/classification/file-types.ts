@@ -6,6 +6,7 @@ import {
   EXTENSION_MAP,
   MIME_PREFIX_MAP,
   MIME_TYPE_MAP,
+  TEXT_EXTENSIONS,
 } from '@/entrypoints/shared/constants/file-constants';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
 
@@ -72,4 +73,22 @@ export function detectFileType({
   }
 
   return 'data';
+}
+
+/**
+ * Check if a file extension indicates a text file eligible for AI text analysis.
+ *
+ * @param extension - The file extension (case-insensitive, with or without leading dot)
+ * @returns true if the extension is recognized as a text file format
+ *
+ * @example
+ * isTextExtension('txt') // true
+ * isTextExtension('.js') // true
+ * isTextExtension('PDF') // false
+ * isTextExtension(null) // false
+ */
+export function isTextExtension(extension: string | null | undefined): boolean {
+  if (!extension) return false;
+  const normalized = extension.replace(/^\.+/, '').toLowerCase();
+  return TEXT_EXTENSIONS.has(normalized);
 }

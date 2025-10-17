@@ -1,0 +1,4 @@
+Sprint 18 - Notatki ze spotkania (wersja TXT)
+Data: 20.09.2025
+Uczestnicy: Product Owner, Tech Lead, UX Designer, QA
+Tematy: cele sprintu, capacity, refinowanie backlogu

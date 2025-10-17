@@ -1,3 +1,5 @@
+import CheckIcon from '@heroicons/react/24/solid/CheckIcon';
+import PencilIcon from '@heroicons/react/24/solid/PencilIcon';
 import React, {
   type ChangeEvent,
   type CSSProperties,
@@ -10,7 +12,6 @@ import React, {
 import { TOAST_TIMING } from '@/entrypoints/shared/toast/timing-constants';
 import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
-import { CheckIcon, PencilIcon } from '@/entrypoints/shared/ui/icons';
 
 interface ConfirmToastProps {
   toast: ConfirmToastState;

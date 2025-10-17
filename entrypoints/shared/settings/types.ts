@@ -32,10 +32,13 @@ export interface MetadataToggles {
   sourceHint: boolean;
 }
 
+export type CloudTextFallbackMode = 'off' | 'ask' | 'always';
+
 export interface CloudSettings {
   enabled: boolean;
   scope: FileType[];
   dataMinimize: boolean;
+  textFallbackMode: CloudTextFallbackMode;
 }
 
 export interface DebugSettings {
@@ -127,6 +130,7 @@ export const DEFAULT_SETTINGS: Settings = {
     enabled: false,
     scope: [],
     dataMinimize: true,
+    textFallbackMode: 'ask',
   },
   debug: {
     enabled: false,

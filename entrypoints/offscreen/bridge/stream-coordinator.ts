@@ -3,7 +3,7 @@
  */
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { MEDIAINFO_CHUNK_SIZE } from '@/entrypoints/shared/integrations/mediainfo';
-import { RangeFetchReader } from '@/entrypoints/shared/integrations/mediainfo/range-reader';
+import { RangeFetchReader } from '@/entrypoints/shared/integrations/range-fetcher';
 import { getSandboxWindow, isFromSandbox } from './sandbox-lifecycle';
 import {
   isSandboxMessage,

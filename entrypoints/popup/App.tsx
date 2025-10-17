@@ -11,10 +11,24 @@ import { Tab, Tabs } from '@heroui/tabs';
 import { useTheme } from '@heroui/use-theme';
 import type { JSX } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { browser, type PublicPath } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
 import { getHistory } from '@/entrypoints/shared/history/history';
 import type { HistoryItem } from '@/entrypoints/shared/history/types';
+import {
+  AI_MODEL_IDS,
+  type AiModelId,
+  type AiModelState,
+  type AiModelStatusMap,
+  refreshAiModelStatuses,
+  subscribeAiModelStatuses,
+} from '@/entrypoints/shared/integrations/chrome-ai/model-status';
+import {
+  type AiModelSetupState,
+  getAiModelSetupState,
+  subscribeAiModelSetupState,
+} from '@/entrypoints/shared/integrations/chrome-ai/setup-state';
 import { getOnboardingState } from '@/entrypoints/shared/onboarding/onboarding-state';
 import { STRATEGY_OPTIONS } from '@/entrypoints/shared/pipeline/strategy-options';
 import {
@@ -25,6 +39,12 @@ import {
 } from '@/entrypoints/shared/settings/settings';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import { DownloadsAccessScreen } from './onboarding/DownloadsAccessScreen';
+
+const AI_MODEL_LABELS: Record<AiModelId, string> = {
+  'language-model': 'Prompt API (Gemini Nano)',
+  summarizer: 'Summarizer API',
+  'language-detector': 'Language Detector API',
+};
 
 function App(): JSX.Element {
   const { theme, setTheme } = useTheme();
@@ -47,6 +67,12 @@ function App(): JSX.Element {
   const [historyFilter, setHistoryFilter] = useState<
     'all' | 'upgrades' | 'media'
   >('all');
+  const [aiStatuses, setAiStatuses] = useState<AiModelStatusMap | null>(null);
+  const [aiStatusChecked, setAiStatusChecked] = useState(false);
+  const [aiStatusError, setAiStatusError] = useState<string | null>(null);
+  const [aiSetupState, setAiSetupState] = useState<AiModelSetupState | null>(
+    null,
+  );
 
   const refreshDownloadsAccess = useCallback(async () => {
     setDownloadsAccessChecked(false);
@@ -138,6 +164,76 @@ function App(): JSX.Element {
   }, [setTheme, settingsTheme]);
 
   useEffect(() => {
+    let active = true;
+    let unsubscribe: (() => void) | null = null;
+
+    (async () => {
+      try {
+        const statuses = await refreshAiModelStatuses();
+        if (!active) return;
+        setAiStatuses(statuses);
+      } catch (err) {
+        if (!active) return;
+        setAiStatusError(describeError(err));
+      } finally {
+        if (active) {
+          setAiStatusChecked(true);
+        }
+      }
+
+      try {
+        unsubscribe = await subscribeAiModelStatuses((next) => {
+          if (!active) return;
+          setAiStatuses(next);
+        });
+      } catch (err) {
+        if (!active) return;
+        setAiStatusError((prev) => prev ?? describeError(err));
+      }
+    })();
+
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    let unsubscribe: (() => void) | null = null;
+
+    (async () => {
+      try {
+        const state = await getAiModelSetupState();
+        if (!active) return;
+        setAiSetupState(state);
+      } catch (err) {
+        if (!active) return;
+        debugLogger.warn('Failed to load AI model setup state', {
+          error: err,
+        });
+      }
+
+      try {
+        unsubscribe = await subscribeAiModelSetupState((next) => {
+          if (!active) return;
+          setAiSetupState(next);
+        });
+      } catch (err) {
+        if (!active) return;
+        debugLogger.warn('Failed to subscribe AI model setup state', {
+          error: err,
+        });
+      }
+    })();
+
+    return () => {
+      active = false;
+      unsubscribe?.();
+    };
+  }, []);
+
+  useEffect(() => {
     if (savedAt === null) return;
     const timeout = window.setTimeout(() => setSavedAt(null), 2000);
     return () => window.clearTimeout(timeout);
@@ -177,6 +273,34 @@ function App(): JSX.Element {
     }
   }, [history, historyFilter]);
 
+  const aiSetupCompletedAt = aiSetupState?.setupCompletedAt ?? null;
+  const aiLastSetupError = aiSetupState?.lastError ?? null;
+
+  const aiBlockingModels = useMemo(() => {
+    if (!aiStatuses) return [];
+    return AI_MODEL_IDS.filter((id) => {
+      const state = aiStatuses[id].state;
+      return state !== 'available' && state !== 'unsupported';
+    });
+  }, [aiStatuses]);
+
+  const aiBannerDetails = useMemo(() => {
+    if (!aiStatuses) return [];
+    return aiBlockingModels.map((id) => ({
+      id,
+      description: `${AI_MODEL_LABELS[id]} — ${describeAiState(
+        aiStatuses[id].state,
+      )}`,
+      requiresUserActivation: aiStatuses[id].requiresUserActivation,
+    }));
+  }, [aiBlockingModels, aiStatuses]);
+
+  const shouldShowAiBanner =
+    aiStatusChecked &&
+    aiStatuses &&
+    aiBlockingModels.length > 0 &&
+    !aiSetupCompletedAt;
+
   const handleChange = async (value: InstantBaselineStrategy) => {
     if (saving) return;
     if (strategy === value) return;
@@ -195,6 +319,15 @@ function App(): JSX.Element {
       setSaving(false);
     }
   };
+
+  const handleOpenAiSetup = useCallback(async () => {
+    try {
+      const url = browser.runtime.getURL('/ai-model-setup.html' as PublicPath);
+      await browser.tabs.create({ url });
+    } catch (err) {
+      debugLogger.error('Failed to open AI model setup page', { error: err });
+    }
+  }, []);
 
   if (!downloadsAccessChecked) {
     return (
@@ -267,6 +400,62 @@ function App(): JSX.Element {
       {accessCheckError ? (
         <Alert color="warning" variant="flat" className="mb-3 text-xs">
           {accessCheckError}
+        </Alert>
+      ) : null}
+
+      {aiStatusError ? (
+        <Alert
+          color="warning"
+          variant="flat"
+          className="mb-3 text-xs space-y-1"
+        >
+          <p>Unable to check AI model status.</p>
+          <p>{aiStatusError}</p>
+        </Alert>
+      ) : null}
+
+      {shouldShowAiBanner ? (
+        <Alert
+          color="primary"
+          variant="flat"
+          className="mb-3 text-xs space-y-2"
+        >
+          <div className="space-y-1">
+            <p className="font-semibold text-primary-700">
+              Enable AI-powered renaming
+            </p>
+            <p className="text-default-600">
+              Phase 2 upgrades need Chrome&rsquo;s on-device models. Start the
+              setup flow to download Gemini Nano.
+            </p>
+          </div>
+          <ul className="list-disc pl-4 text-[11px] text-default-500 space-y-1">
+            {aiBannerDetails.map((item) => (
+              <li key={item.id}>
+                {item.description}
+                {item.requiresUserActivation ? (
+                  <span className="ml-1 text-warning-600">
+                    (requires a recent click)
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {aiLastSetupError ? (
+            <p className="text-[11px] text-danger-600">
+              Last attempt failed: {aiLastSetupError.message}
+              {aiLastSetupError.occurredAt
+                ? ` (${new Date(aiLastSetupError.occurredAt).toLocaleTimeString()})`
+                : ''}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleOpenAiSetup}
+            className="inline-flex items-center justify-center rounded border border-primary-400 px-3 py-1 text-[11px] font-semibold text-primary-700 transition hover:bg-primary-50"
+          >
+            Enable AI models
+          </button>
         </Alert>
       ) : null}
 
@@ -540,3 +729,29 @@ function App(): JSX.Element {
 }
 
 export default App;
+
+function describeAiState(state: AiModelState): string {
+  switch (state) {
+    case 'available':
+      return 'ready';
+    case 'downloadable':
+      return 'download required';
+    case 'downloading':
+      return 'downloading';
+    case 'unavailable':
+      return 'unavailable on this device';
+    case 'unsupported':
+      return 'unsupported in this Chrome version';
+    case 'error':
+      return 'error';
+    default:
+      return 'checking...';
+  }
+}
+
+function describeError(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return String(err);
+}

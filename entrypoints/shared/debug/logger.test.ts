@@ -27,7 +27,7 @@ describe('DebugLogger', () => {
     decision: {
       outcome: 'rename',
       strategy: 'page-title-with-date',
-      confidence: 100,
+      confidence: 50,
       guardrail: 'strategy-applied',
       reasons: ['strategy:page-title-with-date'],
       signals: { inputsUsed: ['title', 'date'], missingInputs: [] },

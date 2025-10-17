@@ -1,13 +1,17 @@
 /**
- * HTTP Range request reader for efficient partial file fetching
+ * Generic HTTP range fetch utilities shared across integrations.
+ *
+ * Designed to support resumable, partial reads without forcing the caller to download
+ * full files when the remote server advertises byte range support.
  */
-interface RangeFetchOptions {
+
+export interface RangeFetchOptions {
   readonly signal?: AbortSignal;
   readonly headers?: Record<string, string>;
   readonly credentials?: RequestCredentials;
 }
 
-interface RangeFetchResponse {
+export interface RangeFetchResult {
   readonly bytes: Uint8Array;
   readonly totalSize?: number;
   readonly start: number;
@@ -137,7 +141,6 @@ export class RangeFetchReader {
       this.size !== undefined &&
       offset + result.bytes.length < this.size
     ) {
-      // Attempt to fetch remaining bytes to satisfy the requested chunk size.
       const missing = chunkSize - result.bytes.length;
       const tail = await this.fetchRange(offset + result.bytes.length, missing);
       if (tail.totalSize !== undefined) {
@@ -185,7 +188,7 @@ export class RangeFetchReader {
   private async fetchRange(
     offset: number,
     length: number,
-  ): Promise<RangeFetchResponse> {
+  ): Promise<RangeFetchResult> {
     const safeLength = Math.max(length, 0);
     const endExclusive =
       this.size !== undefined
@@ -206,9 +209,6 @@ export class RangeFetchReader {
       mode: 'cors',
     });
 
-    // Detect if server doesn't support range requests
-    // When Range header is sent but server responds with 200 instead of 206,
-    // it means ranges aren't supported and full file will be downloaded
     if (safeLength > 0 && response.status === 200) {
       this.rangeSupported = false;
       throw new Error(
@@ -306,5 +306,3 @@ export class RangeFetchReader {
     return cached;
   }
 }
-
-export type { RangeFetchOptions };

@@ -43,6 +43,7 @@ export interface QueueConfirmToastOptions {
   triggerSources: ConfirmToastTriggerSource[];
   autoApplyDelaySeconds: number | null;
   allowAlwaysApply: boolean;
+  target?: number | SendMessageOptions;
 }
 
 export interface ConfirmToastControllerHelpers {
@@ -85,6 +86,8 @@ export function createConfirmToastController(
 ): ConfirmToastController {
   const entriesById = new Map<string, ConfirmToastEntry>();
   const historyIndex = new Map<string, string>();
+  const queuedToasts: string[] = [];
+  let activeToastId: string | null = null;
 
   function makeHelpers(
     entry: ConfirmToastEntry,
@@ -107,7 +110,50 @@ export function createConfirmToastController(
     clearTimeoutFor(entry);
     entriesById.delete(toastId);
     historyIndex.delete(entry.historyId);
+
+    // Clear active state if this was the active toast
+    if (activeToastId === toastId) {
+      activeToastId = null;
+      // Process next queued toast
+      void processNextQueuedToast();
+    }
+
     return entry;
+  }
+
+  async function processNextQueuedToast(): Promise<void> {
+    if (activeToastId !== null) {
+      // Another toast is already visible
+      return;
+    }
+
+    const nextToastId = queuedToasts.shift();
+    if (!nextToastId) {
+      // No more queued toasts
+      return;
+    }
+
+    const entry = entriesById.get(nextToastId);
+    if (!entry) {
+      // Entry was cancelled before being shown
+      void processNextQueuedToast();
+      return;
+    }
+
+    activeToastId = nextToastId;
+
+    try {
+      await scheduleShowToast(entry.target, { proposal: entry.proposal });
+      debugLogger.log('[ConfirmToast] Queued toast now visible', {
+        toastId: nextToastId,
+        queueLength: queuedToasts.length,
+      });
+    } catch (_error) {
+      // Failed to show, try next
+      activeToastId = null;
+      removeEntry(nextToastId);
+      void processNextQueuedToast();
+    }
   }
 
   async function scheduleShowToast(
@@ -122,8 +168,10 @@ export function createConfirmToastController(
     try {
       await sendShowConfirmToast(payload, target);
     } catch (error) {
-      debugLogger.error(
-        '[ConfirmToast] Failed to dispatch toast to content script',
+      // This is expected to fail for restricted tabs (chrome://, about:, etc.)
+      // where content scripts cannot be injected. Log at debug level.
+      debugLogger.log(
+        '[ConfirmToast] Failed to dispatch toast to content script (may be restricted URL)',
         {
           toastId: payload.proposal.toastId,
           error,
@@ -180,7 +228,7 @@ export function createConfirmToastController(
         allowAlwaysApply: options.allowAlwaysApply,
       };
 
-      const target = await resolveTarget();
+      const target = await resolveTarget(options.target);
       const tabId = extractTabId(target);
 
       const entry: ConfirmToastEntry = {
@@ -199,6 +247,19 @@ export function createConfirmToastController(
       entriesById.set(toastId, entry);
       historyIndex.set(options.historyId, toastId);
 
+      // Check if we need to queue this toast
+      if (activeToastId !== null) {
+        queuedToasts.push(toastId);
+        debugLogger.log('[ConfirmToast] Toast queued behind active toast', {
+          toastId,
+          activeToastId,
+          queueLength: queuedToasts.length,
+        });
+        return entry;
+      }
+
+      // Show immediately if no toast is active
+      activeToastId = toastId;
       await scheduleShowToast(target, { proposal });
       return entry;
     },

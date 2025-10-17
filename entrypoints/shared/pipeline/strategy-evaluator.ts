@@ -165,7 +165,7 @@ export function createDecision(
       return {
         outcome: 'rename',
         strategy,
-        confidence: 100,
+        confidence: 50,
         guardrail: 'strategy-applied',
         reasons: [`strategy:${strategy}`],
         signals,

@@ -5,7 +5,10 @@ import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { addHistoryItem } from '@/entrypoints/shared/history/history';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { enqueueMediaAnalysis } from '@/entrypoints/shared/integrations/mediainfo/media-analysis-queue';
-import type { MediaAnalysisRequest } from '@/entrypoints/shared/integrations/mediainfo/messages';
+import type {
+  MediaAnalysisRequest,
+  MediaAnalysisResponse,
+} from '@/entrypoints/shared/integrations/mediainfo/messages';
 import type { InstantBaselineEvaluation } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
 import { randomId } from '@/entrypoints/shared/utils/id';
@@ -29,6 +32,10 @@ interface PostActionsOptions {
   scheduleUpgradeAnalysis: (
     params: ScheduleUpgradeAnalysisParams,
   ) => Promise<void>;
+  prefetchedMedia?: {
+    request: MediaAnalysisRequest;
+    response: MediaAnalysisResponse;
+  };
 }
 
 function shouldScheduleUpgrade(
@@ -54,6 +61,7 @@ export async function applyPostDownloadActions({
   downloadTracking,
   readSettings,
   scheduleUpgradeAnalysis,
+  prefetchedMedia,
 }: PostActionsOptions): Promise<void> {
   const historyDecision: InstantBaselineEvaluation['decision'] = renameCandidate
     ? evaluation.decision
@@ -115,6 +123,19 @@ export async function applyPostDownloadActions({
         },
       );
     });
+  }
+
+  if (prefetchedMedia) {
+    void applyMediaAnalysisResponse(
+      plan.historyId,
+      plan.url,
+      prefetchedMedia.request.requestId,
+      plan.debugSettings,
+      prefetchedMedia.response,
+      plan.downloadId,
+      readSettings,
+    );
+    return;
   }
 
   if (

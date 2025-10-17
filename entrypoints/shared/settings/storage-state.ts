@@ -1,15 +1,20 @@
 /**
- * Internal storage adapter state management for testing
+ * Storage adapter state management for settings module
+ *
+ * This module provides a testing override mechanism for the storage adapter.
+ * In production, it simply re-exports WXT's storage API.
+ * In tests, it allows mocking storage behavior without complex setup.
  */
-import { storage as storageApi } from '#imports';
 
-type StorageAdapter = typeof storageApi;
+import { storage as wxtStorageApi } from '#imports';
+
+type StorageAdapter = typeof wxtStorageApi;
 export type StorageOverride = Pick<
   StorageAdapter,
   'getItem' | 'setItem' | 'removeItem' | 'watch'
 >;
 
-let storageAdapter: StorageAdapter = storageApi;
+let storageAdapter: StorageAdapter = wxtStorageApi;
 let storageUnwatch: (() => void) | null = null;
 const resetHooks = new Set<() => void>();
 
@@ -28,7 +33,7 @@ export function getStorageUnwatch(): (() => void) | null {
 export function setStorageAdapterForTesting(
   override: StorageOverride | null,
 ): void {
-  storageAdapter = override ? { ...storageApi, ...override } : storageApi;
+  storageAdapter = override ? { ...wxtStorageApi, ...override } : wxtStorageApi;
 }
 
 export function registerResetHook(hook: () => void): void {
@@ -38,7 +43,7 @@ export function registerResetHook(hook: () => void): void {
 export function resetStorageStateForTesting(): void {
   storageUnwatch?.();
   storageUnwatch = null;
-  storageAdapter = storageApi;
+  storageAdapter = wxtStorageApi;
   runResetHooks();
 }
 
