@@ -4,18 +4,32 @@
 
 ## Tree Overview
 
+ai-model-setup/ # 5 files, 1 directories
+  ├─ components/ # 4 files
+  │ ├─ alerts.tsx # 4 exports
+  │ ├─ CopyableUrl.tsx # 1 export
+  │ ├─ DiagnosticsSection.tsx # 1 export
+  │ └─ ModelStatusCard.tsx # 1 export
+  ├─ AIModelSetupPage.tsx # 1 export
+  ├─ constants.ts # 6 exports
+  ├─ main.tsx # React app entry point for AI model onboarding flow
+  ├─ types.ts # 4 exports
+  └─ utils.ts # 11 exports
 background/ # 11 files, 2 directories
-  ├─ toast/ # 3 files
+  ├─ toast/ # 4 files
   │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
   │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
+  │ ├─ tab-activation-broadcaster.ts # Tab activation broadcaster for re-displaying pending toasts on newly active tabs.
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
-  ├─ upgrade/ # 7 files
+  ├─ upgrade/ # 9 files
+  │ ├─ cloud-consent-manager.ts # 3 exports
   │ ├─ coordinator.ts # Contextual upgrade coordinator for completed downloads
   │ ├─ eligibility.ts # Eligibility checks for contextual upgrade analysis
   │ ├─ executor.ts # 4 exports
   │ ├─ mock-analysis.ts # Mock AI-powered contextual upgrade proposal generator
   │ ├─ normalization.ts # 6 exports
   │ ├─ scheduler.ts # 4 exports
+  │ ├─ text-analysis-request.ts # 1 export
   │ └─ types.ts # Type definitions for contextual upgrade pipeline
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
   ├─ download-plan.ts # Download plan builder with evaluation and path resolution
@@ -28,17 +42,31 @@ background/ # 11 files, 2 directories
   ├─ rename-overlay.ts # Helper for sending rename-complete overlay notifications to the initiating tab.
   ├─ settings-cache.ts # Settings cache management for background service worker
   └─ suggest-controller.ts # Helper for coordinating the Chrome downloads suggest callback with timeouts.
+cloud-consent/ # 2 files
+  ├─ CloudConsentPage.tsx # 1 export
+  └─ main.tsx # Module exports
 downloads-permission/ # 2 files
   ├─ DownloadsPermissionPage.tsx # Full-page downloads folder permission onboarding interface
   └─ main.tsx # React app entry point for downloads permission onboarding
-offscreen/ # 3 files, 1 directories
+offscreen/ # 4 files, 2 directories
   ├─ bridge/ # 3 files
   │ ├─ sandbox-lifecycle.ts # Sandbox iframe lifecycle management
   │ ├─ sandbox-protocol.ts # Type-safe protocol definitions for Offscreen ↔ Sandbox (iframe) communication. Uses window.postMessage for parent-iframe IPC (browser standard).
   │ └─ stream-coordinator.ts # Streaming coordinator for range-based media fetching
+  ├─ text-analysis/ # 9 files
+  │ ├─ constants.ts # Text analysis constants for language detection and summarization. These values define thresholds and limits for AI processing.
+  │ ├─ filename-builder.ts # 6 exports
+  │ ├─ filename-generation.ts # Filename generation module using Chrome's Prompt API. This module generates new filename stems based on content analysis. It only runs AFTER the decision module determines that renaming is needed.
+  │ ├─ language-detection.ts # 2 exports
+  │ ├─ pipeline-orchestrator.ts # Note: This file uses console.log() instead of debugLogger.log() for operational logs. Reason: Offscreen documents don't have storage access, so debugLogger.setEnabled() fails. AI processing logs are diagnostic/operational and should always be visible. We still use debugLogger.warn() and debugLogger.error() for warnings/errors.
+  │ ├─ prompt-helpers.ts # Shared utilities for Prompt API integration across decision and generation modules. These helpers provide common functionality for session management, availability checks, and response parsing.
+  │ ├─ rename-decision.ts # Rename decision module using Chrome's Prompt API. This module decides whether a filename needs renaming by analyzing its quality against the file content. It uses a separate JSON schema focused purely on the decision logic, independent of filename generation.
+  │ ├─ telemetry.ts # 6 exports
+  │ └─ text-summarization.ts # Note: This file uses console.log() instead of debugLogger.log() for operational logs. Reason: Offscreen documents don't have storage access, so debugLogger.setEnabled() fails. AI processing logs are diagnostic/operational and should always be visible. We still use debugLogger.warn() and debugLogger.error() for warnings/errors.
   ├─ main.ts # Offscreen document initialization with media analysis handlers
   ├─ media-analysis-handler.ts # 1 export
-  └─ sandbox-bridge.ts # Bridge for communicating with the sandboxed iframe that runs MediaInfo.js. Coordinates analysis requests and response handling.
+  ├─ sandbox-bridge.ts # Bridge for communicating with the sandboxed iframe that runs MediaInfo.js. Coordinates analysis requests and response handling.
+  └─ text-analysis-handler.ts # 1 export
 popup/ # 2 files, 1 directories
   ├─ onboarding/ # 1 file
   │ └─ DownloadsAccessScreen.tsx # Compact downloads access onboarding screen for popup
@@ -53,14 +81,15 @@ shared/ # 17 directories
   ├─ constants/ # 1 file
   │ └─ file-constants.ts # Shared file-related constants used across the application
   ├─ context/ # 1 file
-  │ └─ page-analyzer.ts # Page context extraction and URL analysis utilities
+  │ └─ page-analyzer.ts # 6 exports
   ├─ debug/ # 4 files
   │ ├─ console-helpers.ts # Console helper functions for debugging
   │ ├─ logger.ts # Debug logging utilities for troubleshooting rename decisions
   │ ├─ types.ts # Debug types and interfaces for troubleshooting rename decisions
   │ └─ verbose-formatter.ts # Verbose debug formatting utilities
-  ├─ filesystem/ # 5 files
+  ├─ filesystem/ # 6 files
   │ ├─ directory-picker.ts # Directory picker and permission management for the File System Access API.
+  │ ├─ file-reader.ts # Utilities for reading files from the File System Access API.
   │ ├─ handle-storage.ts # Persist and retrieve File System Access handles using IndexedDB. File system handles are structured-clone serialisable and must live in IndexedDB (not chrome.storage.local) so that they can be restored in offscreen documents and service workers.
   │ ├─ path-helpers.ts # Utilities for normalising download paths and managed subfolder prefixes.
   │ ├─ rename-operations.ts # Core file rename operations built on top of the File System Access API. Implements the copy+delete fallback until FileSystemHandle.move() ships for non-OPFS files. Supports nested paths, streaming for large files, and Windows reserved-name sanitisation.
@@ -70,22 +99,46 @@ shared/ # 17 directories
   │ ├─ storage.ts # History storage operations with pruning and sanitization
   │ ├─ types.ts # Type definitions for history items and metadata
   │ └─ validation.ts # Runtime validation for history data integrity
-  ├─ integrations/ # 2 directories
-  │ ├─ chrome-ai/ # 1 file
-  │ │ └─ adapter.ts # Shared adapter interface for Chrome built-in AI APIs. The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector). This adapter keeps our background/offscreen logic decoupled from the actual runtime implementation so we can swap the mock below with real bindings once the APIs are ready.
-  │ └─ mediainfo/ # 9 files, 1 directories
-  │   ├─ parsers/ # 2 files
-  │   │ ├─ duration-parser.ts # Duration parsing utilities for MediaInfo track data
-  │   │ └─ track-parser.ts # Track parsing utilities for MediaInfo video and audio tracks
-  │   ├─ constants.ts # Centralized constants for MediaInfo integration and analysis pipeline.
-  │   ├─ debug.ts # Debug logging utilities for media analysis pipeline
-  │   ├─ index.ts # Main entry point for MediaInfo integration and media file analysis
-  │   ├─ media-analysis-queue.ts # Queue manager for sequential media analysis requests
-  │   ├─ media-summary.ts # MediaInfo result summarization and metadata extraction
-  │   ├─ mediainfo-loader.ts # MediaInfo.js WASM loader and instance management
-  │   ├─ messages.ts # Type definitions for media analysis request/response protocol
-  │   ├─ offscreen-coordinator.ts # Offscreen document lifecycle and readiness coordination
-  │   └─ range-reader.ts # HTTP Range request reader for efficient partial file fetching
+  ├─ integrations/ # 1 files, 3 directories
+  │ ├─ chrome-ai/ # 9 files, 2 directories
+  │ │ ├─ diagnostics-rules/ # 6 files
+  │ │ │ ├─ chrome-version-rule.ts # 2 exports
+  │ │ │ ├─ flags-enabled-rule.ts # 2 exports
+  │ │ │ ├─ hardware-requirements-rule.ts # 2 exports
+  │ │ │ ├─ optimization-guide-rule.ts # 2 exports
+  │ │ │ ├─ os-support-rule.ts # 2 exports
+  │ │ │ └─ wxt-dev-mode-rule.ts # 2 exports
+  │ │ ├─ model-status/ # 5 files
+  │ │ │ ├─ status-cache.ts # 5 exports
+  │ │ │ ├─ status-preparation.ts # 2 exports
+  │ │ │ ├─ status-probe.ts # 2 exports
+  │ │ │ ├─ status-types.ts # 9 exports
+  │ │ │ └─ status-utils.ts # 21 exports
+  │ │ ├─ adapter.ts # Shared adapter interface for Chrome built-in AI APIs. The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector). This adapter keeps our background/offscreen logic decoupled from the actual runtime implementation so we can swap the mock below with real bindings once the APIs are ready.
+  │ │ ├─ diagnostics.ts # Diagnostic utilities for Chrome built-in AI troubleshooting. Identifies specific failure modes and provides targeted fix instructions.
+  │ │ ├─ language-helpers.ts # Shared helpers for normalising and resolving language preferences when interacting with Chrome's built-in AI surfaces.
+  │ │ ├─ model-status-service.ts # Proxy service for AI model status management. Ensures model availability checks and downloads run in the background context where storage access is guaranteed.
+  │ │ ├─ model-status.ts # 12 exports
+  │ │ ├─ setup-state.ts # 8 exports
+  │ │ ├─ telemetry.ts # 9 exports
+  │ │ ├─ test-mocks.ts # Test utilities for mocking Chrome AI model status functions. Provides reusable mocks for ensureAiModelsReady with happy path and error scenarios.
+  │ │ └─ types.ts # 26 exports
+  │ ├─ mediainfo/ # 8 files, 1 directories
+  │ │ ├─ parsers/ # 2 files
+  │ │ │ ├─ duration-parser.ts # Duration parsing utilities for MediaInfo track data
+  │ │ │ └─ track-parser.ts # Track parsing utilities for MediaInfo video and audio tracks
+  │ │ ├─ constants.ts # Centralized constants for MediaInfo integration and analysis pipeline.
+  │ │ ├─ debug.ts # Debug logging utilities for media analysis pipeline
+  │ │ ├─ index.ts # Main entry point for MediaInfo integration and media file analysis
+  │ │ ├─ media-analysis-queue.ts # Queue manager for sequential media analysis requests
+  │ │ ├─ media-summary.ts # MediaInfo result summarization and metadata extraction
+  │ │ ├─ mediainfo-loader.ts # MediaInfo.js WASM loader and instance management
+  │ │ ├─ messages.ts # Type definitions for media analysis request/response protocol
+  │ │ └─ offscreen-coordinator.ts # Offscreen document lifecycle and readiness coordination
+  │ ├─ text-analysis/ # 2 files
+  │ │ ├─ normalize.ts # 3 exports
+  │ │ └─ types.ts # 12 exports
+  │ └─ range-fetcher.ts # Generic HTTP range fetch utilities shared across integrations. Designed to support resumable, partial reads without forcing the caller to download full files when the remote server advertises byte range support.
   ├─ lifecycle/ # 1 file
   │ └─ install-tracking.ts # Extension installation date tracking and storage utilities
   ├─ messaging/ # 1 file
@@ -105,7 +158,7 @@ shared/ # 17 directories
   ├─ settings/ # 6 files
   │ ├─ confirm-toast-routing.ts # Helper utilities for deciding whether the confirm toast should appear.
   │ ├─ settings.ts # Application settings persistence and state management
-  │ ├─ storage-state.ts # Internal storage adapter state management for testing
+  │ ├─ storage-state.ts # Storage adapter state management for settings module This module provides a testing override mechanism for the storage adapter. In production, it simply re-exports WXT's storage API. In tests, it allows mocking storage behavior without complex setup.
   │ ├─ testing.ts # Test utilities for settings module
   │ ├─ types.ts # Type definitions for application configuration and settings
   │ └─ validation.ts # Settings validation and sanitization functions
@@ -115,7 +168,7 @@ shared/ # 17 directories
   ├─ toast/ # 2 files
   │ ├─ timing-constants.ts # Centralized timing constants for toast behavior. All values are in milliseconds unless otherwise noted.
   │ └─ types.ts # Shared types for confirm toast messaging between contexts.
-  ├─ ui/ # 7 files, 1 directories
+  ├─ ui/ # 6 files, 1 directories
   │ ├─ toast/ # 8 files
   │ │ ├─ keyboard-handler.ts # Keyboard event handler for toast interactions.
   │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames.
@@ -130,15 +183,90 @@ shared/ # 17 directories
   │ ├─ ConfirmToast.accessibility.test.tsx # Accessibility tests for confirm toast component
   │ ├─ ConfirmToast.tsx # 1 export
   │ ├─ FilenameLabel.tsx # 1 export
-  │ ├─ icons.ts # Shared icon exports for consistent icon usage across the application. All icons are re-exported from @heroicons/react for easy replacement if needed.
   │ └─ theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
-  └─ utils/ # 2 files
+  └─ utils/ # 4 files
+    ├─ encoding.ts # Lightweight text encoding helpers used during file ingestion.
     ├─ filename.ts # Utility helpers for working with file names.
-    └─ id.ts # Utility helpers for generating identifiers.
+    ├─ id.ts # Utility helpers for generating identifiers.
+    └─ tab-eligibility.ts # Utility helpers for checking tab eligibility for content script injection.
 background.ts # Background service worker for download interception and renaming
 content.ts # Content script for page context extraction and messaging
 
 ## File Details
+
+### ai-model-setup/AIModelSetupPage.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export AIModelSetupPage` - item implementation
+
+### ai-model-setup/components/CopyableUrl.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export CopyableUrl` - item implementation
+
+### ai-model-setup/components/DiagnosticsSection.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export DiagnosticsSection` - item implementation
+
+### ai-model-setup/components/ModelStatusCard.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export ModelStatusCard` - item implementation
+
+### ai-model-setup/components/alerts.tsx
+**Purpose**: 4 exports
+
+**Exports**:
+- `export InlineAlert` - item implementation
+- `export LoadingCard` - item implementation
+- `export PrerequisitesSection` - item implementation
+- `export WxtDevModeAlert` - item implementation
+
+### ai-model-setup/constants.ts
+**Purpose**: 6 exports
+
+**Exports**:
+- `export INITIAL_STATUS_MAP` - item implementation
+- `export MODEL_LABELS` - item implementation
+- `export STATE_DESCRIPTIONS` - item implementation
+- `export STATE_TONES` - item implementation
+- `export SUPPORTED_PROMPT_OUTPUT_LANGUAGES` - item implementation
+- `export createInitialProgressMap` - item implementation
+
+### ai-model-setup/main.tsx
+**Purpose**: React app entry point for AI model onboarding flow
+
+*No exports found*
+
+### ai-model-setup/types.ts
+**Purpose**: 4 exports
+
+**Exports**:
+- `export ModelActionConfig` - item implementation
+- `export ModelProgress` - item implementation
+- `export SetupErrorDisplay` - item implementation
+- `export StatusSnapshot` - item implementation
+
+### ai-model-setup/utils.ts
+**Purpose**: 11 exports
+
+**Exports**:
+- `export computeProgressPercent` - item implementation
+- `export describeError` - item implementation
+- `export detectPreferredLanguage` - item implementation
+- `export formatRefreshSummary` - item implementation
+- `export formatRelativeTime` - item implementation
+- `export isAbortError` - item implementation
+- `export isUserActivationIssue` - item implementation
+- `export resolveModelAction` - item implementation
+- `export resolveSetupErrorMessage` - item implementation
+- `export resolveStaleBadge` - item implementation
+- `export resolveSupportedPromptLanguage` - item implementation
 
 ### background.ts
 **Purpose**: Background service worker for download interception and renaming
@@ -245,12 +373,27 @@ content.ts # Content script for page context extraction and messaging
 - `export StatusBroadcastEntry` - item implementation
 - `export emitStatus` - Emit status update to all tabs that have received this toast
 
+### background/toast/tab-activation-broadcaster.ts
+**Purpose**: Tab activation broadcaster for re-displaying pending toasts on newly active tabs.
+
+**Exports**:
+- `export TabActivationBroadcaster` - Tab activation broadcaster for re-displaying pending toas...
+- `export createTabActivationBroadcaster` - Create a tab activation broadcaster that re-displays pend...
+
 ### background/toast/target-resolver.ts
 **Purpose**: Tab resolution utilities for confirm toast targeting.
 
 **Exports**:
 - `export extractTabId` - Extract tab ID from a target (either number or SendMessag...
 - `export resolveTarget` - Resolve the active tab to use as the target for displayin...
+
+### background/upgrade/cloud-consent-manager.ts
+**Purpose**: 3 exports
+
+**Exports**:
+- `export CloudConsentManager` - item implementation
+- `export CloudConsentRequestContext` - item implementation
+- `export createCloudConsentManager` - item implementation
 
 ### background/upgrade/coordinator.ts
 **Purpose**: Contextual upgrade coordinator for completed downloads
@@ -301,6 +444,12 @@ content.ts # Content script for page context extraction and messaging
 - `export BrowserAlarm` - item implementation
 - `export createUpgradeScheduler` - item implementation
 
+### background/upgrade/text-analysis-request.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export createTextUpgradeAnalysisRequester` - item implementation
+
 ### background/upgrade/types.ts
 **Purpose**: Type definitions for contextual upgrade pipeline
 
@@ -311,6 +460,17 @@ content.ts # Content script for page context extraction and messaging
 - `export UpgradeAnalysisInput` - item implementation
 - `export UpgradeCoordinatorParams` - item implementation
 - `export MOCK_UPGRADE_ALARM_PREFIX` - item implementation
+
+### cloud-consent/CloudConsentPage.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export CloudConsentPage` - item implementation
+
+### cloud-consent/main.tsx
+**Purpose**: Module exports
+
+*No exports found*
 
 ### content.ts
 **Purpose**: Content script for page context extraction and messaging
@@ -379,6 +539,95 @@ content.ts # Content script for page context extraction and messaging
 - `export fetchAndAnalyzeFromUrl` - Fetches media from URL using streaming and analyzes it vi...
 - `export ensureSandboxReady` - item implementation
 
+### offscreen/text-analysis-handler.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export initializeTextAnalysisHandler` - item implementation
+
+### offscreen/text-analysis/constants.ts
+**Purpose**: Text analysis constants for language detection and summarization. These values define thresholds and limits for AI processing.
+
+**Exports**:
+- `export LANGUAGE_DETECTION_SAMPLE_SIZE` - Maximum character length for language detection sample
+- `export PREVIEW_LOG_LENGTH` - Character limit for summary preview logging
+- `export SUMMARIZATION_SAMPLE_SIZE` - Maximum character length for summarization input
+
+### offscreen/text-analysis/filename-builder.ts
+**Purpose**: 6 exports
+
+**Exports**:
+- `export FilenameContext` - item implementation
+- `export buildFilename` - item implementation
+- `export buildProposalSummary` - item implementation
+- `export buildProposedPath` - item implementation
+- `export extractStemFromBaseline` - Extract filename stem (without extension) from baseline f...
+- `export formatReasonTags` - item implementation
+
+### offscreen/text-analysis/filename-generation.ts
+**Purpose**: Filename generation module using Chrome's Prompt API. This module generates new filename stems based on content analysis. It only runs AFTER the decision module determines that renaming is needed.
+
+**Exports**:
+- `export FilenameGeneration` - Structured response from the generation prompt
+- `export FilenameGenerationContext` - Context information needed to generate a new filename
+- `export generateFilenameComplete` - Generate full filename object with qualifiers
+- `export generateFilenameStem` - Main function to generate a new filename stem using Promp...
+- `export isHighConfidenceGeneration` - Helper to determine if a generation has high confidence
+
+### offscreen/text-analysis/language-detection.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export LanguageDetectionResult` - item implementation
+- `export detectLanguage` - item implementation
+
+### offscreen/text-analysis/pipeline-orchestrator.ts
+**Purpose**: Note: This file uses console.log() instead of debugLogger.log() for operational logs. Reason: Offscreen documents don't have storage access, so debugLogger.setEnabled() fails. AI processing logs are diagnostic/operational and should always be visible. We still use debugLogger.warn() and debugLogger.error() for warnings/errors.
+
+**Exports**:
+- `export runTextUpgradePipeline` - item implementation
+
+### offscreen/text-analysis/prompt-helpers.ts
+**Purpose**: Shared utilities for Prompt API integration across decision and generation modules. These helpers provide common functionality for session management, availability checks, and response parsing.
+
+**Exports**:
+- `export BasePromptContext` - Build base context information for prompts
+- `export buildBaseContextDescription` - item implementation
+- `export checkLanguageModelAvailability` - Check if the LanguageModel (Prompt API) is available and ...
+- `export createPromptSession` - Create a LanguageModel prompt session with common configu...
+- `export destroyPromptSession` - Safely destroy a prompt session, catching any errors
+- `export formatLanguageForPrompt` - Format a language code for display in prompts
+- `export formatPolicyRules` - Format policy rules as human-readable text for inclusion ...
+- `export parseStructuredResponse` - Parse and validate structured JSON response from Prompt API
+- `export resolveLanguageModelCtor` - Resolve LanguageModel constructor from Chrome's global scope
+- `export truncateForPrompt` - Truncate text for inclusion in prompts while respecting t...
+
+### offscreen/text-analysis/rename-decision.ts
+**Purpose**: Rename decision module using Chrome's Prompt API. This module decides whether a filename needs renaming by analyzing its quality against the file content. It uses a separate JSON schema focused purely on the decision logic, independent of filename generation.
+
+**Exports**:
+- `export RenameDecision` - Structured response from the decision prompt
+- `export RenameDecisionContext` - Context information needed to make a rename decision
+- `export RenameDecisionReason` - Reasons why a filename might need (or not need) renaming
+- `export decideIfShouldRename` - Main function to decide if a filename should be renamed
+
+### offscreen/text-analysis/telemetry.ts
+**Purpose**: 6 exports
+
+**Exports**:
+- `export recordDecisionMade` - Record when a rename decision is made by the Prompt API
+- `export recordGenerationFailure` - Record when filename generation fails
+- `export recordGenerationSuccess` - Record successful filename generation by the Prompt API
+- `export recordPipelineBlocked` - item implementation
+- `export recordPipelineRouted` - item implementation
+- `export recordPromptPipelineComplete` - Record complete prompt pipeline execution metrics
+
+### offscreen/text-analysis/text-summarization.ts
+**Purpose**: Note: This file uses console.log() instead of debugLogger.log() for operational logs. Reason: Offscreen documents don't have storage access, so debugLogger.setEnabled() fails. AI processing logs are diagnostic/operational and should always be visible. We still use debugLogger.warn() and debugLogger.error() for warnings/errors.
+
+**Exports**:
+- `export summarizeText` - Generate a summary of text using Chrome's built-in Summar...
+
 ### popup/App.tsx
 **Purpose**: Settings popup for configuring deterministic Instant Baseline strategies
 
@@ -407,6 +656,7 @@ content.ts # Content script for page context extraction and messaging
 
 **Exports**:
 - `export detectFileType` - item implementation
+- `export isTextExtension` - Check if a file extension indicates a text file eligible ...
 
 ### shared/classification/sensitive-content.ts
 **Purpose**: Sensitive content detection heuristics for confirmation routing.
@@ -430,18 +680,18 @@ content.ts # Content script for page context extraction and messaging
 - `export MIME_TYPE_MAP` - item implementation
 - `export MULTI_PART_ARCHIVE_EXTENSIONS` - Shared file-related constants used across the application
 - `export ORIGINAL_DELIMITER_CANDIDATES` - item implementation
+- `export TEXT_EXTENSIONS` - item implementation
 
 ### shared/context/page-analyzer.ts
-**Purpose**: Page context extraction and URL analysis utilities
+**Purpose**: 6 exports
 
 **Exports**:
 - `export InstantBaselineSignals` - item implementation
 - `export PageContextSnapshot` - Page context extraction and URL analysis utilities
 - `export deriveDomainBrand` - item implementation
-- `export extractExtension` - item implementation
-- `export extractFileName` - item implementation
 - `export extractResolutionFromFilename` - item implementation
 - `export safeDecode` - item implementation
+- `export extractFileName` - item implementation
 
 ### shared/debug/console-helpers.ts
 **Purpose**: Console helper functions for debugging
@@ -482,6 +732,19 @@ content.ts # Content script for page context extraction and messaging
 - `export isHandleValid` - Determine whether the provided handle is still valid and ...
 - `export requestDownloadsAccess` - item implementation
 - `export verifyDirectoryPermission` - Verify (and if necessary request) read/write permission f...
+
+### shared/filesystem/file-reader.ts
+**Purpose**: Utilities for reading files from the File System Access API.
+
+**Exports**:
+- `export ReadFileSliceError` - item implementation
+- `export ReadFileSliceResult` - item implementation
+- `export ResolveFileHandleError` - item implementation
+- `export ResolveFileHandleResult` - Utilities for reading files from the File System Access API.
+- `export ReadFileSliceOutput` - item implementation
+- `export ResolveFileHandleOutput` - item implementation
+- `export readFileSlice` - Read a slice of a file up to maxBytes
+- `export resolveFileHandle` - Resolve a file handle from a root directory and relative ...
 
 ### shared/filesystem/handle-storage.ts
 **Purpose**: Persist and retrieve File System Access handles using IndexedDB. File system handles are structured-clone serialisable and must live in IndexedDB (not chrome.storage.local) so that they can be restored in offscreen documents and service workers.
@@ -572,6 +835,229 @@ content.ts # Content script for page context extraction and messaging
 - `export getBuiltInAiAdapter` - Retrieve the globally configured built-in AI adapter
 - `export setBuiltInAiAdapter` - Replace the shared adapter
 
+### shared/integrations/chrome-ai/diagnostics-rules/chrome-version-rule.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export ChromeVersionContext` - item implementation
+- `export checkChromeVersion` - item implementation
+
+### shared/integrations/chrome-ai/diagnostics-rules/flags-enabled-rule.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export FlagsContext` - item implementation
+- `export checkFlagsEnabled` - item implementation
+
+### shared/integrations/chrome-ai/diagnostics-rules/hardware-requirements-rule.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export HardwareRequirementsContext` - item implementation
+- `export checkHardwareRequirements` - item implementation
+
+### shared/integrations/chrome-ai/diagnostics-rules/optimization-guide-rule.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export OptimizationGuideContext` - item implementation
+- `export checkOptimizationGuide` - item implementation
+
+### shared/integrations/chrome-ai/diagnostics-rules/os-support-rule.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export OsSupportContext` - item implementation
+- `export checkOsSupport` - item implementation
+
+### shared/integrations/chrome-ai/diagnostics-rules/wxt-dev-mode-rule.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export WxtDevModeContext` - item implementation
+- `export checkWxtDevMode` - item implementation
+
+### shared/integrations/chrome-ai/diagnostics.ts
+**Purpose**: Diagnostic utilities for Chrome built-in AI troubleshooting. Identifies specific failure modes and provides targeted fix instructions.
+
+**Exports**:
+- `export DiagnosticResult` - item implementation
+- `export SystemDiagnostics` - item implementation
+- `export DiagnosticIssue` - Diagnostic utilities for Chrome built-in AI troubleshooting.
+- `export detectFreshOrDevProfile` - Detect if running in WXT development mode or a fresh Chro...
+- `export getChromeVersion` - Get Chrome version information
+- `export getDiagnosticSummary` - Get a summary message based on diagnostic results
+- `export getPlatform` - Get platform information
+- `export runDiagnostics` - Run comprehensive diagnostics and return specific issues
+
+### shared/integrations/chrome-ai/language-helpers.ts
+**Purpose**: Shared helpers for normalising and resolving language preferences when interacting with Chrome's built-in AI surfaces.
+
+**Exports**:
+- `export detectBrowserLanguage` - item implementation
+- `export getUserLanguagePreference` - item implementation
+- `export normalizeLanguageCode` - item implementation
+- `export resolveSupportedLanguage` - item implementation
+
+### shared/integrations/chrome-ai/model-status-service.ts
+**Purpose**: Proxy service for AI model status management. Ensures model availability checks and downloads run in the background context where storage access is guaranteed.
+
+**Exports**:
+- `export getAiModelStatusService` - item implementation
+- `export registerAiModelStatusService` - item implementation
+
+### shared/integrations/chrome-ai/model-status.ts
+**Purpose**: 12 exports
+
+**Exports**:
+- `export AiModelId` - item implementation
+- `export AiModelProgressEvent` - item implementation
+- `export AiModelState` - item implementation
+- `export AiModelStatus` - item implementation
+- `export AiModelStatusMap` - item implementation
+- `export EnsureAiModelsOptions` - item implementation
+- `export RefreshAiModelOptions` - item implementation
+- `export AI_MODEL_IDS` - item implementation
+- `export ensureAiModelsReady` - item implementation
+- `export getCachedAiModelStatuses` - item implementation
+- `export refreshAiModelStatuses` - item implementation
+- `export subscribeAiModelStatuses` - item implementation
+
+### shared/integrations/chrome-ai/model-status/status-cache.ts
+**Purpose**: 5 exports
+
+**Exports**:
+- `export ensureCacheLoaded` - item implementation
+- `export notifyListeners` - item implementation
+- `export persistStatusForId` - item implementation
+- `export persistStatusMap` - item implementation
+- `export subscribeStatusUpdates` - item implementation
+
+### shared/integrations/chrome-ai/model-status/status-preparation.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export createPreparationKey` - item implementation
+- `export ensureModelsReady` - item implementation
+
+### shared/integrations/chrome-ai/model-status/status-probe.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export probeModel` - item implementation
+- `export refreshAiModelStatus` - item implementation
+
+### shared/integrations/chrome-ai/model-status/status-types.ts
+**Purpose**: 9 exports
+
+**Exports**:
+- `export AiModelStatus` - item implementation
+- `export EnsureAiModelsOptions` - item implementation
+- `export PreparationCacheKey` - item implementation
+- `export RefreshAiModelOptions` - item implementation
+- `export AiModelId` - item implementation
+- `export AiModelProgressEvent` - item implementation
+- `export AiModelState` - item implementation
+- `export AiModelStatusMap` - item implementation
+- `export AI_MODEL_IDS` - item implementation
+
+### shared/integrations/chrome-ai/model-status/status-utils.ts
+**Purpose**: 21 exports
+
+**Exports**:
+- `export buildStatus` - item implementation
+- `export cloneStatusMap` - item implementation
+- `export createDefaultStatus` - item implementation
+- `export createTextDescriptor` - item implementation
+- `export deriveErrorCode` - item implementation
+- `export deriveErrorMessage` - item implementation
+- `export ensureStatusShape` - item implementation
+- `export ensureUserActivation` - item implementation
+- `export isAbortError` - item implementation
+- `export normaliseAvailability` - item implementation
+- `export resolveExpectedInputs` - item implementation
+- `export resolveExpectedOutputs` - item implementation
+- `export resolveLanguageDetectorCtor` - item implementation
+- `export resolveLanguageModelCtor` - item implementation
+- `export resolveOutputLanguage` - item implementation
+- `export resolveSummarizerCtor` - item implementation
+- `export resolveSummarizerInputLanguages` - item implementation
+- `export safeEmit` - item implementation
+- `export serializeIoDescriptor` - item implementation
+- `export throwIfAborted` - item implementation
+- `export wrapMonitor` - item implementation
+
+### shared/integrations/chrome-ai/setup-state.ts
+**Purpose**: 8 exports
+
+**Exports**:
+- `export AiModelSetupError` - item implementation
+- `export AiModelSetupState` - item implementation
+- `export clearAiModelSetupError` - item implementation
+- `export getAiModelSetupState` - item implementation
+- `export markAiModelSetupCompleted` - item implementation
+- `export recordAiModelSetupError` - item implementation
+- `export resetAiModelSetupStateForTesting` - item implementation
+- `export subscribeAiModelSetupState` - item implementation
+
+### shared/integrations/chrome-ai/telemetry.ts
+**Purpose**: 9 exports
+
+**Exports**:
+- `export AiModelTelemetryState` - item implementation
+- `export getAiModelTelemetrySnapshot` - item implementation
+- `export recordAiModelDownloadComplete` - item implementation
+- `export recordAiModelDownloadStart` - item implementation
+- `export recordAiModelError` - item implementation
+- `export recordAiModelStatusTransition` - item implementation
+- `export recordAiPipelineBlocked` - item implementation
+- `export recordAiPipelineRouted` - item implementation
+- `export resetAiModelTelemetry` - item implementation
+
+### shared/integrations/chrome-ai/test-mocks.ts
+**Purpose**: Test utilities for mocking Chrome AI model status functions. Provides reusable mocks for ensureAiModelsReady with happy path and error scenarios.
+
+**Exports**:
+- `export createMockModelStatusMap` - Create a mock AiModelStatusMap for testing
+- `export mockEnsureAiModelsReadyAborted` - Setup mock for ensureAiModelsReady with AbortError
+- `export mockEnsureAiModelsReadyDownloading` - Setup error mock for ensureAiModelsReady
+- `export mockEnsureAiModelsReadyError` - Setup error mock for ensureAiModelsReady
+- `export mockEnsureAiModelsReadyNotAllowed` - Setup mock for ensureAiModelsReady with NotAllowedError
+- `export mockEnsureAiModelsReadyPartial` - Setup partial mock for ensureAiModelsReady
+- `export mockEnsureAiModelsReadySuccess` - Setup happy path mock for ensureAiModelsReady
+- `export mockEnsureAiModelsReadyUnavailable` - Setup error mock for ensureAiModelsReady
+
+### shared/integrations/chrome-ai/types.ts
+**Purpose**: 26 exports
+
+**Exports**:
+- `export ChromeLanguageModelAvailabilityOptions` - item implementation
+- `export ChromeLanguageModelCapabilities` - item implementation
+- `export ChromeLanguageModelConstructor` - item implementation
+- `export ChromeLanguageModelCreateOptions` - item implementation
+- `export ChromeLanguageModelIODescriptor` - item implementation
+- `export ChromeLanguageModelPromptMessage` - item implementation
+- `export ChromeLanguageModelPromptOptions` - item implementation
+- `export ChromeLanguageModelSession` - item implementation
+- `export ChromeAIMonitor` - item implementation
+- `export ChromeAIMonitorEvent` - item implementation
+- `export ChromeLanguageDetection` - item implementation
+- `export ChromeLanguageDetectorConstructor` - item implementation
+- `export ChromeLanguageDetectorInstance` - item implementation
+- `export ChromeLanguageDetectorOptions` - item implementation
+- `export ChromeLanguageModelAvailability` - item implementation
+- `export ChromeLanguageModelIOType` - item implementation
+- `export ChromeLanguageModelMessageRole` - item implementation
+- `export ChromeSummarizerAvailabilityOptions` - item implementation
+- `export ChromeSummarizerConstructor` - item implementation
+- `export ChromeSummarizerFormat` - item implementation
+- `export ChromeSummarizerInstance` - item implementation
+- `export ChromeSummarizerLength` - item implementation
+- `export ChromeSummarizerOptions` - item implementation
+- `export ChromeSummarizerResult` - item implementation
+- `export ChromeSummarizerType` - item implementation
+- `export CHROME_LANGUAGE_MODEL_AVAILABILITY_VALUES` - item implementation
+
 ### shared/integrations/mediainfo/constants.ts
 **Purpose**: Centralized constants for MediaInfo integration and analysis pipeline.
 
@@ -596,7 +1082,7 @@ content.ts # Content script for page context extraction and messaging
 **Exports**:
 - `export MediaAnalysisError` - item implementation
 - `export AnalyzeMediaFromBlobResult` - item implementation
-- `export AnalyzeMediaFromUrlOptions` - HTTP Range request reader for efficient partial file fetc...
+- `export AnalyzeMediaFromUrlOptions` - Generic HTTP range fetch utilities shared across integrat...
 - `export AnalyzeMediaFromUrlResult` - item implementation
 - `export analyzeMediaFromBlob` - item implementation
 - `export analyzeMediaFromUrl` - item implementation
@@ -658,12 +1144,38 @@ content.ts # Content script for page context extraction and messaging
 - `export summariseAudioTrack` - Summarize an audio track from MediaInfo data
 - `export summariseVideoTrack` - Summarize a video track from MediaInfo data
 
-### shared/integrations/mediainfo/range-reader.ts
-**Purpose**: HTTP Range request reader for efficient partial file fetching
+### shared/integrations/range-fetcher.ts
+**Purpose**: Generic HTTP range fetch utilities shared across integrations. Designed to support resumable, partial reads without forcing the caller to download full files when the remote server advertises byte range support.
 
 **Exports**:
 - `export RangeFetchReader` - item implementation
-- `export RangeFetchOptions` - HTTP Range request reader for efficient partial file fetc...
+- `export RangeFetchOptions` - Generic HTTP range fetch utilities shared across integrat...
+- `export RangeFetchResult` - item implementation
+
+### shared/integrations/text-analysis/normalize.ts
+**Purpose**: 3 exports
+
+**Exports**:
+- `export NormalizeTextBufferOptions` - item implementation
+- `export NormalizeTextBufferResult` - Whether to remove leading Markdown fences and HTML tags.
+- `export normalizeTextBuffer` - item implementation
+
+### shared/integrations/text-analysis/types.ts
+**Purpose**: 12 exports
+
+**Exports**:
+- `export CloudConsentRequestDetails` - item implementation
+- `export TextUpgradeAnalysisError` - item implementation
+- `export TextUpgradeAnalysisPermission` - item implementation
+- `export TextUpgradeAnalysisRequest` - item implementation
+- `export TextUpgradeAnalysisSkipped` - item implementation
+- `export TextUpgradeAnalysisSuccess` - item implementation
+- `export TextUpgradeAnalysisUnavailable` - item implementation
+- `export TextUpgradeIngestionResult` - item implementation
+- `export CloudConsentDecision` - item implementation
+- `export TextAnalysisMode` - item implementation
+- `export TextUpgradeAnalysisResponse` - item implementation
+- `export TextUpgradeModelSource` - item implementation
 
 ### shared/lifecycle/install-tracking.ts
 **Purpose**: Extension installation date tracking and storage utilities
@@ -678,17 +1190,24 @@ content.ts # Content script for page context extraction and messaging
 **Purpose**: Central extension messaging protocol using @webext-core/messaging
 
 **Exports**:
+- `export EnsureAiModelsRequestPayload` - item implementation
 - `export ExtensionMessagingProtocol` - item implementation
+- `export AiPipelineTelemetryPayload` - item implementation
 - `export onExtensionMessage` - item implementation
 - `export sendExtensionMessage` - item implementation
+- `export ensureAiModelsReadyRemote` - item implementation
 - `export offscreenHandshake` - item implementation
+- `export recordAiPipelineTelemetryRemote` - item implementation
+- `export requestCloudConsentDetails` - item implementation
 - `export requestMediaAnalysis` - item implementation
 - `export requestPendingConfirmToasts` - item implementation
+- `export requestTextIngestion` - item implementation
 - `export sendConfirmToastDecision` - item implementation
 - `export sendConfirmToastStatus` - item implementation
 - `export sendShowConfirmToast` - item implementation
 - `export sendShowRenameToast` - item implementation
 - `export signalOffscreenReady` - item implementation
+- `export submitCloudConsentDecision` - item implementation
 
 ### shared/naming/media-qualifiers.ts
 **Purpose**: Extract media metadata qualifiers for filename enhancement
@@ -807,10 +1326,10 @@ content.ts # Content script for page context extraction and messaging
 - `export Settings` - item implementation
 
 ### shared/settings/storage-state.ts
-**Purpose**: Internal storage adapter state management for testing
+**Purpose**: Storage adapter state management for settings module This module provides a testing override mechanism for the storage adapter. In production, it simply re-exports WXT's storage API. In tests, it allows mocking storage behavior without complex setup.
 
 **Exports**:
-- `export StorageOverride` - Internal storage adapter state management for testing
+- `export StorageOverride` - item implementation
 - `export getStorageAdapter` - item implementation
 - `export getStorageUnwatch` - item implementation
 - `export registerResetHook` - item implementation
@@ -838,6 +1357,7 @@ content.ts # Content script for page context extraction and messaging
 - `export MetadataToggles` - item implementation
 - `export PerTypeBehavior` - item implementation
 - `export Settings` - item implementation
+- `export CloudTextFallbackMode` - item implementation
 - `export DebugLevel` - item implementation
 - `export FileType` - item implementation
 - `export Mode` - Type definitions for application configuration and settings
@@ -944,11 +1464,6 @@ content.ts # Content script for page context extraction and messaging
 - `export getConfirmToastManager` - item implementation
 - `export resetConfirmToastManagerForTesting` - item implementation
 
-### shared/ui/icons.ts
-**Purpose**: Shared icon exports for consistent icon usage across the application. All icons are re-exported from @heroicons/react for easy replacement if needed.
-
-*No exports found*
-
 ### shared/ui/theme-service.ts
 **Purpose**: Theme management application service Handles automatic theme detection and daily reset logic
 
@@ -1019,11 +1534,24 @@ Handles automatic th...
 - `export ThemeTarget` - Theme management for toast UI elements.
 - `export createThemeManager` - Creates a theme manager that syncs theme between settings...
 
+### shared/utils/encoding.ts
+**Purpose**: Lightweight text encoding helpers used during file ingestion.
+
+**Exports**:
+- `export DecodeTextBufferOptions` - item implementation
+- `export DecodeTextBufferResult` - item implementation
+- `export DetectedTextEncoding` - Lightweight text encoding helpers used during file ingest...
+- `export TextEncoding` - Lightweight text encoding helpers used during file ingestion
+- `export decodeTextBuffer` - item implementation
+- `export detectTextEncoding` - item implementation
+- `export stripBom` - item implementation
+
 ### shared/utils/filename.ts
 **Purpose**: Utility helpers for working with file names.
 
 **Exports**:
 - `export basename` - Extract the base filename from a path, normalising Window...
+- `export extractExtension` - Extract the file extension from a filename, handling mult...
 - `export fallbackNameFromUrl` - Generate a fallback filename from a URL when no filename ...
 
 ### shared/utils/id.ts
@@ -1031,4 +1559,11 @@ Handles automatic th...
 
 **Exports**:
 - `export randomId` - Generate a random ID for tracking downloads and history i...
+
+### shared/utils/tab-eligibility.ts
+**Purpose**: Utility helpers for checking tab eligibility for content script injection.
+
+**Exports**:
+- `export isTabEligibleForToast` - Check if a Chrome tabs
+- `export isUrlEligibleForContentScript` - Check if a URL is eligible for content script injection
 
