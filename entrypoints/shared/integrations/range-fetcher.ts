@@ -306,21 +306,3 @@ export class RangeFetchReader {
     return cached;
   }
 }
-
-/**
- * Convenience helper for fetching a leading byte range without managing reader state.
- */
-export async function fetchInitialRange(
-  url: string,
-  length: number,
-  options: RangeFetchOptions = {},
-): Promise<RangeFetchResult> {
-  const reader = new RangeFetchReader(url, { chunkSize: length, ...options });
-  const bytes = await reader.read(length, 0);
-  return {
-    bytes,
-    totalSize: reader.totalSize,
-    start: 0,
-    end: bytes.length > 0 ? bytes.length - 1 : -1,
-  };
-}

@@ -141,7 +141,6 @@ export function detectFreshOrDevProfile(): {
 export async function runDiagnostics(
   statuses: AiModelStatusMap,
 ): Promise<SystemDiagnostics> {
-  const issues: DiagnosticResult[] = [];
   const chrome = getChromeVersion();
   const { os } = getPlatform();
   const profileInfo = detectFreshOrDevProfile();
@@ -150,129 +149,7 @@ export async function runDiagnostics(
     (status) => status.state === 'unavailable' || status.state === 'error',
   );
 
-  // Check 0: WXT development mode / fresh profile (if all models unavailable)
-  if (allModelsUnavailable && profileInfo.isLikelyWxt) {
-    issues.push({
-      issue: 'fresh-profile-detected',
-      severity: 'info',
-      title: 'Development Mode Detected',
-      description:
-        'You appear to be running in WXT development mode. WXT creates a separate Chrome profile that requires its own setup.',
-      fixSteps: [
-        'Enable Chrome flags IN THIS Chrome window (not your regular Chrome)',
-        'Open chrome://flags/#prompt-api-for-gemini-nano and set to "Enabled"',
-        'Open chrome://flags/#optimization-guide-on-device-model and set to "Enabled BypassPerfRequirement"',
-        'Click "Relaunch" and wait for Chrome to restart',
-        'Check chrome://components/ for "Optimization Guide On Device Model"',
-        'If component is missing, wait 1-2 days for it to download',
-      ],
-      links: [
-        {
-          label: 'Open Flags',
-          url: 'chrome://flags/#prompt-api-for-gemini-nano',
-        },
-        {
-          label: 'Check Components',
-          url: 'chrome://components/',
-        },
-        {
-          label: 'Check Internals',
-          url: 'chrome://on-device-internals',
-        },
-      ],
-    });
-  }
-
-  // Check 1: Chrome version
-  if (chrome.major < 138) {
-    issues.push({
-      issue: 'chrome-version-too-old',
-      severity: 'error',
-      title: `Chrome ${chrome.major} is Too Old`,
-      description: `You're using Chrome ${chrome.version}. Gemini Nano requires Chrome 138 or newer.`,
-      fixSteps: [
-        'Update to Chrome 138+ (stable) or Chrome 140+ (for CPU support)',
-        'Go to chrome://settings/help to check for updates',
-        'After updating, restart Chrome and return to this page',
-      ],
-      links: [
-        { label: 'Download Chrome', url: 'https://www.google.com/chrome/' },
-      ],
-    });
-  }
-
-  // Check 2: All models unavailable suggests flags or component missing
-  if (allModelsUnavailable) {
-    // Sub-check: Likely flags not enabled
-    issues.push({
-      issue: 'flags-not-enabled',
-      severity: 'error',
-      title: 'Chrome Flags May Not Be Enabled',
-      description:
-        'All models show unavailable. This typically means required Chrome flags are disabled or the Optimization Guide component is missing.',
-      fixSteps: [
-        'Open chrome://flags/#prompt-api-for-gemini-nano',
-        'Set to "Enabled" and click "Relaunch"',
-        'Open chrome://flags/#optimization-guide-on-device-model',
-        'Set to "Enabled BypassPerfRequirement" and click "Relaunch"',
-        'Wait for Chrome to restart completely',
-      ],
-      links: [
-        {
-          label: 'Open Prompt API Flag',
-          url: 'chrome://flags/#prompt-api-for-gemini-nano',
-        },
-        {
-          label: 'Open Optimization Guide Flag',
-          url: 'chrome://flags/#optimization-guide-on-device-model',
-        },
-      ],
-    });
-
-    // Sub-check: Optimization Guide component
-    issues.push({
-      issue: 'optimization-guide-missing',
-      severity: 'warning',
-      title: 'Optimization Guide Component Not Downloaded',
-      description:
-        'Even with flags enabled, the Optimization Guide component needs to download. This can take 1-2 days to appear after enabling flags.',
-      fixSteps: [
-        'Open chrome://components/',
-        'Find "Optimization Guide On Device Model"',
-        'Check if version shows "0.0.0.0" (not downloaded)',
-        'Click "Check for update" to trigger download',
-        'If component is missing entirely, wait 1-2 days and try again',
-        'Come back and click "Re-check Status" after download',
-      ],
-      links: [
-        { label: 'Open Components', url: 'chrome://components' },
-        {
-          label: 'Diagnostics',
-          url: 'chrome://on-device-internals',
-        },
-      ],
-    });
-  }
-
-  // Check 3: OS support
-  if (os === 'unknown') {
-    issues.push({
-      issue: 'os-unsupported',
-      severity: 'error',
-      title: 'Operating System May Not Be Supported',
-      description:
-        'Could not detect your operating system. Gemini Nano requires Windows 10+, macOS 13+, Linux, or ChromeOS.',
-      fixSteps: [
-        'Verify you are running a supported OS',
-        'Windows: 10 or 11',
-        'macOS: 13+ (Ventura or later)',
-        'Linux: Any modern distribution',
-        'ChromeOS: Chromebook Plus devices',
-      ],
-    });
-  }
-
-  // Check 4: Individual model availability details
+  // Log individual model availability details
   Object.entries(statuses).forEach(([id, status]) => {
     if (status.state === 'unavailable' && status.detail) {
       debugLogger.log('[Diagnostics] Model unavailable', {
@@ -282,32 +159,56 @@ export async function runDiagnostics(
     }
   });
 
-  // Check 5: Hardware requirements (if models show unavailable but flags are likely enabled)
-  if (
-    allModelsUnavailable &&
-    chrome.major >= 138 &&
-    !issues.find((i) => i.issue === 'chrome-version-too-old')
-  ) {
-    issues.push({
-      issue: 'hardware-insufficient',
-      severity: 'warning',
-      title: 'Hardware May Not Meet Requirements',
-      description:
-        'Your hardware might not meet the default requirements. You can try bypassing these checks.',
-      fixSteps: [
-        'Open chrome://flags/#optimization-guide-on-device-model',
-        'Change to "Enabled BypassPerfRequirement"',
-        'Restart Chrome',
-        'Note: Performance may be slower but should work',
-      ],
-      links: [
-        {
-          label: 'Hardware Requirements Guide',
-          url: 'https://developer.chrome.com/docs/ai/built-in',
-        },
-      ],
-    });
-  }
+  // Import and run diagnostic rules
+  const { checkWxtDevMode } = await import(
+    './diagnostics-rules/wxt-dev-mode-rule'
+  );
+  const { checkChromeVersion } = await import(
+    './diagnostics-rules/chrome-version-rule'
+  );
+  const { checkFlagsEnabled } = await import(
+    './diagnostics-rules/flags-enabled-rule'
+  );
+  const { checkOptimizationGuide } = await import(
+    './diagnostics-rules/optimization-guide-rule'
+  );
+  const { checkOsSupport } = await import(
+    './diagnostics-rules/os-support-rule'
+  );
+  const { checkHardwareRequirements } = await import(
+    './diagnostics-rules/hardware-requirements-rule'
+  );
+
+  const issues: DiagnosticResult[] = [];
+
+  // Run all diagnostic rules in order
+  const wxtIssue = checkWxtDevMode({
+    allModelsUnavailable,
+    isLikelyWxt: profileInfo.isLikelyWxt,
+  });
+  if (wxtIssue) issues.push(wxtIssue);
+
+  const versionIssue = checkChromeVersion({
+    chromeMajor: chrome.major,
+    chromeVersion: chrome.version,
+  });
+  if (versionIssue) issues.push(versionIssue);
+
+  const flagsIssue = checkFlagsEnabled({ allModelsUnavailable });
+  if (flagsIssue) issues.push(flagsIssue);
+
+  const guideIssue = checkOptimizationGuide({ allModelsUnavailable });
+  if (guideIssue) issues.push(guideIssue);
+
+  const osIssue = checkOsSupport({ os });
+  if (osIssue) issues.push(osIssue);
+
+  const hardwareIssue = checkHardwareRequirements({
+    allModelsUnavailable,
+    chromeMajor: chrome.major,
+    hasVersionError: Boolean(versionIssue),
+  });
+  if (hardwareIssue) issues.push(hardwareIssue);
 
   return {
     chromeVersion: chrome.version,
