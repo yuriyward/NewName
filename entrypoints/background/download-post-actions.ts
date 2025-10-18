@@ -94,6 +94,7 @@ export async function applyPostDownloadActions({
       url: plan.url,
       filename: finalFilename,
       createdAt: Date.now(),
+      tabId: plan.initiatingTabId,
     });
   }
 

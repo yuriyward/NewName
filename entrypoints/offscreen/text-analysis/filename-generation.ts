@@ -100,10 +100,10 @@ function buildGenerationPrompt(context: FilenameGenerationContext): string {
 
   const separatorExample =
     context.settings.separator === 'clean'
-      ? 'Project Roadmap Update'
+      ? 'Budget Meeting Notes'
       : context.settings.separator === 'kebab'
-        ? 'project-roadmap-update'
-        : 'project_roadmap_update';
+        ? 'budget-meeting-notes'
+        : 'budget_meeting_notes';
 
   const separatorDescription =
     context.settings.separator === 'clean'

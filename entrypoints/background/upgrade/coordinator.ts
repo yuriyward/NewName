@@ -81,6 +81,7 @@ export function createUpgradeCoordinator(
         settings,
         now,
         historyItem,
+        tabId: tracking.tabId,
       });
     },
     scheduleMockAnalysis: scheduler.scheduleMockAnalysis,

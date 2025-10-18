@@ -160,16 +160,18 @@ export function createConfirmToastController(
     target: number | SendMessageOptions | undefined,
     payload: ShowConfirmToastMessage,
   ): Promise<void> {
-    if (target === undefined) {
-      throw new Error(
-        `[ConfirmToast] Missing tab target for toast ${payload.proposal.toastId}`,
-      );
+    // Should never be called with undefined target due to checks in queueConfirmation
+    if (!target) {
+      const message = `[ConfirmToast] Invalid target for toast ${payload.proposal.toastId}`;
+      debugLogger.error(message);
+      throw new Error(message);
     }
+
     try {
       await sendShowConfirmToast(payload, target);
     } catch (error) {
       // This is expected to fail for restricted tabs (chrome://, about:, etc.)
-      // where content scripts cannot be injected. Log at debug level.
+      // where content scripts cannot be injected.
       debugLogger.log(
         '[ConfirmToast] Failed to dispatch toast to content script (may be restricted URL)',
         {
@@ -231,6 +233,15 @@ export function createConfirmToastController(
       const target = await resolveTarget(options.target);
       const tabId = extractTabId(target);
 
+      // If no eligible tab found, skip the toast silently
+      if (target === undefined) {
+        debugLogger.warn('[ConfirmToast] No eligible tab found to show toast', {
+          toastId,
+          historyId: options.historyId,
+        });
+        return null;
+      }
+
       const entry: ConfirmToastEntry = {
         proposal,
         historyId: options.historyId,
@@ -260,7 +271,18 @@ export function createConfirmToastController(
 
       // Show immediately if no toast is active
       activeToastId = toastId;
-      await scheduleShowToast(target, { proposal });
+      try {
+        await scheduleShowToast(target, { proposal });
+      } catch (error) {
+        // Failed to show, try next queued toast
+        debugLogger.warn('[ConfirmToast] Failed to show toast immediately', {
+          toastId,
+          error,
+        });
+        activeToastId = null;
+        removeEntry(toastId);
+        void processNextQueuedToast();
+      }
       return entry;
     },
 

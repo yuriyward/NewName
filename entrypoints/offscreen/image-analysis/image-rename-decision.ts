@@ -184,7 +184,7 @@ export async function decideIfImageNeedsRename(params: {
         session.inputUsage && session.inputQuota
           ? `${((session.inputUsage / session.inputQuota) * 100).toFixed(1)}%`
           : 'unknown',
-          session: session
+      session: session,
     });
 
     // Parse JSON response

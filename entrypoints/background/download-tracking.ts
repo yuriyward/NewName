@@ -9,6 +9,7 @@ export interface DownloadTrackingEntry {
   url: string;
   filename: string;
   createdAt: number;
+  tabId?: number;
 }
 
 const DOWNLOAD_TRACKING_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours

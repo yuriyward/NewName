@@ -16,6 +16,7 @@ export interface ProcessUpgradeAnalysisParams {
   settings: Settings;
   now: number;
   historyItem: HistoryItem;
+  tabId?: number;
 }
 
 export interface UpgradeExecutor {
@@ -69,6 +70,7 @@ export function createUpgradeExecutor(
     proposal: UpgradeProposal,
     settings: Settings,
     downloadId: number,
+    tabId?: number,
   ): Promise<void> {
     const autoApplyDelaySeconds = proposal.autoApply
       ? settings.confirmToast.autoApplyDelaySeconds
@@ -90,6 +92,7 @@ export function createUpgradeExecutor(
         triggerSources: ['contextual-upgrade'],
         autoApplyDelaySeconds,
         allowAlwaysApply: settings.mode !== 'careful',
+        target: tabId,
       });
 
       debugLogger.log('[UpgradeExecutor] Upgrade toast queued', {
@@ -113,6 +116,7 @@ export function createUpgradeExecutor(
     settings,
     now,
     historyItem,
+    tabId,
   }: ProcessUpgradeAnalysisParams): Promise<void> {
     const resolution = await resolveDownloadItem(downloadId, {
       historyId,
@@ -194,6 +198,7 @@ export function createUpgradeExecutor(
       normalizedProposal,
       settings,
       downloadId,
+      tabId,
     );
   }
 

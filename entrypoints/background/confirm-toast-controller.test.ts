@@ -217,18 +217,19 @@ describe('createConfirmToastController', () => {
     expect(result).toBe(false);
   });
 
-  it('propagates errors when toast target cannot be resolved', async () => {
+  it('returns null when toast target cannot be resolved', async () => {
     resolveTarget.mockResolvedValue(undefined);
     extractTabId.mockReturnValue(undefined);
     const { hooks } = createHooks();
     const controller = createConfirmToastController(hooks);
 
-    await expect(
-      controller.queueConfirmation({
-        ...BASE_OPTIONS,
-        historyId: 'history-error',
-        autoApplyDelaySeconds: null,
-      }),
-    ).rejects.toThrow('[ConfirmToast] Missing tab target');
+    const result = await controller.queueConfirmation({
+      ...BASE_OPTIONS,
+      historyId: 'history-error',
+      autoApplyDelaySeconds: null,
+    });
+
+    expect(result).toBeNull();
+    expect(controller.getPendingByHistory('history-error')).toBeUndefined();
   });
 });
