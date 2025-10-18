@@ -140,6 +140,16 @@ export function createConfirmToastController(
       return;
     }
 
+    // If target is undefined, this toast is waiting for a tab to become available
+    // Keep it in pending but don't mark as active (will be handled by tab broadcaster)
+    if (entry.target === undefined) {
+      debugLogger.log('[ConfirmToast] Toast waiting for eligible tab', {
+        toastId: nextToastId,
+        remainingInQueue: queuedToasts.length,
+      });
+      return;
+    }
+
     activeToastId = nextToastId;
 
     try {
@@ -233,15 +243,6 @@ export function createConfirmToastController(
       const target = await resolveTarget(options.target);
       const tabId = extractTabId(target);
 
-      // If no eligible tab found, skip the toast silently
-      if (target === undefined) {
-        debugLogger.warn('[ConfirmToast] No eligible tab found to show toast', {
-          toastId,
-          historyId: options.historyId,
-        });
-        return null;
-      }
-
       const entry: ConfirmToastEntry = {
         proposal,
         historyId: options.historyId,
@@ -257,6 +258,20 @@ export function createConfirmToastController(
 
       entriesById.set(toastId, entry);
       historyIndex.set(options.historyId, toastId);
+
+      // If no eligible tab found, queue for later when a tab becomes available
+      if (target === undefined) {
+        queuedToasts.push(toastId);
+        debugLogger.log(
+          '[ConfirmToast] Toast queued (no eligible tab currently)',
+          {
+            toastId,
+            historyId: options.historyId,
+            queueLength: queuedToasts.length,
+          },
+        );
+        return entry;
+      }
 
       // Check if we need to queue this toast
       if (activeToastId !== null) {

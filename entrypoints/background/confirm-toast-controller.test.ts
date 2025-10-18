@@ -217,7 +217,7 @@ describe('createConfirmToastController', () => {
     expect(result).toBe(false);
   });
 
-  it('returns null when toast target cannot be resolved', async () => {
+  it('queues toast when target cannot be resolved initially', async () => {
     resolveTarget.mockResolvedValue(undefined);
     extractTabId.mockReturnValue(undefined);
     const { hooks } = createHooks();
@@ -225,11 +225,15 @@ describe('createConfirmToastController', () => {
 
     const result = await controller.queueConfirmation({
       ...BASE_OPTIONS,
-      historyId: 'history-error',
+      historyId: 'history-waiting',
       autoApplyDelaySeconds: null,
     });
 
-    expect(result).toBeNull();
-    expect(controller.getPendingByHistory('history-error')).toBeUndefined();
+    // Toast should be queued even though target is undefined
+    expect(result).not.toBeNull();
+    expect(result?.proposal.historyId).toBe('history-waiting');
+    expect(controller.getPendingByHistory('history-waiting')).toBe(result);
+    // Should not be shown immediately (no active toast), but queued for broadcast
+    expect(sendShowConfirmToast).not.toHaveBeenCalled();
   });
 });

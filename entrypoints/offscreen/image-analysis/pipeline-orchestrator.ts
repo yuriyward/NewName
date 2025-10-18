@@ -310,7 +310,7 @@ export async function runImageUpgradePipeline(
     request: requestForFilename,
     ingestion: ingestionForFilename,
     subject,
-    language: 'en',
+    language: undefined,
   });
 
   const proposedFilename = filenameResult.filename;
@@ -347,15 +347,14 @@ export async function runImageUpgradePipeline(
           ? 'high'
           : 'suggested',
       autoApply: shouldAutoApply,
-      reasonTags: formatReasonTags('en', promptUsed, 'on-device'),
+      reasonTags: formatReasonTags(undefined, promptUsed, 'on-device'),
       generatedAt: Date.now(),
       source: 'ai',
       summary:
         decision.explanation ||
-        buildProposalSummary('en', description.description),
+        buildProposalSummary(undefined, description.description),
     },
     description: description.description,
-    language: 'en',
     modelSource: 'on-device',
     promptConfidence: decision.confidence,
     promptUsed,
