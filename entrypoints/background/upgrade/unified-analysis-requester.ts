@@ -6,6 +6,7 @@
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type { CloudConsentRequestContext } from './cloud-consent-manager';
 import { createImageUpgradeAnalysisRequester } from './image-analysis-request';
+import { createPdfUpgradeAnalysisRequester } from './pdf-analysis-request';
 import { createTextUpgradeAnalysisRequester } from './text-analysis-request';
 import type { UpgradeAnalysisInput } from './types';
 
@@ -17,17 +18,18 @@ export interface UnifiedAnalysisRequesterDependencies {
 }
 
 /**
- * Create a unified analysis requester that routes to text or image analysis
+ * Create a unified analysis requester that routes to text, image, or PDF analysis
  * based on the file type of the download
  *
  * @param deps - Optional dependencies for cloud consent flows (text-only)
- * @returns Function that analyzes either text or image files
+ * @returns Function that analyzes text, image, or PDF files
  */
 export function createUnifiedUpgradeAnalysisRequester(
   deps: UnifiedAnalysisRequesterDependencies = {},
 ): (input: UpgradeAnalysisInput) => Promise<UpgradeProposal | null> {
   const textRequester = createTextUpgradeAnalysisRequester(deps);
   const imageRequester = createImageUpgradeAnalysisRequester();
+  const pdfRequester = createPdfUpgradeAnalysisRequester();
 
   return async (
     input: UpgradeAnalysisInput,
@@ -39,12 +41,12 @@ export function createUnifiedUpgradeAnalysisRequester(
       return imageRequester(input);
     }
 
-    // Route to text analysis for text/data files
-    if (fileType === 'data') {
-      return textRequester(input);
+    // Route to PDF analysis for PDF files
+    if (fileType === 'pdf') {
+      return pdfRequester(input);
     }
 
-    // For other file types, fall back to text requester which handles mock analysis
+    // Route to text analysis for text/data files or fall back for other types
     return textRequester(input);
   };
 }

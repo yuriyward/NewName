@@ -5,6 +5,10 @@
 import type { SendMessageOptions } from '@webext-core/messaging';
 import { defineExtensionMessaging } from '@webext-core/messaging';
 import type {
+  PdfUpgradeAnalysisRequest,
+  PdfUpgradeAnalysisResponse,
+} from '@/entrypoints/offscreen/pdf-analysis/types';
+import type {
   AiModelStatusMap,
   EnsureAiModelsOptions,
 } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
@@ -102,6 +106,13 @@ export interface ExtensionMessagingProtocol {
   ): Promise<ImageUpgradeAnalysisResponse>;
 
   /**
+   * Request PDF analysis (page extraction and image-based analysis) inside the offscreen document.
+   */
+  requestPdfAnalysis(
+    payload: PdfUpgradeAnalysisRequest,
+  ): Promise<PdfUpgradeAnalysisResponse>;
+
+  /**
    * Retrieve pending cloud consent request details.
    */
   requestCloudConsentDetails(payload: {
@@ -190,6 +201,13 @@ export async function requestImageIngestion(
   payload: ImageUpgradeAnalysisRequest,
 ): Promise<ImageUpgradeAnalysisResponse> {
   const result = await sendExtensionMessage('requestImageIngestion', payload);
+  return await result;
+}
+
+export async function requestPdfAnalysis(
+  payload: PdfUpgradeAnalysisRequest,
+): Promise<PdfUpgradeAnalysisResponse> {
+  const result = await sendExtensionMessage('requestPdfAnalysis', payload);
   return await result;
 }
 

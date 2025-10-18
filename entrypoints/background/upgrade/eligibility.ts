@@ -16,18 +16,20 @@ export function shouldAnalyzeUpgrade(
   settings: Settings,
   now: number,
 ): boolean {
+  // Check behavior setting
   if (settings.perType[historyItem.fileType]?.behavior === 'off') {
     return false;
   }
 
+  // Check perfect confidence
   if (
     historyItem.decision?.outcome === 'rename' &&
     historyItem.decision.confidence === 100
   ) {
-    // Skip when Instant Baseline was perfect (100% confidence), nothing left to improve.
     return false;
   }
 
+  // Check recent upgrade window
   if (historyItem.upgrade) {
     const age = now - historyItem.upgrade.generatedAt;
     if (age < UPGRADE_RECENT_WINDOW_MS) {

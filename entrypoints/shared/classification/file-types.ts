@@ -117,3 +117,26 @@ export function isImageExtension(
   }
   return false;
 }
+
+/**
+ * Check if a file extension indicates a PDF file eligible for AI PDF analysis.
+ *
+ * @param extension - The file extension (case-insensitive, with or without leading dot)
+ * @returns true if the extension is recognized as a PDF file format
+ *
+ * @example
+ * isPdfExtension('pdf') // true
+ * isPdfExtension('.PDF') // true
+ * isPdfExtension('jpg') // false
+ * isPdfExtension(null) // false
+ */
+export function isPdfExtension(extension: string | null | undefined): boolean {
+  if (!extension) return false;
+  const normalized = extension.replace(/^\.+/, '').toLowerCase();
+  // Check using centralized EXTENSION_MAP for consistent file type detection
+  if (normalized in EXTENSION_MAP) {
+    const fileType = EXTENSION_MAP[normalized];
+    return fileType === 'pdf';
+  }
+  return false;
+}

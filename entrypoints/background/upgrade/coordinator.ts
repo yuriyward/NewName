@@ -75,6 +75,12 @@ export function createUpgradeCoordinator(
         return;
       }
 
+      debugLogger.log('[UpgradeCoordinator] Starting upgrade analysis', {
+        downloadId: delta.id,
+        historyId,
+        fileType: historyItem.fileType,
+      });
+
       await executor.processAnalysis({
         historyId,
         downloadId: delta.id,
