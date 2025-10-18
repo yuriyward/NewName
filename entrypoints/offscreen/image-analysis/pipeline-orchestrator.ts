@@ -232,8 +232,14 @@ export async function runImageUpgradePipeline(
   // ==================================================================
   // PHASE 3: Filename Generation (Prompt API call #3)
   // Generate new filename stem based on description
+  // For PDFs, include the extracted title context to prioritize it
   // ==================================================================
   const generationStartTime = Date.now();
+
+  // Extract PDF context if available (passed through request)
+  // biome-ignore lint/suspicious/noExplicitAny: PDF context passed through request object
+  const pdfContext = (request as any)._pdfContext;
+
   const generatedStem = await generateFilenameStem({
     summary: description.description,
     language: 'en', // Images described in English
@@ -243,6 +249,14 @@ export async function runImageUpgradePipeline(
       separator: request.settings.separator,
       transliterateAscii: request.settings.transliterateAscii,
     },
+    // Pass PDF context if available
+    ...(pdfContext && {
+      pdfContext: {
+        source: 'pdf' as const,
+        documentTitle: pdfContext.documentTitle,
+        shouldPrioritizeTitle: pdfContext.shouldPrioritizeTitle,
+      },
+    }),
   });
   const generationElapsedMs = Date.now() - generationStartTime;
 

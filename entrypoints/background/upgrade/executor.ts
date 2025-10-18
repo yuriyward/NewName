@@ -35,6 +35,10 @@ export function createUpgradeExecutor(
 ): UpgradeExecutor {
   const { confirmToastController, requestAnalysis } = deps;
 
+  // Track in-flight analyses to prevent duplicates from multiple entry points
+  // (both downloads.onChanged and scheduler alarms can trigger analysis)
+  const inFlightAnalyses = new Set<string>();
+
   async function runAnalysis(
     downloadId: number,
     historyItem: HistoryItem,
@@ -118,88 +122,109 @@ export function createUpgradeExecutor(
     historyItem,
     tabId,
   }: ProcessUpgradeAnalysisParams): Promise<void> {
-    const resolution = await resolveDownloadItem(downloadId, {
-      historyId,
-      historyPath: historyItem.path,
-      historyPhase: historyItem.phase,
-      historySource: historyItem.source,
-      pendingReason: historyItem.pendingUpgradeAnalysis?.reason,
-    });
-    if (resolution.status !== 'success') {
-      const context = {
-        historyId,
-        downloadId,
-        reason: resolution.reason,
-      };
-
-      if (resolution.reason === 'not-found') {
-        debugLogger.warn(
-          '[UpgradeExecutor] Download item missing during analysis',
-          context,
-        );
-      } else if (resolution.reason === 'permission-denied') {
-        debugLogger.warn(
-          '[UpgradeExecutor] Missing permission for download analysis',
-          {
-            ...context,
-            error: resolution.error,
-          },
-        );
-      } else if (resolution.reason === 'invalid-payload') {
-        debugLogger.error('[UpgradeExecutor] Download item payload invalid', {
-          ...context,
-          error: resolution.error,
-        });
-      } else {
-        debugLogger.error(
-          '[UpgradeExecutor] Unexpected failure resolving download item',
-          {
-            ...context,
-            error: resolution.error,
-          },
-        );
-      }
-
+    // Prevent duplicate analysis from both scheduler alarms and downloads.onChanged
+    if (inFlightAnalyses.has(historyId)) {
+      debugLogger.log(
+        '[UpgradeExecutor] Duplicate analysis prevented for history item',
+        {
+          historyId,
+          downloadId,
+          source: 'executor-duplicate-guard',
+        },
+      );
       return;
     }
 
-    const downloadItem = resolution.downloadItem;
-    const proposal = await runAnalysis(
-      downloadId,
-      historyItem,
-      downloadItem,
-      settings,
-      now,
-    );
-    if (!proposal) {
-      return;
-    }
-
-    const normalizedProposal = normalizeProposal(proposal, now);
+    // Mark as in-flight immediately to guard against both entry points
+    inFlightAnalyses.add(historyId);
 
     try {
-      const updated = await updateHistoryItem(historyId, (item) => ({
-        ...item,
-        pendingUpgradeAnalysis: undefined,
-        upgrade: normalizedProposal,
-      }));
-      if (updated) {
-        historyItem = updated;
-      }
-    } catch (error) {
-      debugLogger.warn('[UpgradeExecutor] Failed to persist upgrade proposal', {
+      const resolution = await resolveDownloadItem(downloadId, {
         historyId,
-        error,
+        historyPath: historyItem.path,
+        historyPhase: historyItem.phase,
+        historySource: historyItem.source,
+        pendingReason: historyItem.pendingUpgradeAnalysis?.reason,
       });
-    }
+      if (resolution.status !== 'success') {
+        const context = {
+          historyId,
+          downloadId,
+          reason: resolution.reason,
+        };
 
-    await queueUpgradeToast(
-      historyItem,
-      normalizedProposal,
-      settings,
-      downloadId,
-      tabId,
-    );
+        if (resolution.reason === 'not-found') {
+          debugLogger.warn(
+            '[UpgradeExecutor] Download item missing during analysis',
+            context,
+          );
+        } else if (resolution.reason === 'permission-denied') {
+          debugLogger.warn(
+            '[UpgradeExecutor] Missing permission for download analysis',
+            {
+              ...context,
+              error: resolution.error,
+            },
+          );
+        } else if (resolution.reason === 'invalid-payload') {
+          debugLogger.error('[UpgradeExecutor] Download item payload invalid', {
+            ...context,
+            error: resolution.error,
+          });
+        } else {
+          debugLogger.error(
+            '[UpgradeExecutor] Unexpected failure resolving download item',
+            {
+              ...context,
+              error: resolution.error,
+            },
+          );
+        }
+
+        return;
+      }
+
+      const downloadItem = resolution.downloadItem;
+      const proposal = await runAnalysis(
+        downloadId,
+        historyItem,
+        downloadItem,
+        settings,
+        now,
+      );
+      if (!proposal) {
+        return;
+      }
+
+      const normalizedProposal = normalizeProposal(proposal, now);
+
+      try {
+        const updated = await updateHistoryItem(historyId, (item) => ({
+          ...item,
+          pendingUpgradeAnalysis: undefined,
+          upgrade: normalizedProposal,
+        }));
+        if (updated) {
+          historyItem = updated;
+        }
+      } catch (error) {
+        debugLogger.warn('[UpgradeExecutor] Failed to persist upgrade proposal', {
+          historyId,
+          error,
+        });
+      }
+
+      await queueUpgradeToast(
+        historyItem,
+        normalizedProposal,
+        settings,
+        downloadId,
+        tabId,
+      );
+    } finally {
+      // Remove from in-flight when complete (success or error)
+      inFlightAnalyses.delete(historyId);
+    }
   }
 
   return {

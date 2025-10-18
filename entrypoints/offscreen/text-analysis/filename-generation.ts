@@ -38,6 +38,12 @@ export interface FilenameGenerationContext {
     separator: Separator;
     transliterateAscii: boolean;
   };
+  // Optional PDF context from phase 1 analysis
+  pdfContext?: {
+    source: 'pdf';
+    documentTitle: string | null;
+    shouldPrioritizeTitle: boolean;
+  };
 }
 
 /**
@@ -84,6 +90,7 @@ const FILENAME_GENERATION_SCHEMA = {
 /**
  * Build the generation prompt that asks the AI to create a new filename.
  * This prompt includes policy rules and examples to guide generation.
+ * For PDFs with extracted titles, prioritizes using the exact title in the filename.
  */
 function buildGenerationPrompt(context: FilenameGenerationContext): string {
   const baseContext = buildBaseContextDescription({
@@ -119,13 +126,24 @@ function buildGenerationPrompt(context: FilenameGenerationContext): string {
   const jsonSummary = JSON.stringify(summaryForPrompt || 'Not available');
   const jsonBaseline = JSON.stringify(context.currentBaseline);
 
+  // Add PDF-specific generation guidance if title was extracted
+  const pdfGuidance =
+    context.pdfContext?.shouldPrioritizeTitle &&
+    context.pdfContext?.documentTitle
+      ? `\nPDF PRIORITY: This is a PDF with an extracted document title: "${context.pdfContext.documentTitle}"
+- PRIORITIZE using this exact title as the primary component of the filename
+- If the title is a complete, descriptive phrase, use it directly
+- Only shorten or modify the title if it exceeds the max length
+- The title is authoritative for this document`
+      : '';
+
   return `You generate descriptive filename stems that follow strict formatting policies.
 
 Context:
 ${baseContext}
 
 Content summary (JSON string): ${jsonSummary}
-Current baseline name (JSON string): ${jsonBaseline}
+Current baseline name (JSON string): ${jsonBaseline}${pdfGuidance}
 
 Formatting requirements:
 ${policyRules}

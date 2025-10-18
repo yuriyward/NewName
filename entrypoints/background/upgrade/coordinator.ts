@@ -72,6 +72,14 @@ export function createUpgradeCoordinator(
       }
 
       if (!shouldAnalyzeUpgrade(historyItem, settings, now)) {
+        debugLogger.log(
+          '[UpgradeCoordinator] Upgrade analysis skipped (ineligible)',
+          {
+            historyId,
+            downloadId: delta.id,
+            reason: 'eligibility-check-failed',
+          },
+        );
         return;
       }
 
@@ -81,6 +89,8 @@ export function createUpgradeCoordinator(
         fileType: historyItem.fileType,
       });
 
+      // The executor will handle duplicate prevention for analyses triggered
+      // from both downloads.onChanged and scheduler alarms
       await executor.processAnalysis({
         historyId,
         downloadId: delta.id,

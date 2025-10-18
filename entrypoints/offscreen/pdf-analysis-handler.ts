@@ -3,21 +3,22 @@
  * Handles PDF file extraction, page rendering, and image-based analysis
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { verifyDirectoryPermission } from '@/entrypoints/shared/filesystem/directory-picker';
 import { resolveFileHandle } from '@/entrypoints/shared/filesystem/file-reader';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
-import { runImageUpgradePipeline } from './image-analysis/pipeline-orchestrator';
+import { generateFilenamePhase3 } from './image-analysis/phase3-filename-generation';
 import { logPdfDebug } from './pdf-analysis/logging';
+import { mergePdfContext } from './pdf-analysis/pdf-context-merger';
 import { extractPdfPagesForAnalysis } from './pdf-analysis/pdf-page-extractor';
+import { decidePdfRename } from './pdf-analysis/pdf-rename-decision';
+import { extractPdfTitlesAndDescriptions } from './pdf-analysis/pdf-title-description';
 import type {
   PdfAnalysisSuccess,
   PdfPageIngestionResult,
   PdfUpgradeAnalysisErrorResponse,
   PdfUpgradeAnalysisRequest,
-  PdfUpgradeAnalysisResponse,
   PdfUpgradeAnalysisUnavailable,
 } from './pdf-analysis/types';
 
@@ -26,56 +27,125 @@ logPdfDebug('module-loaded', { timestamp: Date.now() });
 let registered = false;
 
 /**
- * Analyze a single extracted PDF page via image pipeline
- * @param pageBlob - PNG blob of rendered PDF page
- * @param pageNumber - Page number for debugging
+ * Analyze extracted PDF pages: Phase 1 (title/description) + Phase 2-3 (rename decision + generation)
+ * @param pageBlobs - PNG blobs of rendered PDF pages
  * @param request - Original PDF analysis request
  * @returns Upgrade proposal or null
  */
-async function analyzeExtractedPage(
-  pageBlob: Blob,
-  pageNumber: number,
+async function analyzePdfPages(
+  pageBlobs: Blob[],
   request: PdfUpgradeAnalysisRequest,
 ): Promise<UpgradeProposal | null> {
-  logPdfDebug('page-analysis-start', {
+  logPdfDebug('pdf-analysis-phase1-start', {
     requestId: request.requestId,
-    pageNumber,
+    pageCount: pageBlobs.length,
   });
 
-  // Create synthetic ingestion result for this page
-  // The ingestion pipeline expects ready-to-analyze PNG blobs
+  // PHASE 1: Extract titles and descriptions from PDF pages
+  const titleDescriptionContext =
+    await extractPdfTitlesAndDescriptions(pageBlobs);
+
+  if (!titleDescriptionContext) {
+    logPdfDebug('pdf-analysis-phase1-failed', {
+      requestId: request.requestId,
+    });
+    return null;
+  }
+
+  logPdfDebug('pdf-analysis-phase1-complete', {
+    requestId: request.requestId,
+    documentTitle: titleDescriptionContext.documentTitle || 'not-found',
+    pagesAnalyzed: titleDescriptionContext.pageAnalyses.length,
+  });
+
+  // Merge the context for filename generation
+  const mergedContext = mergePdfContext(titleDescriptionContext);
+
+  // PHASE 2: PDF-specific rename decision
+  // Decides if we should rename based on extracted title and baseline quality
+  logPdfDebug('pdf-analysis-phase2-start', {
+    requestId: request.requestId,
+    hasDocumentTitle: !!mergedContext.documentTitle,
+  });
+
+  const renameDecision = await decidePdfRename(
+    titleDescriptionContext,
+    request.baseline.final || request.filename,
+  );
+
+  logPdfDebug('pdf-analysis-phase2-complete', {
+    requestId: request.requestId,
+    shouldRename: renameDecision.shouldRename,
+    reason: renameDecision.reason,
+    confidence: renameDecision.confidence,
+  });
+
+  // If Phase 2 decides not to rename, return null (no proposal)
+  if (!renameDecision.shouldRename) {
+    logPdfDebug('pdf-analysis-no-rename', {
+      requestId: request.requestId,
+      reason: renameDecision.reason,
+    });
+    return null;
+  }
+
+  // PHASE 3: Filename generation
+  // Use the merged PDF context directly for filename generation
+  logPdfDebug('pdf-analysis-phase3-start', {
+    requestId: request.requestId,
+    hasDocumentTitle: !!mergedContext.documentTitle,
+  });
+
+  // Create synthetic ingestion result for Phase 3
+  // Use the first page as reference (similar to image pipeline)
   const pageIngestionResult = {
     status: 'ingested' as const,
-    requestId: `${request.requestId}-page-${pageNumber}`,
+    requestId: request.requestId,
     analyzedAt: Date.now(),
-    blob: pageBlob,
+    blob: pageBlobs[0], // Use first page
     mimeType: 'image/png',
-    originalWidth: pageBlob.size, // Placeholder - will be updated by pipeline
-    originalHeight: pageBlob.size,
-    resizedWidth: pageBlob.size,
-    resizedHeight: pageBlob.size,
+    originalWidth: pageBlobs[0].size,
+    originalHeight: pageBlobs[0].size,
+    resizedWidth: pageBlobs[0].size,
+    resizedHeight: pageBlobs[0].size,
     resizeRatio: 1.0,
-    originalSizeBytes: pageBlob.size,
+    originalSizeBytes: pageBlobs[0].size,
     metrics: {
-      readBytes: pageBlob.size,
+      readBytes: pageBlobs[0].size,
       elapsedMs: 0,
     },
   };
 
-  // Reuse existing image upgrade pipeline
-  const aiResponse = await runImageUpgradePipeline(
-    request as any,
+  // Pass PDF context through request for Phase 3 to use
+  // biome-ignore lint/suspicious/noExplicitAny: PDF context attached to request
+  const requestWithPdfContext = {
+    ...request,
+    _pdfContext: mergedContext, // Pass PDF context through for title prioritization
+  } as any;
+
+  // Call Phase 3 directly (skip image pipeline to avoid Phase 2 override)
+  // This ensures our Phase 2 rename decision is respected
+  const aiResponse = await generateFilenamePhase3(
+    requestWithPdfContext,
     pageIngestionResult as any,
+    mergedContext.fullDescription, // Use merged description with title context
+    renameDecision.confidence, // Use our Phase 2 confidence
+    true, // promptUsed: true (AI was used for description)
   );
+
   if (aiResponse && aiResponse.status === 'success') {
-    logPdfDebug('page-analysis-proposal', {
+    logPdfDebug('pdf-analysis-success', {
       requestId: request.requestId,
-      pageNumber,
       proposedFilename: aiResponse.proposal.proposedFilename,
+      hasPdfTitle: !!mergedContext.documentTitle,
+      reason: renameDecision.reason,
     });
     return aiResponse.proposal;
   }
 
+  logPdfDebug('pdf-analysis-phase3-failed', {
+    requestId: request.requestId,
+  });
   return null;
 }
 
@@ -175,47 +245,17 @@ export function initializePdfAnalysisHandler(): void {
         return unavailable(request, 'no-pages', 'No pages extracted from PDF');
       }
 
-      // Analyze each extracted page via image pipeline
-      const proposals: UpgradeProposal[] = [];
-
-      for (const page of extractionResult.pages) {
-        logPdfDebug('page-analysis-page', {
-          requestId: request.requestId,
-          pageNumber: page.pageNumber,
-          dimensions: `${page.width}x${page.height}`,
-        });
-        const proposal = await analyzeExtractedPage(
-          page.blob,
-          page.pageNumber,
-          request,
-        );
-        if (proposal) {
-          logPdfDebug('page-analysis-page-proposal', {
-            requestId: request.requestId,
-            pageNumber: page.pageNumber,
-            proposedFilename: proposal.proposedFilename,
-          });
-          proposals.push(proposal);
-        }
-      }
+      // PHASE 1: Extract titles and descriptions + PHASE 2-3: Rename decision and generation
+      const pageBlobs = extractionResult.pages.map((p) => p.blob);
+      const proposal = await analyzePdfPages(pageBlobs, request);
 
       const elapsedMs = Math.round(performance.now() - startedAt);
-      logPdfDebug('analysis-complete', {
-        requestId: request.requestId,
-        proposalsCount: proposals.length,
-        elapsedMs,
-      });
 
-      // Return the best proposal (from first page if multiple)
-      // In future, could implement more sophisticated merging
-      const bestProposal = proposals[0];
-
-      if (bestProposal) {
+      if (proposal) {
         logPdfDebug('analysis-success', {
           requestId: request.requestId,
-          proposedFilename: bestProposal.proposedFilename,
+          proposedFilename: proposal.proposedFilename,
           elapsedMs,
-          pagesAnalyzed: proposals.length,
           totalPages: extractionResult.totalPages,
         });
 
@@ -223,8 +263,8 @@ export function initializePdfAnalysisHandler(): void {
           status: 'success' as const,
           requestId: request.requestId,
           analyzedAt: Date.now(),
-          proposal: bestProposal,
-          pagesAnalyzed: proposals.length,
+          proposal,
+          pagesAnalyzed: extractionResult.pages.length,
           totalPages: extractionResult.totalPages,
         } satisfies PdfAnalysisSuccess;
       }
