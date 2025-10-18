@@ -31,6 +31,7 @@ const proposal: ConfirmToastProposal = {
   autoApplyDelaySeconds: null,
   allowAutoApply: false,
   allowAlwaysApply: true,
+  autoApplyRemainingMs: null,
 };
 
 describe('emitStatus', () => {

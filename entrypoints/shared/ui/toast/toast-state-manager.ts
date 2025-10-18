@@ -7,6 +7,7 @@ import type {
   ConfirmToastProposal,
   ConfirmToastState,
   ConfirmToastStatusMessage,
+  ConfirmToastTimingUpdateMessage,
   RenameToastProposal,
 } from '@/entrypoints/shared/toast/types';
 import type { RenameToastState } from './rename-toast';
@@ -50,6 +51,22 @@ export function createToastStateManager() {
     toast.status = message.state;
     toast.statusMessage = message.message;
     toast.resolving = false;
+    return toast;
+  }
+
+  function updateConfirmToastTiming(
+    update: ConfirmToastTimingUpdateMessage,
+  ): ConfirmToastState | null {
+    const toast = confirmToasts.get(update.toastId);
+    if (!toast) {
+      debugLogger.warn(
+        '[ConfirmToast] Received timing update for unknown toast',
+        update.toastId,
+      );
+      return null;
+    }
+    toast.autoApplyAt = update.autoApplyAt;
+    toast.autoApplyRemainingMs = update.autoApplyRemainingMs;
     return toast;
   }
 
@@ -97,6 +114,7 @@ export function createToastStateManager() {
     renameToasts,
     addConfirmToast,
     updateConfirmToastStatus,
+    updateConfirmToastTiming,
     removeConfirmToast,
     addRenameToast,
     removeRenameToast,

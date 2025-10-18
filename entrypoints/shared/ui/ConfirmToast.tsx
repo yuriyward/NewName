@@ -9,6 +9,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { sendConfirmToastCountdownControl } from '@/entrypoints/shared/messaging/extension-messaging';
 import { TOAST_TIMING } from '@/entrypoints/shared/toast/timing-constants';
 import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
@@ -49,10 +50,11 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
   const [editedName, setEditedName] = useState(toast.proposedFilename);
   const [isEditing, setIsEditing] = useState(false);
   const [countdownSeconds, setCountdownSeconds] = useState<number | null>(() =>
-    computeCountdownSeconds(toast.autoApplyAt),
+    computeCountdownSeconds(toast.autoApplyAt, toast.autoApplyRemainingMs),
   );
   const primaryButtonRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const hoverStateRef = useRef<'running' | 'paused'>('running');
   const inputId = useMemo(
     () => `confirm-toast-${toast.toastId}-input`,
     [toast.toastId],
@@ -63,17 +65,51 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
   }, [toast.proposedFilename]);
 
   useEffect(() => {
-    if (!toast.autoApplyAt || toast.status !== 'pending') {
+    if (!toast.allowAutoApply || toast.status !== 'pending') {
       setCountdownSeconds(null);
+      hoverStateRef.current = 'running';
       return;
     }
-    const tick = () => {
-      setCountdownSeconds(computeCountdownSeconds(toast.autoApplyAt));
+    const updateCountdown = () => {
+      setCountdownSeconds(
+        computeCountdownSeconds(toast.autoApplyAt, toast.autoApplyRemainingMs),
+      );
     };
-    tick();
-    const interval = setInterval(tick, TOAST_TIMING.COUNTDOWN_TICK_INTERVAL_MS);
+    updateCountdown();
+    if (toast.autoApplyAt === null) {
+      hoverStateRef.current = 'paused';
+      return;
+    }
+    hoverStateRef.current = 'running';
+    const interval = setInterval(
+      updateCountdown,
+      TOAST_TIMING.COUNTDOWN_TICK_INTERVAL_MS,
+    );
     return () => clearInterval(interval);
-  }, [toast.autoApplyAt, toast.status]);
+  }, [
+    toast.allowAutoApply,
+    toast.autoApplyAt,
+    toast.autoApplyRemainingMs,
+    toast.status,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (!toast.allowAutoApply || toast.status !== 'pending') return;
+      if (hoverStateRef.current !== 'paused') return;
+      hoverStateRef.current = 'running';
+      void sendConfirmToastCountdownControl({
+        toastId: toast.toastId,
+        action: 'resume',
+      }).catch((error) => {
+        hoverStateRef.current = 'paused';
+        console.warn(
+          '[ConfirmToast] Failed to resume auto-apply countdown',
+          error,
+        );
+      });
+    };
+  }, [toast.allowAutoApply, toast.status, toast.toastId]);
 
   useEffect(() => {
     if (autoFocus && toast.status === 'pending') {
@@ -94,12 +130,20 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
   const isPending = toast.status === 'pending';
   const disableActions = toast.resolving || !isPending;
 
+  const isCountdownPaused =
+    toast.allowAutoApply &&
+    isPending &&
+    toast.autoApplyAt === null &&
+    toast.autoApplyRemainingMs !== null;
+
   const countdownAnnouncement =
-    toast.allowAutoApply && countdownSeconds !== null && isPending
-      ? countdownSeconds <= 0
-        ? 'Auto-apply happening now'
-        : `Auto-apply in ${countdownSeconds} seconds`
-      : null;
+    !toast.allowAutoApply || countdownSeconds === null || !isPending
+      ? null
+      : isCountdownPaused
+        ? `Auto-apply paused at ${countdownSeconds} seconds`
+        : countdownSeconds <= 0
+          ? 'Auto-apply happening now'
+          : `Auto-apply in ${countdownSeconds} seconds`;
 
   const handleCancelEdit = () => {
     setIsEditing(false);
@@ -132,6 +176,38 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
     const trimmed = editedName.trim();
     const value = trimmed.length > 0 ? trimmed : toast.proposedFilename.trim();
     onAlwaysApply(value !== toast.proposedFilename ? value : undefined);
+  };
+
+  const pauseCountdown = () => {
+    if (!toast.allowAutoApply || toast.status !== 'pending') return;
+    if (hoverStateRef.current === 'paused') return;
+    hoverStateRef.current = 'paused';
+    void sendConfirmToastCountdownControl({
+      toastId: toast.toastId,
+      action: 'pause',
+    }).catch((error) => {
+      hoverStateRef.current = 'running';
+      console.warn(
+        '[ConfirmToast] Failed to pause auto-apply countdown',
+        error,
+      );
+    });
+  };
+
+  const resumeCountdown = () => {
+    if (!toast.allowAutoApply || toast.status !== 'pending') return;
+    if (hoverStateRef.current === 'running') return;
+    hoverStateRef.current = 'running';
+    void sendConfirmToastCountdownControl({
+      toastId: toast.toastId,
+      action: 'resume',
+    }).catch((error) => {
+      hoverStateRef.current = 'paused';
+      console.warn(
+        '[ConfirmToast] Failed to resume auto-apply countdown',
+        error,
+      );
+    });
   };
 
   const handleInputChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -171,7 +247,11 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
   const isUrgent = countdownSeconds !== null && countdownSeconds <= 5;
 
   return (
-    <div className="w-full rounded-lg border border-divider bg-content1 p-3 shadow-2xl backdrop-blur">
+    <div
+      className="w-full rounded-lg border border-divider bg-content1 p-3 shadow-2xl backdrop-blur"
+      onPointerEnter={pauseCountdown}
+      onPointerLeave={resumeCountdown}
+    >
       {countdownAnnouncement ? (
         <output
           aria-live="polite"
@@ -284,9 +364,15 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
   );
 };
 
-function computeCountdownSeconds(autoApplyAt: number | null): number | null {
-  if (!autoApplyAt) return null;
-  const diff = autoApplyAt - Date.now();
-  if (!Number.isFinite(diff)) return null;
-  return diff > 0 ? Math.ceil(diff / 1000) : 0;
+function computeCountdownSeconds(
+  autoApplyAt: number | null,
+  remainingMs: number | null,
+): number | null {
+  if (autoApplyAt !== null) {
+    const diff = autoApplyAt - Date.now();
+    if (!Number.isFinite(diff)) return null;
+    return diff > 0 ? Math.ceil(diff / 1000) : 0;
+  }
+  if (remainingMs === null || !Number.isFinite(remainingMs)) return null;
+  return remainingMs > 0 ? Math.ceil(remainingMs / 1000) : 0;
 }

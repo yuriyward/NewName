@@ -357,6 +357,21 @@ function initializeBackground(): void {
     return { ok: true };
   });
 
+  onExtensionMessage('controlConfirmToastCountdown', async ({ data }) => {
+    const paused = data.action === 'pause';
+    const handled = await confirmToastController.setAutoApplyPaused(
+      data.toastId,
+      paused,
+    );
+    if (!handled) {
+      debugLogger.warn(
+        '[ConfirmToast] Failed to update countdown state for toast',
+        data.toastId,
+      );
+    }
+    return { ok: true };
+  });
+
   browser.alarms.onAlarm.addListener(async (alarm) => {
     const handled = await upgradeCoordinator.handleAlarm(alarm);
     if (handled) {

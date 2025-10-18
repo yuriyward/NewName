@@ -29,9 +29,11 @@ import type {
   TextUpgradeModelSource,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import type {
+  ConfirmToastCountdownControlMessage,
   ConfirmToastDecisionMessage,
   ConfirmToastProposal,
   ConfirmToastStatusMessage,
+  ConfirmToastTimingUpdateMessage,
   ShowConfirmToastMessage,
   ShowRenameToastMessage,
 } from '@/entrypoints/shared/toast/types';
@@ -155,9 +157,23 @@ export interface ExtensionMessagingProtocol {
   showConfirmToast(payload: ShowConfirmToastMessage): { ok: true };
 
   /**
+   * Update the countdown timing details for an existing confirm toast.
+   */
+  updateConfirmToastTiming(payload: ConfirmToastTimingUpdateMessage): {
+    ok: true;
+  };
+
+  /**
    * User decision returned from content script after interacting with the toast.
    */
   confirmToastDecision(payload: ConfirmToastDecisionMessage): { ok: true };
+
+  /**
+   * Control countdown behavior (pause/resume) for a confirm toast.
+   */
+  controlConfirmToastCountdown(payload: ConfirmToastCountdownControlMessage): {
+    ok: true;
+  };
 
   /**
    * Status updates for an in-flight confirmation toast (dismissed, applied, error).
@@ -273,10 +289,32 @@ export async function sendShowConfirmToast(
   return await result;
 }
 
+export async function sendConfirmToastTimingUpdate(
+  payload: ConfirmToastTimingUpdateMessage,
+  target: SendMessageOptions | number,
+): Promise<{ ok: true }> {
+  const result = await sendExtensionMessage(
+    'updateConfirmToastTiming',
+    payload,
+    target,
+  );
+  return await result;
+}
+
 export async function sendConfirmToastDecision(
   payload: ConfirmToastDecisionMessage,
 ): Promise<{ ok: true }> {
   const result = await sendExtensionMessage('confirmToastDecision', payload);
+  return await result;
+}
+
+export async function sendConfirmToastCountdownControl(
+  payload: ConfirmToastCountdownControlMessage,
+): Promise<{ ok: true }> {
+  const result = await sendExtensionMessage(
+    'controlConfirmToastCountdown',
+    payload,
+  );
   return await result;
 }
 

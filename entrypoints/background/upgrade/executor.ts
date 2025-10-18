@@ -208,10 +208,13 @@ export function createUpgradeExecutor(
           historyItem = updated;
         }
       } catch (error) {
-        debugLogger.warn('[UpgradeExecutor] Failed to persist upgrade proposal', {
-          historyId,
-          error,
-        });
+        debugLogger.warn(
+          '[UpgradeExecutor] Failed to persist upgrade proposal',
+          {
+            historyId,
+            error,
+          },
+        );
       }
 
       await queueUpgradeToast(

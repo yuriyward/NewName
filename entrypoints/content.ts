@@ -67,6 +67,11 @@ onExtensionMessage('showConfirmToast', async ({ data }) => {
   return { ok: true };
 });
 
+onExtensionMessage('updateConfirmToastTiming', async ({ data }) => {
+  ensureToastManager().updateTiming(data);
+  return { ok: true };
+});
+
 onExtensionMessage('confirmToastStatus', async ({ data }) => {
   ensureToastManager().updateStatus(data);
   return { ok: true };

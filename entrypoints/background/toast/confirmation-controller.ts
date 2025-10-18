@@ -7,13 +7,17 @@ import type {
   SensitiveReason,
 } from '@/entrypoints/shared/classification/sensitive-content';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
-import { sendShowConfirmToast } from '@/entrypoints/shared/messaging/extension-messaging';
+import {
+  sendConfirmToastTimingUpdate,
+  sendShowConfirmToast,
+} from '@/entrypoints/shared/messaging/extension-messaging';
 import type { ConfirmToastTriggerSource } from '@/entrypoints/shared/settings/confirm-toast-routing';
 import type { FileType, Mode } from '@/entrypoints/shared/settings/types';
 import type {
   ConfirmToastDecisionMessage,
   ConfirmToastProposal,
   ConfirmToastStatusState,
+  ConfirmToastTimingUpdateMessage,
   ShowConfirmToastMessage,
 } from '@/entrypoints/shared/toast/types';
 import { randomId } from '@/entrypoints/shared/utils/id';
@@ -26,6 +30,7 @@ export interface ConfirmToastEntry {
   target?: number | SendMessageOptions;
   timeoutId?: ReturnType<typeof setTimeout>;
   visibleOnTabs?: Set<number>;
+  autoApplyRemainingMs: number | null;
 }
 
 export interface QueueConfirmToastOptions {
@@ -79,6 +84,7 @@ export interface ConfirmToastController {
     state: ConfirmToastStatusState,
     message?: string,
   ): Promise<void>;
+  setAutoApplyPaused(toastId: string, paused: boolean): Promise<boolean>;
 }
 
 export function createConfirmToastController(
@@ -95,6 +101,46 @@ export function createConfirmToastController(
     return {
       emitStatus: (state, message) => emitStatus(entry, state, message),
     };
+  }
+
+  async function broadcastTimingUpdate(
+    entry: ConfirmToastEntry,
+  ): Promise<void> {
+    const update: ConfirmToastTimingUpdateMessage = {
+      toastId: entry.proposal.toastId,
+      autoApplyAt: entry.proposal.autoApplyAt,
+      autoApplyRemainingMs:
+        entry.proposal.autoApplyRemainingMs ??
+        entry.autoApplyRemainingMs ??
+        null,
+    };
+
+    const targets: Array<number | SendMessageOptions> = [];
+    if (entry.visibleOnTabs && entry.visibleOnTabs.size > 0) {
+      for (const tabId of entry.visibleOnTabs) {
+        targets.push(tabId);
+      }
+    } else if (entry.target !== undefined) {
+      targets.push(entry.target);
+    }
+
+    for (const target of targets) {
+      try {
+        await sendConfirmToastTimingUpdate(update, target);
+      } catch (error) {
+        debugLogger.log(
+          '[ConfirmToast] Failed to dispatch timing update to content script',
+          {
+            toastId: entry.proposal.toastId,
+            target,
+            error,
+          },
+        );
+        if (typeof target === 'number') {
+          entry.visibleOnTabs?.delete(target);
+        }
+      }
+    }
   }
 
   function clearTimeoutFor(entry: ConfirmToastEntry): void {
@@ -238,6 +284,8 @@ export function createConfirmToastController(
           : null,
         allowAutoApply: allowAutoApply && autoApplyDelayMs !== null,
         allowAlwaysApply: options.allowAlwaysApply,
+        autoApplyRemainingMs:
+          allowAutoApply && autoApplyDelayMs !== null ? autoApplyDelayMs : null,
       };
 
       const target = await resolveTarget(options.target);
@@ -248,6 +296,8 @@ export function createConfirmToastController(
         historyId: options.historyId,
         target,
         visibleOnTabs: tabId ? new Set([tabId]) : new Set(),
+        autoApplyRemainingMs:
+          allowAutoApply && autoApplyDelayMs !== null ? autoApplyDelayMs : null,
       };
 
       if (allowAutoApply && autoApplyDelayMs !== null && autoApplyDelayMs > 0) {
@@ -338,6 +388,54 @@ export function createConfirmToastController(
 
     getAllPending(): ConfirmToastEntry[] {
       return Array.from(entriesById.values());
+    },
+
+    async setAutoApplyPaused(
+      toastId: string,
+      paused: boolean,
+    ): Promise<boolean> {
+      const entry = entriesById.get(toastId);
+      if (!entry) return false;
+      if (!entry.proposal.allowAutoApply) return false;
+
+      if (paused) {
+        if (entry.proposal.autoApplyAt === null) {
+          return true;
+        }
+        const remaining = Math.max(0, entry.proposal.autoApplyAt - Date.now());
+        entry.autoApplyRemainingMs = remaining;
+        entry.proposal.autoApplyRemainingMs = remaining;
+        entry.proposal.autoApplyAt = null;
+        clearTimeoutFor(entry);
+        await broadcastTimingUpdate(entry);
+        return true;
+      }
+
+      if (entry.proposal.autoApplyAt !== null) {
+        return true;
+      }
+
+      const remainingSource =
+        entry.autoApplyRemainingMs ?? entry.proposal.autoApplyRemainingMs ?? 0;
+      const remaining = Math.max(0, Math.round(remainingSource));
+
+      if (remaining <= 0) {
+        clearTimeoutFor(entry);
+        entry.autoApplyRemainingMs = 0;
+        entry.proposal.autoApplyRemainingMs = 0;
+        void handleAutoApply(toastId);
+        return true;
+      }
+
+      entry.autoApplyRemainingMs = remaining;
+      entry.proposal.autoApplyRemainingMs = remaining;
+      entry.proposal.autoApplyAt = Date.now() + remaining;
+      clearTimeoutFor(entry);
+      entry.timeoutId = setTimeout(() => {
+        void handleAutoApply(toastId);
+      }, remaining);
+      await broadcastTimingUpdate(entry);
+      return true;
     },
 
     emitStatus,
