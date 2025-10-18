@@ -5,9 +5,13 @@
 import type { SendMessageOptions } from '@webext-core/messaging';
 import { defineExtensionMessaging } from '@webext-core/messaging';
 import type {
-  AiModelId,
   AiModelStatusMap,
+  EnsureAiModelsOptions,
 } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
+import type {
+  ImageUpgradeAnalysisRequest,
+  ImageUpgradeAnalysisResponse,
+} from '@/entrypoints/shared/integrations/image-analysis/types';
 import type {
   MediaAnalysisRequest,
   MediaAnalysisResponse,
@@ -28,9 +32,12 @@ import type {
   ShowRenameToastMessage,
 } from '@/entrypoints/shared/toast/types';
 
-export interface EnsureAiModelsRequestPayload {
-  ids: readonly AiModelId[];
-}
+/**
+ * Payload for ensuring AI models are ready with optional model-specific configuration.
+ * Extends EnsureAiModelsOptions to support languageModel and summarizer options
+ * for multimodal availability checks and other advanced configurations.
+ */
+export type EnsureAiModelsRequestPayload = EnsureAiModelsOptions;
 
 export type AiPipelineTelemetryPayload =
   | {
@@ -86,6 +93,13 @@ export interface ExtensionMessagingProtocol {
   requestTextIngestion(
     payload: TextUpgradeAnalysisRequest,
   ): Promise<TextUpgradeAnalysisResponse>;
+
+  /**
+   * Request image ingestion and analysis preparation inside the offscreen document.
+   */
+  requestImageIngestion(
+    payload: ImageUpgradeAnalysisRequest,
+  ): Promise<ImageUpgradeAnalysisResponse>;
 
   /**
    * Retrieve pending cloud consent request details.
@@ -169,6 +183,13 @@ export async function requestTextIngestion(
   payload: TextUpgradeAnalysisRequest,
 ): Promise<TextUpgradeAnalysisResponse> {
   const result = await sendExtensionMessage('requestTextIngestion', payload);
+  return await result;
+}
+
+export async function requestImageIngestion(
+  payload: ImageUpgradeAnalysisRequest,
+): Promise<ImageUpgradeAnalysisResponse> {
+  const result = await sendExtensionMessage('requestImageIngestion', payload);
   return await result;
 }
 

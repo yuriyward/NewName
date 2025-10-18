@@ -78,6 +78,7 @@ const FILENAME_GENERATION_SCHEMA = {
     },
   },
   required: ['stem', 'confidence'],
+  additionalProperties: false,
 } as const;
 
 /**
@@ -89,42 +90,70 @@ function buildGenerationPrompt(context: FilenameGenerationContext): string {
     filename: context.currentBaseline,
     summary: context.summary,
     language: context.language,
-    fileType: 'text', // Context is for text files
+    fileType: 'image', // Image pipeline reuses this generator
   });
 
   // Truncate summary if too long to avoid token limits
-  const summaryForPrompt = truncateForPrompt(context.summary, 800);
+  const summaryForPrompt = truncateForPrompt(context.summary, 800).trim();
 
   const policyRules = formatPolicyRules(context.settings);
 
   const separatorExample =
     context.settings.separator === 'clean'
-      ? 'Budget Meeting Notes'
+      ? 'Project Roadmap Update'
       : context.settings.separator === 'kebab'
-        ? 'budget-meeting-notes'
-        : 'budget_meeting_notes';
+        ? 'project-roadmap-update'
+        : 'project_roadmap_update';
 
-  return `Generate a descriptive filename based on this content:
+  const separatorDescription =
+    context.settings.separator === 'clean'
+      ? 'Use single spaces between words.'
+      : context.settings.separator === 'kebab'
+        ? 'Use lowercase words joined with hyphens.'
+        : 'Use lowercase words joined with underscores.';
 
+  const transliterationGuidance = context.settings.transliterateAscii
+    ? 'Convert diacritics to their ASCII equivalents (e.g., café → cafe).'
+    : 'Preserve Unicode characters unless unsafe for filenames.';
+
+  const jsonSummary = JSON.stringify(summaryForPrompt || 'Not available');
+  const jsonBaseline = JSON.stringify(context.currentBaseline);
+
+  return `You generate descriptive filename stems that follow strict formatting policies.
+
+Context:
 ${baseContext}
 
-Content summary:
-${summaryForPrompt}
+Content summary (JSON string): ${jsonSummary}
+Current baseline name (JSON string): ${jsonBaseline}
 
-**Rules:**
+Formatting requirements:
 ${policyRules}
+- ${separatorDescription}
+- ${transliterationGuidance}
+- Keep the stem under ${context.settings.maxLength} characters.
+- Never include a file extension (no ".png", ".jpg", etc.).
 
-**Guidelines:**
-- Focus on main topic from summary (3-6 words ideal)
-- Use human-readable names, avoid technical jargon
-- NO file extension in stem
-- Add qualifiers only if meaningful (version, category)
+Generation guidance:
+- Focus on the most important subject (3-6 words ideal).
+- Prefer concrete nouns and descriptors over vague phrases.
+- Qualifiers are optional; include at most three short items if they add clarity.
 
-**Examples:**
-- "Meeting notes discussing Q1 budget allocation" → "${separatorExample}"
-- "API documentation for authentication endpoints" → "API Authentication Docs"
+Output schema:
+\`\`\`json
+{
+  "stem": string,
+  "qualifiers": string[]?,
+  "confidence": number,
+  "explanation": string?
+}
+\`\`\`
 
-Respond with JSON: {"stem": "...", "confidence": 0.0-1.0, "explanation": "..."}`;
+Well-formed examples:
+1. {"stem": "${separatorExample}", "confidence": 0.86, "explanation": "Summarizes the project roadmap topic."}
+2. {"stem": "${separatorExample}", "qualifiers": ["2025"], "confidence": 0.9, "explanation": "Adds the year as a useful qualifier."}
+
+Respond with JSON only—no markdown, no additional text, no trailing commas.`;
 }
 
 /**
@@ -298,7 +327,16 @@ export async function generateFilenameComplete(
       return null;
     }
 
+    console.log('[FilenameGeneration] Session created - initial usage', {
+      inputUsage: session.inputUsage,
+      inputQuota: session.inputQuota,
+    });
+
     const prompt = buildGenerationPrompt(context);
+    console.log('[FilenameGeneration] Sending generation request', {
+      baseline: context.currentBaseline,
+      summaryLength: context.summary.length,
+    });
     const response = await session.prompt(prompt, {
       responseConstraint: FILENAME_GENERATION_SCHEMA,
       omitResponseConstraintInput: true,
@@ -312,6 +350,7 @@ export async function generateFilenameComplete(
         session.inputUsage && session.inputQuota
           ? `${((session.inputUsage / session.inputQuota) * 100).toFixed(1)}%`
           : 'unknown',
+      session: session,
     });
 
     const generation = parseStructuredResponse<FilenameGeneration>(

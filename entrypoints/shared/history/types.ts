@@ -46,6 +46,7 @@ export interface HistoryItem {
   undone?: boolean;
   decision?: InstantBaselineDecision;
   media?: HistoryMediaMetadata;
+  image?: HistoryImageAnalysis;
   upgrade?: UpgradeProposal;
   pendingUpgradeAnalysis?: PendingUpgradeAnalysis;
 }
@@ -66,6 +67,24 @@ export interface HistoryMediaMetadata {
   };
   error?: string;
   details?: string;
+}
+
+export interface HistoryImageAnalysis {
+  status: 'success' | 'error';
+  analyzedAt: number;
+  description: string;
+  originalWidth: number;
+  originalHeight: number;
+  resizedWidth: number;
+  resizedHeight: number;
+  resizeRatio: number;
+  decisionConfidence?: number;
+  metrics: {
+    bytesFetched: number;
+    promptCalls: number;
+    elapsedMs: number;
+  };
+  error?: string;
 }
 
 export const MAX_PENDING_ANALYSIS_AGE_MS = 24 * 60 * 60 * 1_000; // 24 hours

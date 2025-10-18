@@ -4,6 +4,7 @@
 import { attachConsoleHelpers } from '@/entrypoints/shared/debug/console-helpers';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { sendExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
+import { initializeImageAnalysisHandler } from './image-analysis-handler';
 import { initializeMediaAnalysisHandler } from './media-analysis-handler';
 import { initializeTextAnalysisHandler } from './text-analysis-handler';
 
@@ -17,6 +18,7 @@ import { initializeTextAnalysisHandler } from './text-analysis-handler';
   attachConsoleHelpers();
 
   // Initialize handlers first
+  initializeImageAnalysisHandler();
   initializeMediaAnalysisHandler();
   initializeTextAnalysisHandler();
 

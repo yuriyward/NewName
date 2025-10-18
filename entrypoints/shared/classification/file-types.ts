@@ -92,3 +92,28 @@ export function isTextExtension(extension: string | null | undefined): boolean {
   const normalized = extension.replace(/^\.+/, '').toLowerCase();
   return TEXT_EXTENSIONS.has(normalized);
 }
+
+/**
+ * Check if a file extension indicates an image file eligible for AI image analysis.
+ *
+ * @param extension - The file extension (case-insensitive, with or without leading dot)
+ * @returns true if the extension is recognized as an image file format
+ *
+ * @example
+ * isImageExtension('jpg') // true
+ * isImageExtension('.PNG') // true
+ * isImageExtension('pdf') // false
+ * isImageExtension(null) // false
+ */
+export function isImageExtension(
+  extension: string | null | undefined,
+): boolean {
+  if (!extension) return false;
+  const normalized = extension.replace(/^\.+/, '').toLowerCase();
+  // Check using centralized EXTENSION_MAP for consistent file type detection
+  if (normalized in EXTENSION_MAP) {
+    const fileType = EXTENSION_MAP[normalized];
+    return fileType === 'image';
+  }
+  return false;
+}
