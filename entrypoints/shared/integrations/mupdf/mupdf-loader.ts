@@ -4,12 +4,20 @@
  * MuPDF auto-initializes on import, so we configure globalThis before importing
  */
 
-// MuPDF's mupdf-wasm.d.ts already declares $libmupdf_wasm_Module as any
-// We just use it directly
-
 export type MuPdfModule = typeof import('mupdf');
 
 let moduleReady: Promise<MuPdfModule> | null = null;
+
+type MuPdfGlobal = typeof globalThis & {
+  $libmupdf_wasm_Module?: {
+    locateFile: (filename: string) => string;
+  };
+  chrome?: {
+    runtime?: {
+      getURL?: (path: string) => string;
+    };
+  };
+};
 
 /**
  * Get the MuPDF module with proper WASM loading configured
@@ -21,13 +29,14 @@ export async function getMuPdfModule(): Promise<MuPdfModule> {
     moduleReady = (async () => {
       // Configure WASM loader BEFORE importing MuPDF
       // MuPDF reads from globalThis.$libmupdf_wasm_Module on import
-      (globalThis as any).$libmupdf_wasm_Module = {
+      const globalScope = globalThis as MuPdfGlobal;
+      globalScope.$libmupdf_wasm_Module = {
         locateFile: (filename: string) => {
           // Handle WASM file specially
           if (filename === 'mupdf-wasm.wasm') {
             // Try chrome.runtime.getURL for extension context (production/offscreen)
             try {
-              const chromeUrl = (globalThis as any).chrome?.runtime?.getURL?.(
+              const chromeUrl = globalScope.chrome?.runtime?.getURL?.(
                 'wasm/mupdf-wasm.wasm',
               );
               if (chromeUrl) {
@@ -60,5 +69,6 @@ export async function getMuPdfModule(): Promise<MuPdfModule> {
 
 export function resetMuPdfModuleForTesting(): void {
   moduleReady = null;
-  delete (globalThis as any).$libmupdf_wasm_Module;
+  const globalScope = globalThis as MuPdfGlobal;
+  delete globalScope.$libmupdf_wasm_Module;
 }

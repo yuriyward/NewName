@@ -7,11 +7,18 @@ import { verifyDirectoryPermission } from '@/entrypoints/shared/filesystem/direc
 import { resolveFileHandle } from '@/entrypoints/shared/filesystem/file-reader';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
+import type {
+  ImageIngestionResult,
+  ImageUpgradeAnalysisRequest,
+} from '@/entrypoints/shared/integrations/image-analysis/types';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import { generateFilenamePhase3 } from './image-analysis/phase3-filename-generation';
 import { logPdfDebug } from './pdf-analysis/logging';
 import { mergePdfContext } from './pdf-analysis/pdf-context-merger';
-import { extractPdfPagesForAnalysis } from './pdf-analysis/pdf-page-extractor';
+import {
+  type ExtractedPageForAnalysis,
+  extractPdfPagesForAnalysis,
+} from './pdf-analysis/pdf-page-extractor';
 import { decidePdfRename } from './pdf-analysis/pdf-rename-decision';
 import { extractPdfTitlesAndDescriptions } from './pdf-analysis/pdf-title-description';
 import type {
@@ -28,22 +35,23 @@ let registered = false;
 
 /**
  * Analyze extracted PDF pages: Phase 1 (title/description) + Phase 2-3 (rename decision + generation)
- * @param pageBlobs - PNG blobs of rendered PDF pages
+ * @param pages - Extracted PDF pages ready for analysis
  * @param request - Original PDF analysis request
  * @returns Upgrade proposal or null
  */
 async function analyzePdfPages(
-  pageBlobs: Blob[],
+  pages: ExtractedPageForAnalysis[],
   request: PdfUpgradeAnalysisRequest,
 ): Promise<UpgradeProposal | null> {
   logPdfDebug('pdf-analysis-phase1-start', {
     requestId: request.requestId,
-    pageCount: pageBlobs.length,
+    pageCount: pages.length,
   });
 
   // PHASE 1: Extract titles and descriptions from PDF pages
-  const titleDescriptionContext =
-    await extractPdfTitlesAndDescriptions(pageBlobs);
+  const titleDescriptionContext = await extractPdfTitlesAndDescriptions(
+    pages.map((page) => page.blob),
+  );
 
   if (!titleDescriptionContext) {
     logPdfDebug('pdf-analysis-phase1-failed', {
@@ -98,36 +106,38 @@ async function analyzePdfPages(
 
   // Create synthetic ingestion result for Phase 3
   // Use the first page as reference (similar to image pipeline)
-  const pageIngestionResult = {
+  const firstPage = pages[0];
+  const pageIngestionResult: ImageIngestionResult = {
     status: 'ingested' as const,
     requestId: request.requestId,
     analyzedAt: Date.now(),
-    blob: pageBlobs[0], // Use first page
+    blob: firstPage.blob, // Use first page
     mimeType: 'image/png',
-    originalWidth: pageBlobs[0].size,
-    originalHeight: pageBlobs[0].size,
-    resizedWidth: pageBlobs[0].size,
-    resizedHeight: pageBlobs[0].size,
+    originalWidth: firstPage.width,
+    originalHeight: firstPage.height,
+    resizedWidth: firstPage.width,
+    resizedHeight: firstPage.height,
     resizeRatio: 1.0,
-    originalSizeBytes: pageBlobs[0].size,
+    originalSizeBytes: firstPage.blob.size,
     metrics: {
-      readBytes: pageBlobs[0].size,
+      readBytes: firstPage.blob.size,
       elapsedMs: 0,
     },
   };
 
   // Pass PDF context through request for Phase 3 to use
-  // biome-ignore lint/suspicious/noExplicitAny: PDF context attached to request
-  const requestWithPdfContext = {
+  const requestWithPdfContext: ImageUpgradeAnalysisRequest & {
+    _pdfContext: ReturnType<typeof mergePdfContext>;
+  } = {
     ...request,
     _pdfContext: mergedContext, // Pass PDF context through for title prioritization
-  } as any;
+  };
 
   // Call Phase 3 directly (skip image pipeline to avoid Phase 2 override)
   // This ensures our Phase 2 rename decision is respected
   const aiResponse = await generateFilenamePhase3(
     requestWithPdfContext,
-    pageIngestionResult as any,
+    pageIngestionResult,
     mergedContext.fullDescription, // Use merged description with title context
     renameDecision.confidence, // Use our Phase 2 confidence
     true, // promptUsed: true (AI was used for description)
@@ -246,8 +256,7 @@ export function initializePdfAnalysisHandler(): void {
       }
 
       // PHASE 1: Extract titles and descriptions + PHASE 2-3: Rename decision and generation
-      const pageBlobs = extractionResult.pages.map((p) => p.blob);
-      const proposal = await analyzePdfPages(pageBlobs, request);
+      const proposal = await analyzePdfPages(extractionResult.pages, request);
 
       const elapsedMs = Math.round(performance.now() - startedAt);
 

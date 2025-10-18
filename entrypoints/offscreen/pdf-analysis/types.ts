@@ -2,6 +2,9 @@
  * Type definitions for PDF analysis pipeline
  */
 
+import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
+import type { ImageUpgradeAnalysisRequest } from '@/entrypoints/shared/integrations/image-analysis/types';
+
 /** Metadata for a single rendered PDF page */
 export interface RenderedPdfPage {
   /** Page number (1-indexed) */
@@ -43,27 +46,11 @@ export type PdfExtractionOutput =
   | PdfPageExtractionError;
 
 /** Request to analyze a PDF file via image recognition */
-export interface PdfUpgradeAnalysisRequest {
-  requestId: string;
-  historyId: string;
-  downloadId: number;
-  url: string | null;
-  filename: string;
-  relativePath: string;
-  mimeType: string | null;
-  sizeBytes?: number;
+export interface PdfUpgradeAnalysisRequest
+  extends Omit<ImageUpgradeAnalysisRequest, 'fileType' | 'settings'> {
   fileType: 'pdf';
-  baseline: {
-    original: string;
-    final: string;
-    decision: any;
-  };
-  settings: {
+  settings: ImageUpgradeAnalysisRequest['settings'] & {
     mode: 'on-device-only';
-    maxBytes: number;
-    maxFilenameLength: number;
-    separator: 'clean' | 'kebab' | 'snake';
-    transliterateAscii: boolean;
   };
 }
 
@@ -102,7 +89,7 @@ export interface PdfAnalysisSuccess {
   status: 'success';
   requestId: string;
   analyzedAt: number;
-  proposal: any; // UpgradeProposal type
+  proposal: UpgradeProposal;
   pagesAnalyzed: number;
   totalPages: number;
 }

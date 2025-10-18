@@ -5,6 +5,7 @@
 
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { logPdfDebug } from './logging';
+import type { RenderPdfPagesResult } from './pdf-renderer';
 import { renderPdfPages } from './pdf-renderer';
 
 /**
@@ -102,7 +103,7 @@ export async function extractPdfPagesForAnalysis(
       filename: fileHandle.name,
       fileSize: file.size,
     });
-    const renderResult = await renderPdfPages(file);
+    const renderResult: RenderPdfPagesResult = await renderPdfPages(file);
     logPdfDebug('render-call-complete', {
       filename: fileHandle.name,
       success: renderResult.success,
@@ -132,7 +133,7 @@ export async function extractPdfPagesForAnalysis(
       return {
         success: false,
         error: renderResult.error,
-        errorType: renderResult.errorType as any,
+        errorType: renderResult.errorType,
       };
     }
 
@@ -146,7 +147,7 @@ export async function extractPdfPagesForAnalysis(
       pageCount: renderResult.pages.length,
     });
     const preparedPages: ExtractedPageForAnalysis[] = renderResult.pages.map(
-      (page: any) => ({
+      (page) => ({
         pageNumber: page.pageNumber,
         blob: page.blob,
         width: page.width,

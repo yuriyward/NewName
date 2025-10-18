@@ -4,6 +4,7 @@
  */
 
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import type { MuPdfModule } from '@/entrypoints/shared/integrations/mupdf/mupdf-loader';
 import { getMuPdfModule } from '@/entrypoints/shared/integrations/mupdf/mupdf-loader';
 import {
   FIRST_PAGE_INDEX,
@@ -13,6 +14,7 @@ import {
   PDF_RENDER_TIMEOUT_MS,
 } from './constants';
 import { logPdfDebug } from './logging';
+import type { PdfPageExtractionError, RenderedPdfPage } from './types';
 
 /**
  * Render a single PDF page to OffscreenCanvas at specified scale
@@ -26,7 +28,7 @@ async function renderPageToCanvas(
   arrayBuffer: ArrayBuffer,
   pageIndex: number,
   scale: number,
-  mupdf: any,
+  mupdf: MuPdfModule,
 ): Promise<OffscreenCanvas | null> {
   try {
     // Load PDF document
@@ -87,7 +89,9 @@ async function renderPageToCanvas(
     }
 
     // Create blob from PNG data
-    const blob = new Blob([pngData], { type: PDF_PAGE_IMAGE_FORMAT });
+    const pngBuffer = new Uint8Array(pngData.length);
+    pngBuffer.set(pngData);
+    const blob = new Blob([pngBuffer.buffer], { type: PDF_PAGE_IMAGE_FORMAT });
 
     // Create OffscreenCanvas from PNG blob
     // We need to decode the PNG to get dimensions
@@ -158,9 +162,9 @@ async function canvasToBlob(canvas: OffscreenCanvas): Promise<Blob | null> {
 async function extractPdfPages(
   arrayBuffer: ArrayBuffer,
   pageIndices: number[],
-  mupdf: any,
-): Promise<any[] | null> {
-  const results: any[] = [];
+  mupdf: MuPdfModule,
+): Promise<RenderedPdfPage[] | null> {
+  const results: RenderedPdfPage[] = [];
 
   try {
     const document = mupdf.Document.openDocument(
@@ -281,12 +285,24 @@ async function extractPdfPages(
  * @param file - PDF file to process
  * @returns Object with extracted pages or error
  */
+export interface RenderPdfPagesSuccess {
+  success: true;
+  pages: RenderedPdfPage[];
+  totalPages: number;
+  totalTimeMs: number;
+}
+
+export interface RenderPdfPagesError {
+  success: false;
+  error: string;
+  errorType: PdfPageExtractionError['errorType'];
+}
+
+export type RenderPdfPagesResult = RenderPdfPagesSuccess | RenderPdfPagesError;
+
 export async function renderPdfPages(
   file: File,
-): Promise<
-  | { success: true; pages: any[]; totalPages: number; totalTimeMs: number }
-  | { success: false; error: string; errorType: string }
-> {
+): Promise<RenderPdfPagesResult> {
   const totalStartTime = performance.now();
   logPdfDebug('render-start', {
     filename: file.name,

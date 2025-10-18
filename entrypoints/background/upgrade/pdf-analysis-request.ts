@@ -4,7 +4,11 @@
  */
 
 import { MAX_PDF_FILE_SIZE_BYTES } from '@/entrypoints/offscreen/pdf-analysis/constants';
-import type { PdfUpgradeAnalysisRequest } from '@/entrypoints/offscreen/pdf-analysis/types';
+import type {
+  PdfAnalysisSuccess,
+  PdfUpgradeAnalysisRequest,
+  PdfUpgradeAnalysisResponse,
+} from '@/entrypoints/offscreen/pdf-analysis/types';
 import { isPdfExtension } from '@/entrypoints/shared/classification/file-types';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
@@ -83,10 +87,15 @@ function buildPdfRequest(
  * @param response - Response from offscreen handler
  * @returns UpgradeProposal from response
  */
+type PdfNonSuccessResponse = Exclude<
+  PdfUpgradeAnalysisResponse,
+  PdfAnalysisSuccess
+>;
+
 function handleSuccessfulResponse(
   requestId: string,
-  request: PdfUpgradeAnalysisRequest,
-  response: any,
+  _request: PdfUpgradeAnalysisRequest,
+  response: PdfAnalysisSuccess,
 ): UpgradeProposal {
   debugLogger.log(
     '[PdfUpgradeAnalysis] Analysis complete - proposal received',
@@ -106,8 +115,8 @@ function handleSuccessfulResponse(
  */
 function logNonSuccessResponse(
   requestId: string,
-  request: PdfUpgradeAnalysisRequest,
-  response: any,
+  _request: PdfUpgradeAnalysisRequest,
+  response: PdfNonSuccessResponse,
 ): void {
   if (response.status === 'ingested') {
     debugLogger.log(
