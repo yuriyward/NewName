@@ -1,6 +1,6 @@
 /**
- * PDF page rendering utilities using MuPDF WASM
- * Converts PDF pages to canvas and encodes as PNG
+ * PDF renderer public API with file validation
+ * Exports main entry point for rendering PDF files to images
  */
 
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
@@ -9,151 +9,37 @@ import { getMuPdfModule } from '@/entrypoints/shared/integrations/mupdf/mupdf-lo
 import {
   FIRST_PAGE_INDEX,
   MAX_PDF_PAGES,
-  PDF_PAGE_IMAGE_FORMAT,
   PDF_RENDER_SCALE,
   PDF_RENDER_TIMEOUT_MS,
 } from './constants';
-import { logPdfDebug } from './logging';
+import { canvasToBlob } from './pdf-canvas-utils';
+import { renderPageToCanvas } from './pdf-page-renderer';
 import type { PdfPageExtractionError, RenderedPdfPage } from './types';
 
 /**
- * Render a single PDF page to OffscreenCanvas at specified scale
- * @param arrayBuffer - ArrayBuffer containing PDF data
- * @param pageIndex - Page index to render (0-based)
- * @param scale - Render scale factor
- * @param mupdf - MuPDF module
- * @returns Canvas element with rendered page, or null on error
+ * Success result for PDF rendering
  */
-async function renderPageToCanvas(
-  arrayBuffer: ArrayBuffer,
-  pageIndex: number,
-  scale: number,
-  mupdf: MuPdfModule,
-): Promise<OffscreenCanvas | null> {
-  try {
-    // Load PDF document
-    const document = mupdf.Document.openDocument(
-      arrayBuffer,
-      'application/pdf',
-    );
-    if (!document) {
-      debugLogger.warn('[PdfRenderer] Failed to open PDF document');
-      return null;
-    }
-
-    // Get total pages
-    const numPages = document.countPages();
-    if (pageIndex >= numPages) {
-      debugLogger.warn('[PdfRenderer] Page index exceeds PDF page count', {
-        pageIndex,
-        totalPages: numPages,
-      });
-      document.destroy();
-      return null;
-    }
-
-    // Load and render the page
-    const page = document.loadPage(pageIndex);
-    if (!page) {
-      debugLogger.warn('[PdfRenderer] Failed to load page', { pageIndex });
-      document.destroy();
-      return null;
-    }
-
-    // Create pixmap for rendering with scaling matrix
-    const scaledMatrix = mupdf.Matrix.scale(scale, scale);
-    const pixmap = page.toPixmap(
-      scaledMatrix,
-      mupdf.ColorSpace.DeviceRGB,
-      false,
-      true,
-    );
-
-    if (!pixmap) {
-      debugLogger.warn('[PdfRenderer] Failed to create pixmap', { pageIndex });
-      page.destroy();
-      document.destroy();
-      return null;
-    }
-
-    // Get PNG data from pixmap
-    const pngData = pixmap.asPNG();
-    if (!pngData) {
-      debugLogger.warn('[PdfRenderer] Failed to convert pixmap to PNG', {
-        pageIndex,
-      });
-      pixmap.destroy();
-      page.destroy();
-      document.destroy();
-      return null;
-    }
-
-    // Create blob from PNG data
-    const pngBuffer = new Uint8Array(pngData.length);
-    pngBuffer.set(pngData);
-    const blob = new Blob([pngBuffer.buffer], { type: PDF_PAGE_IMAGE_FORMAT });
-
-    // Create OffscreenCanvas from PNG blob
-    // We need to decode the PNG to get dimensions
-    const imageBitmap = await createImageBitmap(blob);
-    const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) {
-      debugLogger.warn('[PdfRenderer] Failed to get canvas context');
-      imageBitmap.close();
-      pixmap.destroy();
-      page.destroy();
-      document.destroy();
-      return null;
-    }
-
-    ctx.drawImage(imageBitmap, 0, 0);
-    imageBitmap.close();
-
-    // Clean up
-    pixmap.destroy();
-    page.destroy();
-    document.destroy();
-
-    return canvas;
-  } catch (error) {
-    debugLogger.warn('[PdfRenderer] Failed to render page to canvas', {
-      error,
-    });
-    logPdfDebug('page-render-error', {
-      stage: 'render',
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
+export interface RenderPdfPagesSuccess {
+  success: true;
+  pages: RenderedPdfPage[];
+  totalPages: number;
+  totalTimeMs: number;
 }
 
 /**
- * Convert OffscreenCanvas to PNG blob
- * @param canvas - OffscreenCanvas to convert
- * @returns PNG blob or null on error
+ * Error result for PDF rendering
  */
-async function canvasToBlob(canvas: OffscreenCanvas): Promise<Blob | null> {
-  try {
-    return await canvas.convertToBlob({
-      type: PDF_PAGE_IMAGE_FORMAT,
-      quality: 0.95,
-    });
-  } catch (error) {
-    debugLogger.warn('[PdfRenderer] Failed to convert canvas to blob', {
-      error,
-    });
-    logPdfDebug('page-render-error', {
-      stage: 'blob',
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
+export interface RenderPdfPagesError {
+  success: false;
+  error: string;
+  errorType: PdfPageExtractionError['errorType'];
 }
 
+export type RenderPdfPagesResult = RenderPdfPagesSuccess | RenderPdfPagesError;
+
 /**
- * Extract and render specific pages from PDF
+ * Internal: Extract and render specific pages from PDF
+ * Orchestrates page rendering with timeout handling
  * @param arrayBuffer - ArrayBuffer containing PDF data
  * @param pageIndices - Array of page indices (0-based) to extract
  * @param mupdf - MuPDF module
@@ -180,17 +66,7 @@ async function extractPdfPages(
     const numPages = document.countPages();
 
     for (const pageIndex of pageIndices) {
-      logPdfDebug('page-render-start', {
-        pageIndex,
-        totalPages: numPages,
-      });
-
       if (pageIndex >= numPages) {
-        logPdfDebug('page-render-skip', {
-          pageIndex,
-          reason: 'out-of-range',
-          totalPages: numPages,
-        });
         continue;
       }
 
@@ -217,10 +93,6 @@ async function extractPdfPages(
           debugLogger.warn('[PdfRenderer] Failed to render page', {
             pageIndex,
           });
-          logPdfDebug('page-render-error', {
-            stage: 'render-canvas',
-            pageIndex,
-          });
           continue;
         }
 
@@ -232,10 +104,6 @@ async function extractPdfPages(
               pageIndex,
             },
           );
-          logPdfDebug('page-render-error', {
-            stage: 'render-blob',
-            pageIndex,
-          });
           continue;
         }
 
@@ -248,24 +116,10 @@ async function extractPdfPages(
           height: canvas.height,
           renderTimeMs,
         });
-
-        logPdfDebug('page-render-complete', {
-          pageIndex,
-          pageNumber: pageIndex + 1,
-          width: canvas.width,
-          height: canvas.height,
-          renderTimeMs,
-          blobSize: blob.size,
-        });
       } catch (error) {
         debugLogger.warn('[PdfRenderer] Failed to extract page', {
           pageIndex,
           error,
-        });
-        logPdfDebug('page-render-error', {
-          stage: 'extract',
-          pageIndex,
-          error: error instanceof Error ? error.message : String(error),
         });
         // Continue to next page on error
       }
@@ -285,30 +139,10 @@ async function extractPdfPages(
  * @param file - PDF file to process
  * @returns Object with extracted pages or error
  */
-export interface RenderPdfPagesSuccess {
-  success: true;
-  pages: RenderedPdfPage[];
-  totalPages: number;
-  totalTimeMs: number;
-}
-
-export interface RenderPdfPagesError {
-  success: false;
-  error: string;
-  errorType: PdfPageExtractionError['errorType'];
-}
-
-export type RenderPdfPagesResult = RenderPdfPagesSuccess | RenderPdfPagesError;
-
 export async function renderPdfPages(
   file: File,
 ): Promise<RenderPdfPagesResult> {
   const totalStartTime = performance.now();
-  logPdfDebug('render-start', {
-    filename: file.name,
-    sizeBytes: file.size,
-    mimeType: file.type || null,
-  });
 
   try {
     // Validate file
@@ -319,11 +153,6 @@ export async function renderPdfPages(
       filenameLower.endsWith('.pdf');
 
     if (!isPdf) {
-      logPdfDebug('render-error', {
-        filename: file.name,
-        reason: 'invalid-type',
-        mimeType: file.type || null,
-      });
       return {
         success: false,
         error: 'File is not a PDF',
@@ -351,10 +180,6 @@ export async function renderPdfPages(
       'application/pdf',
     );
     if (!document) {
-      logPdfDebug('render-error', {
-        filename: file.name,
-        reason: 'load-failed',
-      });
       return {
         success: false,
         error: 'Failed to open PDF document',
@@ -363,11 +188,6 @@ export async function renderPdfPages(
     }
 
     const numPages = document.countPages();
-
-    logPdfDebug('render-loaded', {
-      filename: file.name,
-      totalPages: numPages,
-    });
 
     document.destroy();
 
@@ -381,10 +201,6 @@ export async function renderPdfPages(
     // Extract pages
     const pages = await extractPdfPages(arrayBuffer, pageIndices, mupdf);
     if (!pages || pages.length === 0) {
-      logPdfDebug('render-error', {
-        filename: file.name,
-        reason: 'no-pages-rendered',
-      });
       return {
         success: false,
         error: 'Failed to extract pages from PDF',
@@ -401,12 +217,6 @@ export async function renderPdfPages(
         totalTimeMs,
       });
     }
-    logPdfDebug('render-complete', {
-      filename: file.name,
-      pagesExtracted: pages.length,
-      totalPages: numPages,
-      totalTimeMs,
-    });
 
     return {
       success: true,
@@ -417,11 +227,6 @@ export async function renderPdfPages(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     debugLogger.error('[PdfRenderer] PDF extraction failed', { error });
-    logPdfDebug('render-error', {
-      filename: file.name,
-      reason: 'exception',
-      error: errorMsg,
-    });
 
     return {
       success: false,

@@ -13,7 +13,6 @@ import type {
 } from '@/entrypoints/shared/integrations/image-analysis/types';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import { generateFilenamePhase3 } from './image-analysis/phase3-filename-generation';
-import { logPdfDebug } from './pdf-analysis/logging';
 import { mergePdfContext } from './pdf-analysis/pdf-context-merger';
 import {
   type ExtractedPageForAnalysis,
@@ -29,8 +28,6 @@ import type {
   PdfUpgradeAnalysisUnavailable,
 } from './pdf-analysis/types';
 
-logPdfDebug('module-loaded', { timestamp: Date.now() });
-
 let registered = false;
 
 /**
@@ -43,67 +40,30 @@ async function analyzePdfPages(
   pages: ExtractedPageForAnalysis[],
   request: PdfUpgradeAnalysisRequest,
 ): Promise<UpgradeProposal | null> {
-  logPdfDebug('pdf-analysis-phase1-start', {
-    requestId: request.requestId,
-    pageCount: pages.length,
-  });
-
   // PHASE 1: Extract titles and descriptions from PDF pages
   const titleDescriptionContext = await extractPdfTitlesAndDescriptions(
     pages.map((page) => page.blob),
   );
 
   if (!titleDescriptionContext) {
-    logPdfDebug('pdf-analysis-phase1-failed', {
-      requestId: request.requestId,
-    });
     return null;
   }
-
-  logPdfDebug('pdf-analysis-phase1-complete', {
-    requestId: request.requestId,
-    documentTitle: titleDescriptionContext.documentTitle || 'not-found',
-    pagesAnalyzed: titleDescriptionContext.pageAnalyses.length,
-  });
-
   // Merge the context for filename generation
   const mergedContext = mergePdfContext(titleDescriptionContext);
 
   // PHASE 2: PDF-specific rename decision
   // Decides if we should rename based on extracted title and baseline quality
-  logPdfDebug('pdf-analysis-phase2-start', {
-    requestId: request.requestId,
-    hasDocumentTitle: !!mergedContext.documentTitle,
-  });
-
   const renameDecision = await decidePdfRename(
     titleDescriptionContext,
     request.baseline.final || request.filename,
   );
-
-  logPdfDebug('pdf-analysis-phase2-complete', {
-    requestId: request.requestId,
-    shouldRename: renameDecision.shouldRename,
-    reason: renameDecision.reason,
-    confidence: renameDecision.confidence,
-  });
-
   // If Phase 2 decides not to rename, return null (no proposal)
   if (!renameDecision.shouldRename) {
-    logPdfDebug('pdf-analysis-no-rename', {
-      requestId: request.requestId,
-      reason: renameDecision.reason,
-    });
     return null;
   }
 
   // PHASE 3: Filename generation
   // Use the merged PDF context directly for filename generation
-  logPdfDebug('pdf-analysis-phase3-start', {
-    requestId: request.requestId,
-    hasDocumentTitle: !!mergedContext.documentTitle,
-  });
-
   // Create synthetic ingestion result for Phase 3
   // Use the first page as reference (similar to image pipeline)
   const firstPage = pages[0];
@@ -145,18 +105,8 @@ async function analyzePdfPages(
   );
 
   if (aiResponse && aiResponse.status === 'success') {
-    logPdfDebug('pdf-analysis-success', {
-      requestId: request.requestId,
-      proposedFilename: aiResponse.proposal.proposedFilename,
-      hasPdfTitle: !!mergedContext.documentTitle,
-      reason: renameDecision.reason,
-    });
     return aiResponse.proposal;
   }
-
-  logPdfDebug('pdf-analysis-phase3-failed', {
-    requestId: request.requestId,
-  });
   return null;
 }
 
@@ -173,20 +123,10 @@ export function initializePdfAnalysisHandler(): void {
   onExtensionMessage('requestPdfAnalysis', async ({ data }) => {
     const request = data as PdfUpgradeAnalysisRequest;
     const startedAt = performance.now();
-    logPdfDebug('request-received', {
-      requestId: request.requestId,
-      filename: request.filename,
-      relativePath: request.relativePath,
-    });
-
     try {
       // Verify downloads directory handle exists and is accessible
       const rootHandle = await getStoredDirectoryHandle();
       if (!rootHandle) {
-        logPdfDebug('request-unavailable', {
-          requestId: request.requestId,
-          reason: 'no-directory-handle',
-        });
         return unavailable(
           request,
           'permissions-denied',
@@ -196,11 +136,6 @@ export function initializePdfAnalysisHandler(): void {
 
       const permission = await verifyDirectoryPermission(rootHandle);
       if (permission !== 'granted') {
-        logPdfDebug('request-unavailable', {
-          requestId: request.requestId,
-          reason: 'permission-denied',
-          permission,
-        });
         return unavailable(
           request,
           'permissions-denied',
@@ -216,11 +151,6 @@ export function initializePdfAnalysisHandler(): void {
       );
 
       if (!fileResult.success) {
-        logPdfDebug('request-error', {
-          requestId: request.requestId,
-          error: fileResult.error,
-          reason: 'resolve-file-failed',
-        });
         return errorResult(request, fileResult.error);
       }
 
@@ -228,31 +158,11 @@ export function initializePdfAnalysisHandler(): void {
       const extractionResult = await extractPdfPagesForAnalysis(
         fileResult.fileHandle,
       );
-
-      logPdfDebug('extraction-complete', {
-        requestId: request.requestId,
-        success: extractionResult.success,
-        pages: extractionResult.success ? extractionResult.pages.length : 0,
-        errorType: extractionResult.success
-          ? undefined
-          : extractionResult.errorType,
-      });
-
       if (!extractionResult.success) {
-        logPdfDebug('request-error', {
-          requestId: request.requestId,
-          reason: 'extraction-failed',
-          error: extractionResult.error,
-          errorType: extractionResult.errorType,
-        });
         return errorResult(request, extractionResult.error);
       }
 
       if (extractionResult.pages.length === 0) {
-        logPdfDebug('request-unavailable', {
-          requestId: request.requestId,
-          reason: 'no-pages',
-        });
         return unavailable(request, 'no-pages', 'No pages extracted from PDF');
       }
 
@@ -262,13 +172,6 @@ export function initializePdfAnalysisHandler(): void {
       const elapsedMs = Math.round(performance.now() - startedAt);
 
       if (proposal) {
-        logPdfDebug('analysis-success', {
-          requestId: request.requestId,
-          proposedFilename: proposal.proposedFilename,
-          elapsedMs,
-          totalPages: extractionResult.totalPages,
-        });
-
         return {
           status: 'success' as const,
           requestId: request.requestId,
@@ -280,12 +183,6 @@ export function initializePdfAnalysisHandler(): void {
       }
 
       // No proposal from any page - return ingestion result
-      logPdfDebug('analysis-ingested', {
-        requestId: request.requestId,
-        pagesExtracted: extractionResult.pages.length,
-        elapsedMs,
-      });
-
       return {
         status: 'ingested' as const,
         requestId: request.requestId,
@@ -300,10 +197,6 @@ export function initializePdfAnalysisHandler(): void {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'PDF analysis failed';
-      logPdfDebug('analysis-error', {
-        requestId: (data as PdfUpgradeAnalysisRequest).requestId,
-        message,
-      });
       return errorResult(data as PdfUpgradeAnalysisRequest, message);
     }
   });

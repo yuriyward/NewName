@@ -61,17 +61,18 @@ offscreen/ # 6 files, 4 directories
   │ ├─ image-ingestion.ts # Image ingestion utilities for preparing images for Prompt API analysis Handles file reading, ImageBitmap creation, downscaling, and PNG encoding
   │ ├─ image-rename-decision.ts # Image rename decision logic using Prompt API Decides if an image filename needs renaming based on description and metadata
   │ ├─ model-availability.ts # Multimodal AI model availability checking Handles Prompt API readiness verification for image analysis
-  │ ├─ phase3-filename-generation.ts # Phase 3: Filename Generation (extracted from pipeline for reuse) Generates filename based on content description Can be called independently by other pipelines (e.g., PDF)
+  │ ├─ phase3-filename-generation.ts # Phase 3: Filename Generation (extracted from pipeline for reuse) Generates filename stem based on content description Can be called independently by other pipelines (e.g., PDF) Note: This is a thin wrapper around buildProposalFromPhase3Inputs The stem generation is the only unique logic; proposal building is shared.
   │ ├─ pipeline-orchestrator.ts # Image upgrade pipeline orchestrator Coordinates image analysis: ingestion → description → decision → filename generation
   │ ├─ pipeline-phases.ts # Image upgrade pipeline phases Coordinates the three-phase analysis: describe → decide → generate
   │ └─ proposal-builder.ts # Image upgrade proposal building Constructs the final upgrade proposal with all metadata
-  ├─ pdf-analysis/ # 8 files
+  ├─ pdf-analysis/ # 9 files
   │ ├─ constants.ts # Constants for PDF analysis and rendering
-  │ ├─ logging.ts # Simple logging helper for PDF analysis. Offscreen documents cannot rely on debug toggles, so use console directly.
+  │ ├─ pdf-canvas-utils.ts # Canvas conversion utilities for PDF rendering Converts OffscreenCanvas to PNG blobs with quality settings
   │ ├─ pdf-context-merger.ts # PDF context merger for combining analysis from multiple pages Creates enhanced context for filename generation based on extracted titles and descriptions
-  │ ├─ pdf-page-extractor.ts # PDF page extraction and preparation for image analysis Extracts PDF pages as images and prepares them for the image analysis pipeline
+  │ ├─ pdf-page-extractor.ts # PDF page extraction and preparation for image analysis High-level coordinator that combines rendering and preparation stages Lower-level rendering pipeline: - pdf-page-renderer.ts: Core MuPDF rendering (document → pixmap → canvas) - pdf-canvas-utils.ts: Canvas conversion (canvas → PNG blob) - Internal extractPdfPages: Orchestrates page rendering with timeouts
+  │ ├─ pdf-page-renderer.ts # Core PDF page rendering to OffscreenCanvas Handles MuPDF rendering pipeline: document → page → pixmap → PNG → canvas
   │ ├─ pdf-rename-decision.ts # PDF-specific Phase 2: Rename Decision Decides if a PDF should be renamed based on extracted title and content Separate from image pipeline to properly handle document titles
-  │ ├─ pdf-renderer.ts # PDF page rendering utilities using MuPDF WASM Converts PDF pages to canvas and encodes as PNG
+  │ ├─ pdf-renderer.ts # PDF renderer public API with file validation Exports main entry point for rendering PDF files to images
   │ ├─ pdf-title-description.ts # PDF-specific Phase 1: Extract exact titles and detailed descriptions from PDF pages This is separate from image analysis - PDFs only Analyzes both pages to find document titles and gather comprehensive context
   │ └─ types.ts # Type definitions for PDF analysis pipeline
   ├─ text-analysis/ # 9 files
@@ -602,7 +603,6 @@ Handles read...
 **Purpose**: Multimodal AI model availability checking Handles Prompt API readiness verification for image analysis
 
 **Exports**:
-- `export buildMultimodalSetupInstructions` - Build user-friendly instructions for enabling multimodal ...
 - `export buildSessionCreationFailureResponse` - Build unavailability response when session creation fails...
 - `export checkMultimodalAvailability` - Check if multimodal Prompt API is available and ready
 Req...
@@ -610,7 +610,7 @@ Req...
 - `export HIGH_CONFIDENCE_DISPLAY_THRESHOLD` - item implementation
 
 ### offscreen/image-analysis/phase3-filename-generation.ts
-**Purpose**: Phase 3: Filename Generation (extracted from pipeline for reuse) Generates filename based on content description Can be called independently by other pipelines (e.g., PDF)
+**Purpose**: Phase 3: Filename Generation (extracted from pipeline for reuse) Generates filename stem based on content description Can be called independently by other pipelines (e.g., PDF) Note: This is a thin wrapper around buildProposalFromPhase3Inputs The stem generation is the only unique logic; proposal building is shared.
 
 **Exports**:
 - `export generateFilenamePhase3` - Phase 3: Generate filename based on description and decis...
@@ -642,6 +642,7 @@ Gen...
 **Exports**:
 - `export buildProposalFromAnalysis` - Build proposal from analysis results
 Constructs TextUpgra...
+- `export buildProposalFromPhase3Inputs` - Build proposal from Phase 3 inputs (for direct Phase 3 ca...
 
 ### offscreen/main.ts
 **Purpose**: Offscreen document initialization with media analysis handlers
@@ -672,11 +673,11 @@ Registers listener fo...
 - `export PDF_RENDER_SCALE` - Scale factor for rendering PDF pages to canvas (1
 - `export PDF_RENDER_TIMEOUT_MS` - PDF rendering timeout per page (in milliseconds)
 
-### offscreen/pdf-analysis/logging.ts
-**Purpose**: Simple logging helper for PDF analysis. Offscreen documents cannot rely on debug toggles, so use console directly.
+### offscreen/pdf-analysis/pdf-canvas-utils.ts
+**Purpose**: Canvas conversion utilities for PDF rendering Converts OffscreenCanvas to PNG blobs with quality settings
 
 **Exports**:
-- `export logPdfDebug` - Simple logging helper for PDF analysis
+- `export canvasToBlob` - Convert OffscreenCanvas to PNG blob
 
 ### offscreen/pdf-analysis/pdf-context-merger.ts
 **Purpose**: PDF context merger for combining analysis from multiple pages Creates enhanced context for filename generation based on extracted titles and descriptions
@@ -689,7 +690,7 @@ Thi...
 - `export mergePdfContext` - Merge PDF page analysis results into context for filename...
 
 ### offscreen/pdf-analysis/pdf-page-extractor.ts
-**Purpose**: PDF page extraction and preparation for image analysis Extracts PDF pages as images and prepares them for the image analysis pipeline
+**Purpose**: PDF page extraction and preparation for image analysis High-level coordinator that combines rendering and preparation stages Lower-level rendering pipeline: - pdf-page-renderer.ts: Core MuPDF rendering (document → pixmap → canvas) - pdf-canvas-utils.ts: Canvas conversion (canvas → PNG blob) - Internal extractPdfPages: Orchestrates page rendering with timeouts
 
 **Exports**:
 - `export ExtractedPageForAnalysis` - Extracted page prepared for image analysis
@@ -699,6 +700,12 @@ Thi...
 - `export extractPdfPagesForAnalysis` - Extract PDF pages for image-based analysis
 Renders pages ...
 
+### offscreen/pdf-analysis/pdf-page-renderer.ts
+**Purpose**: Core PDF page rendering to OffscreenCanvas Handles MuPDF rendering pipeline: document → page → pixmap → PNG → canvas
+
+**Exports**:
+- `export renderPageToCanvas` - Render a single PDF page to OffscreenCanvas at specified ...
+
 ### offscreen/pdf-analysis/pdf-rename-decision.ts
 **Purpose**: PDF-specific Phase 2: Rename Decision Decides if a PDF should be renamed based on extracted title and content Separate from image pipeline to properly handle document titles
 
@@ -707,13 +714,13 @@ Renders pages ...
 - `export decidePdfRename` - Decide if a PDF should be renamed based on extracted titl...
 
 ### offscreen/pdf-analysis/pdf-renderer.ts
-**Purpose**: PDF page rendering utilities using MuPDF WASM Converts PDF pages to canvas and encodes as PNG
+**Purpose**: PDF renderer public API with file validation Exports main entry point for rendering PDF files to images
 
 **Exports**:
-- `export RenderPdfPagesError` - item implementation
-- `export RenderPdfPagesSuccess` - Extract pages from PDF and render as PNG blobs
-- `export RenderPdfPagesResult` - item implementation
-- `export renderPdfPages` - item implementation
+- `export RenderPdfPagesError` - Error result for PDF rendering
+- `export RenderPdfPagesSuccess` - Success result for PDF rendering
+- `export RenderPdfPagesResult` - Error result for PDF rendering
+- `export renderPdfPages` - Extract pages from PDF and render as PNG blobs
 
 ### offscreen/pdf-analysis/pdf-title-description.ts
 **Purpose**: PDF-specific Phase 1: Extract exact titles and detailed descriptions from PDF pages This is separate from image analysis - PDFs only Analyzes both pages to find document titles and gather comprehensive context
@@ -1279,7 +1286,10 @@ Renders pages ...
 - `export MAX_DESCRIPTION_LENGTH_CHARS` - Maximum description length before warning
 - `export MAX_IMAGE_EDGE_PX` - Maximum longest edge dimension in pixels for downscaled i...
 - `export MAX_IMAGE_FILE_SIZE_BYTES` - Maximum file size to attempt loading as image (before dow...
+- `export MIN_DOWNSCALE_RATIO` - Minimum downscale ratio to prevent excessive image degrad...
 - `export MIN_IMAGE_DIMENSION_PX` - Minimum dimensions to consider valid image
+- `export MULTIMODAL_SETUP_INSTRUCTIONS` - User-friendly instructions for enabling multimodal AI sup...
+- `export buildSessionCreationFailureMessage` - Error message when session creation fails despite availab...
 
 ### shared/integrations/image-analysis/types.ts
 **Purpose**: Type definitions for image analysis upgrade pipeline
@@ -1287,10 +1297,11 @@ Renders pages ...
 **Exports**:
 - `export ImageIngestionResult` - item implementation
 - `export ImageUpgradeAnalysisError` - item implementation
-- `export ImageUpgradeAnalysisRequest` - item implementation
+- `export ImageUpgradeAnalysisRequest` - Optional PDF context passed through image analysis pipeline
 - `export ImageUpgradeAnalysisSkipped` - item implementation
-- `export ImageUpgradeAnalysisSuccess` - item implementation
+- `export ImageUpgradeAnalysisSuccess` - Optional PDF context for prioritizing document titles in ...
 - `export ImageUpgradeAnalysisUnavailable` - item implementation
+- `export PdfContextForImage` - Optional PDF context passed through image analysis pipeli...
 - `export ImageAnalysisMode` - item implementation
 - `export ImageUpgradeAnalysisResponse` - item implementation
 - `export ImageUpgradeModelSource` - item implementation
