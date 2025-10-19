@@ -8,6 +8,7 @@ import {
   IMAGE_ANALYSIS_FORMAT,
   MAX_IMAGE_EDGE_PX,
   MAX_IMAGE_FILE_SIZE_BYTES,
+  MIN_DOWNSCALE_RATIO,
   MIN_IMAGE_DIMENSION_PX,
 } from '@/entrypoints/shared/integrations/image-analysis/constants';
 
@@ -70,7 +71,7 @@ function calculateResizeRatio(width: number, height: number): number {
   if (maxDimension <= MAX_IMAGE_EDGE_PX) {
     return 1.0; // No resize needed
   }
-  return Math.max(0.1, MAX_IMAGE_EDGE_PX / maxDimension);
+  return Math.max(MIN_DOWNSCALE_RATIO, MAX_IMAGE_EDGE_PX / maxDimension);
 }
 
 /**

@@ -125,12 +125,13 @@ async function analyzePdfPages(
     },
   };
 
-  // Pass PDF context through request for Phase 3 to use
-  const requestWithPdfContext: ImageUpgradeAnalysisRequest & {
-    _pdfContext: ReturnType<typeof mergePdfContext>;
-  } = {
+  // Create request with PDF context for Phase 3 (type-safe)
+  const requestWithPdfContext: ImageUpgradeAnalysisRequest = {
     ...request,
-    _pdfContext: mergedContext, // Pass PDF context through for title prioritization
+    pdfContext: {
+      documentTitle: mergedContext.documentTitle,
+      shouldPrioritizeTitle: mergedContext.shouldPrioritizeTitle,
+    },
   };
 
   // Call Phase 3 directly (skip image pipeline to avoid Phase 2 override)

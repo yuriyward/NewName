@@ -16,6 +16,15 @@ export type ImageAnalysisMode =
 
 export type ImageUpgradeModelSource = 'on-device' | 'cloud';
 
+/**
+ * Optional PDF context passed through image analysis pipeline
+ * Used to prioritize PDF document titles in filename generation
+ */
+export interface PdfContextForImage {
+  documentTitle: string | null;
+  shouldPrioritizeTitle: boolean;
+}
+
 export interface ImageUpgradeAnalysisRequest {
   requestId: string;
   historyId: string;
@@ -38,6 +47,11 @@ export interface ImageUpgradeAnalysisRequest {
     separator: Settings['separator'];
     transliterateAscii: Settings['transliterateAscii'];
   };
+  /**
+   * Optional PDF context for prioritizing document titles in filename generation
+   * Only set when analyzing PDF pages as images
+   */
+  pdfContext?: PdfContextForImage;
 }
 
 export interface ImageUpgradeAnalysisSuccess {

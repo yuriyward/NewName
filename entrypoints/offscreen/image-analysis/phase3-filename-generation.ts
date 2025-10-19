@@ -1,30 +1,19 @@
 /**
  * Phase 3: Filename Generation (extracted from pipeline for reuse)
- * Generates filename based on content description
+ * Generates filename stem based on content description
  * Can be called independently by other pipelines (e.g., PDF)
+ *
+ * Note: This is a thin wrapper around buildProposalFromPhase3Inputs
+ * The stem generation is the only unique logic; proposal building is shared.
  */
 
-import {
-  HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD,
-  HIGH_CONFIDENCE_DISPLAY_THRESHOLD,
-} from '@/entrypoints/shared/integrations/image-analysis/constants';
 import type {
   ImageIngestionResult,
   ImageUpgradeAnalysisRequest,
   ImageUpgradeAnalysisSuccess,
 } from '@/entrypoints/shared/integrations/image-analysis/types';
-import type {
-  TextUpgradeAnalysisRequest,
-  TextUpgradeIngestionResult,
-} from '@/entrypoints/shared/integrations/text-analysis/types';
-import {
-  buildFilename,
-  buildProposalSummary,
-  buildProposedPath,
-  extractStemFromBaseline,
-  formatReasonTags,
-} from '../text-analysis/filename-builder';
 import { generateFilenameStem } from '../text-analysis/filename-generation';
+import { buildProposalFromPhase3Inputs } from './proposal-builder';
 
 /**
  * Phase 3: Generate filename based on description and decision
@@ -46,10 +35,7 @@ export async function generateFilenamePhase3(
 ): Promise<ImageUpgradeAnalysisSuccess | null> {
   const generationStartTime = Date.now();
 
-  // Extract PDF context if available (passed through request for PDF pipeline)
-  // biome-ignore lint/suspicious/noExplicitAny: PDF context passed through request object
-  const pdfContext = (request as any)._pdfContext;
-
+  // Generate filename stem using Prompt API
   const generatedStem = await generateFilenameStem({
     summary: description,
     language: 'en', // Images/PDFs described in English
@@ -59,28 +45,17 @@ export async function generateFilenamePhase3(
       separator: request.settings.separator,
       transliterateAscii: request.settings.transliterateAscii,
     },
-    // Pass PDF context if available
-    ...(pdfContext && {
+    // Pass PDF context if available (type-safe extraction)
+    ...(request.pdfContext && {
       pdfContext: {
         source: 'pdf' as const,
-        documentTitle: pdfContext.documentTitle,
-        shouldPrioritizeTitle: pdfContext.shouldPrioritizeTitle,
+        documentTitle: request.pdfContext.documentTitle,
+        shouldPrioritizeTitle: request.pdfContext.shouldPrioritizeTitle,
       },
     }),
   });
+
   const generationElapsedMs = Date.now() - generationStartTime;
-
-  // Use generated stem or fallback to baseline extraction
-  const subject =
-    generatedStem ||
-    extractStemFromBaseline(request.baseline.final || request.filename);
-
-  if (!subject || subject.trim().length === 0) {
-    console.log('[FilenameGeneration] No valid subject for filename', {
-      requestId: request.requestId,
-    });
-    return null;
-  }
 
   console.log('[FilenameGeneration] Filename generation complete', {
     requestId: request.requestId,
@@ -89,116 +64,14 @@ export async function generateFilenamePhase3(
     elapsedMs: generationElapsedMs,
   });
 
-  // ==================================================================
-  // Build Proposal
-  // ==================================================================
-  // Create a compatible request object for buildFilename
-  // (it only needs specific fields from the request and doesn't use ingestion)
-  const requestForFilename: TextUpgradeAnalysisRequest = {
-    requestId: request.requestId,
-    historyId: request.historyId,
-    downloadId: request.downloadId,
-    url: request.url,
-    filename: request.filename,
-    relativePath: request.relativePath,
-    mimeType: request.mimeType,
-    sizeBytes: request.sizeBytes,
-    fileType: request.fileType,
-    baseline: request.baseline,
-    settings: {
-      languagePreference: 'auto',
-      mode: request.settings.mode,
-      maxBytes: request.settings.maxBytes,
-      maxFilenameLength: request.settings.maxFilenameLength,
-      separator: request.settings.separator,
-      transliterateAscii: request.settings.transliterateAscii,
-    },
-  };
-
-  const ingestionForFilename: TextUpgradeIngestionResult = {
-    status: 'ingested',
-    requestId: request.requestId,
-    analyzedAt: ingestion.analyzedAt,
-    text: description,
-    encoding: 'utf-8',
-    originalLength: description.length,
-    truncated: false,
-    sizeBytes: ingestion.originalSizeBytes,
-    metrics: {
-      readBytes: ingestion.metrics.readBytes,
-      elapsedMs: ingestion.metrics.elapsedMs,
-    },
-  };
-
-  const filenameResult = buildFilename({
-    request: requestForFilename,
-    ingestion: ingestionForFilename,
-    subject,
-    language: undefined,
-  });
-
-  const proposedFilename = filenameResult.filename;
-  if (!proposedFilename || proposedFilename.length === 0) {
-    return null;
-  }
-
-  const currentFinal = request.baseline.final ?? request.filename;
-  if (
-    currentFinal &&
-    currentFinal.toLowerCase() === proposedFilename.toLowerCase()
-  ) {
-    return null; // No change needed
-  }
-
-  const proposedPath = buildProposedPath(
-    request.relativePath,
-    proposedFilename,
-  );
-
-  const shouldAutoApply =
-    decisionConfidence >= HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD;
-
-  const success: ImageUpgradeAnalysisSuccess = {
-    status: 'success',
-    requestId: request.requestId,
-    analyzedAt: Date.now(),
-    proposal: {
-      proposedFilename,
-      proposedPath,
-      confidence:
-        decisionConfidence >= HIGH_CONFIDENCE_DISPLAY_THRESHOLD
-          ? 'high'
-          : 'suggested',
-      autoApply: shouldAutoApply,
-      reasonTags: formatReasonTags(undefined, promptUsed, 'on-device'),
-      generatedAt: Date.now(),
-      source: 'ai',
-      summary: buildProposalSummary(undefined, description),
-    },
+  // Delegate proposal building to shared builder
+  // This reuses the generic response assembly logic
+  return buildProposalFromPhase3Inputs(
+    request,
+    ingestion,
     description,
-    modelSource: 'on-device',
-    promptConfidence: decisionConfidence,
+    generatedStem,
+    decisionConfidence,
     promptUsed,
-    decisionReason: 'user-approved', // Phase 2 already decided to rename
-    metrics: {
-      bytesFetched: ingestion.metrics.readBytes,
-      requests: 1,
-      elapsedMs: ingestion.metrics.elapsedMs,
-      promptCalls: 3, // Describe + decision + generation
-      decisionConfidence,
-      resizeRatio: ingestion.resizeRatio,
-      originalWidth: ingestion.originalWidth,
-      originalHeight: ingestion.originalHeight,
-      resizedWidth: ingestion.resizedWidth,
-      resizedHeight: ingestion.resizedHeight,
-    },
-  };
-
-  console.log('[FilenameGeneration] Proposal created', {
-    requestId: request.requestId,
-    proposedFilename,
-    proposalSummary: success.proposal.summary,
-  });
-
-  return success;
+  );
 }
