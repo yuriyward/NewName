@@ -86,28 +86,31 @@ export async function renderPageToCanvas(
 
     // Create OffscreenCanvas from PNG blob
     // We need to decode the PNG to get dimensions
-    const imageBitmap = await createImageBitmap(blob);
-    const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
-    const ctx = canvas.getContext('2d');
+    let imageBitmap: ImageBitmap | null = null;
+    try {
+      imageBitmap = await createImageBitmap(blob);
+      const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
+      const ctx = canvas.getContext('2d');
 
-    if (!ctx) {
-      debugLogger.warn('[PdfRenderer] Failed to get canvas context');
-      imageBitmap.close();
+      if (!ctx) {
+        debugLogger.warn('[PdfRenderer] Failed to get canvas context');
+        pixmap.destroy();
+        page.destroy();
+        document.destroy();
+        return null;
+      }
+
+      ctx.drawImage(imageBitmap, 0, 0);
+
+      // Clean up
       pixmap.destroy();
       page.destroy();
       document.destroy();
-      return null;
+
+      return canvas;
+    } finally {
+      imageBitmap?.close();
     }
-
-    ctx.drawImage(imageBitmap, 0, 0);
-    imageBitmap.close();
-
-    // Clean up
-    pixmap.destroy();
-    page.destroy();
-    document.destroy();
-
-    return canvas;
   } catch (error) {
     debugLogger.warn('[PdfRenderer] Failed to render page to canvas', {
       error,

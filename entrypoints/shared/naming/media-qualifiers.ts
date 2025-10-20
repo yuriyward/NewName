@@ -6,7 +6,15 @@ import type {
   MediaMetadataSummary,
   VideoTrackSummary,
 } from '@/entrypoints/shared/integrations/mediainfo/media-summary';
+import {
+  AUDIO_CODEC_PATTERNS,
+  CHANNEL_MAPPINGS,
+  COMMON_RESOLUTIONS,
+  SKIP_CODECS,
+  VIDEO_CODEC_PATTERNS,
+} from '@/entrypoints/shared/naming/media-qualifiers-constants';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
+import { FileTypeEnum } from '@/entrypoints/shared/settings/types';
 
 export interface MediaQualifiers {
   specs: string[];
@@ -34,13 +42,11 @@ function formatResolution(
   video: VideoTrackSummary | undefined,
 ): string | undefined {
   if (!video?.width || !video?.height) return undefined;
-  // Common resolutions with labels
-  if (video.width === 1920 && video.height === 1080) return '1080p';
-  if (video.width === 1280 && video.height === 720) return '720p';
-  if (video.width === 3840 && video.height === 2160) return '4K';
-  if (video.width === 2560 && video.height === 1440) return '1440p';
-  if (video.width === 854 && video.height === 480) return '480p';
-  if (video.width === 640 && video.height === 360) return '360p';
+  // Look up common resolutions from centralized constants
+  const resolution = COMMON_RESOLUTIONS.find(
+    (res) => res.width === video.width && res.height === video.height,
+  );
+  if (resolution) return resolution.label;
   // Otherwise show dimensions
   return `${video.width}x${video.height}`;
 }
@@ -57,10 +63,12 @@ function formatChannels(
   audio: AudioTrackSummary | undefined,
 ): string | undefined {
   if (!audio?.channels) return undefined;
-  if (audio.channels === 1) return 'Mono';
-  if (audio.channels === 2) return 'Stereo';
-  if (audio.channels === 6) return '5.1';
-  if (audio.channels === 8) return '7.1';
+  // Look up standard channel configurations from centralized constants
+  const channelMapping = CHANNEL_MAPPINGS.find(
+    (mapping) => mapping.channels === audio.channels,
+  );
+  if (channelMapping) return channelMapping.label;
+  // Otherwise show channel count
   return `${audio.channels}ch`;
 }
 
@@ -77,39 +85,31 @@ function formatSampleRate(
 
 function shortenCodec(codec: string | undefined): string | undefined {
   if (!codec) return undefined;
-  // Common codec abbreviations
   const lower = codec.toLowerCase();
+
+  // Check against skip list
   if (
-    lower.includes('avc') ||
-    lower.includes('h.264') ||
-    lower.includes('h264')
+    SKIP_CODECS.has(lower) ||
+    lower.includes('mpeg-4') ||
+    lower.includes('mpeg4')
   ) {
-    return 'H264';
-  }
-  if (
-    lower.includes('hevc') ||
-    lower.includes('h.265') ||
-    lower.includes('h265')
-  ) {
-    return 'H265';
-  }
-  if (lower.includes('vp9')) return 'VP9';
-  if (lower.includes('vp8')) return 'VP8';
-  if (lower.includes('av1')) return 'AV1';
-  if (lower.includes('aac')) return 'AAC';
-  if (lower.includes('mp3')) return 'MP3';
-  if (lower.includes('opus')) return 'Opus';
-  if (lower.includes('vorbis')) return 'Vorbis';
-  if (lower.includes('flac')) return 'FLAC';
-  if (lower.includes('xvid')) return 'Xvid';
-  if (lower.includes('divx')) return 'DivX';
-  if (lower.includes('prores')) return 'ProRes';
-  if (lower.includes('dnxhr')) return 'DNxHR';
-  if (lower.includes('dnxhd')) return 'DNxHD';
-  if (lower.includes('mpeg-4') || lower.includes('mpeg4')) {
     return undefined;
   }
-  // Return first word if it's short
+
+  // Try to match against known patterns (video first, then audio)
+  for (const pattern of VIDEO_CODEC_PATTERNS) {
+    if (pattern.patterns.some((p) => lower.includes(p))) {
+      return pattern.codec;
+    }
+  }
+
+  for (const pattern of AUDIO_CODEC_PATTERNS) {
+    if (pattern.patterns.some((p) => lower.includes(p))) {
+      return pattern.codec;
+    }
+  }
+
+  // No recognized codec found
   return undefined;
 }
 
@@ -127,7 +127,7 @@ export function extractMediaQualifiers(
   // Duration (always useful for media)
   const duration = formatDuration(summary.general.durationMs);
 
-  if (fileType === 'video') {
+  if (fileType === FileTypeEnum.VIDEO) {
     // Video specs: resolution, fps, video codec
     const resolution = formatResolution(primaryVideo);
     if (resolution) specs.push(resolution);
@@ -146,7 +146,7 @@ export function extractMediaQualifiers(
     }
   }
 
-  if (fileType === 'audio') {
+  if (fileType === FileTypeEnum.AUDIO) {
     // Audio specs: sample rate, channels, codec
     const sampleRate = formatSampleRate(primaryAudio);
     if (sampleRate) specs.push(sampleRate);

@@ -222,10 +222,9 @@ export async function ingestImageForPrompt(
       };
     }
 
-    // Create another bitmap from the PNG to get actual resized dimensions
-    const resizedBitmap = await createBitmapFromBlob(pngBlob);
-    const resizedWidth = resizedBitmap?.width ?? originalWidth;
-    const resizedHeight = resizedBitmap?.height ?? originalHeight;
+    // Use canvas dimensions produced during downscaling to report final size
+    const resizedWidth = Math.round(originalWidth * resizeRatio);
+    const resizedHeight = Math.round(originalHeight * resizeRatio);
 
     const elapsedMs = Math.round(performance.now() - startedAt);
 

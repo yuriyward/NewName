@@ -10,6 +10,21 @@ export { isInstantBaselineStrategy };
 export type Mode = 'balanced' | 'silent' | 'careful' | 'custom';
 export type Separator = 'clean' | 'kebab' | 'snake';
 export type DebugLevel = 'basic' | 'detailed' | 'verbose';
+
+/**
+ * File type classification enum
+ * Represents different file categories for analysis and handling
+ */
+export enum FileTypeEnum {
+  PDF = 'pdf',
+  IMAGE = 'image',
+  AUDIO = 'audio',
+  VIDEO = 'video',
+  ARCHIVE = 'archive',
+  OFFICE = 'office',
+  DATA = 'data',
+}
+
 export type FileType =
   | 'pdf'
   | 'image'
@@ -156,14 +171,9 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export function isFileType(value: unknown): value is FileType {
+  const validTypes = Object.values(FileTypeEnum);
   return (
-    value === 'pdf' ||
-    value === 'image' ||
-    value === 'audio' ||
-    value === 'video' ||
-    value === 'office' ||
-    value === 'archive' ||
-    value === 'data'
+    typeof value === 'string' && validTypes.includes(value as FileTypeEnum)
   );
 }
 

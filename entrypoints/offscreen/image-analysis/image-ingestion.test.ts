@@ -16,6 +16,7 @@ import {
   IMAGE_ANALYSIS_FORMAT,
   MAX_IMAGE_EDGE_PX,
   MAX_IMAGE_FILE_SIZE_BYTES,
+  MIN_DOWNSCALE_RATIO,
   MIN_IMAGE_DIMENSION_PX,
 } from '@/entrypoints/shared/integrations/image-analysis/constants';
 import { ingestImageForPrompt } from './image-ingestion';
@@ -444,29 +445,24 @@ describe('image-ingestion', () => {
         close: vi.fn(),
       } as unknown as ImageBitmap;
 
-      // Calculate expected resize dimensions
-      const resizeRatio = MAX_IMAGE_EDGE_PX / 10000;
+      // Calculate expected resize dimensions accounting for MIN_DOWNSCALE_RATIO
+      const maxDimension = Math.max(10000, 100); // 10000
+      const idealRatio = MAX_IMAGE_EDGE_PX / maxDimension;
+      const resizeRatio = Math.max(MIN_DOWNSCALE_RATIO, idealRatio);
       const expectedWidth = Math.round(10000 * resizeRatio);
       const expectedHeight = Math.round(100 * resizeRatio);
 
-      const resizedBitmap = {
-        width: expectedWidth,
-        height: expectedHeight,
-        close: vi.fn(),
-      } as unknown as ImageBitmap;
-
-      global.createImageBitmap = vi
-        .fn()
-        .mockResolvedValueOnce(wideBitmap)
-        .mockResolvedValueOnce(resizedBitmap);
+      // Mock createImageBitmap to return the wide bitmap (only called once)
+      global.createImageBitmap = vi.fn().mockResolvedValueOnce(wideBitmap);
 
       const result = await ingestImageForPrompt(mockFileHandle);
 
       expect(result.success).toBe(true);
       if (!result.success) return;
 
-      expect(result.resizeRatio).toBeLessThan(1.0);
-      expect(result.resizedWidth).toBeLessThanOrEqual(MAX_IMAGE_EDGE_PX);
+      expect(result.resizeRatio).toBe(resizeRatio);
+      expect(result.resizedWidth).toBe(expectedWidth);
+      expect(result.resizedHeight).toBe(expectedHeight);
     });
 
     it('handles very tall image', async () => {
@@ -476,29 +472,24 @@ describe('image-ingestion', () => {
         close: vi.fn(),
       } as unknown as ImageBitmap;
 
-      // Calculate expected resize dimensions
-      const resizeRatio = MAX_IMAGE_EDGE_PX / 10000;
+      // Calculate expected resize dimensions accounting for MIN_DOWNSCALE_RATIO
+      const maxDimension = Math.max(100, 10000); // 10000
+      const idealRatio = MAX_IMAGE_EDGE_PX / maxDimension;
+      const resizeRatio = Math.max(MIN_DOWNSCALE_RATIO, idealRatio);
       const expectedWidth = Math.round(100 * resizeRatio);
       const expectedHeight = Math.round(10000 * resizeRatio);
 
-      const resizedBitmap = {
-        width: expectedWidth,
-        height: expectedHeight,
-        close: vi.fn(),
-      } as unknown as ImageBitmap;
-
-      global.createImageBitmap = vi
-        .fn()
-        .mockResolvedValueOnce(tallBitmap)
-        .mockResolvedValueOnce(resizedBitmap);
+      // Mock createImageBitmap to return the tall bitmap (only called once)
+      global.createImageBitmap = vi.fn().mockResolvedValueOnce(tallBitmap);
 
       const result = await ingestImageForPrompt(mockFileHandle);
 
       expect(result.success).toBe(true);
       if (!result.success) return;
 
-      expect(result.resizeRatio).toBeLessThan(1.0);
-      expect(result.resizedHeight).toBeLessThanOrEqual(MAX_IMAGE_EDGE_PX);
+      expect(result.resizeRatio).toBe(resizeRatio);
+      expect(result.resizedWidth).toBe(expectedWidth);
+      expect(result.resizedHeight).toBe(expectedHeight);
     });
 
     it('handles square image', async () => {

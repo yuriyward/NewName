@@ -9,6 +9,7 @@ import {
   TEXT_EXTENSIONS,
 } from '@/entrypoints/shared/constants/file-constants';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
+import { FileTypeEnum } from '@/entrypoints/shared/settings/types';
 
 function normalizeMime(mime?: string): string | undefined {
   if (!mime) return undefined;
@@ -113,7 +114,7 @@ export function isImageExtension(
   // Check using centralized EXTENSION_MAP for consistent file type detection
   if (normalized in EXTENSION_MAP) {
     const fileType = EXTENSION_MAP[normalized];
-    return fileType === 'image';
+    return fileType === FileTypeEnum.IMAGE;
   }
   return false;
 }
@@ -136,7 +137,7 @@ export function isPdfExtension(extension: string | null | undefined): boolean {
   // Check using centralized EXTENSION_MAP for consistent file type detection
   if (normalized in EXTENSION_MAP) {
     const fileType = EXTENSION_MAP[normalized];
-    return fileType === 'pdf';
+    return fileType === FileTypeEnum.PDF;
   }
   return false;
 }

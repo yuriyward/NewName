@@ -53,6 +53,39 @@ Guidelines:
  * @param pageNumber - Page number (1-indexed)
  * @returns Page analysis with title and description
  */
+function isValidModelResponse(
+  value: unknown,
+): value is { title?: string | null; description: string } {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const { description, title } = record;
+
+  if (typeof description !== 'string' || description.trim().length === 0) {
+    return false;
+  }
+
+  if (title === undefined || title === null || typeof title === 'string') {
+    return true;
+  }
+
+  return false;
+}
+
+function normalizeTitle(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  return trimmed.toLowerCase() === 'null' ? null : trimmed;
+}
+
 async function analyzePdfPage(
   pageBlob: Blob,
   pageNumber: number,
@@ -102,7 +135,7 @@ Format your response as JSON with exactly this structure:
     ]);
 
     // Parse the JSON response
-    let parsed: { title: string | null; description: string } | null = null;
+    let parsed: unknown = null;
     try {
       // Try to extract JSON from response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -115,19 +148,23 @@ Format your response as JSON with exactly this structure:
       });
     }
 
-    if (!parsed || !parsed.description) {
+    if (!isValidModelResponse(parsed)) {
       debugLogger.warn(
         `[PdfTitleDescription] Invalid response structure from page ${pageNumber}`,
+        { parsed },
       );
       return null;
     }
 
+    const parsedTitle = normalizeTitle(parsed.title ?? null);
+    const description = parsed.description.trim();
+
     const analysis: PdfPageAnalysis = {
       pageNumber,
-      title: parsed.title && parsed.title !== 'null' ? parsed.title : null,
-      description: parsed.description.trim(),
+      title: parsedTitle,
+      description,
       confidence: 0.85, // Baseline confidence for model-analyzed pages
-      hasTitle: !!parsed.title && parsed.title !== 'null',
+      hasTitle: parsedTitle !== null,
     };
 
     console.log(`[PdfTitleDescription] Page ${pageNumber} analysis complete`, {

@@ -52,11 +52,11 @@ async function extractPdfPages(
 ): Promise<RenderedPdfPage[] | null> {
   const results: RenderedPdfPage[] = [];
 
+  let document: ReturnType<MuPdfModule['Document']['openDocument']> | null =
+    null;
+
   try {
-    const document = mupdf.Document.openDocument(
-      arrayBuffer,
-      'application/pdf',
-    );
+    document = mupdf.Document.openDocument(arrayBuffer, 'application/pdf');
 
     if (!document) {
       debugLogger.warn('[PdfRenderer] Failed to open PDF document');
@@ -80,15 +80,25 @@ async function extractPdfPages(
           PDF_RENDER_SCALE,
           mupdf,
         );
-        const timeoutPromise = new Promise<null>((_, reject) =>
-          setTimeout(
+
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        const timeoutPromise = new Promise<null>((_, reject) => {
+          timeoutId = setTimeout(
             () =>
               reject(new Error(`Page render timeout for page ${pageIndex}`)),
             PDF_RENDER_TIMEOUT_MS,
-          ),
-        );
+          );
+        });
 
-        const canvas = await Promise.race([renderPromise, timeoutPromise]);
+        const canvas = await (async () => {
+          try {
+            return await Promise.race([renderPromise, timeoutPromise]);
+          } finally {
+            if (timeoutId !== undefined) {
+              clearTimeout(timeoutId);
+            }
+          }
+        })();
 
         if (!canvas) {
           debugLogger.warn('[PdfRenderer] Failed to render page', {
@@ -125,11 +135,11 @@ async function extractPdfPages(
         // Continue to next page on error
       }
     }
-
-    document.destroy();
   } catch (error) {
     debugLogger.warn('[PdfRenderer] Failed to extract pages', { error });
     return null;
+  } finally {
+    document?.destroy();
   }
 
   return results.length > 0 ? results : null;
@@ -165,6 +175,17 @@ export async function renderPdfPages(
       return {
         success: false,
         error: 'PDF file is empty',
+        errorType: 'invalid-pdf',
+      };
+    }
+
+    // Quick magic-byte validation before engaging MuPDF
+    const headerSlice = await file.slice(0, 5).arrayBuffer();
+    const header = new TextDecoder().decode(headerSlice);
+    if (!header.startsWith('%PDF-')) {
+      return {
+        success: false,
+        error: 'Invalid PDF file (missing magic bytes)',
         errorType: 'invalid-pdf',
       };
     }
