@@ -6,6 +6,24 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';
 import { ConfirmToast } from './ConfirmToast';
 
+vi.mock('@/entrypoints/shared/ui/FilenameEditor', () => ({
+  __esModule: true,
+  FilenameEditor: vi.fn(() => (
+    <div data-test="mock-filename-editor">
+      <span>Mock filename editor</span>
+    </div>
+  )),
+}));
+
+vi.mock('@/entrypoints/shared/ui/CountdownBadge', () => ({
+  __esModule: true,
+  CountdownBadge: vi.fn(({ seconds }: { seconds: number }) => (
+    <div aria-hidden="true" data-test="mock-countdown-badge">
+      {seconds}s
+    </div>
+  )),
+}));
+
 vi.mock('@/entrypoints/shared/messaging/extension-messaging', () => ({
   __esModule: true,
   sendConfirmToastCountdownControl: vi.fn(async () => ({ ok: true as const })),
