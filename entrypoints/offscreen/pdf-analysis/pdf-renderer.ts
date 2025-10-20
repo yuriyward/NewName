@@ -82,7 +82,8 @@ async function extractPdfPages(
         );
         const timeoutPromise = new Promise<null>((_, reject) =>
           setTimeout(
-            () => reject(new Error('Page render timeout')),
+            () =>
+              reject(new Error(`Page render timeout for page ${pageIndex}`)),
             PDF_RENDER_TIMEOUT_MS,
           ),
         );

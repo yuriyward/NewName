@@ -19,3 +19,6 @@ export const FIRST_PAGE_INDEX = 0;
 
 /** Target format for rendered pages */
 export const PDF_PAGE_IMAGE_FORMAT = 'image/png' as const;
+
+/** PNG quality for canvas-to-blob conversion (0-1 scale, higher = better quality) */
+export const PDF_PNG_QUALITY = 0.95;

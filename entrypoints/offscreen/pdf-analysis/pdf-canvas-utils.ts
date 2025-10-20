@@ -4,7 +4,7 @@
  */
 
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
-import { PDF_PAGE_IMAGE_FORMAT } from './constants';
+import { PDF_PAGE_IMAGE_FORMAT, PDF_PNG_QUALITY } from './constants';
 
 /**
  * Convert OffscreenCanvas to PNG blob
@@ -17,7 +17,7 @@ export async function canvasToBlob(
   try {
     return await canvas.convertToBlob({
       type: PDF_PAGE_IMAGE_FORMAT,
-      quality: 0.95,
+      quality: PDF_PNG_QUALITY,
     });
   } catch (error) {
     debugLogger.warn('[PdfRenderer] Failed to convert canvas to blob', {
