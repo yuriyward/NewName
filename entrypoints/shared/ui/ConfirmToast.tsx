@@ -9,7 +9,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { sendConfirmToastCountdownControl } from '@/entrypoints/shared/messaging/extension-messaging';
+import { sendConfirmToastCountdownControl } from '@/entrypoints/shared/messaging/core-messages';
 import { TOAST_TIMING } from '@/entrypoints/shared/toast/timing-constants';
 import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';

@@ -11,7 +11,7 @@ import type {
 import {
   requestCloudConsentDetails,
   submitCloudConsentDecision,
-} from '@/entrypoints/shared/messaging/extension-messaging';
+} from '@/entrypoints/shared/messaging/text-messages';
 
 type ConsentState =
   | { status: 'loading' }

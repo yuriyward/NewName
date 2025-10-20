@@ -15,11 +15,11 @@ import {
 } from '@/entrypoints/shared/integrations/chrome-ai/telemetry';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
+import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import type {
   AiPipelineTelemetryPayload,
   EnsureAiModelsRequestPayload,
-} from '@/entrypoints/shared/messaging/extension-messaging';
-import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
+} from '@/entrypoints/shared/messaging/text-messages';
 import { updateSettings } from '@/entrypoints/shared/settings/settings';
 import { registerPageContextService } from '@/entrypoints/shared/state/page-context-service';
 import { createDeterminingListener } from './background/download-coordinator';

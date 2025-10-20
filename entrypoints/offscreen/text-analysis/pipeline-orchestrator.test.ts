@@ -70,7 +70,7 @@ const {
   },
 }));
 
-vi.mock('@/entrypoints/shared/messaging/extension-messaging', () => ({
+vi.mock('@/entrypoints/shared/messaging/text-messages', () => ({
   ensureAiModelsReadyRemote: mockEnsureAiModelsReadyRemote,
 }));
 

@@ -4,7 +4,7 @@
 import type { SendMessageOptions } from '@webext-core/messaging';
 import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
-import { sendShowRenameToast } from '@/entrypoints/shared/messaging/extension-messaging';
+import { sendShowRenameToast } from '@/entrypoints/shared/messaging/core-messages';
 import {
   DEFAULT_SETTINGS,
   type Settings,

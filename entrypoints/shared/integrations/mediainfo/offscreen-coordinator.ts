@@ -4,10 +4,8 @@
 import { browser } from 'wxt/browser';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import type { MediaAnalysisRequest } from '@/entrypoints/shared/integrations/mediainfo/messages';
-import {
-  offscreenHandshake,
-  onExtensionMessage,
-} from '@/entrypoints/shared/messaging/extension-messaging';
+import { offscreenHandshake } from '@/entrypoints/shared/messaging/core-messages';
+import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import {
   OFFSCREEN_HANDSHAKE_BACKOFF_MS,
   OFFSCREEN_HANDSHAKE_MAX_RETRIES,

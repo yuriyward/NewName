@@ -10,7 +10,7 @@ import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
   sendConfirmToastTimingUpdate,
   sendShowConfirmToast,
-} from '@/entrypoints/shared/messaging/extension-messaging';
+} from '@/entrypoints/shared/messaging/core-messages';
 import type { ConfirmToastTriggerSource } from '@/entrypoints/shared/settings/confirm-toast-routing';
 import type { FileType, Mode } from '@/entrypoints/shared/settings/types';
 import type {

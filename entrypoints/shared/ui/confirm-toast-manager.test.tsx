@@ -73,7 +73,7 @@ const messagingMocks = vi.hoisted(() => ({
   sendConfirmToastDecision: vi.fn(async () => ({ ok: true as const })),
   sendConfirmToastCountdownControl: vi.fn(async () => ({ ok: true as const })),
 }));
-vi.mock('@/entrypoints/shared/messaging/extension-messaging', () => ({
+vi.mock('@/entrypoints/shared/messaging/core-messages', () => ({
   __esModule: true,
   sendConfirmToastDecision: messagingMocks.sendConfirmToastDecision,
   sendConfirmToastCountdownControl:

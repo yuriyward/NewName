@@ -3,7 +3,7 @@ import type {
   TextAnalysisMode,
   TextUpgradeModelSource,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
-import { recordAiPipelineTelemetryRemote } from '@/entrypoints/shared/messaging/extension-messaging';
+import { recordAiPipelineTelemetryRemote } from '@/entrypoints/shared/messaging/text-messages';
 
 export function recordPipelineBlocked(
   mode: TextAnalysisMode,

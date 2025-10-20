@@ -29,7 +29,7 @@ const extractTabId = vi.hoisted(() =>
 
 const idCounter = vi.hoisted(() => ({ value: 0 }));
 
-vi.mock('@/entrypoints/shared/messaging/extension-messaging', () => ({
+vi.mock('@/entrypoints/shared/messaging/core-messages', () => ({
   __esModule: true,
   sendShowConfirmToast,
   sendConfirmToastTimingUpdate,

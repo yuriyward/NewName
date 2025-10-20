@@ -3,12 +3,12 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { DEFAULT_SETTINGS } from '@/entrypoints/shared/settings/types';
 
 vi.mock('wxt/browser', () => ({ browser: fakeBrowser }));
-vi.mock('@/entrypoints/shared/messaging/extension-messaging', () => ({
+vi.mock('@/entrypoints/shared/messaging/core-messages', () => ({
   sendShowRenameToast: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
 const { sendShowRenameToast } = await import(
-  '@/entrypoints/shared/messaging/extension-messaging'
+  '@/entrypoints/shared/messaging/core-messages'
 );
 const sendShowRenameToastMock = vi.mocked(sendShowRenameToast);
 const { maybeShowRenameOverlay } = await import('./rename-overlay');

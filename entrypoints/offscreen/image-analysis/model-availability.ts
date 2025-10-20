@@ -11,7 +11,7 @@ import {
   MULTIMODAL_SETUP_INSTRUCTIONS,
 } from '@/entrypoints/shared/integrations/image-analysis/constants';
 import type { ImageUpgradeAnalysisUnavailable } from '@/entrypoints/shared/integrations/image-analysis/types';
-import { ensureAiModelsReadyRemote } from '@/entrypoints/shared/messaging/extension-messaging';
+import { ensureAiModelsReadyRemote } from '@/entrypoints/shared/messaging/text-messages';
 
 /**
  * Check if multimodal Prompt API is available and ready

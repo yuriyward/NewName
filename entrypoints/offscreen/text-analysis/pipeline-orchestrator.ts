@@ -15,7 +15,7 @@ import type {
   TextUpgradeIngestionResult,
   TextUpgradeModelSource,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
-import { ensureAiModelsReadyRemote } from '@/entrypoints/shared/messaging/extension-messaging';
+import { ensureAiModelsReadyRemote } from '@/entrypoints/shared/messaging/text-messages';
 import {
   buildFilename,
   buildProposalSummary,

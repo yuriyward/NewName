@@ -13,7 +13,7 @@ import { isPdfExtension } from '@/entrypoints/shared/classification/file-types';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import { ensureOffscreenReady } from '@/entrypoints/shared/integrations/mediainfo/offscreen-coordinator';
-import { requestPdfAnalysis } from '@/entrypoints/shared/messaging/extension-messaging';
+import { requestPdfAnalysis } from '@/entrypoints/shared/messaging/media-messages';
 import {
   basename,
   extractExtension,

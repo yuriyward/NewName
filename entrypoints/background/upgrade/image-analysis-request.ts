@@ -9,7 +9,7 @@ import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import { MAX_IMAGE_FILE_SIZE_BYTES } from '@/entrypoints/shared/integrations/image-analysis/constants';
 import type { ImageUpgradeAnalysisRequest } from '@/entrypoints/shared/integrations/image-analysis/types';
 import { ensureOffscreenReady } from '@/entrypoints/shared/integrations/mediainfo/offscreen-coordinator';
-import { requestImageIngestion } from '@/entrypoints/shared/messaging/extension-messaging';
+import { requestImageIngestion } from '@/entrypoints/shared/messaging/media-messages';
 import {
   basename,
   extractExtension,

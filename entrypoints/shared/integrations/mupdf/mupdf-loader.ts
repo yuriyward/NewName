@@ -20,6 +20,23 @@ type MuPdfGlobal = typeof globalThis & {
 };
 
 /**
+ * Calculate path to MuPDF WASM file for dev mode
+ * Uses import.meta.url to resolve relative to this file's location in node_modules
+ * The path is relative from: entrypoints/shared/integrations/mupdf/mupdf-loader.ts
+ *   → node_modules/mupdf/dist/mupdf-wasm.wasm
+ *
+ * Note: We can't use Vite's ?url import because mupdf doesn't export the WASM file
+ * in its package.json. This approach is more robust than hardcoded paths because
+ * import.meta.url is always resolved relative to the file location.
+ */
+function getMupdfWasmPath(): string {
+  return new URL(
+    '../../../../../../node_modules/mupdf/dist/mupdf-wasm.wasm',
+    import.meta.url,
+  ).href;
+}
+
+/**
  * Get the MuPDF module with proper WASM loading configured
  * Sets globalThis.$libmupdf_wasm_Module BEFORE importing
  * to ensure WASM file is located correctly in both dev and production
@@ -46,12 +63,8 @@ export async function getMuPdfModule(): Promise<MuPdfModule> {
               // chrome.runtime.getURL may throw in some contexts
             }
 
-            // Fall back to node_modules path for dev mode
-            // Vite will resolve this relative to mupdf package
-            return new URL(
-              '../../../../../../node_modules/mupdf/dist/mupdf-wasm.wasm',
-              import.meta.url,
-            ).href;
+            // Fall back to dev mode WASM path
+            return getMupdfWasmPath();
           }
 
           return filename;

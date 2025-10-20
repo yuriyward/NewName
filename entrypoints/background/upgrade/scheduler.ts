@@ -5,11 +5,11 @@ import {
   updateHistoryItem,
 } from '@/entrypoints/shared/history/history';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
-import type { ProcessUpgradeAnalysisParams } from './executor';
 import {
   MOCK_UPGRADE_ALARM_PREFIX,
   type ScheduleUpgradeAnalysisParams,
 } from './types';
+import type { ProcessUpgradeAnalysisParams } from './upgrade-processor';
 
 type AlarmCallback = Parameters<typeof browser.alarms.onAlarm.addListener>[0];
 export type BrowserAlarm = Parameters<AlarmCallback>[0];

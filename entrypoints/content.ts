@@ -3,9 +3,9 @@
  */
 
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { requestPendingConfirmToasts } from '@/entrypoints/shared/messaging/core-messages';
 import {
   onExtensionMessage,
-  requestPendingConfirmToasts,
   sendExtensionMessage,
 } from '@/entrypoints/shared/messaging/extension-messaging';
 import type { PageContextPublishRequest } from '@/entrypoints/shared/state/page-context-service';

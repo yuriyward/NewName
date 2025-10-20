@@ -8,7 +8,7 @@ const sendConfirmToastStatus = vi.hoisted(() =>
   ),
 );
 
-vi.mock('@/entrypoints/shared/messaging/extension-messaging', () => ({
+vi.mock('@/entrypoints/shared/messaging/core-messages', () => ({
   __esModule: true,
   sendConfirmToastStatus,
 }));

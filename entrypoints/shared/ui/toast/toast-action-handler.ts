@@ -1,7 +1,7 @@
 /**
  * Action handler for user interactions with toasts.
  */
-import { sendConfirmToastDecision } from '@/entrypoints/shared/messaging/extension-messaging';
+import { sendConfirmToastDecision } from '@/entrypoints/shared/messaging/core-messages';
 import type {
   ConfirmToastAction,
   ConfirmToastDecisionMessage,
