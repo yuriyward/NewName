@@ -1,18 +1,9 @@
-import CheckIcon from '@heroicons/react/24/solid/CheckIcon';
-import PencilIcon from '@heroicons/react/24/solid/PencilIcon';
-import React, {
-  type ChangeEvent,
-  type CSSProperties,
-  type KeyboardEvent,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { sendConfirmToastCountdownControl } from '@/entrypoints/shared/messaging/core-messages';
-import { TOAST_TIMING } from '@/entrypoints/shared/toast/timing-constants';
+import React, { type CSSProperties, useEffect, useMemo, useRef } from 'react';
 import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';
-import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
+import { CountdownBadge } from '@/entrypoints/shared/ui/CountdownBadge';
+import { FilenameEditor } from '@/entrypoints/shared/ui/FilenameEditor';
+import { formatCountdown, useToastCountdown } from '@/entrypoints/shared/ui/useToastCountdown';
+import { useToastEditor } from '@/entrypoints/shared/ui/useToastEditor';
 
 interface ConfirmToastProps {
   toast: ConfirmToastState;
@@ -34,12 +25,6 @@ const SR_ONLY_STYLES: CSSProperties = {
   whiteSpace: 'nowrap',
 };
 
-function formatCountdown(seconds: number | null): string {
-  if (seconds === null) return '';
-  if (seconds <= 0) return '0s';
-  return `${seconds}s`;
-}
-
 export const ConfirmToast: React.FC<ConfirmToastProps> = ({
   toast,
   autoFocus = false,
@@ -47,204 +32,57 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
   onKeep,
   onAlwaysApply,
 }) => {
-  const [editedName, setEditedName] = useState(toast.proposedFilename);
-  const [isEditing, setIsEditing] = useState(false);
-  const [countdownSeconds, setCountdownSeconds] = useState<number | null>(() =>
-    computeCountdownSeconds(toast.autoApplyAt, toast.autoApplyRemainingMs),
-  );
   const primaryButtonRef = useRef<HTMLButtonElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const hoverStateRef = useRef<'running' | 'paused'>('running');
   const inputId = useMemo(
     () => `confirm-toast-${toast.toastId}-input`,
     [toast.toastId],
   );
 
-  useEffect(() => {
-    setEditedName(toast.proposedFilename);
-  }, [toast.proposedFilename]);
+  // Use extracted hooks for countdown and editor
+  const {
+    countdownSeconds,
+    countdownAnnouncement,
+    pauseCountdown,
+    resumeCountdown,
+  } = useToastCountdown({
+    allowAutoApply: toast.allowAutoApply,
+    autoApplyAt: toast.autoApplyAt,
+    autoApplyRemainingMs: toast.autoApplyRemainingMs,
+    status: toast.status,
+    toastId: toast.toastId,
+  });
 
-  useEffect(() => {
-    if (!toast.allowAutoApply || toast.status !== 'pending') {
-      setCountdownSeconds(null);
-      hoverStateRef.current = 'running';
-      return;
-    }
-    const updateCountdown = () => {
-      setCountdownSeconds(
-        computeCountdownSeconds(toast.autoApplyAt, toast.autoApplyRemainingMs),
-      );
-    };
-    updateCountdown();
-    if (toast.autoApplyAt === null) {
-      hoverStateRef.current = 'paused';
-      return;
-    }
-    hoverStateRef.current = 'running';
-    const interval = setInterval(
-      updateCountdown,
-      TOAST_TIMING.COUNTDOWN_TICK_INTERVAL_MS,
-    );
-    return () => clearInterval(interval);
-  }, [
-    toast.allowAutoApply,
-    toast.autoApplyAt,
-    toast.autoApplyRemainingMs,
-    toast.status,
-  ]);
+  const {
+    editedName,
+    isEditing,
+    handleEditChange,
+    handleEditClick,
+    handleApplyEdit,
+    handleCancelEdit,
+    handleApprove,
+    handleKeep,
+    handleAlwaysApply,
+  } = useToastEditor({
+    proposedFilename: toast.proposedFilename,
+    onApprove,
+    onKeep,
+    onAlwaysApply,
+  });
 
-  useEffect(() => {
-    return () => {
-      if (!toast.allowAutoApply || toast.status !== 'pending') return;
-      if (hoverStateRef.current !== 'paused') return;
-      hoverStateRef.current = 'running';
-      void sendConfirmToastCountdownControl({
-        toastId: toast.toastId,
-        action: 'resume',
-      }).catch((error) => {
-        hoverStateRef.current = 'paused';
-        console.warn(
-          '[ConfirmToast] Failed to resume auto-apply countdown',
-          error,
-        );
-      });
-    };
-  }, [toast.allowAutoApply, toast.status, toast.toastId]);
-
+  // Auto-focus on mount
   useEffect(() => {
     if (autoFocus && toast.status === 'pending') {
       primaryButtonRef.current?.focus();
     }
   }, [autoFocus, toast.status]);
 
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-      // Auto-resize textarea to fit content
-      inputRef.current.style.height = 'auto';
-      inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
-    }
-  }, [isEditing]);
-
   const isPending = toast.status === 'pending';
   const disableActions = toast.resolving || !isPending;
-
-  const isCountdownPaused =
-    toast.allowAutoApply &&
-    isPending &&
-    toast.autoApplyAt === null &&
-    toast.autoApplyRemainingMs !== null;
-
-  const countdownAnnouncement =
-    !toast.allowAutoApply || countdownSeconds === null || !isPending
-      ? null
-      : isCountdownPaused
-        ? `Auto-apply paused at ${countdownSeconds} seconds`
-        : countdownSeconds <= 0
-          ? 'Auto-apply happening now'
-          : `Auto-apply in ${countdownSeconds} seconds`;
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setEditedName(toast.proposedFilename);
-  };
-
-  const handleApprove = () => {
-    if (isEditing) {
-      handleCancelEdit();
-      return;
-    }
-    const trimmed = editedName.trim();
-    const value = trimmed.length > 0 ? trimmed : toast.proposedFilename.trim();
-    onApprove(value !== toast.proposedFilename ? value : undefined);
-  };
-
-  const handleKeep = () => {
-    if (isEditing) {
-      handleCancelEdit();
-      return;
-    }
-    onKeep();
-  };
-
-  const handleAlwaysApply = () => {
-    if (isEditing) {
-      handleCancelEdit();
-      return;
-    }
-    const trimmed = editedName.trim();
-    const value = trimmed.length > 0 ? trimmed : toast.proposedFilename.trim();
-    onAlwaysApply(value !== toast.proposedFilename ? value : undefined);
-  };
-
-  const pauseCountdown = () => {
-    if (!toast.allowAutoApply || toast.status !== 'pending') return;
-    if (hoverStateRef.current === 'paused') return;
-    hoverStateRef.current = 'paused';
-    void sendConfirmToastCountdownControl({
-      toastId: toast.toastId,
-      action: 'pause',
-    }).catch((error) => {
-      hoverStateRef.current = 'running';
-      console.warn(
-        '[ConfirmToast] Failed to pause auto-apply countdown',
-        error,
-      );
-    });
-  };
-
-  const resumeCountdown = () => {
-    if (!toast.allowAutoApply || toast.status !== 'pending') return;
-    if (hoverStateRef.current === 'running') return;
-    hoverStateRef.current = 'running';
-    void sendConfirmToastCountdownControl({
-      toastId: toast.toastId,
-      action: 'resume',
-    }).catch((error) => {
-      hoverStateRef.current = 'paused';
-      console.warn(
-        '[ConfirmToast] Failed to resume auto-apply countdown',
-        error,
-      );
-    });
-  };
-
-  const handleInputChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-    setEditedName(event.target.value);
-    // Auto-resize textarea as user types
-    event.target.style.height = 'auto';
-    event.target.style.height = `${event.target.scrollHeight}px`;
-  };
-
-  const handleEditClick = () => {
-    if (disableActions) return;
-    setIsEditing(true);
-  };
-
-  const handleApplyEdit = () => {
-    setIsEditing(false);
-    // Just exit edit mode, keep the edited value
-    // The main Apply button will actually submit the change
-  };
-
-  const handleInputKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !disableActions) {
-      event.preventDefault();
-      handleApplyEdit();
-    }
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      handleCancelEdit();
-    }
-  };
 
   const countdownLabel =
     toast.allowAutoApply && countdownSeconds !== null
       ? formatCountdown(countdownSeconds)
       : null;
-
-  const isUrgent = countdownSeconds !== null && countdownSeconds <= 5;
 
   return (
     <div
@@ -263,58 +101,19 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
         </output>
       ) : null}
       <div className="flex items-start justify-between gap-2">
-        <FilenameLabel originalFilename={toast.originalFilename}>
-          {isEditing ? (
-            <div className="mt-1 flex items-start gap-2">
-              <textarea
-                ref={inputRef}
-                id={inputId}
-                value={editedName}
-                onChange={handleInputChange}
-                onKeyDown={handleInputKeyDown}
-                disabled={disableActions}
-                spellCheck={false}
-                rows={1}
-                className="min-w-0 flex-1 resize-none rounded border border-primary bg-default-100 px-2 py-1 text-sm font-semibold text-foreground outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/50"
-              />
-              <button
-                type="button"
-                onClick={handleApplyEdit}
-                disabled={disableActions}
-                className="flex shrink-0 cursor-pointer items-center justify-center rounded bg-primary p-1.5 text-primary-foreground transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-                title="Apply (Enter)"
-              >
-                <CheckIcon className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <div className="mt-1 flex items-center gap-2">
-              <p className="min-w-0 flex-1 break-all text-sm font-semibold text-foreground">
-                {editedName}
-              </p>
-              <button
-                type="button"
-                onClick={handleEditClick}
-                disabled={disableActions}
-                className="flex shrink-0 cursor-pointer items-center justify-center rounded border border-default-300 p-1 text-primary transition-all hover:border-primary hover:bg-default-100 disabled:cursor-not-allowed disabled:opacity-40"
-                title="Edit filename"
-              >
-                <PencilIcon className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-        </FilenameLabel>
+        <FilenameEditor
+          originalFilename={toast.originalFilename}
+          editedName={editedName}
+          isEditing={isEditing}
+          disableActions={disableActions}
+          inputId={inputId}
+          onEditChange={handleEditChange}
+          onEditClick={handleEditClick}
+          onApplyEdit={handleApplyEdit}
+          onCancelEdit={handleCancelEdit}
+        />
         {countdownLabel ? (
-          <div
-            aria-hidden="true"
-            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
-              isUrgent
-                ? 'bg-warning-100 text-warning-700'
-                : 'bg-default-100 text-default-700'
-            }`}
-          >
-            {countdownLabel}
-          </div>
+          <CountdownBadge seconds={parseInt(countdownLabel)} />
         ) : null}
       </div>
 
@@ -363,16 +162,3 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
     </div>
   );
 };
-
-function computeCountdownSeconds(
-  autoApplyAt: number | null,
-  remainingMs: number | null,
-): number | null {
-  if (autoApplyAt !== null) {
-    const diff = autoApplyAt - Date.now();
-    if (!Number.isFinite(diff)) return null;
-    return diff > 0 ? Math.ceil(diff / 1000) : 0;
-  }
-  if (remainingMs === null || !Number.isFinite(remainingMs)) return null;
-  return remainingMs > 0 ? Math.ceil(remainingMs / 1000) : 0;
-}
