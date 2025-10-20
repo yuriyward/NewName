@@ -4,6 +4,8 @@
  * MuPDF auto-initializes on import, so we configure globalThis before importing
  */
 
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
+
 export type MuPdfModule = typeof import('mupdf');
 
 let moduleReady: Promise<MuPdfModule> | null = null;
@@ -59,8 +61,14 @@ export async function getMuPdfModule(): Promise<MuPdfModule> {
               if (chromeUrl) {
                 return chromeUrl;
               }
-            } catch {
-              // chrome.runtime.getURL may throw in some contexts
+              debugLogger.warn(
+                '[MuPDF] chrome.runtime.getURL returned no wasm URL; using dev fallback',
+              );
+            } catch (error) {
+              debugLogger.warn(
+                '[MuPDF] Failed to resolve wasm via chrome.runtime.getURL; using dev fallback',
+                error,
+              );
             }
 
             // Fall back to dev mode WASM path
