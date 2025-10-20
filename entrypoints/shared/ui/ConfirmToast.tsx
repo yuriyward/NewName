@@ -2,7 +2,10 @@ import React, { type CSSProperties, useEffect, useMemo, useRef } from 'react';
 import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';
 import { CountdownBadge } from '@/entrypoints/shared/ui/CountdownBadge';
 import { FilenameEditor } from '@/entrypoints/shared/ui/FilenameEditor';
-import { formatCountdown, useToastCountdown } from '@/entrypoints/shared/ui/useToastCountdown';
+import {
+  formatCountdown,
+  useToastCountdown,
+} from '@/entrypoints/shared/ui/useToastCountdown';
 import { useToastEditor } from '@/entrypoints/shared/ui/useToastEditor';
 
 interface ConfirmToastProps {
@@ -113,7 +116,7 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
           onCancelEdit={handleCancelEdit}
         />
         {countdownLabel ? (
-          <CountdownBadge seconds={parseInt(countdownLabel)} />
+          <CountdownBadge seconds={parseInt(countdownLabel, 10)} />
         ) : null}
       </div>
 

@@ -3,7 +3,7 @@
  * Displays the auto-apply countdown with color changes when urgent
  */
 
-import React from 'react';
+import type React from 'react';
 
 interface CountdownBadgeProps {
   seconds: number;

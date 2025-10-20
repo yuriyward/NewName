@@ -5,7 +5,12 @@
 
 import CheckIcon from '@heroicons/react/24/solid/CheckIcon';
 import PencilIcon from '@heroicons/react/24/solid/PencilIcon';
-import React, { type ChangeEvent, type KeyboardEvent, useEffect, useRef } from 'react';
+import React, {
+  type ChangeEvent,
+  type KeyboardEvent,
+  useEffect,
+  useRef,
+} from 'react';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
 
 interface FilenameEditorProps {

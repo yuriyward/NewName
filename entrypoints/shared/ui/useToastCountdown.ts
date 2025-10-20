@@ -95,7 +95,10 @@ export function useToastCountdown({
         action: 'resume',
       }).catch((error) => {
         hoverStateRef.current = 'paused';
-        console.warn('[ConfirmToast] Failed to resume auto-apply countdown', error);
+        console.warn(
+          '[ConfirmToast] Failed to resume auto-apply countdown',
+          error,
+        );
       });
     };
   }, [allowAutoApply, status, toastId]);
@@ -110,7 +113,10 @@ export function useToastCountdown({
       action: 'pause',
     }).catch((error) => {
       hoverStateRef.current = 'running';
-      console.warn('[ConfirmToast] Failed to pause auto-apply countdown', error);
+      console.warn(
+        '[ConfirmToast] Failed to pause auto-apply countdown',
+        error,
+      );
     });
   };
 
@@ -124,12 +130,18 @@ export function useToastCountdown({
       action: 'resume',
     }).catch((error) => {
       hoverStateRef.current = 'paused';
-      console.warn('[ConfirmToast] Failed to resume auto-apply countdown', error);
+      console.warn(
+        '[ConfirmToast] Failed to resume auto-apply countdown',
+        error,
+      );
     });
   };
 
   const isCountdownPaused =
-    allowAutoApply && status === 'pending' && autoApplyAt === null && autoApplyRemainingMs !== null;
+    allowAutoApply &&
+    status === 'pending' &&
+    autoApplyAt === null &&
+    autoApplyRemainingMs !== null;
 
   const countdownAnnouncement =
     !allowAutoApply || countdownSeconds === null || status !== 'pending'

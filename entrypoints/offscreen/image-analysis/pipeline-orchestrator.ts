@@ -31,6 +31,7 @@ export async function runImageUpgradePipeline(
   request: ImageUpgradeAnalysisRequest,
   ingestion: ImageIngestionResult,
 ): Promise<ImageUpgradeAnalysisResponse | null> {
+  const startedAt = Date.now();
   const mode = request.settings.mode ?? 'on-device-only';
 
   if (mode === 'off') {
@@ -90,7 +91,7 @@ export async function runImageUpgradePipeline(
     describeResult,
     decideResult,
     generateResult,
-    Date.now() - Date.now(), // Approximate decision elapsed time
+    Date.now() - startedAt, // Total pipeline elapsed time
   );
 
   return proposal;
