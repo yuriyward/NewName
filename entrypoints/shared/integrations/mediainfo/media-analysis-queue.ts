@@ -7,7 +7,7 @@ import type {
   MediaAnalysisRequest,
   MediaAnalysisResponse,
 } from '@/entrypoints/shared/integrations/mediainfo/messages';
-import { requestMediaAnalysis } from '@/entrypoints/shared/messaging/extension-messaging';
+import { requestMediaAnalysis } from '@/entrypoints/shared/messaging/media-messages';
 import { ensureOffscreenReady } from './offscreen-coordinator';
 
 interface MediaAnalysisJob {

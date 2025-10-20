@@ -89,9 +89,15 @@ function createConfirmToastControllerMock(): ConfirmToastController {
           autoApplyDelaySeconds: options.autoApplyDelaySeconds,
           allowAutoApply: Boolean(options.autoApplyDelaySeconds),
           allowAlwaysApply: options.allowAlwaysApply,
+          autoApplyRemainingMs: options.autoApplyDelaySeconds
+            ? Math.round(options.autoApplyDelaySeconds * 1000)
+            : null,
         },
         historyId: options.historyId,
         target: undefined,
+        autoApplyRemainingMs: options.autoApplyDelaySeconds
+          ? Math.round(options.autoApplyDelaySeconds * 1000)
+          : null,
       };
       return entry;
     }) as ConfirmToastController['queueConfirmation'],
@@ -100,6 +106,7 @@ function createConfirmToastControllerMock(): ConfirmToastController {
     getPendingByHistory: vi.fn(() => undefined),
     getAllPending: vi.fn(() => []),
     emitStatus: vi.fn(async () => {}),
+    setAutoApplyPaused: vi.fn(async () => true),
   };
 }
 

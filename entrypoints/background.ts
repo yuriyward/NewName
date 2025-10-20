@@ -15,11 +15,11 @@ import {
 } from '@/entrypoints/shared/integrations/chrome-ai/telemetry';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import { registerInstallDateListener } from '@/entrypoints/shared/lifecycle/install-tracking';
+import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import type {
   AiPipelineTelemetryPayload,
   EnsureAiModelsRequestPayload,
-} from '@/entrypoints/shared/messaging/extension-messaging';
-import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
+} from '@/entrypoints/shared/messaging/text-messages';
 import { updateSettings } from '@/entrypoints/shared/settings/settings';
 import { registerPageContextService } from '@/entrypoints/shared/state/page-context-service';
 import { createDeterminingListener } from './background/download-coordinator';
@@ -37,7 +37,7 @@ import { createConfirmToastController } from './background/toast/confirmation-co
 import { createTabActivationBroadcaster } from './background/toast/tab-activation-broadcaster';
 import { createCloudConsentManager } from './background/upgrade/cloud-consent-manager';
 import { createUpgradeCoordinator } from './background/upgrade/coordinator';
-import { createTextUpgradeAnalysisRequester } from './background/upgrade/text-analysis-request';
+import { createUnifiedUpgradeAnalysisRequester } from './background/upgrade/unified-analysis-requester';
 
 const readSettings = ensureSettingsCache();
 
@@ -132,7 +132,7 @@ function initializeBackground(): void {
   const upgradeCoordinator = createUpgradeCoordinator({
     confirmToastController,
     readSettings,
-    requestAnalysis: createTextUpgradeAnalysisRequester({
+    requestAnalysis: createUnifiedUpgradeAnalysisRequester({
       requestCloudConsent: (context) =>
         cloudConsentManager.requestConsent(context),
       applyCloudAlways: async () => {
@@ -207,9 +207,14 @@ function initializeBackground(): void {
 
   onExtensionMessage('ensureAiModelsReady', async ({ data }) => {
     const payload = data as EnsureAiModelsRequestPayload;
-    const ids = payload.ids;
-    debugLogger.log('[AIModels] ensureAiModelsReady request', { ids });
-    const statuses = await ensureAiModelsReady({ ids });
+    const ids = payload.ids ?? [];
+    debugLogger.log('[AIModels] ensureAiModelsReady request', {
+      ids,
+      hasLanguageModelOptions: !!payload.languageModel,
+      hasSummarizerOptions: !!payload.summarizer,
+    });
+    // Pass full payload to ensureAiModelsReady to support languageModel and summarizer options
+    const statuses = await ensureAiModelsReady(payload);
     return statuses;
   });
 
@@ -346,6 +351,21 @@ function initializeBackground(): void {
     if (!handled) {
       debugLogger.warn(
         '[ConfirmToast] Unmatched decision for toast',
+        data.toastId,
+      );
+    }
+    return { ok: true };
+  });
+
+  onExtensionMessage('controlConfirmToastCountdown', async ({ data }) => {
+    const paused = data.action === 'pause';
+    const handled = await confirmToastController.setAutoApplyPaused(
+      data.toastId,
+      paused,
+    );
+    if (!handled) {
+      debugLogger.warn(
+        '[ConfirmToast] Failed to update countdown state for toast',
         data.toastId,
       );
     }

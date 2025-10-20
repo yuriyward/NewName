@@ -6,6 +6,7 @@ import { TOAST_TIMING } from '@/entrypoints/shared/toast/timing-constants';
 import type {
   ConfirmToastProposal,
   ConfirmToastStatusMessage,
+  ConfirmToastTimingUpdateMessage,
   RenameToastProposal,
 } from '@/entrypoints/shared/toast/types';
 import { createKeyboardHandler } from './toast/keyboard-handler';
@@ -65,6 +66,12 @@ export class ConfirmToastManager {
         },
       );
     }
+    this.render();
+  }
+
+  updateTiming(update: ConfirmToastTimingUpdateMessage): void {
+    const toast = this.state.updateConfirmToastTiming(update);
+    if (!toast) return;
     this.render();
   }
 

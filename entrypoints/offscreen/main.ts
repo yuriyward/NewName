@@ -4,7 +4,9 @@
 import { attachConsoleHelpers } from '@/entrypoints/shared/debug/console-helpers';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { sendExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
+import { initializeImageAnalysisHandler } from './image-analysis-handler';
 import { initializeMediaAnalysisHandler } from './media-analysis-handler';
+import { initializePdfAnalysisHandler } from './pdf-analysis-handler';
 import { initializeTextAnalysisHandler } from './text-analysis-handler';
 
 // Wrap in IIFE to ensure immediate execution
@@ -17,12 +19,29 @@ import { initializeTextAnalysisHandler } from './text-analysis-handler';
   attachConsoleHelpers();
 
   // Initialize handlers first
-  initializeMediaAnalysisHandler();
-  initializeTextAnalysisHandler();
+  try {
+    initializeImageAnalysisHandler();
+  } catch (error) {
+    console.error('[Offscreen] Failed to initialize image handler', error);
+  }
 
-  console.log('[Offscreen] Handlers initialized', {
-    timestamp: Date.now(),
-  });
+  try {
+    initializeMediaAnalysisHandler();
+  } catch (error) {
+    console.error('[Offscreen] Failed to initialize media handler', error);
+  }
+
+  try {
+    initializePdfAnalysisHandler();
+  } catch (error) {
+    console.error('[Offscreen] Failed to initialize PDF handler', error);
+  }
+
+  try {
+    initializeTextAnalysisHandler();
+  } catch (error) {
+    console.error('[Offscreen] Failed to initialize text handler', error);
+  }
 
   // Wait for document to be fully ready
   if (document.readyState === 'loading') {
@@ -36,19 +55,11 @@ import { initializeTextAnalysisHandler } from './text-analysis-handler';
 
   // Announce readiness to background after listeners are registered
   try {
-    console.log('[Offscreen] Sending ready signal', {
-      timestamp: Date.now(),
-    });
     await sendExtensionMessage('offscreenReady', { ts: Date.now() });
-    console.log('[Offscreen] Ready signal sent successfully');
   } catch (error) {
     debugLogger.error('[Offscreen] Failed to send ready signal', { error });
     // best-effort; background will still handshake-retry
   }
-
-  console.log('[Offscreen] Initialization complete', {
-    timestamp: Date.now(),
-  });
 })().catch((error) => {
   debugLogger.error('[Offscreen] Fatal initialization error', { error });
 });

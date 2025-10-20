@@ -10,6 +10,11 @@ const sendShowConfirmToast = vi.hoisted(() =>
     Promise.resolve({ ok: true }),
   ),
 );
+const sendConfirmToastTimingUpdate = vi.hoisted(() =>
+  vi.fn<(payload: unknown, target: unknown) => Promise<{ ok: true }>>(() =>
+    Promise.resolve({ ok: true }),
+  ),
+);
 const emitStatus = vi.hoisted(() =>
   vi.fn<(entry: unknown, state: unknown, message?: unknown) => Promise<void>>(
     () => Promise.resolve(),
@@ -24,9 +29,10 @@ const extractTabId = vi.hoisted(() =>
 
 const idCounter = vi.hoisted(() => ({ value: 0 }));
 
-vi.mock('@/entrypoints/shared/messaging/extension-messaging', () => ({
+vi.mock('@/entrypoints/shared/messaging/core-messages', () => ({
   __esModule: true,
   sendShowConfirmToast,
+  sendConfirmToastTimingUpdate,
 }));
 
 vi.mock('./toast/status-broadcaster', () => ({
@@ -99,6 +105,7 @@ describe('createConfirmToastController', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2025-10-10T12:00:00Z'));
     sendShowConfirmToast.mockClear();
+    sendConfirmToastTimingUpdate.mockClear();
     emitStatus.mockClear();
     resolveTarget.mockClear();
     extractTabId.mockClear();
@@ -125,6 +132,8 @@ describe('createConfirmToastController', () => {
 
     expect(entry.proposal.allowAutoApply).toBe(true);
     expect(entry.proposal.autoApplyAt).toBe(Date.now() + 1_000);
+    expect(entry.proposal.autoApplyRemainingMs).toBe(1_000);
+    expect(entry.autoApplyRemainingMs).toBe(1_000);
     expect(entry.visibleOnTabs?.has(42)).toBe(true);
     expect(sendShowConfirmToast).toHaveBeenCalledWith(
       { proposal: entry.proposal },
@@ -142,6 +151,56 @@ describe('createConfirmToastController', () => {
     expect(
       controller.getPendingByHistory(BASE_OPTIONS.historyId),
     ).toBeUndefined();
+  });
+
+  it('pauses and resumes auto-apply countdown with timing updates', async () => {
+    const { hooks } = createHooks();
+    const controller = createConfirmToastController(hooks);
+
+    const entry = await controller.queueConfirmation({
+      ...BASE_OPTIONS,
+      autoApplyDelaySeconds: 2,
+    });
+    assertEntry(entry);
+
+    await vi.advanceTimersByTimeAsync(750);
+
+    const pauseResult = await controller.setAutoApplyPaused(
+      entry.proposal.toastId,
+      true,
+    );
+    expect(pauseResult).toBe(true);
+    expect(entry.proposal.autoApplyAt).toBeNull();
+    expect(entry.proposal.autoApplyRemainingMs).toBeGreaterThan(0);
+    expect(entry.autoApplyRemainingMs).toBeGreaterThan(0);
+    expect(entry.timeoutId).toBeUndefined();
+    expect(sendConfirmToastTimingUpdate).toHaveBeenCalledWith(
+      {
+        toastId: entry.proposal.toastId,
+        autoApplyAt: null,
+        autoApplyRemainingMs: entry.proposal.autoApplyRemainingMs,
+      },
+      42,
+    );
+
+    sendConfirmToastTimingUpdate.mockClear();
+
+    const resumeResult = await controller.setAutoApplyPaused(
+      entry.proposal.toastId,
+      false,
+    );
+    expect(resumeResult).toBe(true);
+    expect(entry.proposal.autoApplyAt).not.toBeNull();
+    expect(entry.proposal.autoApplyRemainingMs).toBeGreaterThan(0);
+    expect(entry.timeoutId).toBeDefined();
+    expect(sendConfirmToastTimingUpdate).toHaveBeenCalledWith(
+      {
+        toastId: entry.proposal.toastId,
+        autoApplyAt: entry.proposal.autoApplyAt,
+        autoApplyRemainingMs: entry.proposal.autoApplyRemainingMs,
+      },
+      42,
+    );
   });
 
   it('handles user decision and removes the pending entry', async () => {
@@ -217,18 +276,23 @@ describe('createConfirmToastController', () => {
     expect(result).toBe(false);
   });
 
-  it('propagates errors when toast target cannot be resolved', async () => {
+  it('queues toast when target cannot be resolved initially', async () => {
     resolveTarget.mockResolvedValue(undefined);
     extractTabId.mockReturnValue(undefined);
     const { hooks } = createHooks();
     const controller = createConfirmToastController(hooks);
 
-    await expect(
-      controller.queueConfirmation({
-        ...BASE_OPTIONS,
-        historyId: 'history-error',
-        autoApplyDelaySeconds: null,
-      }),
-    ).rejects.toThrow('[ConfirmToast] Missing tab target');
+    const result = await controller.queueConfirmation({
+      ...BASE_OPTIONS,
+      historyId: 'history-waiting',
+      autoApplyDelaySeconds: null,
+    });
+
+    // Toast should be queued even though target is undefined
+    expect(result).not.toBeNull();
+    expect(result?.proposal.historyId).toBe('history-waiting');
+    expect(controller.getPendingByHistory('history-waiting')).toBe(result);
+    // Should not be shown immediately (no active toast), but queued for broadcast
+    expect(sendShowConfirmToast).not.toHaveBeenCalled();
   });
 });

@@ -29,6 +29,7 @@ export interface ConfirmToastProposal {
   autoApplyDelaySeconds: number | null;
   allowAutoApply: boolean;
   allowAlwaysApply: boolean;
+  autoApplyRemainingMs: number | null;
 }
 
 export interface ShowConfirmToastMessage {
@@ -41,6 +42,19 @@ export interface ConfirmToastDecisionMessage {
   downloadId?: string;
   action: ConfirmToastAction;
   editedFilename?: string;
+}
+
+export interface ConfirmToastTimingUpdateMessage {
+  toastId: string;
+  autoApplyAt: number | null;
+  autoApplyRemainingMs: number | null;
+}
+
+export type ConfirmToastCountdownControlAction = 'pause' | 'resume';
+
+export interface ConfirmToastCountdownControlMessage {
+  toastId: string;
+  action: ConfirmToastCountdownControlAction;
 }
 
 export type ConfirmToastStatusState =

@@ -21,16 +21,19 @@ background/ # 11 files, 2 directories
   │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
   │ ├─ tab-activation-broadcaster.ts # Tab activation broadcaster for re-displaying pending toasts on newly active tabs.
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
-  ├─ upgrade/ # 9 files
+  ├─ upgrade/ # 12 files
   │ ├─ cloud-consent-manager.ts # 3 exports
   │ ├─ coordinator.ts # Contextual upgrade coordinator for completed downloads
   │ ├─ eligibility.ts # Eligibility checks for contextual upgrade analysis
   │ ├─ executor.ts # 4 exports
+  │ ├─ image-analysis-request.ts # Image upgrade analysis request builder Determines image eligibility and creates analysis requests
   │ ├─ mock-analysis.ts # Mock AI-powered contextual upgrade proposal generator
   │ ├─ normalization.ts # 6 exports
+  │ ├─ pdf-analysis-request.ts # PDF upgrade analysis request builder Determines PDF eligibility and creates analysis requests
   │ ├─ scheduler.ts # 4 exports
   │ ├─ text-analysis-request.ts # 1 export
-  │ └─ types.ts # Type definitions for contextual upgrade pipeline
+  │ ├─ types.ts # Type definitions for contextual upgrade pipeline
+  │ └─ unified-analysis-requester.ts # Unified upgrade analysis router Routes to text or image analysis based on file type
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
   ├─ download-plan.ts # Download plan builder with evaluation and path resolution
   ├─ download-post-actions.ts # Post-download actions for history recording and media analysis
@@ -48,11 +51,30 @@ cloud-consent/ # 2 files
 downloads-permission/ # 2 files
   ├─ DownloadsPermissionPage.tsx # Full-page downloads folder permission onboarding interface
   └─ main.tsx # React app entry point for downloads permission onboarding
-offscreen/ # 4 files, 2 directories
+offscreen/ # 6 files, 4 directories
   ├─ bridge/ # 3 files
   │ ├─ sandbox-lifecycle.ts # Sandbox iframe lifecycle management
   │ ├─ sandbox-protocol.ts # Type-safe protocol definitions for Offscreen ↔ Sandbox (iframe) communication. Uses window.postMessage for parent-iframe IPC (browser standard).
   │ └─ stream-coordinator.ts # Streaming coordinator for range-based media fetching
+  ├─ image-analysis/ # 8 files
+  │ ├─ image-description.ts # Image description generation using Prompt API Generates concise 1-2 sentence descriptions of image content
+  │ ├─ image-ingestion.ts # Image ingestion utilities for preparing images for Prompt API analysis Handles file reading, ImageBitmap creation, downscaling, and PNG encoding
+  │ ├─ image-rename-decision.ts # Image rename decision logic using Prompt API Decides if an image filename needs renaming based on description and metadata
+  │ ├─ model-availability.ts # Multimodal AI model availability checking Handles Prompt API readiness verification for image analysis
+  │ ├─ phase3-filename-generation.ts # Phase 3: Filename Generation (extracted from pipeline for reuse) Generates filename stem based on content description Can be called independently by other pipelines (e.g., PDF) Note: This is a thin wrapper around buildProposalFromPhase3Inputs The stem generation is the only unique logic; proposal building is shared.
+  │ ├─ pipeline-orchestrator.ts # Image upgrade pipeline orchestrator Coordinates image analysis: ingestion → description → decision → filename generation
+  │ ├─ pipeline-phases.ts # Image upgrade pipeline phases Coordinates the three-phase analysis: describe → decide → generate
+  │ └─ proposal-builder.ts # Image upgrade proposal building Constructs the final upgrade proposal with all metadata
+  ├─ pdf-analysis/ # 9 files
+  │ ├─ constants.ts # Constants for PDF analysis and rendering
+  │ ├─ pdf-canvas-utils.ts # Canvas conversion utilities for PDF rendering Converts OffscreenCanvas to PNG blobs with quality settings
+  │ ├─ pdf-context-merger.ts # PDF context merger for combining analysis from multiple pages Creates enhanced context for filename generation based on extracted titles and descriptions
+  │ ├─ pdf-page-extractor.ts # PDF page extraction and preparation for image analysis High-level coordinator that combines rendering and preparation stages Lower-level rendering pipeline: - pdf-page-renderer.ts: Core MuPDF rendering (document → pixmap → canvas) - pdf-canvas-utils.ts: Canvas conversion (canvas → PNG blob) - Internal extractPdfPages: Orchestrates page rendering with timeouts
+  │ ├─ pdf-page-renderer.ts # Core PDF page rendering to OffscreenCanvas Handles MuPDF rendering pipeline: document → page → pixmap → PNG → canvas
+  │ ├─ pdf-rename-decision.ts # PDF-specific Phase 2: Rename Decision Decides if a PDF should be renamed based on extracted title and content Separate from image pipeline to properly handle document titles
+  │ ├─ pdf-renderer.ts # PDF renderer public API with file validation Exports main entry point for rendering PDF files to images
+  │ ├─ pdf-title-description.ts # PDF-specific Phase 1: Extract exact titles and detailed descriptions from PDF pages This is separate from image analysis - PDFs only Analyzes both pages to find document titles and gather comprehensive context
+  │ └─ types.ts # Type definitions for PDF analysis pipeline
   ├─ text-analysis/ # 9 files
   │ ├─ constants.ts # Text analysis constants for language detection and summarization. These values define thresholds and limits for AI processing.
   │ ├─ filename-builder.ts # 6 exports
@@ -63,8 +85,10 @@ offscreen/ # 4 files, 2 directories
   │ ├─ rename-decision.ts # Rename decision module using Chrome's Prompt API. This module decides whether a filename needs renaming by analyzing its quality against the file content. It uses a separate JSON schema focused purely on the decision logic, independent of filename generation.
   │ ├─ telemetry.ts # 6 exports
   │ └─ text-summarization.ts # Note: This file uses console.log() instead of debugLogger.log() for operational logs. Reason: Offscreen documents don't have storage access, so debugLogger.setEnabled() fails. AI processing logs are diagnostic/operational and should always be visible. We still use debugLogger.warn() and debugLogger.error() for warnings/errors.
+  ├─ image-analysis-handler.ts # Offscreen image analysis request handler Handles image file reading, preparation, and AI analysis pipeline
   ├─ main.ts # Offscreen document initialization with media analysis handlers
   ├─ media-analysis-handler.ts # 1 export
+  ├─ pdf-analysis-handler.ts # Offscreen PDF analysis request handler Handles PDF file extraction, page rendering, and image-based analysis
   ├─ sandbox-bridge.ts # Bridge for communicating with the sandboxed iframe that runs MediaInfo.js. Coordinates analysis requests and response handling.
   └─ text-analysis-handler.ts # 1 export
 popup/ # 2 files, 1 directories
@@ -99,7 +123,7 @@ shared/ # 17 directories
   │ ├─ storage.ts # History storage operations with pruning and sanitization
   │ ├─ types.ts # Type definitions for history items and metadata
   │ └─ validation.ts # Runtime validation for history data integrity
-  ├─ integrations/ # 1 files, 3 directories
+  ├─ integrations/ # 1 files, 5 directories
   │ ├─ chrome-ai/ # 9 files, 2 directories
   │ │ ├─ diagnostics-rules/ # 6 files
   │ │ │ ├─ chrome-version-rule.ts # 2 exports
@@ -122,7 +146,10 @@ shared/ # 17 directories
   │ │ ├─ setup-state.ts # 8 exports
   │ │ ├─ telemetry.ts # 9 exports
   │ │ ├─ test-mocks.ts # Test utilities for mocking Chrome AI model status functions. Provides reusable mocks for ensureAiModelsReady with happy path and error scenarios.
-  │ │ └─ types.ts # 26 exports
+  │ │ └─ types.ts # 27 exports
+  │ ├─ image-analysis/ # 2 files
+  │ │ ├─ constants.ts # Centralized constants for image analysis integration and pipeline
+  │ │ └─ types.ts # Type definitions for image analysis upgrade pipeline
   │ ├─ mediainfo/ # 8 files, 1 directories
   │ │ ├─ parsers/ # 2 files
   │ │ │ ├─ duration-parser.ts # Duration parsing utilities for MediaInfo track data
@@ -135,6 +162,8 @@ shared/ # 17 directories
   │ │ ├─ mediainfo-loader.ts # MediaInfo.js WASM loader and instance management
   │ │ ├─ messages.ts # Type definitions for media analysis request/response protocol
   │ │ └─ offscreen-coordinator.ts # Offscreen document lifecycle and readiness coordination
+  │ ├─ mupdf/ # 1 file
+  │ │ └─ mupdf-loader.ts # MuPDF WASM loader and instance management Configures MuPDF's WASM loading with proper fallbacks for dev/prod MuPDF auto-initializes on import, so we configure globalThis before importing
   │ ├─ text-analysis/ # 2 files
   │ │ ├─ normalize.ts # 3 exports
   │ │ └─ types.ts # 12 exports
@@ -418,6 +447,12 @@ content.ts # Content script for page context extraction and messaging
 - `export UpgradeExecutorDependencies` - item implementation
 - `export createUpgradeExecutor` - item implementation
 
+### background/upgrade/image-analysis-request.ts
+**Purpose**: Image upgrade analysis request builder Determines image eligibility and creates analysis requests
+
+**Exports**:
+- `export createImageUpgradeAnalysisRequester` - Create image upgrade analysis requester function
+
 ### background/upgrade/mock-analysis.ts
 **Purpose**: Mock AI-powered contextual upgrade proposal generator
 
@@ -434,6 +469,12 @@ content.ts # Content script for page context extraction and messaging
 - `export normaliseDownloadItem` - item implementation
 - `export normalizeProposal` - item implementation
 - `export resolveDownloadItem` - item implementation
+
+### background/upgrade/pdf-analysis-request.ts
+**Purpose**: PDF upgrade analysis request builder Determines PDF eligibility and creates analysis requests
+
+**Exports**:
+- `export createPdfUpgradeAnalysisRequester` - Create PDF upgrade analysis requester function
 
 ### background/upgrade/scheduler.ts
 **Purpose**: 4 exports
@@ -460,6 +501,13 @@ content.ts # Content script for page context extraction and messaging
 - `export UpgradeAnalysisInput` - item implementation
 - `export UpgradeCoordinatorParams` - item implementation
 - `export MOCK_UPGRADE_ALARM_PREFIX` - item implementation
+
+### background/upgrade/unified-analysis-requester.ts
+**Purpose**: Unified upgrade analysis router Routes to text or image analysis based on file type
+
+**Exports**:
+- `export UnifiedAnalysisRequesterDependencies` - item implementation
+- `export createUnifiedUpgradeAnalysisRequester` - Create a unified analysis requester that routes to text, ...
 
 ### cloud-consent/CloudConsentPage.tsx
 **Purpose**: 1 export
@@ -520,6 +568,82 @@ content.ts # Content script for page context extraction and messaging
 - `export cleanupStreamingListeners` - Cleanup streaming message listeners to prevent memory leaks
 - `export registerStreamingListeners` - Register streaming message listeners for range-based fetc...
 
+### offscreen/image-analysis-handler.ts
+**Purpose**: Offscreen image analysis request handler Handles image file reading, preparation, and AI analysis pipeline
+
+**Exports**:
+- `export initializeImageAnalysisHandler` - Initialize the image analysis handler
+Registers listener ...
+
+### offscreen/image-analysis/image-description.ts
+**Purpose**: Image description generation using Prompt API Generates concise 1-2 sentence descriptions of image content
+
+**Exports**:
+- `export ImageDescription` - item implementation
+- `export describeImage` - Generate a concise description of image content using Pro...
+
+### offscreen/image-analysis/image-ingestion.ts
+**Purpose**: Image ingestion utilities for preparing images for Prompt API analysis Handles file reading, ImageBitmap creation, downscaling, and PNG encoding
+
+**Exports**:
+- `export ImageIngestionError` - item implementation
+- `export ImageIngestionSuccess` - item implementation
+- `export ImageIngestionOutput` - item implementation
+- `export ingestImageForPrompt` - Ingest an image file for Prompt API analysis
+Handles read...
+
+### offscreen/image-analysis/image-rename-decision.ts
+**Purpose**: Image rename decision logic using Prompt API Decides if an image filename needs renaming based on description and metadata
+
+**Exports**:
+- `export RenameDecision` - item implementation
+- `export decideIfImageNeedsRename` - Decide if an image needs renaming based on its descriptio...
+
+### offscreen/image-analysis/model-availability.ts
+**Purpose**: Multimodal AI model availability checking Handles Prompt API readiness verification for image analysis
+
+**Exports**:
+- `export buildSessionCreationFailureResponse` - Build unavailability response when session creation fails...
+- `export checkMultimodalAvailability` - Check if multimodal Prompt API is available and ready
+Req...
+- `export HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD` - item implementation
+- `export HIGH_CONFIDENCE_DISPLAY_THRESHOLD` - item implementation
+
+### offscreen/image-analysis/phase3-filename-generation.ts
+**Purpose**: Phase 3: Filename Generation (extracted from pipeline for reuse) Generates filename stem based on content description Can be called independently by other pipelines (e.g., PDF) Note: This is a thin wrapper around buildProposalFromPhase3Inputs The stem generation is the only unique logic; proposal building is shared.
+
+**Exports**:
+- `export generateFilenamePhase3` - Phase 3: Generate filename based on description and decis...
+
+### offscreen/image-analysis/pipeline-orchestrator.ts
+**Purpose**: Image upgrade pipeline orchestrator Coordinates image analysis: ingestion → description → decision → filename generation
+
+**Exports**:
+- `export runImageUpgradePipeline` - Run the complete image upgrade analysis pipeline
+Returns ...
+
+### offscreen/image-analysis/pipeline-phases.ts
+**Purpose**: Image upgrade pipeline phases Coordinates the three-phase analysis: describe → decide → generate
+
+**Exports**:
+- `export DecidePhaseResult` - Phase 2 result: Rename decision
+- `export DescribePhaseResult` - Phase 1 result: Image description with confidence
+- `export GeneratePhaseResult` - Phase 3 result: Generated filename stem
+- `export runDecidePhase` - Run PHASE 2: Rename Decision (Prompt API call #2)
+Decide ...
+- `export runDescribePhase` - Run PHASE 1: Describe Image (Prompt API call #1)
+Generate...
+- `export runGeneratePhase` - Run PHASE 3: Filename Generation (Prompt API call #3)
+Gen...
+
+### offscreen/image-analysis/proposal-builder.ts
+**Purpose**: Image upgrade proposal building Constructs the final upgrade proposal with all metadata
+
+**Exports**:
+- `export buildProposalFromAnalysis` - Build proposal from analysis results
+Constructs TextUpgra...
+- `export buildProposalFromPhase3Inputs` - Build proposal from Phase 3 inputs (for direct Phase 3 ca...
+
 ### offscreen/main.ts
 **Purpose**: Offscreen document initialization with media analysis handlers
 
@@ -530,6 +654,96 @@ content.ts # Content script for page context extraction and messaging
 
 **Exports**:
 - `export initializeMediaAnalysisHandler` - item implementation
+
+### offscreen/pdf-analysis-handler.ts
+**Purpose**: Offscreen PDF analysis request handler Handles PDF file extraction, page rendering, and image-based analysis
+
+**Exports**:
+- `export initializePdfAnalysisHandler` - Initialize the PDF analysis handler
+Registers listener fo...
+
+### offscreen/pdf-analysis/constants.ts
+**Purpose**: Constants for PDF analysis and rendering
+
+**Exports**:
+- `export FIRST_PAGE_INDEX` - Page range to analyze - always start from page 1
+- `export MAX_PDF_FILE_SIZE_BYTES` - Maximum file size for PDF analysis (50MB)
+- `export MAX_PDF_PAGES` - Maximum number of pages to extract from PDF for image-bas...
+- `export PDF_PAGE_IMAGE_FORMAT` - Target format for rendered pages
+- `export PDF_RENDER_SCALE` - Scale factor for rendering PDF pages to canvas (1
+- `export PDF_RENDER_TIMEOUT_MS` - PDF rendering timeout per page (in milliseconds)
+
+### offscreen/pdf-analysis/pdf-canvas-utils.ts
+**Purpose**: Canvas conversion utilities for PDF rendering Converts OffscreenCanvas to PNG blobs with quality settings
+
+**Exports**:
+- `export canvasToBlob` - Convert OffscreenCanvas to PNG blob
+
+### offscreen/pdf-analysis/pdf-context-merger.ts
+**Purpose**: PDF context merger for combining analysis from multiple pages Creates enhanced context for filename generation based on extracted titles and descriptions
+
+**Exports**:
+- `export MergedPdfContext` - Merged PDF context ready for filename generation
+This con...
+- `export buildPdfContextForFilenameGeneration` - Build enhanced context string for filename generation
+Thi...
+- `export mergePdfContext` - Merge PDF page analysis results into context for filename...
+
+### offscreen/pdf-analysis/pdf-page-extractor.ts
+**Purpose**: PDF page extraction and preparation for image analysis High-level coordinator that combines rendering and preparation stages Lower-level rendering pipeline: - pdf-page-renderer.ts: Core MuPDF rendering (document → pixmap → canvas) - pdf-canvas-utils.ts: Canvas conversion (canvas → PNG blob) - Internal extractPdfPages: Orchestrates page rendering with timeouts
+
+**Exports**:
+- `export ExtractedPageForAnalysis` - Extracted page prepared for image analysis
+- `export PdfPagePreparationError` - Error during PDF page extraction
+- `export PdfPagePreparationResult` - Result of extracting and preparing PDF pages for image an...
+- `export PdfPagePreparationOutput` - item implementation
+- `export extractPdfPagesForAnalysis` - Extract PDF pages for image-based analysis
+Renders pages ...
+
+### offscreen/pdf-analysis/pdf-page-renderer.ts
+**Purpose**: Core PDF page rendering to OffscreenCanvas Handles MuPDF rendering pipeline: document → page → pixmap → PNG → canvas
+
+**Exports**:
+- `export renderPageToCanvas` - Render a single PDF page to OffscreenCanvas at specified ...
+
+### offscreen/pdf-analysis/pdf-rename-decision.ts
+**Purpose**: PDF-specific Phase 2: Rename Decision Decides if a PDF should be renamed based on extracted title and content Separate from image pipeline to properly handle document titles
+
+**Exports**:
+- `export PdfRenameDecision` - Result of PDF rename decision
+- `export decidePdfRename` - Decide if a PDF should be renamed based on extracted titl...
+
+### offscreen/pdf-analysis/pdf-renderer.ts
+**Purpose**: PDF renderer public API with file validation Exports main entry point for rendering PDF files to images
+
+**Exports**:
+- `export RenderPdfPagesError` - Error result for PDF rendering
+- `export RenderPdfPagesSuccess` - Success result for PDF rendering
+- `export RenderPdfPagesResult` - Error result for PDF rendering
+- `export renderPdfPages` - Extract pages from PDF and render as PNG blobs
+
+### offscreen/pdf-analysis/pdf-title-description.ts
+**Purpose**: PDF-specific Phase 1: Extract exact titles and detailed descriptions from PDF pages This is separate from image analysis - PDFs only Analyzes both pages to find document titles and gather comprehensive context
+
+**Exports**:
+- `export PdfPageAnalysis` - Result of analyzing a single PDF page for title and descr...
+- `export PdfTitleDescriptionContext` - Merged context from analyzing multiple PDF pages
+- `export extractPdfTitlesAndDescriptions` - Analyze multiple PDF pages and extract titles and descrip...
+
+### offscreen/pdf-analysis/types.ts
+**Purpose**: Type definitions for PDF analysis pipeline
+
+**Exports**:
+- `export PdfAnalysisSuccess` - Successful PDF analysis with AI-generated proposal
+- `export PdfPageExtractionError` - Error during PDF extraction
+- `export PdfPageExtractionResult` - Result of extracting pages from a PDF
+- `export PdfPageIngestionResult` - Successful PDF analysis response (pages ingested)
+- `export PdfUpgradeAnalysisErrorResponse` - Error response from PDF analysis
+- `export PdfUpgradeAnalysisRequest` - Request to analyze a PDF file via image recognition
+- `export PdfUpgradeAnalysisUnavailable` - Response indicating PDF analysis is unavailable
+- `export RenderedPdfPage` - Metadata for a single rendered PDF page
+- `export PdfExtractionOutput` - item implementation
+- `export PdfUpgradeAnalysisResponse` - item implementation
 
 ### offscreen/sandbox-bridge.ts
 **Purpose**: Bridge for communicating with the sandboxed iframe that runs MediaInfo.js. Coordinates analysis requests and response handling.
@@ -656,6 +870,8 @@ content.ts # Content script for page context extraction and messaging
 
 **Exports**:
 - `export detectFileType` - item implementation
+- `export isImageExtension` - Check if a file extension indicates an image file eligibl...
+- `export isPdfExtension` - Check if a file extension indicates a PDF file eligible f...
 - `export isTextExtension` - Check if a file extension indicates a text file eligible ...
 
 ### shared/classification/sensitive-content.ts
@@ -805,6 +1021,7 @@ content.ts # Content script for page context extraction and messaging
 **Purpose**: Type definitions for history items and metadata
 
 **Exports**:
+- `export HistoryImageAnalysis` - item implementation
 - `export HistoryItem` - item implementation
 - `export HistoryMediaMetadata` - item implementation
 - `export PendingUpgradeAnalysis` - item implementation
@@ -1028,15 +1245,16 @@ content.ts # Content script for page context extraction and messaging
 - `export mockEnsureAiModelsReadyUnavailable` - Setup error mock for ensureAiModelsReady
 
 ### shared/integrations/chrome-ai/types.ts
-**Purpose**: 26 exports
+**Purpose**: 27 exports
 
 **Exports**:
 - `export ChromeLanguageModelAvailabilityOptions` - item implementation
 - `export ChromeLanguageModelCapabilities` - item implementation
 - `export ChromeLanguageModelConstructor` - item implementation
+- `export ChromeLanguageModelContentItem` - Represents a multimodal content item that can contain tex...
 - `export ChromeLanguageModelCreateOptions` - item implementation
 - `export ChromeLanguageModelIODescriptor` - item implementation
-- `export ChromeLanguageModelPromptMessage` - item implementation
+- `export ChromeLanguageModelPromptMessage` - Prompt message that supports both text-only and multimoda...
 - `export ChromeLanguageModelPromptOptions` - item implementation
 - `export ChromeLanguageModelSession` - item implementation
 - `export ChromeAIMonitor` - item implementation
@@ -1057,6 +1275,36 @@ content.ts # Content script for page context extraction and messaging
 - `export ChromeSummarizerResult` - item implementation
 - `export ChromeSummarizerType` - item implementation
 - `export CHROME_LANGUAGE_MODEL_AVAILABILITY_VALUES` - item implementation
+
+### shared/integrations/image-analysis/constants.ts
+**Purpose**: Centralized constants for image analysis integration and pipeline
+
+**Exports**:
+- `export HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD` - Confidence thresholds for image rename decision
+- `export HIGH_CONFIDENCE_DISPLAY_THRESHOLD` - Maximum description length before warning
+- `export IMAGE_ANALYSIS_FORMAT` - Target MIME type for all image analysis (PNG for safety a...
+- `export MAX_DESCRIPTION_LENGTH_CHARS` - Maximum description length before warning
+- `export MAX_IMAGE_EDGE_PX` - Maximum longest edge dimension in pixels for downscaled i...
+- `export MAX_IMAGE_FILE_SIZE_BYTES` - Maximum file size to attempt loading as image (before dow...
+- `export MIN_DOWNSCALE_RATIO` - Minimum downscale ratio to prevent excessive image degrad...
+- `export MIN_IMAGE_DIMENSION_PX` - Minimum dimensions to consider valid image
+- `export MULTIMODAL_SETUP_INSTRUCTIONS` - User-friendly instructions for enabling multimodal AI sup...
+- `export buildSessionCreationFailureMessage` - Error message when session creation fails despite availab...
+
+### shared/integrations/image-analysis/types.ts
+**Purpose**: Type definitions for image analysis upgrade pipeline
+
+**Exports**:
+- `export ImageIngestionResult` - item implementation
+- `export ImageUpgradeAnalysisError` - item implementation
+- `export ImageUpgradeAnalysisRequest` - Optional PDF context passed through image analysis pipeline
+- `export ImageUpgradeAnalysisSkipped` - item implementation
+- `export ImageUpgradeAnalysisSuccess` - Optional PDF context for prioritizing document titles in ...
+- `export ImageUpgradeAnalysisUnavailable` - item implementation
+- `export PdfContextForImage` - Optional PDF context passed through image analysis pipeli...
+- `export ImageAnalysisMode` - item implementation
+- `export ImageUpgradeAnalysisResponse` - item implementation
+- `export ImageUpgradeModelSource` - item implementation
 
 ### shared/integrations/mediainfo/constants.ts
 **Purpose**: Centralized constants for MediaInfo integration and analysis pipeline.
@@ -1144,6 +1392,16 @@ content.ts # Content script for page context extraction and messaging
 - `export summariseAudioTrack` - Summarize an audio track from MediaInfo data
 - `export summariseVideoTrack` - Summarize a video track from MediaInfo data
 
+### shared/integrations/mupdf/mupdf-loader.ts
+**Purpose**: MuPDF WASM loader and instance management Configures MuPDF's WASM loading with proper fallbacks for dev/prod MuPDF auto-initializes on import, so we configure globalThis before importing
+
+**Exports**:
+- `export MuPdfModule` - MuPDF WASM loader and instance management
+Configures MuPD...
+- `export getMuPdfModule` - Get the MuPDF module with proper WASM loading configured
+...
+- `export resetMuPdfModuleForTesting` - item implementation
+
 ### shared/integrations/range-fetcher.ts
 **Purpose**: Generic HTTP range fetch utilities shared across integrations. Designed to support resumable, partial reads without forcing the caller to download full files when the remote server advertises byte range support.
 
@@ -1190,20 +1448,24 @@ content.ts # Content script for page context extraction and messaging
 **Purpose**: Central extension messaging protocol using @webext-core/messaging
 
 **Exports**:
-- `export EnsureAiModelsRequestPayload` - item implementation
 - `export ExtensionMessagingProtocol` - item implementation
-- `export AiPipelineTelemetryPayload` - item implementation
+- `export AiPipelineTelemetryPayload` - Payload for ensuring AI models are ready with optional mo...
+- `export EnsureAiModelsRequestPayload` - Payload for ensuring AI models are ready with optional mo...
 - `export onExtensionMessage` - item implementation
 - `export sendExtensionMessage` - item implementation
 - `export ensureAiModelsReadyRemote` - item implementation
 - `export offscreenHandshake` - item implementation
 - `export recordAiPipelineTelemetryRemote` - item implementation
 - `export requestCloudConsentDetails` - item implementation
+- `export requestImageIngestion` - item implementation
 - `export requestMediaAnalysis` - item implementation
+- `export requestPdfAnalysis` - item implementation
 - `export requestPendingConfirmToasts` - item implementation
 - `export requestTextIngestion` - item implementation
+- `export sendConfirmToastCountdownControl` - item implementation
 - `export sendConfirmToastDecision` - item implementation
 - `export sendConfirmToastStatus` - item implementation
+- `export sendConfirmToastTimingUpdate` - item implementation
 - `export sendShowConfirmToast` - item implementation
 - `export sendShowRenameToast` - item implementation
 - `export signalOffscreenReady` - item implementation
@@ -1423,14 +1685,17 @@ content.ts # Content script for page context extraction and messaging
 **Purpose**: Shared types for confirm toast messaging between contexts.
 
 **Exports**:
+- `export ConfirmToastCountdownControlMessage` - item implementation
 - `export ConfirmToastDecisionMessage` - item implementation
 - `export ConfirmToastProposal` - item implementation
 - `export ConfirmToastState` - item implementation
 - `export ConfirmToastStatusMessage` - item implementation
+- `export ConfirmToastTimingUpdateMessage` - item implementation
 - `export RenameToastProposal` - item implementation
 - `export ShowConfirmToastMessage` - item implementation
 - `export ShowRenameToastMessage` - item implementation
 - `export ConfirmToastAction` - item implementation
+- `export ConfirmToastCountdownControlAction` - item implementation
 - `export ConfirmToastLifecycleState` - item implementation
 - `export ConfirmToastStatusState` - item implementation
 

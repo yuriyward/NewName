@@ -3,7 +3,15 @@
  * Core business logic that generates rename proposals using Chrome Prompt API.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import type {
   FilenameGeneration,
   FilenameGenerationContext,
@@ -36,6 +44,8 @@ const {
     warn: vi.fn(),
   },
 }));
+
+let mockConsoleLog: ReturnType<typeof vi.spyOn> | undefined;
 
 vi.mock('./prompt-helpers', () => ({
   createPromptSession: mockCreatePromptSession,
@@ -85,6 +95,8 @@ function createMockGeneration(
 describe('filename-generation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockConsoleLog?.mockRestore();
+    mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
     mockSession.prompt.mockResolvedValue(
       '{"stem":"Q1 Budget Planning","confidence":0.85}',
     );
@@ -94,6 +106,10 @@ describe('filename-generation', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterAll(() => {
+    mockConsoleLog?.mockRestore();
   });
 
   describe('generateFilenameStem', () => {

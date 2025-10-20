@@ -71,10 +71,13 @@ vi.mock('./toast/toast-theme-manager', () => ({
 
 const messagingMocks = vi.hoisted(() => ({
   sendConfirmToastDecision: vi.fn(async () => ({ ok: true as const })),
+  sendConfirmToastCountdownControl: vi.fn(async () => ({ ok: true as const })),
 }));
-vi.mock('@/entrypoints/shared/messaging/extension-messaging', () => ({
+vi.mock('@/entrypoints/shared/messaging/core-messages', () => ({
   __esModule: true,
   sendConfirmToastDecision: messagingMocks.sendConfirmToastDecision,
+  sendConfirmToastCountdownControl:
+    messagingMocks.sendConfirmToastCountdownControl,
 }));
 
 function createConfirmProposal(
@@ -100,6 +103,7 @@ function createConfirmProposal(
     autoApplyDelaySeconds: 10,
     allowAutoApply: true,
     allowAlwaysApply: true,
+    autoApplyRemainingMs: 10_000,
     ...overrides,
   };
 }
@@ -122,6 +126,7 @@ describe('ConfirmToastManager', () => {
     vi.useFakeTimers();
     latestOverlayProps = null;
     messagingMocks.sendConfirmToastDecision.mockClear();
+    messagingMocks.sendConfirmToastCountdownControl.mockClear();
     vi.stubGlobal('document', {
       getElementById: vi.fn(() => null),
       addEventListener: vi.fn(),
@@ -204,6 +209,32 @@ describe('ConfirmToastManager', () => {
     await vi.runAllTimersAsync();
 
     expect(getRenameToastState()).toHaveLength(0);
+    manager.destroy();
+  });
+
+  it('updates confirm toast timing values when notified', () => {
+    const manager = new ConfirmToastManager();
+    const base = Date.now();
+    manager.showToast(
+      createConfirmProposal({
+        toastId: 'toast-timing',
+        autoApplyAt: base + 5_000,
+      }),
+    );
+
+    let [toast] = getConfirmToastState();
+    expect(toast?.autoApplyAt).toBe(base + 5_000);
+    expect(toast?.autoApplyRemainingMs).toBe(10_000);
+
+    manager.updateTiming({
+      toastId: 'toast-timing',
+      autoApplyAt: null,
+      autoApplyRemainingMs: 2_500,
+    });
+
+    [toast] = getConfirmToastState();
+    expect(toast?.autoApplyAt).toBeNull();
+    expect(toast?.autoApplyRemainingMs).toBe(2_500);
     manager.destroy();
   });
 

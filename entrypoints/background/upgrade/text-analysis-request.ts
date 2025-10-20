@@ -7,7 +7,7 @@ import type {
   TextAnalysisMode,
   TextUpgradeAnalysisRequest,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
-import { requestTextIngestion } from '@/entrypoints/shared/messaging/extension-messaging';
+import { requestTextIngestion } from '@/entrypoints/shared/messaging/text-messages';
 import {
   basename,
   extractExtension,

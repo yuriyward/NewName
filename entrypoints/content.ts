@@ -3,9 +3,9 @@
  */
 
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { requestPendingConfirmToasts } from '@/entrypoints/shared/messaging/core-messages';
 import {
   onExtensionMessage,
-  requestPendingConfirmToasts,
   sendExtensionMessage,
 } from '@/entrypoints/shared/messaging/extension-messaging';
 import type { PageContextPublishRequest } from '@/entrypoints/shared/state/page-context-service';
@@ -64,6 +64,11 @@ function ensureToastManager(): ConfirmToastManager {
 
 onExtensionMessage('showConfirmToast', async ({ data }) => {
   ensureToastManager().showToast(data.proposal);
+  return { ok: true };
+});
+
+onExtensionMessage('updateConfirmToastTiming', async ({ data }) => {
+  ensureToastManager().updateTiming(data);
   return { ok: true };
 });
 

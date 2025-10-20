@@ -3,7 +3,7 @@
  */
 import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
-import { sendShowConfirmToast } from '@/entrypoints/shared/messaging/extension-messaging';
+import { sendShowConfirmToast } from '@/entrypoints/shared/messaging/core-messages';
 import { isUrlEligibleForContentScript } from '@/entrypoints/shared/utils/tab-eligibility';
 import type { ConfirmToastController } from './confirmation-controller';
 

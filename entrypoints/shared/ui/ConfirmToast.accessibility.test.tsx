@@ -6,6 +6,29 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';
 import { ConfirmToast } from './ConfirmToast';
 
+vi.mock('@/entrypoints/shared/ui/FilenameEditor', () => ({
+  __esModule: true,
+  FilenameEditor: vi.fn(() => (
+    <div data-test="mock-filename-editor">
+      <span>Mock filename editor</span>
+    </div>
+  )),
+}));
+
+vi.mock('@/entrypoints/shared/ui/CountdownBadge', () => ({
+  __esModule: true,
+  CountdownBadge: vi.fn(({ seconds }: { seconds: number }) => (
+    <div aria-hidden="true" data-test="mock-countdown-badge">
+      {seconds}s
+    </div>
+  )),
+}));
+
+vi.mock('@/entrypoints/shared/messaging/extension-messaging', () => ({
+  __esModule: true,
+  sendConfirmToastCountdownControl: vi.fn(async () => ({ ok: true as const })),
+}));
+
 function createToast(
   overrides: Partial<ConfirmToastState> = {},
 ): ConfirmToastState {
@@ -28,6 +51,7 @@ function createToast(
     autoApplyDelaySeconds: 3,
     allowAutoApply: true,
     allowAlwaysApply: true,
+    autoApplyRemainingMs: 3_000,
     status: 'pending',
     resolving: false,
     ...overrides,
@@ -62,5 +86,23 @@ describe('ConfirmToast accessibility', () => {
     expect(markup).toContain('aria-atomic="true"');
     expect(markup).toContain('Auto-apply in 3 seconds');
     expect(markup).toContain('aria-hidden="true"');
+  });
+
+  it('announces when the auto-apply countdown is paused', () => {
+    const toast = createToast({
+      autoApplyAt: null,
+      autoApplyRemainingMs: 4_000,
+    });
+
+    const markup = renderToStaticMarkup(
+      <ConfirmToast
+        toast={toast}
+        onApprove={vi.fn()}
+        onKeep={vi.fn()}
+        onAlwaysApply={vi.fn()}
+      />,
+    );
+
+    expect(markup).toContain('Auto-apply paused at 4 seconds');
   });
 });

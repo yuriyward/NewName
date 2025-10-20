@@ -7,13 +7,17 @@ import type {
   SensitiveReason,
 } from '@/entrypoints/shared/classification/sensitive-content';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
-import { sendShowConfirmToast } from '@/entrypoints/shared/messaging/extension-messaging';
+import {
+  sendConfirmToastTimingUpdate,
+  sendShowConfirmToast,
+} from '@/entrypoints/shared/messaging/core-messages';
 import type { ConfirmToastTriggerSource } from '@/entrypoints/shared/settings/confirm-toast-routing';
 import type { FileType, Mode } from '@/entrypoints/shared/settings/types';
 import type {
   ConfirmToastDecisionMessage,
   ConfirmToastProposal,
   ConfirmToastStatusState,
+  ConfirmToastTimingUpdateMessage,
   ShowConfirmToastMessage,
 } from '@/entrypoints/shared/toast/types';
 import { randomId } from '@/entrypoints/shared/utils/id';
@@ -26,6 +30,7 @@ export interface ConfirmToastEntry {
   target?: number | SendMessageOptions;
   timeoutId?: ReturnType<typeof setTimeout>;
   visibleOnTabs?: Set<number>;
+  autoApplyRemainingMs: number | null;
 }
 
 export interface QueueConfirmToastOptions {
@@ -79,6 +84,7 @@ export interface ConfirmToastController {
     state: ConfirmToastStatusState,
     message?: string,
   ): Promise<void>;
+  setAutoApplyPaused(toastId: string, paused: boolean): Promise<boolean>;
 }
 
 export function createConfirmToastController(
@@ -95,6 +101,46 @@ export function createConfirmToastController(
     return {
       emitStatus: (state, message) => emitStatus(entry, state, message),
     };
+  }
+
+  async function broadcastTimingUpdate(
+    entry: ConfirmToastEntry,
+  ): Promise<void> {
+    const update: ConfirmToastTimingUpdateMessage = {
+      toastId: entry.proposal.toastId,
+      autoApplyAt: entry.proposal.autoApplyAt,
+      autoApplyRemainingMs:
+        entry.proposal.autoApplyRemainingMs ??
+        entry.autoApplyRemainingMs ??
+        null,
+    };
+
+    const targets: Array<number | SendMessageOptions> = [];
+    if (entry.visibleOnTabs && entry.visibleOnTabs.size > 0) {
+      for (const tabId of entry.visibleOnTabs) {
+        targets.push(tabId);
+      }
+    } else if (entry.target !== undefined) {
+      targets.push(entry.target);
+    }
+
+    for (const target of targets) {
+      try {
+        await sendConfirmToastTimingUpdate(update, target);
+      } catch (error) {
+        debugLogger.log(
+          '[ConfirmToast] Failed to dispatch timing update to content script',
+          {
+            toastId: entry.proposal.toastId,
+            target,
+            error,
+          },
+        );
+        if (typeof target === 'number') {
+          entry.visibleOnTabs?.delete(target);
+        }
+      }
+    }
   }
 
   function clearTimeoutFor(entry: ConfirmToastEntry): void {
@@ -140,6 +186,16 @@ export function createConfirmToastController(
       return;
     }
 
+    // If target is undefined, this toast is waiting for a tab to become available
+    // Keep it in pending but don't mark as active (will be handled by tab broadcaster)
+    if (entry.target === undefined) {
+      debugLogger.log('[ConfirmToast] Toast waiting for eligible tab', {
+        toastId: nextToastId,
+        remainingInQueue: queuedToasts.length,
+      });
+      return;
+    }
+
     activeToastId = nextToastId;
 
     try {
@@ -160,16 +216,18 @@ export function createConfirmToastController(
     target: number | SendMessageOptions | undefined,
     payload: ShowConfirmToastMessage,
   ): Promise<void> {
-    if (target === undefined) {
-      throw new Error(
-        `[ConfirmToast] Missing tab target for toast ${payload.proposal.toastId}`,
-      );
+    // Should never be called with undefined target due to checks in queueConfirmation
+    if (!target) {
+      const message = `[ConfirmToast] Invalid target for toast ${payload.proposal.toastId}`;
+      debugLogger.error(message);
+      throw new Error(message);
     }
+
     try {
       await sendShowConfirmToast(payload, target);
     } catch (error) {
       // This is expected to fail for restricted tabs (chrome://, about:, etc.)
-      // where content scripts cannot be injected. Log at debug level.
+      // where content scripts cannot be injected.
       debugLogger.log(
         '[ConfirmToast] Failed to dispatch toast to content script (may be restricted URL)',
         {
@@ -226,6 +284,8 @@ export function createConfirmToastController(
           : null,
         allowAutoApply: allowAutoApply && autoApplyDelayMs !== null,
         allowAlwaysApply: options.allowAlwaysApply,
+        autoApplyRemainingMs:
+          allowAutoApply && autoApplyDelayMs !== null ? autoApplyDelayMs : null,
       };
 
       const target = await resolveTarget(options.target);
@@ -236,6 +296,8 @@ export function createConfirmToastController(
         historyId: options.historyId,
         target,
         visibleOnTabs: tabId ? new Set([tabId]) : new Set(),
+        autoApplyRemainingMs:
+          allowAutoApply && autoApplyDelayMs !== null ? autoApplyDelayMs : null,
       };
 
       if (allowAutoApply && autoApplyDelayMs !== null && autoApplyDelayMs > 0) {
@@ -246,6 +308,20 @@ export function createConfirmToastController(
 
       entriesById.set(toastId, entry);
       historyIndex.set(options.historyId, toastId);
+
+      // If no eligible tab found, queue for later when a tab becomes available
+      if (target === undefined) {
+        queuedToasts.push(toastId);
+        debugLogger.log(
+          '[ConfirmToast] Toast queued (no eligible tab currently)',
+          {
+            toastId,
+            historyId: options.historyId,
+            queueLength: queuedToasts.length,
+          },
+        );
+        return entry;
+      }
 
       // Check if we need to queue this toast
       if (activeToastId !== null) {
@@ -260,7 +336,18 @@ export function createConfirmToastController(
 
       // Show immediately if no toast is active
       activeToastId = toastId;
-      await scheduleShowToast(target, { proposal });
+      try {
+        await scheduleShowToast(target, { proposal });
+      } catch (error) {
+        // Failed to show, try next queued toast
+        debugLogger.warn('[ConfirmToast] Failed to show toast immediately', {
+          toastId,
+          error,
+        });
+        activeToastId = null;
+        removeEntry(toastId);
+        void processNextQueuedToast();
+      }
       return entry;
     },
 
@@ -301,6 +388,54 @@ export function createConfirmToastController(
 
     getAllPending(): ConfirmToastEntry[] {
       return Array.from(entriesById.values());
+    },
+
+    async setAutoApplyPaused(
+      toastId: string,
+      paused: boolean,
+    ): Promise<boolean> {
+      const entry = entriesById.get(toastId);
+      if (!entry) return false;
+      if (!entry.proposal.allowAutoApply) return false;
+
+      if (paused) {
+        if (entry.proposal.autoApplyAt === null) {
+          return true;
+        }
+        const remaining = Math.max(0, entry.proposal.autoApplyAt - Date.now());
+        entry.autoApplyRemainingMs = remaining;
+        entry.proposal.autoApplyRemainingMs = remaining;
+        entry.proposal.autoApplyAt = null;
+        clearTimeoutFor(entry);
+        await broadcastTimingUpdate(entry);
+        return true;
+      }
+
+      if (entry.proposal.autoApplyAt !== null) {
+        return true;
+      }
+
+      const remainingSource =
+        entry.autoApplyRemainingMs ?? entry.proposal.autoApplyRemainingMs ?? 0;
+      const remaining = Math.max(0, Math.round(remainingSource));
+
+      if (remaining <= 0) {
+        clearTimeoutFor(entry);
+        entry.autoApplyRemainingMs = 0;
+        entry.proposal.autoApplyRemainingMs = 0;
+        void handleAutoApply(toastId);
+        return true;
+      }
+
+      entry.autoApplyRemainingMs = remaining;
+      entry.proposal.autoApplyRemainingMs = remaining;
+      entry.proposal.autoApplyAt = Date.now() + remaining;
+      clearTimeoutFor(entry);
+      entry.timeoutId = setTimeout(() => {
+        void handleAutoApply(toastId);
+      }, remaining);
+      await broadcastTimingUpdate(entry);
+      return true;
     },
 
     emitStatus,

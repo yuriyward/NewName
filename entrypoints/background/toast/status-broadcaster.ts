@@ -3,7 +3,7 @@
  */
 
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
-import { sendConfirmToastStatus } from '@/entrypoints/shared/messaging/extension-messaging';
+import { sendConfirmToastStatus } from '@/entrypoints/shared/messaging/core-messages';
 import type {
   ConfirmToastProposal,
   ConfirmToastStatusState,

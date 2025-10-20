@@ -8,7 +8,7 @@ const sendConfirmToastStatus = vi.hoisted(() =>
   ),
 );
 
-vi.mock('@/entrypoints/shared/messaging/extension-messaging', () => ({
+vi.mock('@/entrypoints/shared/messaging/core-messages', () => ({
   __esModule: true,
   sendConfirmToastStatus,
 }));
@@ -31,6 +31,7 @@ const proposal: ConfirmToastProposal = {
   autoApplyDelaySeconds: null,
   allowAutoApply: false,
   allowAlwaysApply: true,
+  autoApplyRemainingMs: null,
 };
 
 describe('emitStatus', () => {

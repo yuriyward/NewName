@@ -1,10 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { browser } from 'wxt/browser';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import {
-  offscreenHandshake,
-  requestMediaAnalysis,
-} from '@/entrypoints/shared/messaging/extension-messaging';
+import { offscreenHandshake } from '@/entrypoints/shared/messaging/core-messages';
+import { requestMediaAnalysis } from '@/entrypoints/shared/messaging/media-messages';
 import {
   enqueueMediaAnalysis,
   resetMediaAnalysisQueueForTesting,
@@ -13,17 +11,29 @@ import type { MediaAnalysisRequest } from './messages';
 import { resetOffscreenCoordinatorForTesting } from './offscreen-coordinator';
 
 vi.mock(
-  '@/entrypoints/shared/messaging/extension-messaging',
+  '@/entrypoints/shared/messaging/core-messages',
   async (importOriginal) => {
     const actual =
       await importOriginal<
-        typeof import('@/entrypoints/shared/messaging/extension-messaging')
+        typeof import('@/entrypoints/shared/messaging/core-messages')
+      >();
+    return {
+      ...actual,
+      offscreenHandshake: vi.fn().mockResolvedValue({ ready: true }),
+    };
+  },
+);
+
+vi.mock(
+  '@/entrypoints/shared/messaging/media-messages',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('@/entrypoints/shared/messaging/media-messages')
       >();
     return {
       ...actual,
       requestMediaAnalysis: vi.fn(),
-      offscreenHandshake: vi.fn().mockResolvedValue({ ready: true }),
-      onExtensionMessage: actual.onExtensionMessage,
     };
   },
 );

@@ -115,9 +115,23 @@ export interface ChromeLanguageModelAvailabilityOptions {
 
 export type ChromeLanguageModelMessageRole = 'system' | 'user' | 'assistant';
 
+/**
+ * Represents a multimodal content item that can contain text, image, or audio.
+ * Used when crafting prompts with mixed media types (e.g., text + image).
+ */
+export interface ChromeLanguageModelContentItem {
+  type: 'text' | 'image' | 'audio';
+  value: string | Blob | ImageData | ImageBitmap | BufferSource | AudioBuffer;
+}
+
+/**
+ * Prompt message that supports both text-only and multimodal content.
+ * When content is a string, it's a simple text message.
+ * When content is an array, it enables multimodal prompting (e.g., text + image).
+ */
 export interface ChromeLanguageModelPromptMessage {
   role: ChromeLanguageModelMessageRole;
-  content: string;
+  content: string | ChromeLanguageModelContentItem[];
 }
 
 export type ChromeLanguageModelIOType = 'text' | 'audio' | 'image';
