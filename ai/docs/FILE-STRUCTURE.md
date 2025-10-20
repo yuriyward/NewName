@@ -23,9 +23,8 @@ background/ # 11 files, 2 directories
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
   ├─ upgrade/ # 12 files
   │ ├─ cloud-consent-manager.ts # 3 exports
-  │ ├─ coordinator.ts # Contextual upgrade coordinator for completed downloads
+  │ ├─ coordinator.ts # Contextual upgrade coordinator for completed downloads Owns the complete upgrade workflow: - Entry point for download completion events and scheduled analyses - Eligibility checking - Delegates analysis to processor - Updates history and displays results
   │ ├─ eligibility.ts # Eligibility checks for contextual upgrade analysis
-  │ ├─ executor.ts # 4 exports
   │ ├─ image-analysis-request.ts # Image upgrade analysis request builder Determines image eligibility and creates analysis requests
   │ ├─ mock-analysis.ts # Mock AI-powered contextual upgrade proposal generator
   │ ├─ normalization.ts # 6 exports
@@ -33,7 +32,8 @@ background/ # 11 files, 2 directories
   │ ├─ scheduler.ts # 4 exports
   │ ├─ text-analysis-request.ts # 1 export
   │ ├─ types.ts # Type definitions for contextual upgrade pipeline
-  │ └─ unified-analysis-requester.ts # Unified upgrade analysis router Routes to text or image analysis based on file type
+  │ ├─ unified-analysis-requester.ts # Unified upgrade analysis router Routes to text or image analysis based on file type
+  │ └─ upgrade-processor.ts # Upgrade analysis processor Handles the core upgrade analysis workflow: - Duplicate prevention - Download resolution - Analysis execution - Proposal normalization Does NOT handle: history updates, toast queueing (those belong to coordinator)
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
   ├─ download-plan.ts # Download plan builder with evaluation and path resolution
   ├─ download-post-actions.ts # Post-download actions for history recording and media analysis
@@ -65,8 +65,9 @@ offscreen/ # 6 files, 4 directories
   │ ├─ pipeline-orchestrator.ts # Image upgrade pipeline orchestrator Coordinates image analysis: ingestion → description → decision → filename generation
   │ ├─ pipeline-phases.ts # Image upgrade pipeline phases Coordinates the three-phase analysis: describe → decide → generate
   │ └─ proposal-builder.ts # Image upgrade proposal building Constructs the final upgrade proposal with all metadata
-  ├─ pdf-analysis/ # 9 files
+  ├─ pdf-analysis/ # 10 files
   │ ├─ constants.ts # Constants for PDF analysis and rendering
+  │ ├─ pdf-analysis-pipeline.ts # PDF upgrade analysis pipeline orchestrator Coordinates PDF analysis: extraction → title/description → rename decision → filename generation Parallels the image analysis pipeline structure for consistency
   │ ├─ pdf-canvas-utils.ts # Canvas conversion utilities for PDF rendering Converts OffscreenCanvas to PNG blobs with quality settings
   │ ├─ pdf-context-merger.ts # PDF context merger for combining analysis from multiple pages Creates enhanced context for filename generation based on extracted titles and descriptions
   │ ├─ pdf-page-extractor.ts # PDF page extraction and preparation for image analysis High-level coordinator that combines rendering and preparation stages Lower-level rendering pipeline: - pdf-page-renderer.ts: Core MuPDF rendering (document → pixmap → canvas) - pdf-canvas-utils.ts: Canvas conversion (canvas → PNG blob) - Internal extractPdfPages: Orchestrates page rendering with timeouts
@@ -170,8 +171,11 @@ shared/ # 17 directories
   │ └─ range-fetcher.ts # Generic HTTP range fetch utilities shared across integrations. Designed to support resumable, partial reads without forcing the caller to download full files when the remote server advertises byte range support.
   ├─ lifecycle/ # 1 file
   │ └─ install-tracking.ts # Extension installation date tracking and storage utilities
-  ├─ messaging/ # 1 file
-  │ └─ extension-messaging.ts # Central extension messaging protocol using @webext-core/messaging
+  ├─ messaging/ # 4 files
+  │ ├─ core-messages.ts # Core infrastructure messages Handles runtime context, offscreen lifecycle, and UI toast notifications
+  │ ├─ extension-messaging.ts # Central extension messaging protocol using @webext-core/messaging This file defines the combined messaging protocol interface only. For message helpers and implementations, import directly from domain-specific files: - core-messages.ts: Runtime context, offscreen lifecycle, toast notifications - media-messages.ts: Image and PDF analysis - text-messages.ts: Text analysis, AI pipeline, cloud consent
+  │ ├─ media-messages.ts # Media analysis messages (image and PDF) Handles image ingestion, PDF analysis, and media metadata extraction
+  │ └─ text-messages.ts # Text analysis and AI pipeline messages Handles text ingestion, AI model management, telemetry, and cloud consent
   ├─ naming/ # 2 files
   │ ├─ media-qualifiers.ts # Extract media metadata qualifiers for filename enhancement
   │ └─ policy-engine.ts # Filename generation policies and formatting rules
@@ -197,7 +201,7 @@ shared/ # 17 directories
   ├─ toast/ # 2 files
   │ ├─ timing-constants.ts # Centralized timing constants for toast behavior. All values are in milliseconds unless otherwise noted.
   │ └─ types.ts # Shared types for confirm toast messaging between contexts.
-  ├─ ui/ # 6 files, 1 directories
+  ├─ ui/ # 10 files, 1 directories
   │ ├─ toast/ # 8 files
   │ │ ├─ keyboard-handler.ts # Keyboard event handler for toast interactions.
   │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames.
@@ -211,8 +215,12 @@ shared/ # 17 directories
   │ ├─ confirm-toast-manager.tsx # Toast manager rendered inside the content script via Shadow DOM.
   │ ├─ ConfirmToast.accessibility.test.tsx # Accessibility tests for confirm toast component
   │ ├─ ConfirmToast.tsx # 1 export
+  │ ├─ CountdownBadge.tsx # Countdown badge component Displays the auto-apply countdown with color changes when urgent
+  │ ├─ FilenameEditor.tsx # Filename editor component Handles both display and editing modes for the proposed filename
   │ ├─ FilenameLabel.tsx # 1 export
-  │ └─ theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
+  │ ├─ theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
+  │ ├─ useToastCountdown.ts # Countdown timer hooks for auto-apply toast
+  │ └─ useToastEditor.ts # Editor hooks for toast filename editing
   └─ utils/ # 4 files
     ├─ encoding.ts # Lightweight text encoding helpers used during file ingestion.
     ├─ filename.ts # Utility helpers for working with file names.
@@ -425,7 +433,7 @@ content.ts # Content script for page context extraction and messaging
 - `export createCloudConsentManager` - item implementation
 
 ### background/upgrade/coordinator.ts
-**Purpose**: Contextual upgrade coordinator for completed downloads
+**Purpose**: Contextual upgrade coordinator for completed downloads Owns the complete upgrade workflow: - Entry point for download completion events and scheduled analyses - Eligibility checking - Delegates analysis to processor - Updates history and displays results
 
 **Exports**:
 - `export UpgradeCoordinator` - item implementation
@@ -437,15 +445,6 @@ content.ts # Content script for page context extraction and messaging
 **Exports**:
 - `export UPGRADE_RECENT_WINDOW_MS` - Cooldown used to avoid re-running contextual upgrades imm...
 - `export shouldAnalyzeUpgrade` - Cooldown used to avoid re-running contextual upgrades imm...
-
-### background/upgrade/executor.ts
-**Purpose**: 4 exports
-
-**Exports**:
-- `export ProcessUpgradeAnalysisParams` - item implementation
-- `export UpgradeExecutor` - item implementation
-- `export UpgradeExecutorDependencies` - item implementation
-- `export createUpgradeExecutor` - item implementation
 
 ### background/upgrade/image-analysis-request.ts
 **Purpose**: Image upgrade analysis request builder Determines image eligibility and creates analysis requests
@@ -508,6 +507,15 @@ content.ts # Content script for page context extraction and messaging
 **Exports**:
 - `export UnifiedAnalysisRequesterDependencies` - item implementation
 - `export createUnifiedUpgradeAnalysisRequester` - Create a unified analysis requester that routes to text, ...
+
+### background/upgrade/upgrade-processor.ts
+**Purpose**: Upgrade analysis processor Handles the core upgrade analysis workflow: - Duplicate prevention - Download resolution - Analysis execution - Proposal normalization Does NOT handle: history updates, toast queueing (those belong to coordinator)
+
+**Exports**:
+- `export ProcessUpgradeAnalysisParams` - item implementation
+- `export UpgradeProcessor` - item implementation
+- `export UpgradeProcessorDependencies` - item implementation
+- `export createUpgradeProcessor` - item implementation
 
 ### cloud-consent/CloudConsentPage.tsx
 **Purpose**: 1 export
@@ -670,8 +678,16 @@ Registers listener fo...
 - `export MAX_PDF_FILE_SIZE_BYTES` - Maximum file size for PDF analysis (50MB)
 - `export MAX_PDF_PAGES` - Maximum number of pages to extract from PDF for image-bas...
 - `export PDF_PAGE_IMAGE_FORMAT` - Target format for rendered pages
+- `export PDF_PNG_QUALITY` - PNG quality for canvas-to-blob conversion (0-1 scale, hig...
 - `export PDF_RENDER_SCALE` - Scale factor for rendering PDF pages to canvas (1
 - `export PDF_RENDER_TIMEOUT_MS` - PDF rendering timeout per page (in milliseconds)
+
+### offscreen/pdf-analysis/pdf-analysis-pipeline.ts
+**Purpose**: PDF upgrade analysis pipeline orchestrator Coordinates PDF analysis: extraction → title/description → rename decision → filename generation Parallels the image analysis pipeline structure for consistency
+
+**Exports**:
+- `export runPdfUpgradePipeline` - Run the complete PDF upgrade analysis pipeline
+PHASE 1: E...
 
 ### offscreen/pdf-analysis/pdf-canvas-utils.ts
 **Purpose**: Canvas conversion utilities for PDF rendering Converts OffscreenCanvas to PNG blobs with quality settings
@@ -1397,7 +1413,6 @@ Renders pages ...
 
 **Exports**:
 - `export MuPdfModule` - MuPDF WASM loader and instance management
-Configures MuPD...
 - `export getMuPdfModule` - Get the MuPDF module with proper WASM loading configured
 ...
 - `export resetMuPdfModuleForTesting` - item implementation
@@ -1444,24 +1459,13 @@ Configures MuPD...
 - `export registerInstallDateListener` - Registers browser extension install event listener
 - `export setInstallDate` - Stores extension installation date to browser storage
 
-### shared/messaging/extension-messaging.ts
-**Purpose**: Central extension messaging protocol using @webext-core/messaging
+### shared/messaging/core-messages.ts
+**Purpose**: Core infrastructure messages Handles runtime context, offscreen lifecycle, and UI toast notifications
 
 **Exports**:
-- `export ExtensionMessagingProtocol` - item implementation
-- `export AiPipelineTelemetryPayload` - Payload for ensuring AI models are ready with optional mo...
-- `export EnsureAiModelsRequestPayload` - Payload for ensuring AI models are ready with optional mo...
-- `export onExtensionMessage` - item implementation
-- `export sendExtensionMessage` - item implementation
-- `export ensureAiModelsReadyRemote` - item implementation
-- `export offscreenHandshake` - item implementation
-- `export recordAiPipelineTelemetryRemote` - item implementation
-- `export requestCloudConsentDetails` - item implementation
-- `export requestImageIngestion` - item implementation
-- `export requestMediaAnalysis` - item implementation
-- `export requestPdfAnalysis` - item implementation
+- `export CoreProtocol` - Core infrastructure protocol
+- `export offscreenHandshake` - Show a non-blocking rename-complete toast in the active tab.
 - `export requestPendingConfirmToasts` - item implementation
-- `export requestTextIngestion` - item implementation
 - `export sendConfirmToastCountdownControl` - item implementation
 - `export sendConfirmToastDecision` - item implementation
 - `export sendConfirmToastStatus` - item implementation
@@ -1469,6 +1473,35 @@ Configures MuPD...
 - `export sendShowConfirmToast` - item implementation
 - `export sendShowRenameToast` - item implementation
 - `export signalOffscreenReady` - item implementation
+
+### shared/messaging/extension-messaging.ts
+**Purpose**: Central extension messaging protocol using @webext-core/messaging This file defines the combined messaging protocol interface only. For message helpers and implementations, import directly from domain-specific files: - core-messages.ts: Runtime context, offscreen lifecycle, toast notifications - media-messages.ts: Image and PDF analysis - text-messages.ts: Text analysis, AI pipeline, cloud consent
+
+**Exports**:
+- `export ExtensionMessagingProtocol` - Combined extension messaging protocol from all domains
+- `export onExtensionMessage` - item implementation
+- `export sendExtensionMessage` - item implementation
+
+### shared/messaging/media-messages.ts
+**Purpose**: Media analysis messages (image and PDF) Handles image ingestion, PDF analysis, and media metadata extraction
+
+**Exports**:
+- `export MediaAnalysisProtocol` - Media analysis protocol - image and PDF analysis
+- `export requestImageIngestion` - item implementation
+- `export requestMediaAnalysis` - Request PDF analysis (page extraction and image-based ana...
+- `export requestPdfAnalysis` - item implementation
+
+### shared/messaging/text-messages.ts
+**Purpose**: Text analysis and AI pipeline messages Handles text ingestion, AI model management, telemetry, and cloud consent
+
+**Exports**:
+- `export TextAnalysisProtocol` - Text analysis and AI pipeline protocol
+- `export AiPipelineTelemetryPayload` - Payload for ensuring AI models are ready with optional mo...
+- `export EnsureAiModelsRequestPayload` - Payload for ensuring AI models are ready with optional mo...
+- `export ensureAiModelsReadyRemote` - item implementation
+- `export recordAiPipelineTelemetryRemote` - item implementation
+- `export requestCloudConsentDetails` - item implementation
+- `export requestTextIngestion` - Record AI pipeline telemetry events in the background con...
 - `export submitCloudConsentDecision` - item implementation
 
 ### shared/naming/media-qualifiers.ts
@@ -1710,6 +1743,18 @@ Configures MuPD...
 **Exports**:
 - `export ConfirmToast` - item implementation
 
+### shared/ui/CountdownBadge.tsx
+**Purpose**: Countdown badge component Displays the auto-apply countdown with color changes when urgent
+
+**Exports**:
+- `export CountdownBadge` - Format countdown seconds to display string
+
+### shared/ui/FilenameEditor.tsx
+**Purpose**: Filename editor component Handles both display and editing modes for the proposed filename
+
+**Exports**:
+- `export FilenameEditor` - item implementation
+
 ### shared/ui/FilenameLabel.tsx
 **Purpose**: 1 export
 
@@ -1798,6 +1843,21 @@ Handles automatic th...
 **Exports**:
 - `export ThemeTarget` - Theme management for toast UI elements.
 - `export createThemeManager` - Creates a theme manager that syncs theme between settings...
+
+### shared/ui/useToastCountdown.ts
+**Purpose**: Countdown timer hooks for auto-apply toast
+
+**Exports**:
+- `export computeCountdownSeconds` - Compute countdown seconds from timestamp or remaining mil...
+- `export formatCountdown` - Format countdown seconds to display string
+- `export useToastCountdown` - Hook to manage countdown timer state and pause/resume fun...
+
+### shared/ui/useToastEditor.ts
+**Purpose**: Editor hooks for toast filename editing
+
+**Exports**:
+- `export useToastEditor` - Hook to manage filename editing state and actions
+Handles...
 
 ### shared/utils/encoding.ts
 **Purpose**: Lightweight text encoding helpers used during file ingestion.
