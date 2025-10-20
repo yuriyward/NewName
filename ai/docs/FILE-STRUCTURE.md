@@ -176,7 +176,8 @@ shared/ # 17 directories
   │ ├─ extension-messaging.ts # Central extension messaging protocol using @webext-core/messaging This file defines the combined messaging protocol interface only. For message helpers and implementations, import directly from domain-specific files: - core-messages.ts: Runtime context, offscreen lifecycle, toast notifications - media-messages.ts: Image and PDF analysis - text-messages.ts: Text analysis, AI pipeline, cloud consent
   │ ├─ media-messages.ts # Media analysis messages (image and PDF) Handles image ingestion, PDF analysis, and media metadata extraction
   │ └─ text-messages.ts # Text analysis and AI pipeline messages Handles text ingestion, AI model management, telemetry, and cloud consent
-  ├─ naming/ # 2 files
+  ├─ naming/ # 3 files
+  │ ├─ media-qualifiers-constants.ts # Constants for media metadata qualifiers Enumerates standard resolutions, audio channels, and codec formats
   │ ├─ media-qualifiers.ts # Extract media metadata qualifiers for filename enhancement
   │ └─ policy-engine.ts # Filename generation policies and formatting rules
   ├─ onboarding/ # 1 file
@@ -1504,6 +1505,25 @@ Renders pages ...
 - `export requestTextIngestion` - Record AI pipeline telemetry events in the background con...
 - `export submitCloudConsentDecision` - item implementation
 
+### shared/naming/media-qualifiers-constants.ts
+**Purpose**: Constants for media metadata qualifiers Enumerates standard resolutions, audio channels, and codec formats
+
+**Exports**:
+- `export AudioChannels` - Audio channel configurations
+Standard mappings for differ...
+- `export AudioCodec` - Audio codec identifiers
+- `export VideoCodec` - Video codec identifiers
+- `export VideoResolution` - Common video resolutions with their dimensions
+Used for n...
+- `export AudioChannelMapping` - item implementation
+- `export CodecPattern` - Codec string patterns for matching codec names
+- `export VideoResolutionDimensions` - item implementation
+- `export AUDIO_CODEC_PATTERNS` - item implementation
+- `export CHANNEL_MAPPINGS` - Mapping of channel counts to standard audio format labels
+- `export COMMON_RESOLUTIONS` - Mapping of common video resolutions to their dimensions
+- `export SKIP_CODECS` - Codecs to skip/ignore during formatting
+- `export VIDEO_CODEC_PATTERNS` - Mapping of codec string patterns to codec enums
+
 ### shared/naming/media-qualifiers.ts
 **Purpose**: Extract media metadata qualifiers for filename enhancement
 
@@ -1644,6 +1664,8 @@ Renders pages ...
 **Purpose**: Type definitions for application configuration and settings
 
 **Exports**:
+- `export FileTypeEnum` - File type classification enum
+Represents different file c...
 - `export CloudSettings` - item implementation
 - `export ConfirmModalDefaults` - item implementation
 - `export ConfirmToastSettings` - item implementation
