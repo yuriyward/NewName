@@ -50,11 +50,37 @@
 
 @layer components {
   .heroui-card {
-    @apply bg-[var(--heroui-content1)] rounded-md p-3 border border-[var(--heroui-content3)];
+    @apply bg-[var(--heroui-content1)] rounded-md p-2.5 border border-[var(--heroui-content3)];
+  }
+
+  /* Card Size Variants */
+  .heroui-card-sm {
+    @apply p-2;
+  }
+
+  .heroui-card-md {
+    @apply p-2.5;
+  }
+
+  .heroui-card-lg {
+    @apply p-3;
   }
 
   .heroui-button {
-    @apply inline-flex items-center justify-center gap-1 px-3 py-2 rounded-sm font-normal text-sm cursor-pointer transition-all;
+    @apply inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-sm font-normal text-sm cursor-pointer transition-all;
+  }
+
+  /* Button Size Variants */
+  .heroui-button-sm {
+    @apply px-2 py-1 text-xs;
+  }
+
+  .heroui-button-md {
+    @apply px-2.5 py-1.5 text-sm;
+  }
+
+  .heroui-button-lg {
+    @apply px-3 py-2 text-sm;
   }
 
   .heroui-button-primary {
@@ -69,16 +95,42 @@
     @apply inline-flex items-center gap-1 px-2 py-1 rounded-sm text-xs font-normal bg-[var(--heroui-content2)];
   }
 
+  /* Chip Size Variants */
+  .heroui-chip-sm {
+    @apply px-1.5 py-0.5 text-xs;
+  }
+
+  .heroui-chip-md {
+    @apply px-2 py-1 text-xs;
+  }
+
+  .heroui-chip-lg {
+    @apply px-2.5 py-1.5 text-sm;
+  }
+
   .heroui-toast {
-    @apply flex items-center gap-2 p-3 rounded-sm bg-[var(--heroui-content1)] border border-[var(--heroui-content3)];
+    @apply flex items-center gap-2 p-2.5 rounded-sm bg-[var(--heroui-content1)] border border-[var(--heroui-content3)];
+  }
+
+  /* Toast Size Variants */
+  .heroui-toast-sm {
+    @apply p-2 gap-1.5 text-xs;
+  }
+
+  .heroui-toast-md {
+    @apply p-2.5 gap-2 text-sm;
+  }
+
+  .heroui-toast-lg {
+    @apply p-3 gap-2.5 text-base;
   }
 
   .code-block {
-    @apply bg-[var(--heroui-content2)] rounded-sm p-3 font-mono text-xs overflow-x-auto border border-[var(--heroui-content3)];
+    @apply bg-[var(--heroui-content2)] rounded-sm p-2.5 font-mono text-xs overflow-x-auto border border-[var(--heroui-content3)];
   }
 
   .nav-link {
-    @apply px-3 py-2 rounded-sm cursor-pointer transition-all text-sm font-normal;
+    @apply px-2 py-1.5 rounded-sm cursor-pointer transition-all text-sm font-normal;
   }
 
   .nav-link:hover {
@@ -87,5 +139,10 @@
 
   .nav-link.active {
     @apply bg-[var(--heroui-primary)] text-[var(--heroui-primary-foreground)] font-medium;
+  }
+
+  /* Compact nav variant for space-constrained contexts */
+  .nav-link-sm {
+    @apply px-1.5 py-1 text-xs;
   }
 }

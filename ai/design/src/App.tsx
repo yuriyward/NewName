@@ -107,7 +107,7 @@ const BrandShowcase = () => {
     <div className="min-h-screen bg-[var(--heroui-background)]">
       {/* Header */}
       <header className="border-b border-[var(--heroui-content3)] bg-[var(--heroui-content1)]">
-        <div className="max-w-6xl mx-auto px-4 py-3">
+        <div className="max-w-6xl mx-auto px-3 py-2.5">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-lg font-bold text-[var(--heroui-foreground)]">
@@ -122,15 +122,15 @@ const BrandShowcase = () => {
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-4">
-        <div className="grid grid-cols-12 gap-4">
+      <div className="max-w-6xl mx-auto px-3 py-3">
+        <div className="grid grid-cols-12 gap-3">
           {/* Navigation */}
           <nav className="col-span-3">
             <div className="sticky top-4">
-              <h3 className="text-xs font-semibold text-[var(--heroui-foreground)] mb-3 opacity-70">
+              <h3 className="text-xs font-semibold text-[var(--heroui-foreground)] mb-2 opacity-70">
                 SECTIONS
               </h3>
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {sections.map((section) => {
                   const Icon = section.icon;
                   return (
@@ -171,18 +171,18 @@ const BrandShowcase = () => {
 
 // Overview Section
 const OverviewSection = () => (
-  <div className="space-y-4">
+  <div className="space-y-3">
     <div>
       <h2 className="text-xl font-bold mb-2">Design Principles</h2>
-      <p className="text-sm opacity-80 mb-4">
+      <p className="text-sm opacity-80 mb-2">
         Our design system is built around the principles of being invisible,
         competent, and privacy-forward.
       </p>
     </div>
 
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-2">
       <div className="heroui-card">
-        <h3 className="text-sm font-semibold mb-1 flex items-center gap-2">
+        <h3 className="text-sm font-semibold mb-1 flex items-center gap-1.5">
           <BoltIcon className="w-4 h-4" />
           Instant Value, Zero Drag
         </h3>
@@ -224,9 +224,9 @@ const OverviewSection = () => (
 
     <div className="heroui-card">
       <h3 className="text-sm font-semibold mb-2">Voice & Tone</h3>
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <div>
-          <h4 className="text-xs font-medium mb-1 flex items-center gap-2">
+          <h4 className="text-xs font-medium mb-1 flex items-center gap-1.5">
             <CheckIcon className="w-3.5 h-3.5" />
             Example Messages:
           </h4>
@@ -301,19 +301,19 @@ const ColorsSection = () => {
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
         <h2 className="text-xl font-bold mb-2">Minimal Color System</h2>
-        <p className="text-sm opacity-80 mb-4">
+        <p className="text-sm opacity-80 mb-2">
           Professional monochromatic palette with subtle accents for a clean,
           modern aesthetic.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-2.5">
         {colors.map((color) => (
           <div key={color.name} className="heroui-card">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-2 mb-1.5">
               <div
                 className="w-8 h-8 rounded border border-[var(--heroui-content3)]"
                 style={{ backgroundColor: color.value }}
@@ -347,15 +347,15 @@ border-color: var(--heroui-content3);          /* #E5E5E5 - Borders */`}
 
 // Typography Section
 const TypographySection = () => (
-  <div className="space-y-4">
+  <div className="space-y-3">
     <div>
       <h2 className="text-xl font-bold mb-2">Typography Scale</h2>
-      <p className="text-sm opacity-80 mb-4">
+      <p className="text-sm opacity-80 mb-2">
         Clear hierarchy optimized for extension UI constraints.
       </p>
     </div>
 
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="heroui-card">
         <h1 className="text-lg font-bold mb-1">Heading 1</h1>
         <p className="text-xs opacity-70">
@@ -402,36 +402,81 @@ const TypographySection = () => (
 
 // Components Section (simplified)
 const ComponentsSection = () => (
-  <div className="space-y-4">
+  <div className="space-y-3">
     <h2 className="text-xl font-bold">Component Library</h2>
     <div className="heroui-card">
-      <h3 className="text-sm font-semibold mb-3">Buttons</h3>
-      <div className="flex gap-2 mb-4">
-        <button type="button" className="heroui-button heroui-button-primary">
-          Apply Rename
-        </button>
-        <button type="button" className="heroui-button heroui-button-secondary">
-          Keep Original
-        </button>
+      <h3 className="text-sm font-semibold mb-2">Button Sizes</h3>
+      <div className="space-y-2">
+        <div>
+          <p className="text-xs opacity-70 mb-2">Small (Popup)</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="heroui-button heroui-button-sm heroui-button-primary"
+            >
+              Apply
+            </button>
+            <button
+              type="button"
+              className="heroui-button heroui-button-sm heroui-button-secondary"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+        <div>
+          <p className="text-xs opacity-70 mb-2">Medium (Default)</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="heroui-button heroui-button-md heroui-button-primary"
+            >
+              Apply Rename
+            </button>
+            <button
+              type="button"
+              className="heroui-button heroui-button-md heroui-button-secondary"
+            >
+              Keep Original
+            </button>
+          </div>
+        </div>
+        <div>
+          <p className="text-xs opacity-70 mb-2">Large (Settings)</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="heroui-button heroui-button-lg heroui-button-primary"
+            >
+              Apply Rename
+            </button>
+            <button
+              type="button"
+              className="heroui-button heroui-button-lg heroui-button-secondary"
+            >
+              Keep Original
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
     <div className="heroui-card">
-      <h3 className="text-sm font-semibold mb-3">Icons (Heroicons)</h3>
-      <div className="flex gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
+      <h3 className="text-sm font-semibold mb-2">Icons (Heroicons)</h3>
+      <div className="flex gap-3 flex-wrap">
+        <div className="flex items-center gap-1.5">
           <BoltIcon className="w-4 h-4" />
           <span className="text-sm">Bolt</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <SparklesIcon className="w-4 h-4" />
           <span className="text-sm">Sparkles</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <EyeIcon className="w-4 h-4" />
           <span className="text-sm">Eye</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <ShieldCheckIcon className="w-4 h-4" />
           <span className="text-sm">Shield</span>
         </div>
@@ -442,11 +487,11 @@ const ComponentsSection = () => (
 
 // Patterns Section
 const PatternsSection = () => (
-  <div className="space-y-4">
+  <div className="space-y-3">
     <h2 className="text-xl font-bold">UI Patterns</h2>
     <div className="heroui-card">
-      <h3 className="text-sm font-semibold mb-3">Upgrade Notification</h3>
-      <div className="heroui-toast mb-4">
+      <h3 className="text-sm font-semibold mb-2">Upgrade Notification</h3>
+      <div className="heroui-toast mb-3">
         <SparklesIcon className="w-4 h-4 flex-shrink-0" />
         <div className="flex-1">
           <p className="font-medium">Found better name:</p>
@@ -462,11 +507,11 @@ const PatternsSection = () => (
 
 // States Section
 const StatesSection = () => (
-  <div className="space-y-4">
+  <div className="space-y-3">
     <h2 className="text-xl font-bold">UI States</h2>
 
     <div className="heroui-card">
-      <h3 className="text-sm font-semibold mb-3">Success</h3>
+      <h3 className="text-sm font-semibold mb-2">Success</h3>
       <div className="heroui-toast">
         <CheckIcon className="w-4 h-4 text-[var(--heroui-success)]" />
         <p>
@@ -476,7 +521,7 @@ const StatesSection = () => (
     </div>
 
     <div className="heroui-card">
-      <h3 className="text-sm font-semibold mb-3">Error</h3>
+      <h3 className="text-sm font-semibold mb-2">Error</h3>
       <div className="heroui-toast">
         <ExclamationTriangleIcon className="w-4 h-4 text-[var(--heroui-danger)]" />
         <p>On-device model not ready — using Metadata-only mode.</p>
