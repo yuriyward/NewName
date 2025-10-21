@@ -88,7 +88,7 @@
   }
 
   .heroui-button-secondary {
-    @apply bg-[var(--heroui-default)] text-[var(--heroui-default-foreground)] hover:bg-[var(--heroui-content2)];
+    @apply bg-[var(--heroui-default)] text-[var(--heroui-default-foreground)] hover:bg-[var(--heroui-content2)] hover:brightness-95 transition-all duration-200 ;
   }
 
   .heroui-chip {
