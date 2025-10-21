@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Color System */
+    --heroui-primary: #18181b;
+    --heroui-primary-foreground: #ffffff;
+    --heroui-secondary: #71717a;
+    --heroui-success: #22c55e;
+    --heroui-warning: #eab308;
+    --heroui-danger: #ef4444;
+    --heroui-background: #ffffff;
+    --heroui-foreground: #09090b;
+    --heroui-content1: #ffffff;
+    --heroui-content2: #f8f8f8;
+    --heroui-content3: #e5e5e5;
+    --heroui-content4: #d1d1d1;
+    --heroui-default: #f8f8f8;
+    --heroui-default-foreground: #18181b;
+
+    /* Spacing - 4px Base System */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+  }
+
+  [data-theme="dark"] {
+    --heroui-primary: #ffffff;
+    --heroui-primary-foreground: #09090b;
+    --heroui-background: #09090b;
+    --heroui-foreground: #fafafa;
+    --heroui-content1: #18181b;
+    --heroui-content2: #27272a;
+    --heroui-content3: #3f3f46;
+    --heroui-content4: #52525b;
+    --heroui-default: #27272a;
+    --heroui-default-foreground: #fafafa;
+  }
+
+  body {
+    background-color: var(--heroui-background);
+    color: var(--heroui-foreground);
+    @apply transition-colors;
+  }
+}
+
+@layer components {
+  .heroui-card {
+    @apply bg-[var(--heroui-content1)] rounded-md p-3 border border-[var(--heroui-content3)];
+  }
+
+  .heroui-button {
+    @apply inline-flex items-center justify-center gap-1 px-3 py-2 rounded-sm font-normal text-sm cursor-pointer transition-all;
+  }
+
+  .heroui-button-primary {
+    @apply bg-[var(--heroui-primary)] text-[var(--heroui-primary-foreground)] hover:opacity-80;
+  }
+
+  .heroui-button-secondary {
+    @apply bg-[var(--heroui-default)] text-[var(--heroui-default-foreground)] hover:bg-[var(--heroui-content2)];
+  }
+
+  .heroui-chip {
+    @apply inline-flex items-center gap-1 px-2 py-1 rounded-sm text-xs font-normal bg-[var(--heroui-content2)];
+  }
+
+  .heroui-toast {
+    @apply flex items-center gap-2 p-3 rounded-sm bg-[var(--heroui-content1)] border border-[var(--heroui-content3)];
+  }
+
+  .code-block {
+    @apply bg-[var(--heroui-content2)] rounded-sm p-3 font-mono text-xs overflow-x-auto border border-[var(--heroui-content3)];
+  }
+
+  .nav-link {
+    @apply px-3 py-2 rounded-sm cursor-pointer transition-all text-sm font-normal;
+  }
+
+  .nav-link:hover {
+    @apply bg-[var(--heroui-content2)];
+  }
+
+  .nav-link.active {
+    @apply bg-[var(--heroui-primary)] text-[var(--heroui-primary-foreground)] font-medium;
+  }
+}

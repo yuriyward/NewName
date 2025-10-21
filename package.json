@@ -7,8 +7,10 @@
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
+    "dev:design": "cd ai/design && bun run dev",
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
+    "build:design": "cd ai/design && bun run build",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",

@@ -37,6 +37,7 @@ import {
   subscribeSettings,
   updateSettings,
 } from '@/entrypoints/shared/settings/settings';
+import { IconMoon, IconSparkles, IconSun } from '@/entrypoints/shared/ui/icons';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import { DownloadsAccessScreen } from './onboarding/DownloadsAccessScreen';
 
@@ -378,7 +379,11 @@ function App(): JSX.Element {
         className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-default-600 hover:text-default-900 transition-colors cursor-pointer"
         title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
       >
-        {theme === 'dark' ? '☀️' : '🌙'}
+        {theme === 'dark' ? (
+          <IconSun className="w-4 h-4" />
+        ) : (
+          <IconMoon className="w-4 h-4" />
+        )}
       </button>
 
       {/* Floating Saved Chip */}
@@ -649,9 +654,7 @@ function App(): JSX.Element {
                     {item.upgrade && (
                       <div className="mt-2 p-2 bg-primary-50 dark:bg-primary-100/10 rounded-md border border-primary-200/50 dark:border-primary-400/20">
                         <div className="flex items-center gap-1.5 mb-1">
-                          <span className="text-primary-600 dark:text-primary-400">
-                            ✨
-                          </span>
+                          <IconSparkles className="w-4 h-4 text-primary-600 dark:text-primary-400" />
                           <span className="text-primary-700 dark:text-primary-300 font-medium text-[11px]">
                             Upgrade available
                           </span>

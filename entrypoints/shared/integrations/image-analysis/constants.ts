@@ -47,7 +47,7 @@ export const HIGH_CONFIDENCE_DISPLAY_THRESHOLD = 0.8;
  */
 export const MULTIMODAL_SETUP_INSTRUCTIONS = `Chrome's multimodal AI (image analysis) is not enabled yet.
 
-⚠️  IMPORTANT: Flag must be set to "Enabled" (NOT "Default")
+[!] IMPORTANT: Flag must be set to "Enabled" (NOT "Default")
 "Default" state does NOT enable multimodal support.
 
 To enable multimodal AI:
