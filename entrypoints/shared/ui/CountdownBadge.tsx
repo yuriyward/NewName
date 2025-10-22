@@ -25,18 +25,12 @@ export const CountdownBadge: React.FC<CountdownBadgeProps> = ({
   seconds,
   isPaused = false,
 }) => {
-  const isUrgent = seconds <= 5;
-
   return (
-    <div
+    <span
       aria-hidden="true"
-      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium transition-colors ${
-        isUrgent
-          ? 'bg-warning-100 text-warning-700'
-          : 'bg-default-100 text-default-700'
-      } ${isPaused ? 'opacity-60' : ''}`}
+      className="text-xs font-medium bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-nowrap flex-shrink-0 flex items-center justify-center gap-1"
     >
-      {formatCountdown(seconds)}
-    </div>
+      {isPaused ? '⏸' : formatCountdown(seconds)}
+    </span>
   );
 };

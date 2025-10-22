@@ -4,3 +4,80 @@
 @plugin "../hero.ts";
 @source '../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}';
 @custom-variant dark (&:is(.dark *));
+
+@layer base {
+  :root {
+    /* Color System */
+    --heroui-primary: #18181b;
+    --heroui-primary-foreground: #ffffff;
+    --heroui-secondary: #71717a;
+    --heroui-success: #22c55e;
+    --heroui-warning: #eab308;
+    --heroui-danger: #ef4444;
+    --heroui-background: #ffffff;
+    --heroui-foreground: #09090b;
+    --heroui-content1: #ffffff;
+    --heroui-content2: #f8f8f8;
+    --heroui-content3: #e5e5e5;
+    --heroui-content4: #d1d1d1;
+    --heroui-default: #f8f8f8;
+    --heroui-default-foreground: #18181b;
+  }
+
+  [data-theme="dark"] {
+    --heroui-primary: #ffffff;
+    --heroui-primary-foreground: #09090b;
+    --heroui-background: #09090b;
+    --heroui-foreground: #fafafa;
+    --heroui-content1: #18181b;
+    --heroui-content2: #27272a;
+    --heroui-content3: #3f3f46;
+    --heroui-content4: #52525b;
+    --heroui-default: #27272a;
+    --heroui-default-foreground: #fafafa;
+  }
+}
+
+@layer components {
+  .heroui-button {
+    @apply inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-sm font-normal text-sm cursor-pointer transition-all;
+  }
+
+  /* Button Size Variants */
+  .heroui-button-sm {
+    @apply px-2 py-1 text-xs;
+  }
+
+  .heroui-button-md {
+    @apply px-2.5 py-1.5 text-sm;
+  }
+
+  .heroui-button-lg {
+    @apply px-3 py-2 text-sm;
+  }
+
+  .heroui-button-primary {
+    @apply bg-[var(--heroui-primary)] text-[var(--heroui-primary-foreground)] hover:opacity-80;
+  }
+
+  .heroui-button-secondary {
+    @apply bg-[var(--heroui-default)] text-[var(--heroui-default-foreground)] hover:bg-[var(--heroui-content2)] hover:brightness-95 transition-all duration-200;
+  }
+
+  .heroui-chip {
+    @apply inline-flex items-center gap-1 px-2 py-1 rounded-sm text-xs font-normal bg-[var(--heroui-content2)];
+  }
+
+  /* Chip Size Variants */
+  .heroui-chip-sm {
+    @apply px-1.5 py-0.5 text-xs;
+  }
+
+  .heroui-chip-md {
+    @apply px-2 py-1 text-xs;
+  }
+
+  .heroui-chip-lg {
+    @apply px-2.5 py-1.5 text-sm;
+  }
+}

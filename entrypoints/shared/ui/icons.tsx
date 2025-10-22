@@ -10,6 +10,7 @@ import {
   ExclamationTriangleIcon,
   EyeIcon,
   MoonIcon,
+  PauseIcon,
   ShieldCheckIcon,
   SparklesIcon,
   SunIcon,
@@ -76,3 +77,8 @@ export const IconShield: React.FC<IconProps> = ({
   className = 'w-4 h-4',
   ...props
 }) => <ShieldCheckIcon className={className} {...props} />;
+
+export const IconPause: React.FC<IconProps> = ({
+  className = 'w-4 h-4',
+  ...props
+}) => <PauseIcon className={className} {...props} />;

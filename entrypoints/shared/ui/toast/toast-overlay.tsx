@@ -13,10 +13,8 @@ export interface ToastOverlayProps {
   renameToasts: RenameToastState[];
   onApprove: (toast: ConfirmToastState, edited?: string) => void;
   onKeep: (toast: ConfirmToastState) => void;
-  onAlwaysApply: (toast: ConfirmToastState, edited?: string) => void;
   onRenameHoverStart: (toastId: string) => void;
   onRenameHoverEnd: (toastId: string) => void;
-  onRenameUndo: (toastId: string) => void;
 }
 
 export const ToastOverlay: React.FC<ToastOverlayProps> = React.memo(
@@ -25,10 +23,8 @@ export const ToastOverlay: React.FC<ToastOverlayProps> = React.memo(
     renameToasts,
     onApprove,
     onKeep,
-    onAlwaysApply,
     onRenameHoverStart,
     onRenameHoverEnd,
-    onRenameUndo,
   }) => {
     if (confirmToasts.length === 0 && renameToasts.length === 0) return null;
     return (
@@ -45,7 +41,6 @@ export const ToastOverlay: React.FC<ToastOverlayProps> = React.memo(
                   autoFocus={index === 0}
                   onApprove={(edited) => onApprove(toast, edited)}
                   onKeep={() => onKeep(toast)}
-                  onAlwaysApply={(edited) => onAlwaysApply(toast, edited)}
                 />
               </div>
             ))}
@@ -58,7 +53,6 @@ export const ToastOverlay: React.FC<ToastOverlayProps> = React.memo(
                   toast={toast}
                   onHoverStart={() => onRenameHoverStart(toast.toastId)}
                   onHoverEnd={() => onRenameHoverEnd(toast.toastId)}
-                  onUndo={() => onRenameUndo(toast.toastId)}
                 />
               </div>
             ))}
