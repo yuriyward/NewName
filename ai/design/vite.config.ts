@@ -1,6 +1,10 @@
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+
+const designRoot = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -14,7 +18,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': new URL('./src', import.meta.url).pathname,
+      '@': resolve(designRoot, 'src'),
+      '@base-app': resolve(designRoot, '..', '..'),
     },
   },
 });

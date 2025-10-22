@@ -1,9 +1,12 @@
 import { SparklesIcon } from '@heroicons/react/16/solid';
 import { useReducer } from 'react';
 import {
+  type FilenamePresetKey,
+  filenameVariants,
+} from '../mocks/notification-data';
+import {
   CompactCodeSnippet,
   FilenamePresetToggles,
-  filenameVariants,
   ImplRef,
   OnboardingScreenPreview,
   StatePreview,
@@ -12,7 +15,7 @@ import {
 } from '../notification-examples';
 
 type ConfirmState = 'pending' | 'applied' | 'error';
-type FilenamePreset = keyof typeof filenameVariants;
+type FilenamePreset = FilenamePresetKey;
 
 interface NotificationsState {
   confirmState: ConfirmState;
