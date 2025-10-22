@@ -1,12 +1,11 @@
 import {
   ArrowPathIcon,
+  BellIcon,
   BoltIcon,
   CheckIcon,
   ClipboardIcon,
   CubeIcon,
   DocumentTextIcon,
-  EllipsisHorizontalIcon,
-  ExclamationTriangleIcon,
   EyeIcon,
   LanguageIcon,
   MoonIcon,
@@ -14,8 +13,17 @@ import {
   SparklesIcon,
   SunIcon,
   SwatchIcon,
-} from '@heroicons/react/24/outline';
+} from '@heroicons/react/16/solid';
 import { useEffect, useState } from 'react';
+import {
+  CompactCodeSnippet,
+  FilenamePresetToggles,
+  ImplRef,
+  OnboardingScreenPreview,
+  StatePreview,
+  StateToggleButton,
+  UpgradeConfirmToastPreview,
+} from './notification-examples';
 
 // Theme context for dark/light mode
 const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
@@ -99,8 +107,7 @@ const BrandShowcase = () => {
     { id: 'colors', title: 'Colors', icon: SwatchIcon },
     { id: 'typography', title: 'Typography', icon: LanguageIcon },
     { id: 'components', title: 'Components', icon: CubeIcon },
-    { id: 'patterns', title: 'Patterns', icon: EllipsisHorizontalIcon },
-    { id: 'states', title: 'States', icon: BoltIcon },
+    { id: 'notifications', title: 'Notifications', icon: BellIcon },
   ];
 
   return (
@@ -137,9 +144,8 @@ const BrandShowcase = () => {
                     <button
                       key={section.id}
                       type="button"
-                      className={`nav-link flex items-center gap-2 ${
-                        activeSection === section.id ? 'active' : ''
-                      }`}
+                      className={`nav-link flex items-center gap-2 ${activeSection === section.id ? 'active' : ''
+                        }`}
                       onClick={() => setActiveSection(section.id)}
                       aria-current={
                         activeSection === section.id ? 'page' : undefined
@@ -160,8 +166,7 @@ const BrandShowcase = () => {
             {activeSection === 'colors' && <ColorsSection />}
             {activeSection === 'typography' && <TypographySection />}
             {activeSection === 'components' && <ComponentsSection />}
-            {activeSection === 'patterns' && <PatternsSection />}
-            {activeSection === 'states' && <StatesSection />}
+            {activeSection === 'notifications' && <NotificationsSection />}
           </main>
         </div>
       </div>
@@ -485,50 +490,185 @@ const ComponentsSection = () => (
   </div>
 );
 
-// Patterns Section
-const PatternsSection = () => (
-  <div className="space-y-3">
-    <h2 className="text-xl font-bold">UI Patterns</h2>
-    <div className="heroui-card">
-      <h3 className="text-sm font-semibold mb-2">Upgrade Notification</h3>
-      <div className="heroui-toast mb-3">
-        <SparklesIcon className="w-4 h-4 flex-shrink-0" />
-        <div className="flex-1">
-          <p className="font-medium">Found better name:</p>
-          <p className="text-xs opacity-80">
-            <code>Original.pdf</code> →{' '}
-            <strong>Database — CORS for Edge Functions</strong>
+// Notifications Section (Compact)
+const NotificationsSection = () => {
+  const [confirmState, setConfirmState] = useState('pending');
+  const [filenamePreset, setFilenamePreset] = useState('normal');
+
+  return (
+    <div className="space-y-3">
+      <h2 className="text-xl font-bold">Notifications & Toasts</h2>
+
+      {/* Filename Length Presets */}
+      <div className="heroui-card">
+        <h3 className="text-sm font-semibold mb-2">Filename Length Presets</h3>
+        <p className="text-xs opacity-70 mb-2">
+          Test all notifications with different filename lengths:
+        </p>
+        <FilenamePresetToggles
+          selected={filenamePreset}
+          onChange={setFilenamePreset}
+        />
+      </div>
+
+      {/* Upgrade Confirm Toast Section */}
+      <div className="heroui-card">
+        <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+          <SparklesIcon className="w-4 h-4" />
+          Upgrade Notification (Confirm Pattern)
+        </h3>
+        <div className="space-y-2">
+          <StateToggleButton
+            states={['pending', 'applied', 'error']}
+            current={confirmState}
+            onChange={setConfirmState}
+          />
+          <div className="space-y-1.5">
+            <p className="text-xs opacity-70">
+              State: <strong>{confirmState}</strong>
+              {confirmState === 'pending' && (
+                <span className="ml-2 text-default-500">
+                  • Hover over toast to see pause/edit state
+                </span>
+              )}
+            </p>
+            <div className="p-2 bg-default-100 rounded border border-default-200">
+              <UpgradeConfirmToastPreview
+                state={confirmState}
+                filenamePreset={filenamePreset}
+              />
+            </div>
+          </div>
+          <div className="text-xs opacity-70 space-y-1 bg-blue-50 border border-blue-200 rounded p-2">
+            <p>
+              <strong>Behavior:</strong>
+            </p>
+            <ul className="list-disc list-inside space-y-0.5">
+              <li>Auto-rename countdown runs by default (5s)</li>
+              <li>Hover pauses countdown and reveals buttons + inline edit</li>
+              <li>Edit the filename in textarea (auto-show on hover)</li>
+              <li>Choose "Rename" or "Keep" to resolve</li>
+              <li>Resume countdown when hover ends without action</li>
+            </ul>
+          </div>
+          <ImplRef
+            file="entrypoints/shared/ui/ConfirmToast.tsx"
+            description="Upgrade notification with auto-rename + hover pause pattern"
+          />
+        </div>
+      </div>
+
+      {/* Upgrade Notification Details (Contextual Upgrade) */}
+      <div className="heroui-card">
+        <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+          <SparklesIcon className="w-4 h-4" />
+          Contextual Upgrade Pipeline
+        </h3>
+        <div className="space-y-2 text-xs opacity-70">
+          <p>
+            After the <strong>Upgrade Notification (Confirm Pattern)</strong> resolves, the contextual upgrade pipeline runs in the background to generate smarter suggestions.
           </p>
+          <div className="bg-default-100 rounded p-2 space-y-1">
+            <p>
+              <strong>Confidence Levels:</strong>
+            </p>
+            <ul className="list-disc list-inside space-y-0.5">
+              <li>High - Very confident this is the right name</li>
+              <li>Suggested - Good alternative, worth considering</li>
+              <li>Alternative - Additional option, lower confidence</li>
+            </ul>
+          </div>
+          <div className="bg-default-100 rounded p-2 space-y-1">
+            <p>
+              <strong>Reason tags:</strong> Title, Date, Geo, Source, Language
+            </p>
+            <p>
+              <strong>Actions:</strong> Apply, Details, Not now, Always apply for type
+            </p>
+          </div>
+          <ImplRef
+            file="entrypoints/background/upgrade/"
+            description="Contextual upgrade pipeline (background AI analysis)"
+          />
+        </div>
+      </div>
+
+      {/* Onboarding Screens */}
+      <div className="heroui-card">
+        <h3 className="text-sm font-semibold mb-2">
+          Onboarding Screens (PRD 3)
+        </h3>
+        <div className="grid grid-cols-4 gap-2">
+          {[1, 2, 3, 4].map((screen) => (
+            <OnboardingScreenPreview key={screen} screen={screen} />
+          ))}
+        </div>
+        <div className="text-xs opacity-70 mt-2 space-y-1">
+          <p>Screen 1: Mode selection (Balanced, Silent, Careful, Custom)</p>
+          <p>Screen 2: Cloud assist toggle + per-type checkboxes</p>
+          <p>Screen 3: Downloads folder permission grant</p>
+          <p>Screen 4: Enable on-device AI models</p>
+        </div>
+      </div>
+
+      {/* Empty/Error States */}
+      <div className="heroui-card">
+        <h3 className="text-sm font-semibold mb-2">
+          Error & Processing States
+        </h3>
+        <div className="space-y-2">
+          <StatePreview type="error" />
+          <StatePreview type="permission" />
+          <StatePreview type="processing" />
+          <div className="text-xs opacity-70">
+            <p>
+              <strong>PRD copy (Section 6):</strong>
+            </p>
+            <ul className="list-disc list-inside space-y-1 mt-1">
+              <li>"🧠 Analyzing first pages…"</li>
+              <li>"☁️ Using cloud assist (per your settings)…"</li>
+              <li>"On-device model not ready — using Metadata-only mode."</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Copy Guidelines */}
+      <div className="heroui-card">
+        <h3 className="text-sm font-semibold mb-2">PRD Copy Examples</h3>
+        <div className="space-y-2 text-xs">
+          <div>
+            <p className="font-medium mb-1">Success:</p>
+            <CompactCodeSnippet
+              code={
+                '✨ Found better name: **Database — CORS**\n✅ Applied smarter name: **…**\n"Kept original — already clear."'
+              }
+              label="Renamed toast & kept toast"
+            />
+          </div>
+          <div>
+            <p className="font-medium mb-1">Processing:</p>
+            <CompactCodeSnippet
+              code={
+                '🧠 Analyzing first pages…\n📖 Reading document…\n⚡ Almost ready with upgrade…'
+              }
+              label="Background processing messages"
+            />
+          </div>
+          <div>
+            <p className="font-medium mb-1">Error/Fallback:</p>
+            <CompactCodeSnippet
+              code={
+                'On-device model not ready\nTaking longer than expected\nFile is busy — retrying…'
+              }
+              label="Error/timeout messages"
+            />
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
-
-// States Section
-const StatesSection = () => (
-  <div className="space-y-3">
-    <h2 className="text-xl font-bold">UI States</h2>
-
-    <div className="heroui-card">
-      <h3 className="text-sm font-semibold mb-2">Success</h3>
-      <div className="heroui-toast">
-        <CheckIcon className="w-4 h-4 text-[var(--heroui-success)]" />
-        <p>
-          Applied smarter name: <strong>Document-Title-2024-03-04</strong>
-        </p>
-      </div>
-    </div>
-
-    <div className="heroui-card">
-      <h3 className="text-sm font-semibold mb-2">Error</h3>
-      <div className="heroui-toast">
-        <ExclamationTriangleIcon className="w-4 h-4 text-[var(--heroui-danger)]" />
-        <p>On-device model not ready — using Metadata-only mode.</p>
-      </div>
-    </div>
-  </div>
-);
+  );
+};
 
 // Main App
 const App = () => {

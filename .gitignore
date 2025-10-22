@@ -35,3 +35,4 @@ tmp/
 *.sln
 *.sw?
 docs/SGR-docs.md
+ai/design/dist
