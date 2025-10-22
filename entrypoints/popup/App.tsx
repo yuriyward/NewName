@@ -136,7 +136,7 @@ function App(): JSX.Element {
           const newTheme = theme === 'dark' ? 'light' : 'dark';
           void updateThemePreference(newTheme);
         }}
-        className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-default-600 hover:text-default-900 transition-colors cursor-pointer"
+        className="absolute top-2 right-2 z-20 w-7 h-7 rounded-sm bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-zinc-900 transition-all cursor-pointer"
         title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
       >
         {theme === 'dark' ? (
@@ -199,7 +199,7 @@ function App(): JSX.Element {
           <button
             type="button"
             onClick={openOnboarding}
-            className="inline-flex items-center justify-center rounded border border-warning-400 px-3 py-1 text-[11px] font-semibold text-warning-800 transition hover:bg-warning-100"
+            className="inline-flex items-center justify-center gap-1 px-2 py-1 rounded-sm font-normal text-xs cursor-pointer transition-all bg-zinc-900 text-white hover:opacity-80"
           >
             Grant access
           </button>
@@ -217,9 +217,9 @@ function App(): JSX.Element {
         classNames={{
           tabList: 'gap-6 w-full relative p-0',
           cursor: 'w-full',
-          tab: 'px-0 h-10',
+          tab: 'px-0 h-10 rounded-none transition-colors data-[focus-visible=true]:outline data-[focus-visible=true]:outline-2 data-[focus-visible=true]:outline-offset-2 data-[focus-visible=true]:outline-default-400',
           tabContent:
-            'text-default-500 group-data-[selected=true]:text-foreground',
+            'text-default-600 transition-colors group-data-[hover=true]:text-default-800 group-data-[selected=true]:text-foreground group-data-[selected=true]:font-medium',
         }}
       >
         <Tab

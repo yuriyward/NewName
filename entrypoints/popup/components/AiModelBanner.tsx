@@ -57,7 +57,7 @@ const AiModelBanner = ({
       <button
         type="button"
         onClick={onEnableAi}
-        className="inline-flex items-center justify-center rounded border border-primary-400 px-3 py-1 text-[11px] font-semibold text-primary-700 transition hover:bg-primary-50"
+        className="inline-flex items-center justify-center gap-1 px-2 py-1 rounded-sm font-normal text-xs cursor-pointer transition-all bg-zinc-900 text-white hover:opacity-80"
       >
         Enable AI models
       </button>

@@ -1,6 +1,7 @@
+import { CheckIcon } from '@heroicons/react/16/solid';
 import { Chip } from '@heroui/chip';
 import type { HistoryItem } from '@/entrypoints/shared/history/types';
-import { IconSparkles } from '@/entrypoints/shared/ui/icons';
+import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
 import type { HistoryFilter } from '../hooks/useHistory';
 
 interface HistoryTabProps {
@@ -8,6 +9,29 @@ interface HistoryTabProps {
   onFilterChange: (filter: HistoryFilter) => void;
   filteredHistory: HistoryItem[];
 }
+
+/**
+ * Get the rename label based on the source of the rename
+ */
+const getRenameLabel = (item: HistoryItem): string => {
+  const hasAiUpgrade =
+    item.upgrade?.source === 'ai' &&
+    (item.phase === 'contextual-upgrade' ||
+      item.reasonTags.includes('ai-text-summary') ||
+      item.reasonTags.some((tag) => tag.startsWith('ai-')));
+
+  if (hasAiUpgrade) {
+    return 'Renamed with AI';
+  }
+  if (item.source === 'cloud') {
+    return 'Renamed with Cloud AI';
+  }
+  if (item.source === 'on-device') {
+    return 'Renamed with AI';
+  }
+  // metadata source
+  return 'Renamed';
+};
 
 const HistoryTab = ({
   historyFilter,
@@ -40,92 +64,99 @@ const HistoryTab = ({
         filteredHistory.slice(0, 20).map((item) => (
           <div
             key={item.id}
-            className="p-2 bg-content1 rounded-md border border-divider"
+            className="rounded-lg border border-content3 bg-content1 shadow-sm"
           >
-            <div className="flex items-start justify-between gap-2 mb-1">
-              <span className="font-medium text-foreground flex-1 break-all">
-                {item.final}
-              </span>
-              <Chip
-                size="sm"
-                variant="flat"
-                color={
-                  item.fileType === 'video' || item.fileType === 'audio'
-                    ? 'secondary'
-                    : 'default'
-                }
-                className="text-[10px] flex-shrink-0"
-              >
-                {item.fileType}
-              </Chip>
-            </div>
-
-            {item.upgrade && (
-              <div className="mt-2 p-2 bg-primary-50 dark:bg-primary-100/10 rounded-md border border-primary-200/50 dark:border-primary-400/20">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <IconSparkles className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                  <span className="text-primary-700 dark:text-primary-300 font-medium text-[11px]">
-                    Upgrade available
-                  </span>
+            <div className="p-2.5 space-y-1.5">
+              {/* Header with icon and file type */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <CheckIcon className="w-4 h-4 text-green-600 flex-shrink-0" />
+                  <p className="text-xs opacity-80">{getRenameLabel(item)}</p>
                 </div>
-                <p className="text-foreground dark:text-foreground/90 break-all text-[11px] leading-relaxed">
-                  {item.upgrade.proposedFilename}
-                </p>
-                <div className="flex gap-1 mt-1.5 flex-wrap">
-                  {item.upgrade.reasonTags.map((tag) => (
-                    <Chip
-                      key={tag}
-                      size="sm"
-                      variant="flat"
-                      color="primary"
-                      className="text-[9px] h-4"
-                    >
-                      {tag}
-                    </Chip>
-                  ))}
-                </div>
+                <Chip
+                  size="sm"
+                  variant="flat"
+                  color={
+                    item.fileType === 'video' || item.fileType === 'audio'
+                      ? 'secondary'
+                      : 'default'
+                  }
+                  className="text-[10px] flex-shrink-0"
+                >
+                  {item.fileType}
+                </Chip>
               </div>
-            )}
 
-            {item.media &&
-              item.media.status === 'success' &&
-              item.media.summary && (
-                <div className="mt-1 text-[10px] text-default-500">
-                  {item.media.summary.video[0] && (
-                    <span>
-                      {item.media.summary.video[0].width}×
-                      {item.media.summary.video[0].height}
-                      {item.media.summary.video[0].frameRate &&
-                        ` • ${Math.round(item.media.summary.video[0].frameRate)}fps`}
-                    </span>
-                  )}
-                  {item.media.summary.audio[0] && (
-                    <span>
-                      {item.media.summary.audio[0].channels && (
-                        <> • {item.media.summary.audio[0].channels}ch</>
-                      )}
-                      {item.media.summary.audio[0].sampleRateHz && (
-                        <>
-                          {' '}
-                          •{' '}
+              {/* Filename display with before/after */}
+              <div className="ml-5">
+                <FilenameLabel
+                  originalFilename={item.original}
+                  newFilename={item.final}
+                  className="text-xs"
+                />
+              </div>
+
+              {/* Media metadata (if available) */}
+              {item.media &&
+                item.media.status === 'success' &&
+                item.media.summary && (
+                  <div className="ml-5 text-[10px] text-default-500 flex items-center gap-1 flex-wrap">
+                    {item.media.summary.video[0] && (
+                      <>
+                        <span>
+                          {item.media.summary.video[0].width}×
+                          {item.media.summary.video[0].height}
+                        </span>
+                        {item.media.summary.video[0].frameRate && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              {Math.round(
+                                item.media.summary.video[0].frameRate,
+                              )}
+                              fps
+                            </span>
+                          </>
+                        )}
+                      </>
+                    )}
+                    {item.media.summary.audio[0] && (
+                      <>
+                        {item.media.summary.audio[0].channels && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              {item.media.summary.audio[0].channels}ch
+                            </span>
+                          </>
+                        )}
+                        {item.media.summary.audio[0].sampleRateHz && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              {Math.round(
+                                item.media.summary.audio[0].sampleRateHz / 1000,
+                              )}
+                              kHz
+                            </span>
+                          </>
+                        )}
+                      </>
+                    )}
+                    {item.media.summary.general.durationMs && (
+                      <>
+                        <span>•</span>
+                        <span>
                           {Math.round(
-                            item.media.summary.audio[0].sampleRateHz / 1000,
+                            item.media.summary.general.durationMs / 1000,
                           )}
-                          kHz
-                        </>
-                      )}
-                    </span>
-                  )}
-                  {item.media.summary.general.durationMs && (
-                    <span>
-                      {' '}
-                      •{' '}
-                      {Math.round(item.media.summary.general.durationMs / 1000)}
-                      s
-                    </span>
-                  )}
-                </div>
-              )}
+                          s
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
+            </div>
           </div>
         ))
       )}

@@ -45,13 +45,24 @@ function determineFinalFilename(
 
 function applyHistoryUpdate(
   item: HistoryItem,
+  entry: ConfirmToastEntry,
   finalName: string,
   finalPath: string,
 ): HistoryItem {
+  const isContextualUpgrade =
+    entry.proposal.triggerSources.includes('contextual-upgrade') ||
+    item.upgrade?.source === 'ai';
+  const nextReasonTags =
+    isContextualUpgrade && item.upgrade?.reasonTags
+      ? item.upgrade.reasonTags
+      : item.reasonTags;
+
   return {
     ...item,
     final: finalName,
     path: finalPath,
+    phase: isContextualUpgrade ? 'contextual-upgrade' : item.phase,
+    reasonTags: isContextualUpgrade ? nextReasonTags : item.reasonTags,
   };
 }
 
@@ -108,7 +119,7 @@ export async function executeApply(
 
   try {
     const updated = await updateHistoryItem(entry.historyId, (item) =>
-      applyHistoryUpdate(item, result.finalName, result.finalPath),
+      applyHistoryUpdate(item, entry, result.finalName, result.finalPath),
     );
     if (!updated) {
       debugLogger.warn(
