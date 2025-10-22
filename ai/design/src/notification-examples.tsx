@@ -4,7 +4,6 @@ import {
   ExclamationTriangleIcon,
   PauseIcon,
   SparklesIcon,
-  XMarkIcon,
 } from '@heroicons/react/16/solid';
 import { Tooltip } from '@heroui/tooltip';
 import type React from 'react';
@@ -216,6 +215,7 @@ export const UpgradeConfirmToastPreview = ({
   }, [isHovered, editedName, variants.renamed]);
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: Hover interactions are required for the design doc preview and do not ship to production components.
     <div
       className="rounded-lg border border-[var(--heroui-content3)] bg-[var(--heroui-content1)] shadow-2xl backdrop-blur w-[400px]"
       onMouseEnter={() => setIsHovered(true)}
@@ -223,20 +223,22 @@ export const UpgradeConfirmToastPreview = ({
     >
       <div className="p-3 space-y-2">
         {/* Header with icon and countdown */}
-        <div className={`flex ${state === 'error' ? 'items-center' : 'items-start'} justify-between gap-2`}>
-          <div className={`flex ${state === 'error' ? 'items-center' : 'items-start'} gap-2 flex-1 min-w-0`}>
-            <Icon className={`w-4 h-4 ${config.color} flex-shrink-0 ${state !== 'error' ? 'mt-0.5' : ''}`} />
+        <div
+          className={`flex ${state === 'error' ? 'items-center' : 'items-start'} justify-between gap-2`}
+        >
+          <div
+            className={`flex ${state === 'error' ? 'items-center' : 'items-start'} gap-2 flex-1 min-w-0`}
+          >
+            <Icon
+              className={`w-4 h-4 ${config.color} flex-shrink-0 ${state !== 'error' ? 'mt-0.5' : ''}`}
+            />
             <div className="flex-1 min-w-0">
               <p className="text-xs opacity-80">{config.message}</p>
             </div>
           </div>
           {isPending && (
             <span className="text-xs font-medium bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-nowrap flex-shrink-0 flex items-center justify-center gap-1">
-              {isHovered ? (
-                <PauseIcon className="w-3.5 h-3.5" />
-              ) : (
-                '5s'
-              )}
+              {isHovered ? <PauseIcon className="w-3.5 h-3.5" /> : '5s'}
             </span>
           )}
         </div>
