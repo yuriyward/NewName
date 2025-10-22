@@ -92,7 +92,16 @@ offscreen/ # 6 files, 4 directories
   ├─ pdf-analysis-handler.ts # Offscreen PDF analysis request handler Handles PDF file extraction, page rendering, and image-based analysis
   ├─ sandbox-bridge.ts # Bridge for communicating with the sandboxed iframe that runs MediaInfo.js. Coordinates analysis requests and response handling.
   └─ text-analysis-handler.ts # 1 export
-popup/ # 2 files, 1 directories
+popup/ # 2 files, 3 directories
+  ├─ components/ # 3 files
+  │ ├─ AiModelBanner.tsx # 1 export
+  │ ├─ HistoryTab.tsx # 1 export
+  │ └─ StrategyTab.tsx # 1 export
+  ├─ hooks/ # 4 files
+  │ ├─ useAiModelStatus.ts # 2 exports
+  │ ├─ useDownloadsAccess.ts # 1 export
+  │ ├─ useHistory.ts # 2 exports
+  │ └─ usePopupSettings.ts # 1 export
   ├─ onboarding/ # 1 file
   │ └─ DownloadsAccessScreen.tsx # Compact downloads access onboarding screen for popup
   ├─ App.tsx # Settings popup for configuring deterministic Instant Baseline strategies
@@ -202,7 +211,7 @@ shared/ # 17 directories
   ├─ toast/ # 2 files
   │ ├─ timing-constants.ts # Centralized timing constants for toast behavior. All values are in milliseconds unless otherwise noted.
   │ └─ types.ts # Shared types for confirm toast messaging between contexts.
-  ├─ ui/ # 10 files, 1 directories
+  ├─ ui/ # 11 files, 1 directories
   │ ├─ toast/ # 8 files
   │ │ ├─ keyboard-handler.ts # Keyboard event handler for toast interactions.
   │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames.
@@ -219,6 +228,7 @@ shared/ # 17 directories
   │ ├─ CountdownBadge.tsx # Countdown badge component Displays the auto-apply countdown with color changes when urgent
   │ ├─ FilenameEditor.tsx # Filename editor component Handles both display and editing modes for the proposed filename
   │ ├─ FilenameLabel.tsx # 1 export
+  │ ├─ icons.tsx # Icon component wrapper using Heroicons React library Provides a centralized, type-safe way to use icons throughout the app
   │ ├─ theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
   │ ├─ useToastCountdown.ts # Countdown timer hooks for auto-apply toast
   │ └─ useToastEditor.ts # Editor hooks for toast filename editing
@@ -864,6 +874,50 @@ Renders pages ...
 
 **Exports**:
 - `export default` - item implementation
+
+### popup/components/AiModelBanner.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export default` - item implementation
+
+### popup/components/HistoryTab.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export default` - item implementation
+
+### popup/components/StrategyTab.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export default` - item implementation
+
+### popup/hooks/useAiModelStatus.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export describeAiState` - item implementation
+- `export useAiModelStatus` - item implementation
+
+### popup/hooks/useDownloadsAccess.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export useDownloadsAccess` - item implementation
+
+### popup/hooks/useHistory.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export HistoryFilter` - item implementation
+- `export useHistory` - item implementation
+
+### popup/hooks/usePopupSettings.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export usePopupSettings` - item implementation
 
 ### popup/main.tsx
 **Purpose**: React popup entry point and application bootstrapping
@@ -1796,6 +1850,22 @@ Represents different file c...
 - `export getConfirmToastManager` - item implementation
 - `export resetConfirmToastManagerForTesting` - item implementation
 
+### shared/ui/icons.tsx
+**Purpose**: Icon component wrapper using Heroicons React library Provides a centralized, type-safe way to use icons throughout the app
+
+**Exports**:
+- `export IconProps` - item implementation
+- `export IconBolt` - item implementation
+- `export IconCheckmark` - Icon component factory - provides semantic icon component...
+- `export IconError` - item implementation
+- `export IconEye` - item implementation
+- `export IconMoon` - item implementation
+- `export IconShield` - item implementation
+- `export IconSparkles` - item implementation
+- `export IconSuccess` - item implementation
+- `export IconSun` - item implementation
+- `export IconWarning` - item implementation
+
 ### shared/ui/theme-service.ts
 **Purpose**: Theme management application service Handles automatic theme detection and daily reset logic
 
@@ -1900,6 +1970,7 @@ Handles...
 - `export basename` - Extract the base filename from a path, normalising Window...
 - `export extractExtension` - Extract the file extension from a filename, handling mult...
 - `export fallbackNameFromUrl` - Generate a fallback filename from a URL when no filename ...
+- `export truncateFilenameMiddle` - Truncate a filename in the middle while preserving the ex...
 
 ### shared/utils/id.ts
 **Purpose**: Utility helpers for generating identifiers.
