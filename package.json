@@ -7,8 +7,10 @@
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
+    "dev:design": "cd ai/design && bun run dev",
     "build": "wxt build",
     "build:firefox": "wxt build -b firefox",
+    "build:design": "cd ai/design && bun run build",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
@@ -46,6 +48,7 @@
     "@heroui/tabs": "^2.2.23",
     "@heroui/theme": "2.4.23",
     "@heroui/toast": "^2.0.16",
+    "@heroui/tooltip": "^2.2.24",
     "@heroui/use-theme": "^2.1.10",
     "@webext-core/messaging": "^2.3.0",
     "@webext-core/proxy-service": "^1.2.1",

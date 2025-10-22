@@ -56,3 +56,34 @@ export function fallbackNameFromUrl(
     return defaultName;
   }
 }
+
+/**
+ * Truncate a filename in the middle while preserving the extension.
+ *
+ * Example:
+ * truncateFilenameMiddle('very-long-filename.pdf', 20) // "very-lo...lename.pdf"
+ *
+ * @param filename - The filename to truncate.
+ * @param maxLength - Maximum length before truncation is applied.
+ */
+export function truncateFilenameMiddle(
+  filename: string,
+  maxLength = 50,
+): string {
+  if (filename.length <= maxLength) return filename;
+
+  const lastDotIndex = filename.lastIndexOf('.');
+  const ext = lastDotIndex > 0 ? filename.slice(lastDotIndex) : '';
+  const nameWithoutExt =
+    lastDotIndex > 0 ? filename.slice(0, lastDotIndex) : filename;
+
+  const ellipsis = '...';
+  const availableChars = maxLength - ellipsis.length - ext.length;
+  const startChars = Math.ceil(availableChars / 2);
+  const endChars = Math.floor(availableChars / 2);
+
+  const start = nameWithoutExt.slice(0, startChars);
+  const end = nameWithoutExt.slice(-endChars);
+
+  return `${start}${ellipsis}${end}${ext}`;
+}

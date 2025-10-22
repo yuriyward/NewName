@@ -4,6 +4,7 @@
 import type React from 'react';
 import type { RenameToastProposal } from '@/entrypoints/shared/toast/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
+import { IconCheckmark } from '@/entrypoints/shared/ui/icons';
 
 export interface RenameToastState extends RenameToastProposal {
   remainingMs: number;
@@ -41,7 +42,7 @@ export const RenameToast: React.FC<RenameToastProps> = ({
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5">
-          <span className="text-primary">✓</span>
+          <IconCheckmark className="w-4 h-4 text-primary" />
           <p className="text-sm font-semibold text-foreground">
             Rename applied
           </p>

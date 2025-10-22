@@ -1,0 +1,37 @@
+{
+  "name": "@newname/design-docs",
+  "description": "Design system documentation and component showcase",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@heroui/alert": "^2.2.26",
+    "@heroui/button": "^2.2.26",
+    "@heroui/card": "^2.2.24",
+    "@heroui/chip": "^2.2.21",
+    "@heroui/divider": "^2.2.19",
+    "@heroui/radio": "^2.3.26",
+    "@heroui/tabs": "^2.2.23",
+    "@heroui/tooltip": "^2.2.24",
+    "@heroui/use-theme": "^2.1.10",
+    "framer-motion": "12.23.22",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.13",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.9.2",
+    "vite": "^5.4.0",
+    "@vitejs/plugin-react": "^4.3.0"
+  }
+}
