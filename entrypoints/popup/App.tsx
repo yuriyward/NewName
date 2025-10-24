@@ -48,6 +48,7 @@ function App(): JSX.Element {
     filteredHistory,
     loadHistory,
     upgradeCount,
+    fileTypeCounts,
   } = useHistory();
   const {
     aiStatuses,
@@ -262,6 +263,7 @@ function App(): JSX.Element {
             historyFilter={historyFilter}
             onFilterChange={setHistoryFilter}
             filteredHistory={filteredHistory}
+            fileTypeCounts={fileTypeCounts}
           />
         </Tab>
       </Tabs>

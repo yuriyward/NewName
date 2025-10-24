@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@heroui/accordion": "^2.2.24",
     "@heroui/alert": "^2.2.26",
     "@heroui/button": "^2.2.26",
     "@heroui/card": "^2.2.24",

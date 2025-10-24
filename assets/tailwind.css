@@ -36,6 +36,7 @@
     --heroui-default: #27272a;
     --heroui-default-foreground: #fafafa;
   }
+
 }
 
 @layer components {
@@ -79,5 +80,36 @@
 
   .heroui-chip-lg {
     @apply px-2.5 py-1.5 text-sm;
+  }
+
+  /* Hover-visible scrollbar utility */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.2s ease-in-out;
+  }
+
+  .custom-scrollbar:hover {
+    scrollbar-color: var(--heroui-content3) transparent;
+  }
+
+  /* For Webkit browsers (Chrome, Safari, etc.) */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 4px;
+    transition: background-color 0.2s ease-in-out;
+  }
+
+  .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: var(--heroui-content3);
   }
 }
