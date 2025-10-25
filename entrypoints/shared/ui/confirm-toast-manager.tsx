@@ -116,38 +116,15 @@ export class ConfirmToastManager {
         onKeep={(toast) => {
           void this.actions.sendAction(toast, 'keep-original');
         }}
-        onAlwaysApply={(toast, edited) => {
-          if (!toast.allowAlwaysApply) {
-            void this.actions.sendAction(toast, 'approve', edited);
-            return;
-          }
-          void this.actions.sendAction(toast, 'always-apply', edited);
-        }}
         onRenameHoverStart={(id) => {
           this.pauseRenameToast(id);
         }}
         onRenameHoverEnd={(id) => {
           this.resumeRenameToast(id);
         }}
-        onRenameUndo={(id) => {
-          this.handleRenameUndo(id);
-        }}
       />,
     );
     this.keyboard.ensureKeyListener();
-  }
-
-  private handleRenameUndo(toastId: string): void {
-    const toast = this.state.getRenameToast(toastId);
-    if (!toast) return;
-    // TODO: Implement undo logic - need to send message to background
-    // For now, just dismiss the toast
-    this.state.removeRenameToast(toastId);
-    this.lifecycle.clearRemovalTimer(toastId);
-    this.render();
-    if (!this.state.hasRenameToasts()) {
-      this.lifecycle.stopRenameTicker();
-    }
   }
 
   private pauseRenameToast(toastId: string): void {

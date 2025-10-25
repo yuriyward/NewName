@@ -76,7 +76,6 @@ describe('ConfirmToast accessibility', () => {
         toast={toast}
         onApprove={vi.fn()}
         onKeep={vi.fn()}
-        onAlwaysApply={vi.fn()}
         autoFocus
       />,
     );
@@ -95,12 +94,7 @@ describe('ConfirmToast accessibility', () => {
     });
 
     const markup = renderToStaticMarkup(
-      <ConfirmToast
-        toast={toast}
-        onApprove={vi.fn()}
-        onKeep={vi.fn()}
-        onAlwaysApply={vi.fn()}
-      />,
+      <ConfirmToast toast={toast} onApprove={vi.fn()} onKeep={vi.fn()} />,
     );
 
     expect(markup).toContain('Auto-apply paused at 4 seconds');
