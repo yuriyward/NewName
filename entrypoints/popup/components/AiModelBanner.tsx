@@ -1,6 +1,7 @@
 import { Alert } from '@heroui/alert';
 import type { AiModelId } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import type { AiModelSetupState } from '@/entrypoints/shared/integrations/chrome-ai/setup-state';
+import { PrimaryButton } from './PrimaryButton';
 
 type AiModelBannerDetail = {
   id: AiModelId;
@@ -54,13 +55,7 @@ const AiModelBanner = ({
             : ''}
         </p>
       ) : null}
-      <button
-        type="button"
-        onClick={onEnableAi}
-        className="inline-flex items-center justify-center gap-1 px-2 py-1 rounded-sm font-normal text-xs cursor-pointer transition-all bg-zinc-900 text-white hover:opacity-80"
-      >
-        Enable AI models
-      </button>
+      <PrimaryButton onClick={onEnableAi}>Enable AI models</PrimaryButton>
     </Alert>
   );
 };

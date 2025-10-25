@@ -17,6 +17,8 @@ import { IconMoon, IconSun } from '@/entrypoints/shared/ui/icons';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import AiModelBanner from './components/AiModelBanner';
 import HistoryTab from './components/HistoryTab';
+import { IconButton } from './components/IconButton';
+import { PrimaryButton } from './components/PrimaryButton';
 import StrategyTab from './components/StrategyTab';
 import { describeAiState, useAiModelStatus } from './hooks/useAiModelStatus';
 import { useDownloadsAccess } from './hooks/useDownloadsAccess';
@@ -131,21 +133,21 @@ function App(): JSX.Element {
   return (
     <div className="w-96 p-3 bg-background text-foreground relative">
       {/* Dark Mode Toggle */}
-      <button
-        type="button"
+      <IconButton
         onClick={() => {
           const newTheme = theme === 'dark' ? 'light' : 'dark';
           void updateThemePreference(newTheme);
         }}
-        className="absolute top-2 right-2 z-20 w-7 h-7 rounded-sm bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-zinc-900 transition-all cursor-pointer"
+        icon={
+          theme === 'dark' ? (
+            <IconSun className="w-4 h-4" />
+          ) : (
+            <IconMoon className="w-4 h-4" />
+          )
+        }
         title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-      >
-        {theme === 'dark' ? (
-          <IconSun className="w-4 h-4" />
-        ) : (
-          <IconMoon className="w-4 h-4" />
-        )}
-      </button>
+        className="absolute top-2 right-2 z-20"
+      />
 
       {/* Floating Saved Chip */}
       {!saving && savedAt !== null && (
@@ -197,13 +199,7 @@ function App(): JSX.Element {
             Downloads access is disabled. Post-download renames and undo will be
             paused until access is granted.
           </p>
-          <button
-            type="button"
-            onClick={openOnboarding}
-            className="inline-flex items-center justify-center gap-1 px-2 py-1 rounded-sm font-normal text-xs cursor-pointer transition-all bg-zinc-900 text-white hover:opacity-80"
-          >
-            Grant access
-          </button>
+          <PrimaryButton onClick={openOnboarding}>Grant access</PrimaryButton>
         </Alert>
       ) : null}
 
