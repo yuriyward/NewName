@@ -7,14 +7,15 @@ import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { verifyDirectoryPermission } from '@/entrypoints/shared/filesystem/directory-picker';
 import { resolveFileHandle } from '@/entrypoints/shared/filesystem/file-reader';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
+import { AiRouter } from '@/entrypoints/shared/integrations/ai-provider/ai-router';
 import type {
   ImageUpgradeAnalysisRequest,
   ImageUpgradeAnalysisResponse,
   ImageUpgradeAnalysisUnavailable,
 } from '@/entrypoints/shared/integrations/image-analysis/types';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
+import { getSettings } from '@/entrypoints/shared/settings/settings';
 import { ingestImageForPrompt } from './image-analysis/image-ingestion';
-import { runImageUpgradePipeline } from './image-analysis/pipeline-orchestrator';
 
 let registered = false;
 
@@ -100,11 +101,21 @@ export function initializeImageAnalysisHandler(): void {
         },
       };
 
-      // Run AI upgrade pipeline
-      const aiResponse = await runImageUpgradePipeline(
-        request,
-        ingestionPayload,
-      );
+      // Get settings to configure AI router
+      const settings = await getSettings();
+      const router = new AiRouter({
+        cloudConfig: {
+          enabled: settings.cloud.enabled,
+          apiKey: settings.cloud.apiKey,
+          model: settings.cloud.model,
+          consentGiven: settings.cloud.consentGiven,
+          consentTimestamp: settings.cloud.consentTimestamp,
+        },
+        preferences: settings.processingPreferences,
+      });
+
+      // Run AI upgrade pipeline via router
+      const aiResponse = await router.analyzeImage(request, ingestionPayload);
       if (aiResponse) {
         return aiResponse;
       }

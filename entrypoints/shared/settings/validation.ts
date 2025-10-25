@@ -2,6 +2,7 @@
  * Settings validation and sanitization functions
  */
 import type {
+  CloudModel,
   CloudSettings,
   ConfirmModalDefaults,
   ConfirmToastSettings,
@@ -12,6 +13,8 @@ import type {
   MetadataToggles,
   Mode,
   PerTypeBehavior,
+  ProcessingMode,
+  ProcessingPreferences,
   Separator,
   Settings,
   Theme,
@@ -33,6 +36,14 @@ function isCloudTextFallbackMode(
   value: unknown,
 ): value is CloudSettings['textFallbackMode'] {
   return value === 'off' || value === 'ask' || value === 'always';
+}
+
+function isProcessingMode(value: unknown): value is ProcessingMode {
+  return value === 'auto' || value === 'local' || value === 'cloud';
+}
+
+function isCloudModel(value: unknown): value is CloudModel {
+  return value === 'gemini-2.5-flash' || value === 'gemini-flash-lite-latest';
 }
 
 export function isMode(value: unknown): value is Mode {
@@ -129,6 +140,20 @@ export function sanitizeCloudSettings(
     textFallbackMode: isCloudTextFallbackMode(input?.textFallbackMode)
       ? input.textFallbackMode
       : defaults.textFallbackMode,
+    model: isCloudModel(input?.model) ? input.model : defaults.model,
+    apiKey:
+      typeof input?.apiKey === 'string' || input?.apiKey === null
+        ? input.apiKey
+        : defaults.apiKey,
+    consentGiven:
+      typeof input?.consentGiven === 'boolean'
+        ? input.consentGiven
+        : defaults.consentGiven,
+    consentTimestamp:
+      typeof input?.consentTimestamp === 'number' ||
+      input?.consentTimestamp === null
+        ? input.consentTimestamp
+        : defaults.consentTimestamp,
   };
 }
 
@@ -220,6 +245,22 @@ export function sanitizeLocalization(
   };
 }
 
+export function sanitizeProcessingPreferences(
+  input: Partial<ProcessingPreferences> | undefined,
+): Settings['processingPreferences'] {
+  const defaults = DEFAULT_SETTINGS.processingPreferences;
+  return {
+    global: isProcessingMode(input?.global) ? input.global : defaults.global,
+    usePerTypeOverrides:
+      typeof input?.usePerTypeOverrides === 'boolean'
+        ? input.usePerTypeOverrides
+        : defaults.usePerTypeOverrides,
+    text: isProcessingMode(input?.text) ? input.text : defaults.text,
+    pdf: isProcessingMode(input?.pdf) ? input.pdf : defaults.pdf,
+    image: isProcessingMode(input?.image) ? input.image : defaults.image,
+  };
+}
+
 export function sanitizeSettings(data: unknown): Settings {
   if (!data || typeof data !== 'object') {
     return DEFAULT_SETTINGS;
@@ -264,6 +305,9 @@ export function sanitizeSettings(data: unknown): Settings {
     perType: sanitizePerType(raw.perType),
     metadataToggles: sanitizeMetadataToggles(raw.metadataToggles),
     cloud: sanitizeCloudSettings(raw.cloud),
+    processingPreferences: sanitizeProcessingPreferences(
+      raw.processingPreferences,
+    ),
     debug: sanitizeDebugSettings(raw.debug),
     notifyOnKeep,
     confirmModal: sanitizeConfirmModal(raw.confirmModal),

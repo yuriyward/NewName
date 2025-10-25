@@ -2,6 +2,8 @@
  * Settings popup for configuring deterministic Instant Baseline strategies
  */
 
+import { SunIcon } from '@heroicons/react/16/solid';
+import { Cog6ToothIcon, MoonIcon } from '@heroicons/react/24/outline';
 import { Alert } from '@heroui/alert';
 import { Chip } from '@heroui/chip';
 import { Skeleton } from '@heroui/skeleton';
@@ -13,7 +15,6 @@ import { browser, type PublicPath } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { AiModelId } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import { STRATEGY_OPTIONS } from '@/entrypoints/shared/pipeline/strategy-options';
-import { IconMoon, IconSun } from '@/entrypoints/shared/ui/icons';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import AiModelBanner from './components/AiModelBanner';
 import HistoryTab from './components/HistoryTab';
@@ -106,6 +107,15 @@ function App(): JSX.Element {
     }
   }, []);
 
+  const handleOpenSettings = useCallback(async () => {
+    try {
+      const url = browser.runtime.getURL('/settings.html' as PublicPath);
+      await browser.tabs.create({ url });
+    } catch (err) {
+      debugLogger.error('Failed to open settings page', { error: err });
+    }
+  }, []);
+
   if (!downloadsAccessChecked) {
     return (
       <div className="w-96 p-3 bg-background text-foreground">
@@ -132,6 +142,14 @@ function App(): JSX.Element {
 
   return (
     <div className="w-96 p-3 bg-background text-foreground relative">
+      {/* Settings Icon */}
+      <IconButton
+        onClick={() => void handleOpenSettings()}
+        icon={<Cog6ToothIcon className="size-4" />}
+        title="Open settings"
+        className="absolute top-2 right-10 z-20"
+      />
+
       {/* Dark Mode Toggle */}
       <IconButton
         onClick={() => {
@@ -140,9 +158,9 @@ function App(): JSX.Element {
         }}
         icon={
           theme === 'dark' ? (
-            <IconSun className="w-4 h-4" />
+            <SunIcon className="size-4" />
           ) : (
-            <IconMoon className="w-4 h-4" />
+            <MoonIcon className="size-4" />
           )
         }
         title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
@@ -155,7 +173,7 @@ function App(): JSX.Element {
           color="success"
           variant="flat"
           size="sm"
-          className="absolute top-2 right-10 z-10 text-xs animate-in fade-in slide-in-from-top-2 duration-300"
+          className="absolute top-2 right-18 z-10 text-xs animate-in fade-in slide-in-from-top-2 duration-300"
         >
           Saved
         </Chip>

@@ -5,6 +5,7 @@ import {
   resolveFileHandle,
 } from '@/entrypoints/shared/filesystem/file-reader';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
+import { AiRouter } from '@/entrypoints/shared/integrations/ai-provider/ai-router';
 import { normalizeTextBuffer } from '@/entrypoints/shared/integrations/text-analysis/normalize';
 import type {
   TextUpgradeAnalysisRequest,
@@ -13,7 +14,7 @@ import type {
   TextUpgradeIngestionResult,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
-import { runTextUpgradePipeline } from './text-analysis/pipeline-orchestrator';
+import { getSettings } from '@/entrypoints/shared/settings/settings';
 
 const DEFAULT_MAX_BYTES = 128 * 1024; // 128 KB
 
@@ -109,7 +110,20 @@ export function initializeTextAnalysisHandler(): void {
         });
       }
 
-      const aiResponse = await runTextUpgradePipeline(request, response);
+      // Get settings to configure AI router
+      const settings = await getSettings();
+      const router = new AiRouter({
+        cloudConfig: {
+          enabled: settings.cloud.enabled,
+          apiKey: settings.cloud.apiKey,
+          model: settings.cloud.model,
+          consentGiven: settings.cloud.consentGiven,
+          consentTimestamp: settings.cloud.consentTimestamp,
+        },
+        preferences: settings.processingPreferences,
+      });
+
+      const aiResponse = await router.analyzeText(request, response);
       if (aiResponse) {
         return aiResponse;
       }

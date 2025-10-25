@@ -2,9 +2,9 @@
  * RenameToast component displays confirmation feedback for applied renames.
  * Simplified design matching ai/design/src/notification-examples.tsx
  */
+import { CheckIcon } from '@heroicons/react/16/solid';
 import type React from 'react';
 import type { RenameToastProposal } from '@/entrypoints/shared/toast/types';
-import { IconCheckmark } from '@/entrypoints/shared/ui/icons';
 
 export interface RenameToastState extends RenameToastProposal {
   remainingMs: number;
@@ -33,7 +33,7 @@ export const RenameToast: React.FC<RenameToastProps> = ({
       onFocusCapture={onHoverStart}
       onBlurCapture={onHoverEnd}
     >
-      <IconCheckmark className="w-4 h-4 text-green-600 flex-shrink-0" />
+      <CheckIcon className="size-4 text-green-600 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-xs break-words">
           Renamed to{' '}
