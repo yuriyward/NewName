@@ -44,6 +44,7 @@ export interface HistoryItem {
   phase: 'instant-baseline' | 'contextual-upgrade';
   reasonTags: string[];
   undone?: boolean;
+  downloadId?: number;
   decision?: InstantBaselineDecision;
   media?: HistoryMediaMetadata;
   image?: HistoryImageAnalysis;

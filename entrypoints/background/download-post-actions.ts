@@ -84,6 +84,7 @@ export async function applyPostDownloadActions({
     fileType: evaluation.fileType,
     phase: 'instant-baseline',
     reasonTags: evaluation.reasonTags,
+    downloadId: plan.rawDownloadId,
     decision: historyDecision,
   });
 

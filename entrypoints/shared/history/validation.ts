@@ -222,6 +222,14 @@ export function isValidHistoryItem(entry: unknown): entry is HistoryItem {
     return false;
   }
   if (
+    maybe.downloadId !== undefined &&
+    (typeof maybe.downloadId !== 'number' ||
+      !Number.isSafeInteger(maybe.downloadId) ||
+      maybe.downloadId < 0)
+  ) {
+    return false;
+  }
+  if (
     maybe.decision !== undefined &&
     !isInstantBaselineDecision(maybe.decision)
   ) {
