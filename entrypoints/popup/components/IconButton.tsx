@@ -3,6 +3,7 @@ interface IconButtonProps {
   icon: React.ReactNode;
   title?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 /**
@@ -13,11 +14,13 @@ export const IconButton: React.FC<IconButtonProps> = ({
   icon,
   title,
   className = '',
+  disabled = false,
 }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`w-7 h-7 rounded-sm bg-default-100 hover:bg-default-200 flex items-center justify-center text-foreground transition-all cursor-pointer ${className}`}
+    disabled={disabled}
+    className={`w-7 h-7 rounded-sm bg-default-100 hover:bg-default-200 flex items-center justify-center text-foreground transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-default-100 ${className}`}
     title={title}
   >
     {icon}

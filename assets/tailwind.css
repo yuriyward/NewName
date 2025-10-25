@@ -90,7 +90,7 @@
   }
 
   .custom-scrollbar:hover {
-    scrollbar-color: var(--heroui-content3) transparent;
+    scrollbar-color: var(--heroui-content2) transparent;
   }
 
   /* For Webkit browsers (Chrome, Safari, etc.) */
@@ -110,6 +110,6 @@
   }
 
   .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-    background-color: var(--heroui-content3);
+    background-color: var(--heroui-content2);
   }
 }

@@ -42,6 +42,20 @@ describe('parseSummary', () => {
     });
   });
 
+  describe('Input validation', () => {
+    it('should return empty array for null input', () => {
+      const result = parseSummary(null);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should return empty array for undefined input', () => {
+      const result = parseSummary(undefined);
+
+      expect(result).toEqual([]);
+    });
+  });
+
   describe('Key-value pairs', () => {
     it('should parse a simple key-value pair', () => {
       const result = parseSummary('Document Title: Annual Report');

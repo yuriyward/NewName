@@ -78,7 +78,7 @@ function extractRawSegments(summary: string): string[] {
  * - Multi-line content separated by newlines
  * - Inline segments separated by pipes (|)
  *
- * @param summary - The summary string to parse
+ * @param summary - The summary string to parse. Nullish values return an empty array.
  * @returns Array of parsed segments with optional keys
  *
  * @example Plain text
@@ -100,8 +100,15 @@ function extractRawSegments(summary: string): string[] {
  * //   { key: "Page 3", value: "Results" }
  * // ]
  */
-export function parseSummary(summary: string): SummarySegment[] {
-  const rawSegments = extractRawSegments(summary);
+export function parseSummary(
+  summary: string | null | undefined,
+): SummarySegment[] {
+  if (typeof summary !== 'string') return [];
+
+  const normalized = summary.trim();
+  if (normalized.length === 0) return [];
+
+  const rawSegments = extractRawSegments(normalized);
   const segments: SummarySegment[] = [];
 
   for (const segment of rawSegments) {

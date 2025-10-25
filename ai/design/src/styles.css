@@ -49,6 +49,7 @@
 
 }
 
+/* No utilities layer is generated for design docs; component previews inherit from this components layer instead. */
 @layer components {
   .heroui-card {
     @apply bg-[var(--heroui-content1)] rounded-md p-2.5 border border-[var(--heroui-content3)];

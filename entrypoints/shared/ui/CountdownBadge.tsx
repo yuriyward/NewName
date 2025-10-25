@@ -4,6 +4,7 @@
  */
 
 import type React from 'react';
+import { formatCountdown } from '@/entrypoints/shared/ui/useToastCountdown';
 
 interface CountdownBadgeProps {
   seconds: number;
@@ -11,14 +12,6 @@ interface CountdownBadgeProps {
    * Whether the countdown is paused (affects styling)
    */
   isPaused?: boolean;
-}
-
-/**
- * Format countdown seconds to display string
- */
-function formatCountdown(seconds: number): string {
-  if (seconds <= 0) return '0s';
-  return `${seconds}s`;
 }
 
 export const CountdownBadge: React.FC<CountdownBadgeProps> = ({
