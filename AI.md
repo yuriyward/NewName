@@ -139,9 +139,8 @@ background/ # 11 files, 2 directories
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
   ├─ upgrade/ # 12 files
   │ ├─ cloud-consent-manager.ts # 3 exports
-  │ ├─ coordinator.ts # Contextual upgrade coordinator for completed downloads
+  │ ├─ coordinator.ts # Contextual upgrade coordinator for completed downloads Owns the complete upgrade workflow: - Entry point for download completion events and scheduled analyses - Eligibility checking - Delegates analysis to processor - Updates history and displays results
   │ ├─ eligibility.ts # Eligibility checks for contextual upgrade analysis
-  │ ├─ executor.ts # 4 exports
   │ ├─ image-analysis-request.ts # Image upgrade analysis request builder Determines image eligibility and creates analysis requests
   │ ├─ mock-analysis.ts # Mock AI-powered contextual upgrade proposal generator
   │ ├─ normalization.ts # 6 exports
@@ -149,7 +148,8 @@ background/ # 11 files, 2 directories
   │ ├─ scheduler.ts # 4 exports
   │ ├─ text-analysis-request.ts # 1 export
   │ ├─ types.ts # Type definitions for contextual upgrade pipeline
-  │ └─ unified-analysis-requester.ts # Unified upgrade analysis router Routes to text or image analysis based on file type
+  │ ├─ unified-analysis-requester.ts # Unified upgrade analysis router Routes to text or image analysis based on file type
+  │ └─ upgrade-processor.ts # Upgrade analysis processor Handles the core upgrade analysis workflow: - Duplicate prevention - Download resolution - Analysis execution - Proposal normalization Does NOT handle: history updates, toast queueing (those belong to coordinator)
   ├─ download-coordinator.ts # Download coordination logic for onDeterminingFilename events
   ├─ download-plan.ts # Download plan builder with evaluation and path resolution
   ├─ download-post-actions.ts # Post-download actions for history recording and media analysis
@@ -181,8 +181,9 @@ offscreen/ # 6 files, 4 directories
   │ ├─ pipeline-orchestrator.ts # Image upgrade pipeline orchestrator Coordinates image analysis: ingestion → description → decision → filename generation
   │ ├─ pipeline-phases.ts # Image upgrade pipeline phases Coordinates the three-phase analysis: describe → decide → generate
   │ └─ proposal-builder.ts # Image upgrade proposal building Constructs the final upgrade proposal with all metadata
-  ├─ pdf-analysis/ # 9 files
+  ├─ pdf-analysis/ # 10 files
   │ ├─ constants.ts # Constants for PDF analysis and rendering
+  │ ├─ pdf-analysis-pipeline.ts # PDF upgrade analysis pipeline orchestrator Coordinates PDF analysis: extraction → title/description → rename decision → filename generation Parallels the image analysis pipeline structure for consistency
   │ ├─ pdf-canvas-utils.ts # Canvas conversion utilities for PDF rendering Converts OffscreenCanvas to PNG blobs with quality settings
   │ ├─ pdf-context-merger.ts # PDF context merger for combining analysis from multiple pages Creates enhanced context for filename generation based on extracted titles and descriptions
   │ ├─ pdf-page-extractor.ts # PDF page extraction and preparation for image analysis High-level coordinator that combines rendering and preparation stages Lower-level rendering pipeline: - pdf-page-renderer.ts: Core MuPDF rendering (document → pixmap → canvas) - pdf-canvas-utils.ts: Canvas conversion (canvas → PNG blob) - Internal extractPdfPages: Orchestrates page rendering with timeouts
@@ -207,14 +208,31 @@ offscreen/ # 6 files, 4 directories
   ├─ pdf-analysis-handler.ts # Offscreen PDF analysis request handler Handles PDF file extraction, page rendering, and image-based analysis
   ├─ sandbox-bridge.ts # Bridge for communicating with the sandboxed iframe that runs MediaInfo.js. Coordinates analysis requests and response handling.
   └─ text-analysis-handler.ts # 1 export
-popup/ # 2 files, 1 directories
+popup/ # 2 files, 3 directories
+  ├─ components/ # 5 files, 1 directories
+  │ ├─ HistoryTab/ # 5 files
+  │ │ ├─ EmptyStateMessage.tsx # 1 export
+  │ │ ├─ HistoryFilterButton.tsx # 1 export
+  │ │ ├─ HistoryItem.tsx # 1 export
+  │ │ ├─ SummaryDisplay.tsx # 1 export
+  │ │ └─ utils.ts # 1 export
+  │ ├─ AiModelBanner.tsx # 1 export
+  │ ├─ HistoryTab.tsx # 1 export
+  │ ├─ IconButton.tsx # 1 export
+  │ ├─ PrimaryButton.tsx # 1 export
+  │ └─ StrategyTab.tsx # 1 export
+  ├─ hooks/ # 4 files
+  │ ├─ useAiModelStatus.ts # 2 exports
+  │ ├─ useDownloadsAccess.ts # 1 export
+  │ ├─ useHistory.ts # 2 exports
+  │ └─ usePopupSettings.ts # 1 export
   ├─ onboarding/ # 1 file
   │ └─ DownloadsAccessScreen.tsx # Compact downloads access onboarding screen for popup
   ├─ App.tsx # Settings popup for configuring deterministic Instant Baseline strategies
   └─ main.tsx # React popup entry point and application bootstrapping
 sandbox/ # 1 file
   └─ main.ts # Sandboxed iframe for MediaInfo.js WASM execution. Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
-shared/ # 17 directories
+shared/ # 18 directories
   ├─ classification/ # 2 files
   │ ├─ file-types.ts # File type detection from MIME and extensions
   │ └─ sensitive-content.ts # Sensitive content detection heuristics for confirmation routing.
@@ -286,13 +304,19 @@ shared/ # 17 directories
   │ └─ range-fetcher.ts # Generic HTTP range fetch utilities shared across integrations. Designed to support resumable, partial reads without forcing the caller to download full files when the remote server advertises byte range support.
   ├─ lifecycle/ # 1 file
   │ └─ install-tracking.ts # Extension installation date tracking and storage utilities
-  ├─ messaging/ # 1 file
-  │ └─ extension-messaging.ts # Central extension messaging protocol using @webext-core/messaging
-  ├─ naming/ # 2 files
+  ├─ messaging/ # 4 files
+  │ ├─ core-messages.ts # Core infrastructure messages Handles runtime context, offscreen lifecycle, and UI toast notifications
+  │ ├─ extension-messaging.ts # Central extension messaging protocol using @webext-core/messaging This file defines the combined messaging protocol interface only. For message helpers and implementations, import directly from domain-specific files: - core-messages.ts: Runtime context, offscreen lifecycle, toast notifications - media-messages.ts: Image and PDF analysis - text-messages.ts: Text analysis, AI pipeline, cloud consent
+  │ ├─ media-messages.ts # Media analysis messages (image and PDF) Handles image ingestion, PDF analysis, and media metadata extraction
+  │ └─ text-messages.ts # Text analysis and AI pipeline messages Handles text ingestion, AI model management, telemetry, and cloud consent
+  ├─ naming/ # 3 files
+  │ ├─ media-qualifiers-constants.ts # Constants for media metadata qualifiers Enumerates standard resolutions, audio channels, and codec formats
   │ ├─ media-qualifiers.ts # Extract media metadata qualifiers for filename enhancement
   │ └─ policy-engine.ts # Filename generation policies and formatting rules
   ├─ onboarding/ # 1 file
   │ └─ onboarding-state.ts # Persistence helpers for onboarding progress shared across extension contexts.
+  ├─ parsing/ # 1 file
+  │ └─ summary-parser.ts # Summary parser for AI-generated contextual upgrade summaries. Handles structured and unstructured text formats from AI models.
   ├─ pipeline/ # 6 files
   │ ├─ filename-composer.ts # Filename composition and building utilities for Instant Baseline processing
   │ ├─ instant-baseline-strategy.ts # Instant Baseline deterministic strategy evaluator
@@ -313,10 +337,10 @@ shared/ # 17 directories
   ├─ toast/ # 2 files
   │ ├─ timing-constants.ts # Centralized timing constants for toast behavior. All values are in milliseconds unless otherwise noted.
   │ └─ types.ts # Shared types for confirm toast messaging between contexts.
-  ├─ ui/ # 6 files, 1 directories
+  ├─ ui/ # 10 files, 1 directories
   │ ├─ toast/ # 8 files
   │ │ ├─ keyboard-handler.ts # Keyboard event handler for toast interactions.
-  │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames.
+  │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames. Simplified design matching ai/design/src/notification-examples.tsx
   │ │ ├─ toast-action-handler.ts # Action handler for user interactions with toasts.
   │ │ ├─ toast-container.ts # Toast container and Shadow DOM creation utilities.
   │ │ ├─ toast-lifecycle.ts # Toast lifecycle management utilities for timer and removal handling.
@@ -327,8 +351,12 @@ shared/ # 17 directories
   │ ├─ confirm-toast-manager.tsx # Toast manager rendered inside the content script via Shadow DOM.
   │ ├─ ConfirmToast.accessibility.test.tsx # Accessibility tests for confirm toast component
   │ ├─ ConfirmToast.tsx # 1 export
+  │ ├─ CountdownBadge.tsx # Countdown badge component Displays the auto-apply countdown with color changes when urgent
   │ ├─ FilenameLabel.tsx # 1 export
-  │ └─ theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
+  │ ├─ icons.tsx # Icon component wrapper using Heroicons React library Provides a centralized, type-safe way to use icons throughout the app
+  │ ├─ theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
+  │ ├─ useToastCountdown.ts # Countdown timer hooks for auto-apply toast
+  │ └─ useToastEditor.ts # Editor hooks for toast filename editing Simplified for hover-based edit mode
   └─ utils/ # 4 files
     ├─ encoding.ts # Lightweight text encoding helpers used during file ingestion.
     ├─ filename.ts # Utility helpers for working with file names.

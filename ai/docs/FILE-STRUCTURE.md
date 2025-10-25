@@ -93,9 +93,17 @@ offscreen/ # 6 files, 4 directories
   ├─ sandbox-bridge.ts # Bridge for communicating with the sandboxed iframe that runs MediaInfo.js. Coordinates analysis requests and response handling.
   └─ text-analysis-handler.ts # 1 export
 popup/ # 2 files, 3 directories
-  ├─ components/ # 3 files
+  ├─ components/ # 5 files, 1 directories
+  │ ├─ HistoryTab/ # 5 files
+  │ │ ├─ EmptyStateMessage.tsx # 1 export
+  │ │ ├─ HistoryFilterButton.tsx # 1 export
+  │ │ ├─ HistoryItem.tsx # 1 export
+  │ │ ├─ SummaryDisplay.tsx # 1 export
+  │ │ └─ utils.ts # 1 export
   │ ├─ AiModelBanner.tsx # 1 export
   │ ├─ HistoryTab.tsx # 1 export
+  │ ├─ IconButton.tsx # 1 export
+  │ ├─ PrimaryButton.tsx # 1 export
   │ └─ StrategyTab.tsx # 1 export
   ├─ hooks/ # 4 files
   │ ├─ useAiModelStatus.ts # 2 exports
@@ -108,7 +116,7 @@ popup/ # 2 files, 3 directories
   └─ main.tsx # React popup entry point and application bootstrapping
 sandbox/ # 1 file
   └─ main.ts # Sandboxed iframe for MediaInfo.js WASM execution. Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
-shared/ # 17 directories
+shared/ # 18 directories
   ├─ classification/ # 2 files
   │ ├─ file-types.ts # File type detection from MIME and extensions
   │ └─ sensitive-content.ts # Sensitive content detection heuristics for confirmation routing.
@@ -191,6 +199,8 @@ shared/ # 17 directories
   │ └─ policy-engine.ts # Filename generation policies and formatting rules
   ├─ onboarding/ # 1 file
   │ └─ onboarding-state.ts # Persistence helpers for onboarding progress shared across extension contexts.
+  ├─ parsing/ # 1 file
+  │ └─ summary-parser.ts # Summary parser for AI-generated contextual upgrade summaries. Handles structured and unstructured text formats from AI models.
   ├─ pipeline/ # 6 files
   │ ├─ filename-composer.ts # Filename composition and building utilities for Instant Baseline processing
   │ ├─ instant-baseline-strategy.ts # Instant Baseline deterministic strategy evaluator
@@ -211,10 +221,10 @@ shared/ # 17 directories
   ├─ toast/ # 2 files
   │ ├─ timing-constants.ts # Centralized timing constants for toast behavior. All values are in milliseconds unless otherwise noted.
   │ └─ types.ts # Shared types for confirm toast messaging between contexts.
-  ├─ ui/ # 11 files, 1 directories
+  ├─ ui/ # 10 files, 1 directories
   │ ├─ toast/ # 8 files
   │ │ ├─ keyboard-handler.ts # Keyboard event handler for toast interactions.
-  │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames.
+  │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames. Simplified design matching ai/design/src/notification-examples.tsx
   │ │ ├─ toast-action-handler.ts # Action handler for user interactions with toasts.
   │ │ ├─ toast-container.ts # Toast container and Shadow DOM creation utilities.
   │ │ ├─ toast-lifecycle.ts # Toast lifecycle management utilities for timer and removal handling.
@@ -226,12 +236,11 @@ shared/ # 17 directories
   │ ├─ ConfirmToast.accessibility.test.tsx # Accessibility tests for confirm toast component
   │ ├─ ConfirmToast.tsx # 1 export
   │ ├─ CountdownBadge.tsx # Countdown badge component Displays the auto-apply countdown with color changes when urgent
-  │ ├─ FilenameEditor.tsx # Filename editor component Handles both display and editing modes for the proposed filename
   │ ├─ FilenameLabel.tsx # 1 export
   │ ├─ icons.tsx # Icon component wrapper using Heroicons React library Provides a centralized, type-safe way to use icons throughout the app
   │ ├─ theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
   │ ├─ useToastCountdown.ts # Countdown timer hooks for auto-apply toast
-  │ └─ useToastEditor.ts # Editor hooks for toast filename editing
+  │ └─ useToastEditor.ts # Editor hooks for toast filename editing Simplified for hover-based edit mode
   └─ utils/ # 4 files
     ├─ encoding.ts # Lightweight text encoding helpers used during file ingestion.
     ├─ filename.ts # Utility helpers for working with file names.
@@ -886,6 +895,48 @@ Renders pages ...
 
 **Exports**:
 - `export default` - item implementation
+
+### popup/components/HistoryTab/EmptyStateMessage.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export EmptyStateMessage` - item implementation
+
+### popup/components/HistoryTab/HistoryFilterButton.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export HistoryFilterButton` - item implementation
+
+### popup/components/HistoryTab/HistoryItem.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export HistoryItem` - item implementation
+
+### popup/components/HistoryTab/SummaryDisplay.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export SummaryDisplay` - item implementation
+
+### popup/components/HistoryTab/utils.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export getRenameLabel` - Get the rename label based on the source of the rename
+
+### popup/components/IconButton.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export IconButton` - Icon-only button with theme-aware background
+
+### popup/components/PrimaryButton.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export PrimaryButton` - Primary action button with dark background used in alerts...
 
 ### popup/components/StrategyTab.tsx
 **Purpose**: 1 export
@@ -1605,6 +1656,13 @@ Used for n...
 - `export markOnboardingSkipped` - item implementation
 - `export resetOnboardingState` - item implementation
 
+### shared/parsing/summary-parser.ts
+**Purpose**: Summary parser for AI-generated contextual upgrade summaries. Handles structured and unstructured text formats from AI models.
+
+**Exports**:
+- `export SummarySegment` - Represents a parsed segment from a summary string
+- `export parseSummary` - Parse a summary string into structured segments with opti...
+
 ### shared/pipeline/filename-composer.ts
 **Purpose**: Filename composition and building utilities for Instant Baseline processing
 
@@ -1823,19 +1881,13 @@ Represents different file c...
 **Purpose**: Countdown badge component Displays the auto-apply countdown with color changes when urgent
 
 **Exports**:
-- `export CountdownBadge` - Format countdown seconds to display string
-
-### shared/ui/FilenameEditor.tsx
-**Purpose**: Filename editor component Handles both display and editing modes for the proposed filename
-
-**Exports**:
-- `export FilenameEditor` - item implementation
+- `export CountdownBadge` - Whether the countdown is paused (affects styling)
 
 ### shared/ui/FilenameLabel.tsx
 **Purpose**: 1 export
 
 **Exports**:
-- `export FilenameLabel` - Shared component for displaying filename transitions (ori...
+- `export FilenameLabel` - FilenameLabel displays a before/after filename comparison...
 
 ### shared/ui/confirm-toast-manager.test.tsx
 **Purpose**: Tests for toast manager lifecycle and interactions
@@ -1859,7 +1911,9 @@ Represents different file c...
 - `export IconCheckmark` - Icon component factory - provides semantic icon component...
 - `export IconError` - item implementation
 - `export IconEye` - item implementation
+- `export IconFolder` - item implementation
 - `export IconMoon` - item implementation
+- `export IconPause` - item implementation
 - `export IconShield` - item implementation
 - `export IconSparkles` - item implementation
 - `export IconSuccess` - item implementation
@@ -1884,7 +1938,7 @@ Handles automatic th...
 - `export createKeyboardHandler` - Creates a keyboard handler for toast interactions (Escape...
 
 ### shared/ui/toast/rename-toast.tsx
-**Purpose**: RenameToast component displays confirmation feedback for applied renames.
+**Purpose**: RenameToast component displays confirmation feedback for applied renames. Simplified design matching ai/design/src/notification-examples.tsx
 
 **Exports**:
 - `export RenameToastProps` - item implementation
@@ -1945,7 +1999,7 @@ Handles automatic th...
 - `export useToastCountdown` - Hook to manage countdown timer state and pause/resume fun...
 
 ### shared/ui/useToastEditor.ts
-**Purpose**: Editor hooks for toast filename editing
+**Purpose**: Editor hooks for toast filename editing Simplified for hover-based edit mode
 
 **Exports**:
 - `export useToastEditor` - Hook to manage filename editing state and actions
