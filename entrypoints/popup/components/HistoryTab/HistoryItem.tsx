@@ -1,7 +1,10 @@
 import { CheckIcon } from '@heroicons/react/16/solid';
 import { Chip } from '@heroui/chip';
+import { Tooltip } from '@heroui/tooltip';
+import { browser } from 'wxt/browser';
 import type { HistoryItem as HistoryItemType } from '@/entrypoints/shared/history/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
+import { IconFolder } from '@/entrypoints/shared/ui/icons';
 import { SummaryDisplay } from './SummaryDisplay';
 import { getRenameLabel } from './utils';
 
@@ -18,6 +21,12 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
 }) => {
   const summary = item.upgrade?.summary?.trim();
 
+  const handleShowInFolder = (): void => {
+    if (item.downloadId !== undefined) {
+      browser.downloads.show(item.downloadId);
+    }
+  };
+
   return (
     <div className="rounded-lg border border-content3 bg-content1 shadow-sm">
       <div className="p-2.5 space-y-1.5">
@@ -27,18 +36,36 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
             <CheckIcon className="w-4 h-4 text-green-600 flex-shrink-0" />
             <p className="text-xs opacity-80">{getRenameLabel(item)}</p>
           </div>
-          <Chip
-            size="sm"
-            variant="flat"
-            color={
-              item.fileType === 'video' || item.fileType === 'audio'
-                ? 'secondary'
-                : 'default'
-            }
-            className="text-[10px] flex-shrink-0"
-          >
-            {item.fileType}
-          </Chip>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {item.downloadId !== undefined && (
+              <Tooltip
+                content="Show in folder"
+                size="sm"
+                delay={300}
+                closeDelay={0}
+              >
+                <button
+                  type="button"
+                  onClick={handleShowInFolder}
+                  className="p-1 rounded hover:bg-content2 transition-colors focus:outline-none focus:ring-2 focus:ring-default-400 cursor-pointer"
+                >
+                  <IconFolder className="w-3.5 h-3.5 text-default-600" />
+                </button>
+              </Tooltip>
+            )}
+            <Chip
+              size="sm"
+              variant="flat"
+              color={
+                item.fileType === 'video' || item.fileType === 'audio'
+                  ? 'secondary'
+                  : 'default'
+              }
+              className="text-[10px]"
+            >
+              {item.fileType}
+            </Chip>
+          </div>
         </div>
 
         {/* Filename display with before/after */}

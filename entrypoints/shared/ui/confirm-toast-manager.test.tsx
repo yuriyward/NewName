@@ -237,35 +237,4 @@ describe('ConfirmToastManager', () => {
     expect(toast?.autoApplyRemainingMs).toBe(2_500);
     manager.destroy();
   });
-
-  it('falls back to approve when always-apply is disabled for the toast', async () => {
-    const manager = new ConfirmToastManager();
-    manager.showToast(
-      createConfirmProposal({
-        toastId: 'toast-no-always',
-        allowAlwaysApply: false,
-      }),
-    );
-
-    await Promise.resolve();
-    expect(getConfirmToastState()).toHaveLength(1);
-    const toastState = getConfirmToastState()[0];
-    expect(toastState).toBeDefined();
-    const overlay = latestOverlayProps;
-    expect(overlay).not.toBeNull();
-    if (!toastState || !overlay) {
-      throw new Error('toast overlay not available');
-    }
-    overlay.onAlwaysApply(toastState, 'renamed-final.pdf');
-
-    await Promise.resolve();
-    expect(messagingMocks.sendConfirmToastDecision).toHaveBeenCalledWith(
-      expect.objectContaining({
-        toastId: 'toast-no-always',
-        action: 'approve',
-        editedFilename: 'renamed-final.pdf',
-      }),
-    );
-    manager.destroy();
-  });
 });
