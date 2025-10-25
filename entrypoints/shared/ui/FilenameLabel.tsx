@@ -1,47 +1,48 @@
 import type React from 'react';
 
 interface FilenameLabelProps {
+  /** The original filename before renaming */
   originalFilename: string;
-  newFilename?: string;
-  children?: React.ReactNode;
-  layout?: 'stacked' | 'inline';
+  /** The new filename after renaming */
+  newFilename: string;
+  /** Optional CSS classes to customize styling */
+  className?: string;
 }
 
 /**
- * Shared component for displaying filename transitions (original → new)
- * Used by both ConfirmToast and RenameToast for consistent styling.
+ * FilenameLabel displays a before/after filename comparison with visual hierarchy.
  *
- * For inline layout, newFilename must be provided.
- * For stacked layout, either newFilename or children can be provided for custom content.
+ * Used throughout the application to show rename operations:
+ * - History items in the popup
+ * - Toast notifications after rename
+ * - Confirmation dialogs
+ *
+ * The original filename is shown with reduced opacity, followed by an arrow (→),
+ * and the new filename is emphasized with medium font weight.
+ *
+ * @example
+ * <FilenameLabel
+ *   originalFilename="IMG_1234.jpg"
+ *   newFilename="sunset-beach-2024.jpg"
+ * />
+ *
+ * @example With custom styling
+ * <FilenameLabel
+ *   originalFilename="document.pdf"
+ *   newFilename="quarterly-report-q4-2024.pdf"
+ *   className="text-sm"
+ * />
  */
 export const FilenameLabel: React.FC<FilenameLabelProps> = ({
   originalFilename,
   newFilename,
-  children,
-  layout = 'stacked',
+  className = '',
 }) => {
-  if (layout === 'inline') {
-    return (
-      <p className="text-xs text-default-500">
-        {originalFilename} →{' '}
-        <span className="font-semibold text-foreground">{newFilename}</span>
-      </p>
-    );
-  }
-
   return (
-    <div className="min-w-0 flex-1">
-      <div className="flex items-center gap-2">
-        <p className="min-w-0 truncate text-xs text-default-500">
-          {originalFilename}
-        </p>
-        <span className="shrink-0 text-xs text-default-400">→</span>
-      </div>
-      {children || (
-        <p className="mt-1 min-w-0 flex-1 break-all text-sm font-semibold text-foreground">
-          {newFilename}
-        </p>
-      )}
-    </div>
+    <p className={`text-xs break-words ${className}`}>
+      <span className="opacity-80">{originalFilename}</span>
+      <span className="mx-1">→</span>
+      <strong className="font-medium">{newFilename}</strong>
+    </p>
   );
 };

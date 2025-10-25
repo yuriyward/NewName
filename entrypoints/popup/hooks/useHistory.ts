@@ -2,8 +2,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { getHistory } from '@/entrypoints/shared/history/history';
 import type { HistoryItem } from '@/entrypoints/shared/history/types';
+import type { FileType } from '@/entrypoints/shared/settings/types';
 
-export type HistoryFilter = 'all' | 'upgrades' | 'media';
+export type HistoryFilter = 'all' | FileType;
 
 interface UseHistoryResult {
   history: HistoryItem[];
@@ -13,6 +14,7 @@ interface UseHistoryResult {
   filteredHistory: HistoryItem[];
   loadHistory: () => Promise<void>;
   upgradeCount: number;
+  fileTypeCounts: Partial<Record<FileType, number>>;
 }
 
 export const useHistory = (): UseHistoryResult => {
@@ -32,22 +34,24 @@ export const useHistory = (): UseHistoryResult => {
   }, [historyLoaded]);
 
   const filteredHistory = useMemo(() => {
-    switch (historyFilter) {
-      case 'upgrades':
-        return history.filter((item) => item.upgrade);
-      case 'media':
-        return history.filter(
-          (item) => item.fileType === 'audio' || item.fileType === 'video',
-        );
-      default:
-        return history;
+    if (historyFilter === 'all') {
+      return history;
     }
+    return history.filter((item) => item.fileType === historyFilter);
   }, [history, historyFilter]);
 
   const upgradeCount = useMemo(
     () => history.filter((item) => item.upgrade).length,
     [history],
   );
+
+  const fileTypeCounts = useMemo(() => {
+    const counts: Partial<Record<FileType, number>> = {};
+    for (const item of history) {
+      counts[item.fileType] = (counts[item.fileType] || 0) + 1;
+    }
+    return counts;
+  }, [history]);
 
   return {
     history,
@@ -57,5 +61,6 @@ export const useHistory = (): UseHistoryResult => {
     filteredHistory,
     loadHistory,
     upgradeCount,
+    fileTypeCounts,
   };
 };

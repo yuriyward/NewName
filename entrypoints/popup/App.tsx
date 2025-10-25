@@ -17,6 +17,8 @@ import { IconMoon, IconSun } from '@/entrypoints/shared/ui/icons';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import AiModelBanner from './components/AiModelBanner';
 import HistoryTab from './components/HistoryTab';
+import { IconButton } from './components/IconButton';
+import { PrimaryButton } from './components/PrimaryButton';
 import StrategyTab from './components/StrategyTab';
 import { describeAiState, useAiModelStatus } from './hooks/useAiModelStatus';
 import { useDownloadsAccess } from './hooks/useDownloadsAccess';
@@ -48,6 +50,7 @@ function App(): JSX.Element {
     filteredHistory,
     loadHistory,
     upgradeCount,
+    fileTypeCounts,
   } = useHistory();
   const {
     aiStatuses,
@@ -130,21 +133,21 @@ function App(): JSX.Element {
   return (
     <div className="w-96 p-3 bg-background text-foreground relative">
       {/* Dark Mode Toggle */}
-      <button
-        type="button"
+      <IconButton
         onClick={() => {
           const newTheme = theme === 'dark' ? 'light' : 'dark';
           void updateThemePreference(newTheme);
         }}
-        className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-default-100 hover:bg-default-200 flex items-center justify-center text-default-600 hover:text-default-900 transition-colors cursor-pointer"
+        icon={
+          theme === 'dark' ? (
+            <IconSun className="w-4 h-4" />
+          ) : (
+            <IconMoon className="w-4 h-4" />
+          )
+        }
         title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-      >
-        {theme === 'dark' ? (
-          <IconSun className="w-4 h-4" />
-        ) : (
-          <IconMoon className="w-4 h-4" />
-        )}
-      </button>
+        className="absolute top-2 right-2 z-20"
+      />
 
       {/* Floating Saved Chip */}
       {!saving && savedAt !== null && (
@@ -196,13 +199,7 @@ function App(): JSX.Element {
             Downloads access is disabled. Post-download renames and undo will be
             paused until access is granted.
           </p>
-          <button
-            type="button"
-            onClick={openOnboarding}
-            className="inline-flex items-center justify-center rounded border border-warning-400 px-3 py-1 text-[11px] font-semibold text-warning-800 transition hover:bg-warning-100"
-          >
-            Grant access
-          </button>
+          <PrimaryButton onClick={openOnboarding}>Grant access</PrimaryButton>
         </Alert>
       ) : null}
 
@@ -217,9 +214,9 @@ function App(): JSX.Element {
         classNames={{
           tabList: 'gap-6 w-full relative p-0',
           cursor: 'w-full',
-          tab: 'px-0 h-10',
+          tab: 'px-0 h-10 rounded-none transition-colors data-[focus-visible=true]:outline data-[focus-visible=true]:outline-2 data-[focus-visible=true]:outline-offset-2 data-[focus-visible=true]:outline-default-400',
           tabContent:
-            'text-default-500 group-data-[selected=true]:text-foreground',
+            'text-default-600 transition-colors group-data-[hover=true]:text-default-800 group-data-[selected=true]:text-foreground group-data-[selected=true]:font-medium',
         }}
       >
         <Tab
@@ -262,6 +259,7 @@ function App(): JSX.Element {
             historyFilter={historyFilter}
             onFilterChange={setHistoryFilter}
             filteredHistory={filteredHistory}
+            fileTypeCounts={fileTypeCounts}
           />
         </Tab>
       </Tabs>
