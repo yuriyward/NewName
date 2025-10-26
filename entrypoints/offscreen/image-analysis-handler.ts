@@ -14,7 +14,6 @@ import type {
   ImageUpgradeAnalysisUnavailable,
 } from '@/entrypoints/shared/integrations/image-analysis/types';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
-import { getSettings } from '@/entrypoints/shared/settings/settings';
 import { ingestImageForPrompt } from './image-analysis/image-ingestion';
 
 let registered = false;
@@ -101,17 +100,11 @@ export function initializeImageAnalysisHandler(): void {
         },
       };
 
-      // Get settings to configure AI router
-      const settings = await getSettings();
+      // Configure AI router using cloud config from request
+      // (avoids storage access issues in offscreen context)
       const router = new AiRouter({
-        cloudConfig: {
-          enabled: settings.cloud.enabled,
-          apiKey: settings.cloud.apiKey,
-          model: settings.cloud.model,
-          consentGiven: settings.cloud.consentGiven,
-          consentTimestamp: settings.cloud.consentTimestamp,
-        },
-        preferences: settings.processingPreferences,
+        cloudConfig: request.cloudConfig,
+        preferences: request.processingPreferences,
       });
 
       // Run AI upgrade pipeline via router

@@ -26,6 +26,7 @@ import type {
   TextUpgradeIngestionResult,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import type { CloudModel } from '@/entrypoints/shared/settings/types';
+import { arrayBufferToBase64 } from '@/entrypoints/shared/utils/encoding';
 import type { IAiProvider } from './types';
 
 interface CloudDecisionResponse {
@@ -38,6 +39,32 @@ interface CloudDecisionResponse {
 interface CloudFilenameResponse {
   filename: string;
   reasoning: string;
+}
+
+/**
+ * Smart JSON parser that handles both markdown-wrapped and raw JSON responses
+ *
+ * Gemini sometimes wraps JSON in markdown code blocks like:
+ * ```json
+ * { "key": "value" }
+ * ```
+ *
+ * This parser automatically detects and unwraps markdown, then parses the JSON.
+ *
+ * @param text - Response text from Gemini API
+ * @returns Parsed JSON object
+ * @throws SyntaxError if the text is not valid JSON after unwrapping
+ */
+function parseJsonResponse<T>(text: string): T {
+  let cleaned = text.trim();
+
+  // Check if wrapped in markdown code fence (```json ... ``` or ``` ... ```)
+  const markdownMatch = cleaned.match(/^```(?:json)?\s*\n([\s\S]*?)\n```$/);
+  if (markdownMatch) {
+    cleaned = markdownMatch[1].trim();
+  }
+
+  return JSON.parse(cleaned);
 }
 
 /**
@@ -121,7 +148,9 @@ Respond with JSON:
         temperature: 0.3,
       });
 
-      const decision: CloudDecisionResponse = JSON.parse(decisionResult.text);
+      const decision = parseJsonResponse<CloudDecisionResponse>(
+        decisionResult.text,
+      );
 
       if (!decision.shouldRename) {
         console.log('[CloudAI] Keeping baseline filename', {
@@ -158,7 +187,7 @@ Respond with JSON:
         temperature: 0.5,
       });
 
-      const generated: CloudFilenameResponse = JSON.parse(
+      const generated = parseJsonResponse<CloudFilenameResponse>(
         generationResult.text,
       );
 
@@ -258,9 +287,9 @@ Respond with JSON:
 
       const currentFilename = request.baseline.final || request.filename;
 
-      // Convert blob to base64 for ai-sdk
+      // Convert blob to base64 for ai-sdk using browser-compatible method
       const arrayBuffer = await ingestion.blob.arrayBuffer();
-      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      const base64 = arrayBufferToBase64(arrayBuffer);
       const dataUrl = `data:${ingestion.mimeType};base64,${base64}`;
 
       // Step 1: Describe the image
@@ -304,7 +333,9 @@ Respond with JSON:
         temperature: 0.3,
       });
 
-      const decision: CloudDecisionResponse = JSON.parse(decisionResult.text);
+      const decision = parseJsonResponse<CloudDecisionResponse>(
+        decisionResult.text,
+      );
 
       if (!decision.shouldRename) {
         console.log('[CloudAI] Keeping baseline image filename', {
@@ -339,7 +370,7 @@ Respond with JSON:
         temperature: 0.5,
       });
 
-      const generated: CloudFilenameResponse = JSON.parse(
+      const generated = parseJsonResponse<CloudFilenameResponse>(
         generationResult.text,
       );
 

@@ -77,6 +77,18 @@ function buildPdfRequest(
       separator: settings.separator,
       transliterateAscii: settings.transliterateAscii,
     },
+    cloudConfig: {
+      enabled: settings.cloud.enabled,
+      apiKey: settings.cloud.apiKey,
+      model: settings.cloud.model,
+      consentGiven: settings.cloud.consentGiven,
+      consentTimestamp: settings.cloud.consentTimestamp,
+    },
+    processingPreferences: {
+      text: settings.processingPreferences.text,
+      pdf: settings.processingPreferences.pdf,
+      image: settings.processingPreferences.image,
+    },
   };
 }
 

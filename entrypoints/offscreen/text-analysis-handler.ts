@@ -14,7 +14,6 @@ import type {
   TextUpgradeIngestionResult,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
-import { getSettings } from '@/entrypoints/shared/settings/settings';
 
 const DEFAULT_MAX_BYTES = 128 * 1024; // 128 KB
 
@@ -110,17 +109,11 @@ export function initializeTextAnalysisHandler(): void {
         });
       }
 
-      // Get settings to configure AI router
-      const settings = await getSettings();
+      // Configure AI router using cloud config from request
+      // (avoids storage access issues in offscreen context)
       const router = new AiRouter({
-        cloudConfig: {
-          enabled: settings.cloud.enabled,
-          apiKey: settings.cloud.apiKey,
-          model: settings.cloud.model,
-          consentGiven: settings.cloud.consentGiven,
-          consentTimestamp: settings.cloud.consentTimestamp,
-        },
-        preferences: settings.processingPreferences,
+        cloudConfig: request.cloudConfig,
+        preferences: request.processingPreferences,
       });
 
       const aiResponse = await router.analyzeText(request, response);

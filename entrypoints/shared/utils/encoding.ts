@@ -145,3 +145,24 @@ export function stripBom(
   }
   return buffer.subarray(info.bomLength);
 }
+
+/**
+ * Convert ArrayBuffer to base64 string using browser APIs
+ * Works in both browser and browser extension contexts
+ * @param buffer - ArrayBuffer to convert
+ * @returns base64-encoded string
+ */
+export function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const len = bytes.byteLength;
+
+  // Process in chunks to avoid stack overflow on large files
+  const chunkSize = 8192;
+  for (let i = 0; i < len; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, len));
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
+}

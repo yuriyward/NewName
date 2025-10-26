@@ -73,6 +73,18 @@ function createMockRequest(
       separator: 'kebab',
       transliterateAscii: false,
     },
+    cloudConfig: {
+      enabled: false,
+      apiKey: null,
+      model: 'gemini-flash-lite-latest',
+      consentGiven: false,
+      consentTimestamp: null,
+    },
+    processingPreferences: {
+      text: 'auto',
+      pdf: 'auto',
+      image: 'auto',
+    },
     ...overrides,
   };
 }
