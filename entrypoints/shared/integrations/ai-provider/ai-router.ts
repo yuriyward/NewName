@@ -5,7 +5,10 @@
  * based on user preferences, provider availability, and fallback logic.
  */
 
-import type { PdfUpgradeAnalysisRequest } from '@/entrypoints/offscreen/pdf-analysis/types';
+import type {
+  PdfUpgradeAnalysisRequest,
+  RenderedPdfPage,
+} from '@/entrypoints/offscreen/pdf-analysis/types';
 import type {
   ImageIngestionResult,
   ImageUpgradeAnalysisRequest,
@@ -288,6 +291,7 @@ export class AiRouter {
    */
   async analyzePdf(
     request: PdfUpgradeAnalysisRequest,
+    pages: RenderedPdfPage[],
   ): Promise<ImageUpgradeAnalysisResponse | null> {
     const mode = this.config.preferences.pdf;
     const selection = await this.selectProvider(mode);
@@ -310,10 +314,11 @@ export class AiRouter {
       provider: provider.type,
       wasFallback,
       mode,
+      pageCount: pages.length,
     });
 
     try {
-      const result = await provider.analyzePdf(request);
+      const result = await provider.analyzePdf(request, pages);
 
       // If local failed and we can fall back to cloud, try cloud
       if (
@@ -327,7 +332,7 @@ export class AiRouter {
         );
         const cloudSelection = await this.selectProvider('cloud');
         if (cloudSelection) {
-          return cloudSelection.provider.analyzePdf(request);
+          return cloudSelection.provider.analyzePdf(request, pages);
         }
       }
 
@@ -344,7 +349,7 @@ export class AiRouter {
         const cloudSelection = await this.selectProvider('cloud');
         if (cloudSelection) {
           try {
-            return await cloudSelection.provider.analyzePdf(request);
+            return await cloudSelection.provider.analyzePdf(request, pages);
           } catch (cloudError) {
             console.error('[AiRouter] Cloud fallback also failed', {
               cloudError,

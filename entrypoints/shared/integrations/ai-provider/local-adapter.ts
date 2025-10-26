@@ -5,7 +5,10 @@
  * This adapter delegates to existing pipeline orchestrators without changing their logic.
  */
 
-import type { PdfUpgradeAnalysisRequest } from '@/entrypoints/offscreen/pdf-analysis/types';
+import type {
+  PdfUpgradeAnalysisRequest,
+  RenderedPdfPage,
+} from '@/entrypoints/offscreen/pdf-analysis/types';
 import type {
   ImageIngestionResult,
   ImageUpgradeAnalysisRequest,
@@ -89,15 +92,41 @@ export class LocalAiAdapter implements IAiProvider {
   /**
    * Analyze PDF using Chrome's built-in AI
    *
-   * Note: PDF analysis requires page extraction which happens in the handler.
-   * This method is not directly used; PDFs go through the full handler flow.
+   * Delegates to the existing PDF analysis pipeline orchestrator.
+   * Accepts extracted pages to enable consistent router interface.
    */
   async analyzePdf(
-    _request: PdfUpgradeAnalysisRequest,
+    request: PdfUpgradeAnalysisRequest,
+    pages: RenderedPdfPage[],
   ): Promise<ImageUpgradeAnalysisResponse | null> {
-    // PDF analysis is handled differently - extraction happens in handler,
-    // then runPdfUpgradePipeline is called with extracted pages.
-    // The router integration happens at the handler level, not here.
-    return null;
+    // Import dynamically to avoid circular dependencies and ensure offscreen context
+    const { runPdfUpgradePipeline } = await import(
+      '@/entrypoints/offscreen/pdf-analysis/pdf-analysis-pipeline'
+    );
+
+    // Convert RenderedPdfPage to ExtractedPageForAnalysis format
+    const extractedPages = pages.map((page) => ({
+      pageNumber: page.pageNumber,
+      blob: page.blob,
+      width: page.width,
+      height: page.height,
+    }));
+
+    const proposal = await runPdfUpgradePipeline(extractedPages, request);
+
+    if (!proposal) {
+      return null;
+    }
+
+    // Return in ImageUpgradeAnalysisResponse format
+    return {
+      status: 'success',
+      requestId: request.requestId,
+      analyzedAt: Date.now(),
+      proposal,
+      description: proposal.summary || '',
+      modelSource: 'on-device',
+      promptUsed: true,
+    };
   }
 }

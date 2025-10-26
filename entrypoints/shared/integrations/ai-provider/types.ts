@@ -5,7 +5,10 @@
  * Allows seamless switching between on-device and cloud-based processing.
  */
 
-import type { PdfUpgradeAnalysisRequest } from '@/entrypoints/offscreen/pdf-analysis/types';
+import type {
+  PdfUpgradeAnalysisRequest,
+  RenderedPdfPage,
+} from '@/entrypoints/offscreen/pdf-analysis/types';
 import type {
   ImageIngestionResult,
   ImageUpgradeAnalysisRequest,
@@ -97,10 +100,12 @@ export interface IAiProvider {
   /**
    * Analyze PDF content and generate upgrade proposal
    * @param request - PDF analysis request with file metadata
+   * @param pages - Extracted PDF pages as PNG blobs
    * @returns Analysis response or null if no upgrade needed
    */
   analyzePdf(
     request: PdfUpgradeAnalysisRequest,
+    pages: RenderedPdfPage[],
   ): Promise<ImageUpgradeAnalysisResponse | null>;
 }
 
