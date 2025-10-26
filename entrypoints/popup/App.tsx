@@ -20,6 +20,7 @@ import AiModelBanner from './components/AiModelBanner';
 import HistoryTab from './components/HistoryTab';
 import { IconButton } from './components/IconButton';
 import { PrimaryButton } from './components/PrimaryButton';
+import { ProcessingModeIndicator } from './components/ProcessingModeIndicator';
 import StrategyTab from './components/StrategyTab';
 import { describeAiState, useAiModelStatus } from './hooks/useAiModelStatus';
 import { useDownloadsAccess } from './hooks/useDownloadsAccess';
@@ -63,6 +64,7 @@ function App(): JSX.Element {
   } = useAiModelStatus();
   const {
     strategy,
+    processingMode,
     loading,
     saving,
     error,
@@ -149,6 +151,13 @@ function App(): JSX.Element {
         title="Open settings"
         className="absolute top-2 right-10 z-20"
       />
+
+      {/* Processing Mode Indicator */}
+      {processingMode && (
+        <div className="absolute top-2 right-18 z-20">
+          <ProcessingModeIndicator mode={processingMode} />
+        </div>
+      )}
 
       {/* Dark Mode Toggle */}
       <IconButton
