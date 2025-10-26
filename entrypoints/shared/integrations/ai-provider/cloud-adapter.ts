@@ -175,6 +175,7 @@ Language: ${request.settings.languagePreference}
 Rules:
 - Subject first, then qualifiers
 - Use ${request.settings.separator} as word separator
+- Format dates as YYYY-MM-DD (use dashes, not YYYYMMDD)
 - No file extension (will be added automatically)
 - Be specific and descriptive
 - Length between 20-${request.settings.maxFilenameLength} chars
@@ -192,11 +193,11 @@ Respond with JSON:
       );
 
       // Build final filename using existing utilities
+      // Note: No language parameter - Gemini handles multilingual content natively
       const filenameResult = buildFilename({
         request,
         ingestion,
         subject: generated.filename,
-        language: request.settings.languagePreference,
       });
 
       const proposedFilename = filenameResult.filename;
@@ -358,6 +359,7 @@ Separator: ${request.settings.separator}
 Rules:
 - Subject first, then qualifiers
 - Use ${request.settings.separator} as word separator
+- Format dates as YYYY-MM-DD (use dashes, not YYYYMMDD)
 - No file extension
 - Be specific
 - Length: 20-${request.settings.maxFilenameLength} chars
