@@ -9,6 +9,7 @@ import type {
   PdfUpgradeAnalysisRequest,
   RenderedPdfPage,
 } from '@/entrypoints/offscreen/pdf-analysis/types';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type {
   ImageIngestionResult,
   ImageUpgradeAnalysisRequest,
@@ -77,7 +78,7 @@ export class AiRouter {
       this.config.cloudConfig.consentGiven &&
       (await this.cloudProvider.isAvailable());
 
-    console.log('[AiRouter] Provider availability', {
+    debugLogger.log('[AiRouter] Provider availability', {
       mode,
       localAvailable,
       cloudAvailable,
@@ -119,6 +120,69 @@ export class AiRouter {
   }
 
   /**
+   * Generic fallback handler for provider operations
+   * Handles both null results and exceptions with automatic cloud fallback in auto mode
+   */
+  private async tryWithFallback<TRequest, TData, TResponse>(
+    mode: ProcessingMode,
+    provider: IAiProvider,
+    wasFallback: boolean,
+    operation: (
+      p: IAiProvider,
+      req: TRequest,
+      data: TData,
+    ) => Promise<TResponse | null>,
+    request: TRequest,
+    data: TData,
+    analysisType: string,
+  ): Promise<TResponse | null> {
+    try {
+      const result = await operation(provider, request, data);
+
+      // If local returned null and we can fall back to cloud, try cloud
+      if (
+        !result &&
+        mode === 'auto' &&
+        provider.type === 'local' &&
+        wasFallback === false
+      ) {
+        debugLogger.log(
+          `[AiRouter] Local ${analysisType} analysis returned null, trying cloud fallback`,
+        );
+        const cloudSelection = await this.selectProvider('cloud');
+        if (cloudSelection) {
+          return operation(cloudSelection.provider, request, data);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error(`[AiRouter] ${analysisType} analysis failed`, {
+        error,
+        provider: provider.type,
+      });
+
+      // If local failed and we can fall back to cloud, try cloud
+      if (mode === 'auto' && provider.type === 'local') {
+        debugLogger.log('[AiRouter] Local failed, trying cloud fallback');
+        const cloudSelection = await this.selectProvider('cloud');
+        if (cloudSelection) {
+          try {
+            return await operation(cloudSelection.provider, request, data);
+          } catch (cloudError) {
+            console.error('[AiRouter] Cloud fallback also failed', {
+              cloudError,
+            });
+          }
+        }
+      }
+
+      // Rethrow so caller can construct appropriate error response
+      throw error;
+    }
+  }
+
+  /**
    * Analyze text with automatic provider selection
    */
   async analyzeText(
@@ -149,49 +213,16 @@ export class AiRouter {
     });
 
     try {
-      const result = await provider.analyzeText(request, ingestion);
-
-      // If local failed and we can fall back to cloud, try cloud
-      if (
-        !result &&
-        mode === 'auto' &&
-        provider.type === 'local' &&
-        wasFallback === false
-      ) {
-        console.log(
-          '[AiRouter] Local analysis returned null, trying cloud fallback',
-        );
-        const cloudSelection = await this.selectProvider('cloud');
-        if (cloudSelection) {
-          return cloudSelection.provider.analyzeText(request, ingestion);
-        }
-      }
-
-      return result;
+      return await this.tryWithFallback(
+        mode,
+        provider,
+        wasFallback,
+        (p, req, ing) => p.analyzeText(req, ing),
+        request,
+        ingestion,
+        'text',
+      );
     } catch (error) {
-      console.error('[AiRouter] Text analysis failed', {
-        error,
-        provider: provider.type,
-      });
-
-      // If local failed and we can fall back to cloud, try cloud
-      if (mode === 'auto' && provider.type === 'local') {
-        console.log('[AiRouter] Local failed, trying cloud fallback');
-        const cloudSelection = await this.selectProvider('cloud');
-        if (cloudSelection) {
-          try {
-            return await cloudSelection.provider.analyzeText(
-              request,
-              ingestion,
-            );
-          } catch (cloudError) {
-            console.error('[AiRouter] Cloud fallback also failed', {
-              cloudError,
-            });
-          }
-        }
-      }
-
       return {
         status: 'error',
         requestId: request.requestId,
@@ -233,49 +264,16 @@ export class AiRouter {
     });
 
     try {
-      const result = await provider.analyzeImage(request, ingestion);
-
-      // If local failed and we can fall back to cloud, try cloud
-      if (
-        !result &&
-        mode === 'auto' &&
-        provider.type === 'local' &&
-        wasFallback === false
-      ) {
-        console.log(
-          '[AiRouter] Local image analysis returned null, trying cloud fallback',
-        );
-        const cloudSelection = await this.selectProvider('cloud');
-        if (cloudSelection) {
-          return cloudSelection.provider.analyzeImage(request, ingestion);
-        }
-      }
-
-      return result;
+      return await this.tryWithFallback(
+        mode,
+        provider,
+        wasFallback,
+        (p, req, ing) => p.analyzeImage(req, ing),
+        request,
+        ingestion,
+        'image',
+      );
     } catch (error) {
-      console.error('[AiRouter] Image analysis failed', {
-        error,
-        provider: provider.type,
-      });
-
-      // If local failed and we can fall back to cloud, try cloud
-      if (mode === 'auto' && provider.type === 'local') {
-        console.log('[AiRouter] Local failed, trying cloud fallback');
-        const cloudSelection = await this.selectProvider('cloud');
-        if (cloudSelection) {
-          try {
-            return await cloudSelection.provider.analyzeImage(
-              request,
-              ingestion,
-            );
-          } catch (cloudError) {
-            console.error('[AiRouter] Cloud fallback also failed', {
-              cloudError,
-            });
-          }
-        }
-      }
-
       return {
         status: 'error',
         requestId: request.requestId,
@@ -318,46 +316,16 @@ export class AiRouter {
     });
 
     try {
-      const result = await provider.analyzePdf(request, pages);
-
-      // If local failed and we can fall back to cloud, try cloud
-      if (
-        !result &&
-        mode === 'auto' &&
-        provider.type === 'local' &&
-        wasFallback === false
-      ) {
-        console.log(
-          '[AiRouter] Local PDF analysis returned null, trying cloud fallback',
-        );
-        const cloudSelection = await this.selectProvider('cloud');
-        if (cloudSelection) {
-          return cloudSelection.provider.analyzePdf(request, pages);
-        }
-      }
-
-      return result;
+      return await this.tryWithFallback(
+        mode,
+        provider,
+        wasFallback,
+        (p, req, pgs) => p.analyzePdf(req, pgs),
+        request,
+        pages,
+        'PDF',
+      );
     } catch (error) {
-      console.error('[AiRouter] PDF analysis failed', {
-        error,
-        provider: provider.type,
-      });
-
-      // If local failed and we can fall back to cloud, try cloud
-      if (mode === 'auto' && provider.type === 'local') {
-        console.log('[AiRouter] Local failed, trying cloud fallback');
-        const cloudSelection = await this.selectProvider('cloud');
-        if (cloudSelection) {
-          try {
-            return await cloudSelection.provider.analyzePdf(request, pages);
-          } catch (cloudError) {
-            console.error('[AiRouter] Cloud fallback also failed', {
-              cloudError,
-            });
-          }
-        }
-      }
-
       return {
         status: 'error',
         requestId: request.requestId,
