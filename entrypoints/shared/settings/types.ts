@@ -60,7 +60,11 @@ export interface CloudSettings {
   textFallbackMode: CloudTextFallbackMode;
   /** Cloud AI model identifier (e.g., 'gemini-flash-lite-latest') */
   model: CloudModel;
-  /** User's API key for cloud processing (encrypted in storage) */
+  /**
+   * User's API key for cloud processing
+   * - Encrypted (AES-GCM) in storage, decrypted in memory
+   * - See crypto.ts for encryption implementation details
+   */
   apiKey: string | null;
   /** Whether user has given explicit consent for cloud processing */
   consentGiven: boolean;

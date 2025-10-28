@@ -6,7 +6,7 @@ export default defineConfig({
     mockReset: true,
     restoreMocks: true,
     exclude: ['tests/e2e/**', '**/node_modules/**'],
-    testTimeout: 100, // ms. Hard timeout - tests fail if exceeded
+    testTimeout: 100, // ms. Hard timeout
     slowTestThreshold: 10, // Show warning for tests slower than 10ms
   },
   // Providing an explicit dev server port avoids sandbox failures when Vitest boots WXT helpers

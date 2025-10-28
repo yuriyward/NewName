@@ -5,7 +5,7 @@
  * Implements three-phase analysis: title extraction → decision → generation
  */
 
-import type { LanguageModelV1 } from 'ai';
+import type { LanguageModel } from 'ai';
 import { generateText } from 'ai';
 import { mergePdfContext } from '@/entrypoints/offscreen/pdf-analysis/pdf-context-merger';
 import { decidePdfRename } from '@/entrypoints/offscreen/pdf-analysis/pdf-rename-decision';
@@ -39,7 +39,7 @@ interface CloudFilenameResponse {
  * @returns Analysis response with proposal or null
  */
 export async function analyzePdfWithGemini(
-  model: LanguageModelV1,
+  model: LanguageModel,
   request: PdfUpgradeAnalysisRequest,
   pages: RenderedPdfPage[],
 ): Promise<ImageUpgradeAnalysisResponse | null> {

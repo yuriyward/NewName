@@ -5,7 +5,7 @@
  * Implements three-phase analysis: description → decision → generation
  */
 
-import type { LanguageModelV1 } from 'ai';
+import type { LanguageModel } from 'ai';
 import { generateText } from 'ai';
 import { buildProposedPath } from '@/entrypoints/offscreen/text-analysis/filename-builder';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
@@ -38,7 +38,7 @@ interface CloudFilenameResponse {
  * @returns Analysis response with proposal or null
  */
 export async function analyzeImageWithGemini(
-  model: LanguageModelV1,
+  model: LanguageModel,
   request: ImageUpgradeAnalysisRequest,
   ingestion: ImageIngestionResult,
 ): Promise<ImageUpgradeAnalysisResponse | null> {
