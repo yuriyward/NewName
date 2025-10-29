@@ -20,6 +20,12 @@ import { applyFilenamePolicy } from '@/entrypoints/shared/naming/policy-engine';
 import { arrayBufferToBase64 } from '@/entrypoints/shared/utils/encoding';
 import { DATE_FORMAT_RULE, parseJsonResponse } from './helpers';
 
+/**
+ * Content length limits for prompt engineering
+ * Controls how much content is sent to cloud AI for analysis
+ */
+const PDF_SUMMARY_FALLBACK_MAX_CHARS = 200; // Truncated description for proposal summary
+
 interface CloudFilenameResponse {
   filename: string;
   reasoning: string;
@@ -236,7 +242,7 @@ Respond with JSON:
       summary:
         renameDecision.explanation ||
         generated.reasoning ||
-        mergedContext.fullDescription.slice(0, 200),
+        mergedContext.fullDescription.slice(0, PDF_SUMMARY_FALLBACK_MAX_CHARS),
     };
 
     console.log('[CloudAI] PDF Phase 3 complete - Filename generated', {

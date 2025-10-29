@@ -249,12 +249,29 @@ export function sanitizeProcessingPreferences(
   input: Partial<ProcessingPreferences> | undefined,
 ): Settings['processingPreferences'] {
   const defaults = DEFAULT_SETTINGS.processingPreferences;
+  const global = isProcessingMode(input?.global)
+    ? input.global
+    : defaults.global;
+  const usePerTypeOverrides =
+    typeof input?.usePerTypeOverrides === 'boolean'
+      ? input.usePerTypeOverrides
+      : defaults.usePerTypeOverrides;
+
+  // When overrides are disabled, all per-type modes should match global
+  if (!usePerTypeOverrides) {
+    return {
+      global,
+      usePerTypeOverrides,
+      text: global,
+      pdf: global,
+      image: global,
+    };
+  }
+
+  // When overrides are enabled, validate each per-type mode independently
   return {
-    global: isProcessingMode(input?.global) ? input.global : defaults.global,
-    usePerTypeOverrides:
-      typeof input?.usePerTypeOverrides === 'boolean'
-        ? input.usePerTypeOverrides
-        : defaults.usePerTypeOverrides,
+    global,
+    usePerTypeOverrides,
     text: isProcessingMode(input?.text) ? input.text : defaults.text,
     pdf: isProcessingMode(input?.pdf) ? input.pdf : defaults.pdf,
     image: isProcessingMode(input?.image) ? input.image : defaults.image,

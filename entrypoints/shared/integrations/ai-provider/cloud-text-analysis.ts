@@ -21,6 +21,13 @@ import type {
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import { DATE_FORMAT_RULE, parseJsonResponse } from './helpers';
 
+/**
+ * Content length limits for prompt engineering
+ * Controls how much content is sent to cloud AI for analysis
+ */
+const TEXT_DECISION_SUMMARY_MAX_CHARS = 500; // Brief summary for rename decision
+const TEXT_GENERATION_CONTENT_MAX_CHARS = 1000; // Full content for filename generation
+
 interface CloudDecisionResponse {
   shouldRename: boolean;
   reason: string;
@@ -56,7 +63,7 @@ export async function analyzeTextWithGemini(
 
 Current filename: ${currentFilename}
 File type: ${request.fileType}
-Content summary: ${ingestion.text.slice(0, 500)}
+Content summary: ${ingestion.text.slice(0, TEXT_DECISION_SUMMARY_MAX_CHARS)}
 
 Respond with JSON:
 {
@@ -86,7 +93,7 @@ Respond with JSON:
       model,
       prompt: `Generate a clear, descriptive filename for this file.
 
-Content: ${ingestion.text.slice(0, 1000)}
+Content: ${ingestion.text.slice(0, TEXT_GENERATION_CONTENT_MAX_CHARS)}
 Current name: ${currentFilename}
 Max length: ${request.settings.maxFilenameLength} characters
 Separator: ${request.settings.separator}

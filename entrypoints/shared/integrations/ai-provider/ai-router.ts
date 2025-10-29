@@ -20,9 +20,14 @@ import type {
   TextUpgradeAnalysisResponse,
   TextUpgradeIngestionResult,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
-import { CloudAiAdapter } from './cloud-adapter';
 import { LocalAiAdapter } from './local-adapter';
 import type { AiRouterConfig, IAiProvider, ProcessingMode } from './types';
+
+// Lazy-loaded cloud adapter to avoid loading ai-sdk (~100KB+) when not needed
+type CloudAiAdapter = IAiProvider & {
+  setApiKey(apiKey: string | null): void;
+  setModel(modelId: string): void;
+};
 
 /**
  * AI Router for selecting and coordinating between local and cloud providers
@@ -31,22 +36,36 @@ import type { AiRouterConfig, IAiProvider, ProcessingMode } from './types';
  * - 'auto': Try local first, fall back to cloud if local unavailable/fails
  * - 'local': Only use local, fail if unavailable
  * - 'cloud': Only use cloud, fail if unavailable
+ *
+ * Performance: Cloud adapter (~100KB+ ai-sdk) is lazy-loaded only when needed
  */
 export class AiRouter {
   private localProvider: LocalAiAdapter;
-  private cloudProvider: CloudAiAdapter;
+  private cloudProvider: CloudAiAdapter | null = null;
   private config: AiRouterConfig;
 
   constructor(config: AiRouterConfig) {
     this.config = config;
     this.localProvider = new LocalAiAdapter();
-    this.cloudProvider = new CloudAiAdapter();
+    // Note: cloudProvider is lazy-loaded in getCloudProvider()
+  }
 
-    // Configure cloud provider with API key and model
-    if (config.cloudConfig.enabled && config.cloudConfig.apiKey) {
-      this.cloudProvider.setApiKey(config.cloudConfig.apiKey);
-      this.cloudProvider.setModel(config.cloudConfig.model);
+  /**
+   * Lazy-load cloud adapter only when needed
+   * Avoids loading ai-sdk package (~100KB+) when cloud mode is not used
+   */
+  private async getCloudProvider(): Promise<CloudAiAdapter> {
+    if (!this.cloudProvider) {
+      const { CloudAiAdapter: CloudAdapter } = await import('./cloud-adapter');
+      this.cloudProvider = new CloudAdapter();
+
+      // Configure with current settings
+      if (this.config.cloudConfig.enabled && this.config.cloudConfig.apiKey) {
+        this.cloudProvider.setApiKey(this.config.cloudConfig.apiKey);
+        this.cloudProvider.setModel(this.config.cloudConfig.model);
+      }
     }
+    return this.cloudProvider;
   }
 
   /**
@@ -55,12 +74,14 @@ export class AiRouter {
   updateConfig(config: AiRouterConfig): void {
     this.config = config;
 
-    // Update cloud provider API key and model
-    if (config.cloudConfig.enabled && config.cloudConfig.apiKey) {
-      this.cloudProvider.setApiKey(config.cloudConfig.apiKey);
-      this.cloudProvider.setModel(config.cloudConfig.model);
-    } else {
-      this.cloudProvider.setApiKey(null);
+    // Update cloud provider if already loaded
+    if (this.cloudProvider) {
+      if (config.cloudConfig.enabled && config.cloudConfig.apiKey) {
+        this.cloudProvider.setApiKey(config.cloudConfig.apiKey);
+        this.cloudProvider.setModel(config.cloudConfig.model);
+      } else {
+        this.cloudProvider.setApiKey(null);
+      }
     }
   }
 
@@ -73,10 +94,17 @@ export class AiRouter {
     mode: ProcessingMode,
   ): Promise<{ provider: IAiProvider; wasFallback: boolean } | null> {
     const localAvailable = await this.localProvider.isAvailable();
-    const cloudAvailable =
+
+    // Check cloud availability (lazy-loads adapter if needed)
+    let cloudAvailable = false;
+    let cloudProvider: CloudAiAdapter | null = null;
+    if (
       this.config.cloudConfig.enabled &&
-      this.config.cloudConfig.consentGiven &&
-      (await this.cloudProvider.isAvailable());
+      this.config.cloudConfig.consentGiven
+    ) {
+      cloudProvider = await this.getCloudProvider();
+      cloudAvailable = await cloudProvider.isAvailable();
+    }
 
     debugLogger.log('[AiRouter] Provider availability', {
       mode,
@@ -90,31 +118,31 @@ export class AiRouter {
       case 'local':
         // Force local only
         if (!localAvailable) {
-          console.warn('[AiRouter] Local AI requested but unavailable');
+          debugLogger.warn('[AiRouter] Local AI requested but unavailable');
           return null;
         }
         return { provider: this.localProvider, wasFallback: false };
 
       case 'cloud':
         // Force cloud only
-        if (!cloudAvailable) {
-          console.warn('[AiRouter] Cloud AI requested but unavailable');
+        if (!cloudAvailable || !cloudProvider) {
+          debugLogger.warn('[AiRouter] Cloud AI requested but unavailable');
           return null;
         }
-        return { provider: this.cloudProvider, wasFallback: false };
+        return { provider: cloudProvider, wasFallback: false };
 
       default:
         // Auto mode: Try local first, fall back to cloud
         if (localAvailable) {
           return { provider: this.localProvider, wasFallback: false };
         }
-        if (cloudAvailable) {
-          console.log(
+        if (cloudAvailable && cloudProvider) {
+          debugLogger.log(
             '[AiRouter] Falling back to cloud AI (local unavailable)',
           );
-          return { provider: this.cloudProvider, wasFallback: true };
+          return { provider: cloudProvider, wasFallback: true };
         }
-        console.warn('[AiRouter] No AI providers available');
+        debugLogger.warn('[AiRouter] No AI providers available');
         return null;
     }
   }
@@ -151,13 +179,20 @@ export class AiRouter {
         );
         const cloudSelection = await this.selectProvider('cloud');
         if (cloudSelection) {
-          return operation(cloudSelection.provider, request, data);
+          try {
+            return await operation(cloudSelection.provider, request, data);
+          } catch (fallbackError) {
+            debugLogger.error('[AiRouter] Cloud fallback failed', {
+              fallbackError,
+            });
+            return null;
+          }
         }
       }
 
       return result;
     } catch (error) {
-      console.error(`[AiRouter] ${analysisType} analysis failed`, {
+      debugLogger.error(`[AiRouter] ${analysisType} analysis failed`, {
         error,
         provider: provider.type,
       });
@@ -170,7 +205,7 @@ export class AiRouter {
           try {
             return await operation(cloudSelection.provider, request, data);
           } catch (cloudError) {
-            console.error('[AiRouter] Cloud fallback also failed', {
+            debugLogger.error('[AiRouter] Cloud fallback also failed', {
               cloudError,
             });
           }
@@ -193,7 +228,7 @@ export class AiRouter {
     const selection = await this.selectProvider(mode);
 
     if (!selection) {
-      console.warn('[AiRouter] No provider available for text analysis');
+      debugLogger.warn('[AiRouter] No provider available for text analysis');
       return {
         status: 'unavailable',
         requestId: request.requestId,
@@ -205,7 +240,7 @@ export class AiRouter {
 
     const { provider, wasFallback } = selection;
 
-    console.log('[AiRouter] Analyzing text', {
+    debugLogger.log('[AiRouter] Analyzing text', {
       requestId: request.requestId,
       provider: provider.type,
       wasFallback,
@@ -244,7 +279,7 @@ export class AiRouter {
     const selection = await this.selectProvider(mode);
 
     if (!selection) {
-      console.warn('[AiRouter] No provider available for image analysis');
+      debugLogger.warn('[AiRouter] No provider available for image analysis');
       return {
         status: 'unavailable',
         requestId: request.requestId,
@@ -256,7 +291,7 @@ export class AiRouter {
 
     const { provider, wasFallback } = selection;
 
-    console.log('[AiRouter] Analyzing image', {
+    debugLogger.log('[AiRouter] Analyzing image', {
       requestId: request.requestId,
       provider: provider.type,
       wasFallback,
@@ -295,7 +330,7 @@ export class AiRouter {
     const selection = await this.selectProvider(mode);
 
     if (!selection) {
-      console.warn('[AiRouter] No provider available for PDF analysis');
+      debugLogger.warn('[AiRouter] No provider available for PDF analysis');
       return {
         status: 'unavailable',
         requestId: request.requestId,
@@ -307,7 +342,7 @@ export class AiRouter {
 
     const { provider, wasFallback } = selection;
 
-    console.log('[AiRouter] Analyzing PDF', {
+    debugLogger.log('[AiRouter] Analyzing PDF', {
       requestId: request.requestId,
       provider: provider.type,
       wasFallback,
