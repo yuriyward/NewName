@@ -74,6 +74,8 @@ export function buildProposalFromAnalysis(
       separator: request.settings.separator,
       transliterateAscii: request.settings.transliterateAscii,
     },
+    cloudConfig: request.cloudConfig,
+    processingPreferences: request.processingPreferences,
   };
 
   const ingestionForFilename: TextUpgradeIngestionResult = {
@@ -221,6 +223,8 @@ export function buildProposalFromPhase3Inputs(
       separator: request.settings.separator,
       transliterateAscii: request.settings.transliterateAscii,
     },
+    cloudConfig: request.cloudConfig,
+    processingPreferences: request.processingPreferences,
   };
 
   const ingestionForFilename: TextUpgradeIngestionResult = {

@@ -49,11 +49,40 @@ export interface MetadataToggles {
 
 export type CloudTextFallbackMode = 'off' | 'ask' | 'always';
 
+export type CloudModel = 'gemini-2.5-flash' | 'gemini-flash-lite-latest';
+
+export type ProcessingMode = 'auto' | 'local' | 'cloud';
+
 export interface CloudSettings {
   enabled: boolean;
   scope: FileType[];
   dataMinimize: boolean;
   textFallbackMode: CloudTextFallbackMode;
+  /** Cloud AI model identifier (e.g., 'gemini-flash-lite-latest') */
+  model: CloudModel;
+  /**
+   * User's API key for cloud processing
+   * - Encrypted (AES-GCM) in storage, decrypted in memory
+   * - See crypto.ts for encryption implementation details
+   */
+  apiKey: string | null;
+  /** Whether user has given explicit consent for cloud processing */
+  consentGiven: boolean;
+  /** Timestamp when consent was given (null if never consented) */
+  consentTimestamp: number | null;
+}
+
+export interface ProcessingPreferences {
+  /** Global processing mode applied to all file types (unless overridden) */
+  global: ProcessingMode;
+  /** Whether to use per-type overrides */
+  usePerTypeOverrides: boolean;
+  /** Processing mode for text files (overrides global if usePerTypeOverrides is true) */
+  text: ProcessingMode;
+  /** Processing mode for PDF files (overrides global if usePerTypeOverrides is true) */
+  pdf: ProcessingMode;
+  /** Processing mode for image files (overrides global if usePerTypeOverrides is true) */
+  image: ProcessingMode;
 }
 
 export interface DebugSettings {
@@ -100,6 +129,8 @@ export interface Settings {
   perType: Record<FileType, PerTypeBehavior>;
   metadataToggles: MetadataToggles;
   cloud: CloudSettings;
+  /** Per-file-type AI processing preferences (local/cloud/auto) */
+  processingPreferences: ProcessingPreferences;
   debug: DebugSettings;
   notifyOnKeep: boolean;
   confirmModal: ConfirmModalDefaults;
@@ -146,6 +177,17 @@ export const DEFAULT_SETTINGS: Settings = {
     scope: [],
     dataMinimize: true,
     textFallbackMode: 'ask',
+    model: 'gemini-flash-lite-latest',
+    apiKey: null,
+    consentGiven: false,
+    consentTimestamp: null,
+  },
+  processingPreferences: {
+    global: 'auto',
+    usePerTypeOverrides: false,
+    text: 'auto',
+    pdf: 'auto',
+    image: 'auto',
   },
   debug: {
     enabled: false,

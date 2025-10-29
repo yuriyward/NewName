@@ -37,6 +37,26 @@ export interface TextUpgradeAnalysisRequest {
     separator: Settings['separator'];
     transliterateAscii: Settings['transliterateAscii'];
   };
+  /**
+   * Cloud AI configuration for router
+   * Passed from background to avoid storage access issues in offscreen context
+   */
+  cloudConfig: {
+    enabled: boolean;
+    apiKey: string | null;
+    model: Settings['cloud']['model'];
+    consentGiven: boolean;
+    consentTimestamp: number | null;
+  };
+  /**
+   * Processing preferences for AI router
+   * Determines whether to use local, cloud, or auto mode per file type
+   */
+  processingPreferences: {
+    text: 'auto' | 'local' | 'cloud';
+    pdf: 'auto' | 'local' | 'cloud';
+    image: 'auto' | 'local' | 'cloud';
+  };
 }
 
 export interface TextUpgradeAnalysisSuccess {

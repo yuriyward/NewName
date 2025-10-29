@@ -1,10 +1,9 @@
-import { CheckIcon } from '@heroicons/react/16/solid';
+import { CheckIcon, FolderIcon } from '@heroicons/react/16/solid';
 import { Chip } from '@heroui/chip';
 import { Tooltip } from '@heroui/tooltip';
 import { browser } from 'wxt/browser';
 import type { HistoryItem as HistoryItemType } from '@/entrypoints/shared/history/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
-import { IconFolder } from '@/entrypoints/shared/ui/icons';
 import { SummaryDisplay } from './SummaryDisplay';
 import { getRenameLabel } from './utils';
 
@@ -33,7 +32,7 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
         {/* Header with icon and file type */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <CheckIcon className="w-4 h-4 text-green-600 flex-shrink-0" />
+            <CheckIcon className="size-4 text-green-600 flex-shrink-0" />
             <p className="text-xs opacity-80">{getRenameLabel(item)}</p>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -49,7 +48,7 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
                   onClick={handleShowInFolder}
                   className="p-1 rounded hover:bg-content2 transition-colors focus:outline-none focus:ring-2 focus:ring-default-400 cursor-pointer"
                 >
-                  <IconFolder className="w-3.5 h-3.5 text-default-600" />
+                  <FolderIcon className="size-3.5 text-default-600" />
                 </button>
               </Tooltip>
             )}

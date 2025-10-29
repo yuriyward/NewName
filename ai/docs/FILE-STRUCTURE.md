@@ -116,6 +116,12 @@ popup/ # 2 files, 3 directories
   └─ main.tsx # React popup entry point and application bootstrapping
 sandbox/ # 1 file
   └─ main.ts # Sandboxed iframe for MediaInfo.js WASM execution. Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
+settings/ # 2 files, 1 directories
+  ├─ components/ # 2 files
+  │ ├─ CloudAiSection.tsx # Cloud AI configuration section
+  │ └─ ProcessingPreferences.tsx # Per-file-type processing preferences
+  ├─ main.tsx # Settings page entry point
+  └─ SettingsPage.tsx # Settings page for cloud AI and processing preferences
 shared/ # 18 directories
   ├─ classification/ # 2 files
   │ ├─ file-types.ts # File type detection from MIME and extensions
@@ -141,7 +147,12 @@ shared/ # 18 directories
   │ ├─ storage.ts # History storage operations with pruning and sanitization
   │ ├─ types.ts # Type definitions for history items and metadata
   │ └─ validation.ts # Runtime validation for history data integrity
-  ├─ integrations/ # 1 files, 5 directories
+  ├─ integrations/ # 1 files, 6 directories
+  │ ├─ ai-provider/ # 4 files
+  │ │ ├─ ai-router.ts # Smart AI Router Routes analysis requests to the appropriate provider (local or cloud) based on user preferences, provider availability, and fallback logic.
+  │ │ ├─ cloud-adapter.ts # Cloud AI Adapter Integrates with cloud AI services (Google Gemini) via ai-sdk. Provides fallback/alternative to local Chrome AI processing.
+  │ │ ├─ local-adapter.ts # Local AI Adapter Wraps Chrome's built-in AI (Gemini Nano) for on-device processing. This adapter delegates to existing pipeline orchestrators without changing their logic.
+  │ │ └─ types.ts # AI Provider Abstraction Layer This module defines a unified interface for AI providers (local Chrome AI vs. cloud services). Allows seamless switching between on-device and cloud-based processing.
   │ ├─ chrome-ai/ # 9 files, 2 directories
   │ │ ├─ diagnostics-rules/ # 6 files
   │ │ │ ├─ chrome-version-rule.ts # 2 exports
@@ -221,7 +232,7 @@ shared/ # 18 directories
   ├─ toast/ # 2 files
   │ ├─ timing-constants.ts # Centralized timing constants for toast behavior. All values are in milliseconds unless otherwise noted.
   │ └─ types.ts # Shared types for confirm toast messaging between contexts.
-  ├─ ui/ # 10 files, 1 directories
+  ├─ ui/ # 9 files, 1 directories
   │ ├─ toast/ # 8 files
   │ │ ├─ keyboard-handler.ts # Keyboard event handler for toast interactions.
   │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames. Simplified design matching ai/design/src/notification-examples.tsx
@@ -237,7 +248,6 @@ shared/ # 18 directories
   │ ├─ ConfirmToast.tsx # 1 export
   │ ├─ CountdownBadge.tsx # Countdown badge component Displays the auto-apply countdown with color changes when urgent
   │ ├─ FilenameLabel.tsx # 1 export
-  │ ├─ icons.tsx # Icon component wrapper using Heroicons React library Provides a centralized, type-safe way to use icons throughout the app
   │ ├─ theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
   │ ├─ useToastCountdown.ts # Countdown timer hooks for auto-apply toast
   │ └─ useToastEditor.ts # Editor hooks for toast filename editing Simplified for hover-based edit mode
@@ -987,6 +997,29 @@ Renders pages ...
 
 *No exports found*
 
+### settings/SettingsPage.tsx
+**Purpose**: Settings page for cloud AI and processing preferences
+
+**Exports**:
+- `export SettingsPage` - item implementation
+
+### settings/components/CloudAiSection.tsx
+**Purpose**: Cloud AI configuration section
+
+**Exports**:
+- `export CloudAiSection` - item implementation
+
+### settings/components/ProcessingPreferences.tsx
+**Purpose**: Per-file-type processing preferences
+
+**Exports**:
+- `export ProcessingPreferencesSection` - item implementation
+
+### settings/main.tsx
+**Purpose**: Settings page entry point
+
+*No exports found*
+
 ### shared/classification/file-types.ts
 **Purpose**: File type detection from MIME and extensions
 
@@ -1159,6 +1192,41 @@ Renders pages ...
 - `export isPendingUpgradeAnalysis` - item implementation
 - `export isUpgradeProposal` - item implementation
 - `export isValidHistoryItem` - item implementation
+
+### shared/integrations/ai-provider/ai-router.ts
+**Purpose**: Smart AI Router Routes analysis requests to the appropriate provider (local or cloud) based on user preferences, provider availability, and fallback logic.
+
+**Exports**:
+- `export AiRouter` - AI Router for selecting and coordinating between local an...
+
+### shared/integrations/ai-provider/cloud-adapter.ts
+**Purpose**: Cloud AI Adapter Integrates with cloud AI services (Google Gemini) via ai-sdk. Provides fallback/alternative to local Chrome AI processing.
+
+**Exports**:
+- `export CloudAiAdapter` - Cloud AI provider using Google Gemini via ai-sdk
+
+Sends p...
+
+### shared/integrations/ai-provider/local-adapter.ts
+**Purpose**: Local AI Adapter Wraps Chrome's built-in AI (Gemini Nano) for on-device processing. This adapter delegates to existing pipeline orchestrators without changing their logic.
+
+**Exports**:
+- `export LocalAiAdapter` - Local AI provider using Chrome's built-in AI (Gemini Nano...
+
+### shared/integrations/ai-provider/types.ts
+**Purpose**: AI Provider Abstraction Layer This module defines a unified interface for AI providers (local Chrome AI vs. cloud services). Allows seamless switching between on-device and cloud-based processing.
+
+**Exports**:
+- `export AiAnalysisResult` - Analysis result with provider metadata
+- `export AiRouterConfig` - Router configuration for AI provider selection
+- `export CloudProviderConfig` - Configuration for cloud AI provider
+- `export IAiProvider` - Unified AI provider interface
+
+Each provider (local or cl...
+- `export ProcessingPreferences` - Processing preferences per file type
+- `export ProviderMetadata` - Metadata about the provider used for a specific analysis
+- `export AiProviderType` - Provider type identifier
+- `export ProcessingMode` - Processing mode preference (per file type)
 
 ### shared/integrations/chrome-ai/adapter.ts
 **Purpose**: Shared adapter interface for Chrome built-in AI APIs. The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector). This adapter keeps our background/offscreen logic decoupled from the actual runtime implementation so we can swap the mock below with real bindings once the APIs are ready.
@@ -1785,11 +1853,14 @@ Represents different file c...
 - `export LocalizationSettings` - item implementation
 - `export MetadataToggles` - item implementation
 - `export PerTypeBehavior` - item implementation
+- `export ProcessingPreferences` - item implementation
 - `export Settings` - item implementation
+- `export CloudProvider` - item implementation
 - `export CloudTextFallbackMode` - item implementation
 - `export DebugLevel` - item implementation
 - `export FileType` - item implementation
 - `export Mode` - Type definitions for application configuration and settings
+- `export ProcessingMode` - item implementation
 - `export Separator` - item implementation
 - `export Theme` - item implementation
 - `export UiLocale` - item implementation
@@ -1817,6 +1888,7 @@ Represents different file c...
 - `export sanitizeLocalization` - item implementation
 - `export sanitizeMetadataToggles` - item implementation
 - `export sanitizePerType` - item implementation
+- `export sanitizeProcessingPreferences` - item implementation
 - `export sanitizeSettings` - item implementation
 
 ### shared/state/page-context-service.ts
@@ -1901,24 +1973,6 @@ Represents different file c...
 - `export ConfirmToastManager` - item implementation
 - `export getConfirmToastManager` - item implementation
 - `export resetConfirmToastManagerForTesting` - item implementation
-
-### shared/ui/icons.tsx
-**Purpose**: Icon component wrapper using Heroicons React library Provides a centralized, type-safe way to use icons throughout the app
-
-**Exports**:
-- `export IconProps` - item implementation
-- `export IconBolt` - item implementation
-- `export IconCheckmark` - Icon component factory - provides semantic icon component...
-- `export IconError` - item implementation
-- `export IconEye` - item implementation
-- `export IconFolder` - item implementation
-- `export IconMoon` - item implementation
-- `export IconPause` - item implementation
-- `export IconShield` - item implementation
-- `export IconSparkles` - item implementation
-- `export IconSuccess` - item implementation
-- `export IconSun` - item implementation
-- `export IconWarning` - item implementation
 
 ### shared/ui/theme-service.ts
 **Purpose**: Theme management application service Handles automatic theme detection and daily reset logic

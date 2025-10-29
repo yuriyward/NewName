@@ -6,8 +6,8 @@
 import { verifyDirectoryPermission } from '@/entrypoints/shared/filesystem/directory-picker';
 import { resolveFileHandle } from '@/entrypoints/shared/filesystem/file-reader';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
+import { AiRouter } from '@/entrypoints/shared/integrations/ai-provider/ai-router';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
-import { runPdfUpgradePipeline } from './pdf-analysis/pdf-analysis-pipeline';
 import { extractPdfPagesForAnalysis } from './pdf-analysis/pdf-page-extractor';
 import type {
   PdfAnalysisSuccess,
@@ -74,18 +74,30 @@ export function initializePdfAnalysisHandler(): void {
         return unavailable(request, 'no-pages', 'No pages extracted from PDF');
       }
 
-      // Run PDF upgrade pipeline: Phase 1-3 (title extraction, rename decision, filename generation)
-      const proposal = await runPdfUpgradePipeline(
-        extractionResult.pages,
-        request,
-      );
+      // Configure AI router using cloud config from request
+      // (avoids storage access issues in offscreen context)
+      const router = new AiRouter({
+        cloudConfig: request.cloudConfig,
+        preferences: request.processingPreferences,
+      });
 
-      if (proposal) {
+      // Convert extracted pages to RenderedPdfPage format
+      // (ExtractedPageForAnalysis doesn't include renderTimeMs)
+      const pagesForAnalysis = extractionResult.pages.map((page) => ({
+        ...page,
+        renderTimeMs: 0, // Not needed for AI analysis
+      }));
+
+      // Run PDF upgrade pipeline via router
+      // Router handles provider selection (local/cloud/auto) based on preferences
+      const aiResponse = await router.analyzePdf(request, pagesForAnalysis);
+
+      if (aiResponse && aiResponse.status === 'success') {
         return {
           status: 'success' as const,
           requestId: request.requestId,
           analyzedAt: Date.now(),
-          proposal,
+          proposal: aiResponse.proposal,
           pagesAnalyzed: extractionResult.pages.length,
           totalPages: extractionResult.totalPages,
         } satisfies PdfAnalysisSuccess;

@@ -1,6 +1,7 @@
 import {
   CheckIcon,
   ExclamationTriangleIcon,
+  PauseIcon,
   SparklesIcon,
 } from '@heroicons/react/16/solid';
 import React, {
@@ -13,7 +14,6 @@ import React, {
 } from 'react';
 import type { ConfirmToastState } from '@/entrypoints/shared/toast/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
-import { IconPause } from '@/entrypoints/shared/ui/icons';
 import {
   formatCountdown,
   useToastCountdown,
@@ -198,7 +198,7 @@ export const ConfirmToast: React.FC<ConfirmToastProps> = ({
           {isPending && countdownLabel && (
             <span className="text-xs font-medium bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-nowrap flex-shrink-0 flex items-center justify-center gap-1">
               {isHovered && isCountdownPaused ? (
-                <IconPause className="w-3.5 h-3.5" />
+                <PauseIcon className="size-3.5" />
               ) : (
                 countdownLabel
               )}

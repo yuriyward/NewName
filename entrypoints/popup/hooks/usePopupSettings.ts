@@ -6,10 +6,12 @@ import {
   subscribeSettings,
   updateSettings,
 } from '@/entrypoints/shared/settings/settings';
+import type { ProcessingMode } from '@/entrypoints/shared/settings/types';
 
 interface UsePopupSettingsResult {
   strategy: InstantBaselineStrategy | null;
   settingsTheme: 'light' | 'dark';
+  processingMode: ProcessingMode | null;
   loading: boolean;
   saving: boolean;
   error: string | null;
@@ -26,6 +28,9 @@ export const usePopupSettings = (
     null,
   );
   const [settingsTheme, setSettingsTheme] = useState<'light' | 'dark'>('dark');
+  const [processingMode, setProcessingMode] = useState<ProcessingMode | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +46,7 @@ export const usePopupSettings = (
         if (!active) return;
         setStrategy(settings.instantBaselineStrategy);
         setSettingsTheme(settings.theme);
+        setProcessingMode(settings.processingPreferences.global);
         themeRef.current = settings.theme;
         applyTheme(settings.theme);
         setLoading(false);
@@ -55,6 +61,7 @@ export const usePopupSettings = (
     unsubscribe = subscribeSettings((settings) => {
       if (!active) return;
       setStrategy(settings.instantBaselineStrategy);
+      setProcessingMode(settings.processingPreferences.global);
       if (settings.theme !== themeRef.current) {
         setSettingsTheme(settings.theme);
         themeRef.current = settings.theme;
@@ -115,6 +122,7 @@ export const usePopupSettings = (
   return {
     strategy,
     settingsTheme,
+    processingMode,
     loading,
     saving,
     error,

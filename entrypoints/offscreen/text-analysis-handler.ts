@@ -5,6 +5,7 @@ import {
   resolveFileHandle,
 } from '@/entrypoints/shared/filesystem/file-reader';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
+import { AiRouter } from '@/entrypoints/shared/integrations/ai-provider/ai-router';
 import { normalizeTextBuffer } from '@/entrypoints/shared/integrations/text-analysis/normalize';
 import type {
   TextUpgradeAnalysisRequest,
@@ -13,7 +14,6 @@ import type {
   TextUpgradeIngestionResult,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import { onExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
-import { runTextUpgradePipeline } from './text-analysis/pipeline-orchestrator';
 
 const DEFAULT_MAX_BYTES = 128 * 1024; // 128 KB
 
@@ -109,7 +109,14 @@ export function initializeTextAnalysisHandler(): void {
         });
       }
 
-      const aiResponse = await runTextUpgradePipeline(request, response);
+      // Configure AI router using cloud config from request
+      // (avoids storage access issues in offscreen context)
+      const router = new AiRouter({
+        cloudConfig: request.cloudConfig,
+        preferences: request.processingPreferences,
+      });
+
+      const aiResponse = await router.analyzeText(request, response);
       if (aiResponse) {
         return aiResponse;
       }

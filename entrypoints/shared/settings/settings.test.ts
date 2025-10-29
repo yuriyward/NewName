@@ -172,6 +172,9 @@ describe('settings persistence', () => {
       maxLen: 80,
     });
 
+    // Wait for async decryption to complete
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
     expect(updates).toEqual([DEFAULT_SETTINGS.maxLen, 80]);
     expect(getLastKnownSettings().maxLen).toBe(80);
 
