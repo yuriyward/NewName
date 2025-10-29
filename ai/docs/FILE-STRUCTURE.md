@@ -93,7 +93,7 @@ offscreen/ # 6 files, 4 directories
   ├─ sandbox-bridge.ts # Bridge for communicating with the sandboxed iframe that runs MediaInfo.js. Coordinates analysis requests and response handling.
   └─ text-analysis-handler.ts # 1 export
 popup/ # 2 files, 3 directories
-  ├─ components/ # 5 files, 1 directories
+  ├─ components/ # 6 files, 1 directories
   │ ├─ HistoryTab/ # 5 files
   │ │ ├─ EmptyStateMessage.tsx # 1 export
   │ │ ├─ HistoryFilterButton.tsx # 1 export
@@ -104,6 +104,7 @@ popup/ # 2 files, 3 directories
   │ ├─ HistoryTab.tsx # 1 export
   │ ├─ IconButton.tsx # 1 export
   │ ├─ PrimaryButton.tsx # 1 export
+  │ ├─ ProcessingModeIndicator.tsx # 1 export
   │ └─ StrategyTab.tsx # 1 export
   ├─ hooks/ # 4 files
   │ ├─ useAiModelStatus.ts # 2 exports
@@ -148,9 +149,13 @@ shared/ # 18 directories
   │ ├─ types.ts # Type definitions for history items and metadata
   │ └─ validation.ts # Runtime validation for history data integrity
   ├─ integrations/ # 1 files, 6 directories
-  │ ├─ ai-provider/ # 4 files
+  │ ├─ ai-provider/ # 8 files
   │ │ ├─ ai-router.ts # Smart AI Router Routes analysis requests to the appropriate provider (local or cloud) based on user preferences, provider availability, and fallback logic.
-  │ │ ├─ cloud-adapter.ts # Cloud AI Adapter Integrates with cloud AI services (Google Gemini) via ai-sdk. Provides fallback/alternative to local Chrome AI processing.
+  │ │ ├─ cloud-adapter.ts # Cloud AI Adapter Integrates with cloud AI services (Google Gemini) via ai-sdk. Provides fallback/alternative to local Chrome AI processing. This adapter delegates to specialized analysis pipelines: - Text: cloud-text-analysis.ts - Image: cloud-image-analysis.ts - PDF: cloud-pdf-analysis.ts
+  │ │ ├─ cloud-image-analysis.ts # Cloud Image Analysis Pipeline Handles image analysis using Google Gemini via ai-sdk. Implements three-phase analysis: description → decision → generation
+  │ │ ├─ cloud-pdf-analysis.ts # Cloud PDF Analysis Pipeline Handles PDF analysis using Google Gemini via ai-sdk. Implements three-phase analysis: title extraction → decision → generation
+  │ │ ├─ cloud-text-analysis.ts # Cloud Text Analysis Pipeline Handles text analysis using Google Gemini via ai-sdk. Implements two-phase analysis: decision → generation
+  │ │ ├─ helpers.ts # Shared helpers for AI provider integrations
   │ │ ├─ local-adapter.ts # Local AI Adapter Wraps Chrome's built-in AI (Gemini Nano) for on-device processing. This adapter delegates to existing pipeline orchestrators without changing their logic.
   │ │ └─ types.ts # AI Provider Abstraction Layer This module defines a unified interface for AI providers (local Chrome AI vs. cloud services). Allows seamless switching between on-device and cloud-based processing.
   │ ├─ chrome-ai/ # 9 files, 2 directories
@@ -219,8 +224,10 @@ shared/ # 18 directories
   │ ├─ path-utils.ts # Path and filename manipulation utilities for Instant Baseline processing
   │ ├─ strategy-evaluator.ts # Strategy evaluation and decision logic for Instant Baseline processing
   │ └─ strategy-options.ts # Strategy option definitions for the Instant Baseline domain
-  ├─ settings/ # 6 files
+  ├─ settings/ # 8 files
   │ ├─ confirm-toast-routing.ts # Helper utilities for deciding whether the confirm toast should appear.
+  │ ├─ crypto.test-helper.ts # Fast mock crypto implementation for testing Bypasses expensive PBKDF2 and AES operations while maintaining format compatibility
+  │ ├─ crypto.ts # Cryptographic utilities for secure API key storage Security Model: - Uses Web Crypto API (AES-GCM) for encryption - Derives encryption key from extension ID + salt using PBKDF2 - Provides obfuscation rather than true security (key is deterministic) - Better than plaintext: requires extension context access + code analysis - NOT secure against determined attackers with extension access Design Rationale: Browser extensions lack a secure key storage mechanism without user interaction. This implementation raises the security bar by: 1. Preventing casual inspection of API keys in storage 2. Requiring attackers to analyze extension code + have extension context 3. Using standard crypto primitives (AES-GCM, PBKDF2) Limitations: - Extension ID is public (in manifest) - Salt is in source code (public in unpacked extension) - Anyone with extension access can decrypt by running the same code - This is obfuscation + access control, not cryptographic security Format: - Encrypted data has format: "enc:v1:<base64>" - This makes it unambiguous and prevents false positives with API keys that look like base64
   │ ├─ settings.ts # Application settings persistence and state management
   │ ├─ storage-state.ts # Storage adapter state management for settings module This module provides a testing override mechanism for the storage adapter. In production, it simply re-exports WXT's storage API. In tests, it allows mocking storage behavior without complex setup.
   │ ├─ testing.ts # Test utilities for settings module
@@ -940,13 +947,19 @@ Renders pages ...
 **Purpose**: 1 export
 
 **Exports**:
-- `export IconButton` - Icon-only button with theme-aware background
+- `export IconButton` - Icon-only button with theme-aware background and tooltip
 
 ### popup/components/PrimaryButton.tsx
 **Purpose**: 1 export
 
 **Exports**:
 - `export PrimaryButton` - Primary action button with dark background used in alerts...
+
+### popup/components/ProcessingModeIndicator.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export ProcessingModeIndicator` - Small indicator showing current AI processing mode with t...
 
 ### popup/components/StrategyTab.tsx
 **Purpose**: 1 export
@@ -1200,12 +1213,40 @@ Renders pages ...
 - `export AiRouter` - AI Router for selecting and coordinating between local an...
 
 ### shared/integrations/ai-provider/cloud-adapter.ts
-**Purpose**: Cloud AI Adapter Integrates with cloud AI services (Google Gemini) via ai-sdk. Provides fallback/alternative to local Chrome AI processing.
+**Purpose**: Cloud AI Adapter Integrates with cloud AI services (Google Gemini) via ai-sdk. Provides fallback/alternative to local Chrome AI processing. This adapter delegates to specialized analysis pipelines: - Text: cloud-text-analysis.ts - Image: cloud-image-analysis.ts - PDF: cloud-pdf-analysis.ts
 
 **Exports**:
 - `export CloudAiAdapter` - Cloud AI provider using Google Gemini via ai-sdk
 
 Sends p...
+
+### shared/integrations/ai-provider/cloud-image-analysis.ts
+**Purpose**: Cloud Image Analysis Pipeline Handles image analysis using Google Gemini via ai-sdk. Implements three-phase analysis: description → decision → generation
+
+**Exports**:
+- `export analyzeImageWithGemini` - Analyze image using Google Gemini
+
+### shared/integrations/ai-provider/cloud-pdf-analysis.ts
+**Purpose**: Cloud PDF Analysis Pipeline Handles PDF analysis using Google Gemini via ai-sdk. Implements three-phase analysis: title extraction → decision → generation
+
+**Exports**:
+- `export analyzePdfWithGemini` - Analyze PDF using Google Gemini
+
+Implements 3-phase pipel...
+
+### shared/integrations/ai-provider/cloud-text-analysis.ts
+**Purpose**: Cloud Text Analysis Pipeline Handles text analysis using Google Gemini via ai-sdk. Implements two-phase analysis: decision → generation
+
+**Exports**:
+- `export analyzeTextWithGemini` - Analyze text using Google Gemini
+
+### shared/integrations/ai-provider/helpers.ts
+**Purpose**: Shared helpers for AI provider integrations
+
+**Exports**:
+- `export DATE_FORMAT_RULE` - Date format instruction for AI filename generation
+Consis...
+- `export parseJsonResponse` - Smart JSON parser that handles both markdown-wrapped and ...
 
 ### shared/integrations/ai-provider/local-adapter.ts
 **Purpose**: Local AI Adapter Wraps Chrome's built-in AI (Gemini Nano) for on-device processing. This adapter delegates to existing pipeline orchestrators without changing their logic.
@@ -1798,6 +1839,23 @@ Used for n...
 - `export ConfirmToastTriggerSource` - Helper utilities for deciding whether the confirm toast s...
 - `export resolveConfirmToastRoute` - item implementation
 
+### shared/settings/crypto.test-helper.ts
+**Purpose**: Fast mock crypto implementation for testing Bypasses expensive PBKDF2 and AES operations while maintaining format compatibility
+
+**Exports**:
+- `export mockDecrypt` - Fast mock decryption - just base64 decode and extract pla...
+- `export mockEncrypt` - Fast mock encryption - just base64 encode with prefix and...
+- `export setupMockCrypto` - Setup mock crypto for tests
+Call this in beforeEach to re...
+
+### shared/settings/crypto.ts
+**Purpose**: Cryptographic utilities for secure API key storage Security Model: - Uses Web Crypto API (AES-GCM) for encryption - Derives encryption key from extension ID + salt using PBKDF2 - Provides obfuscation rather than true security (key is deterministic) - Better than plaintext: requires extension context access + code analysis - NOT secure against determined attackers with extension access Design Rationale: Browser extensions lack a secure key storage mechanism without user interaction. This implementation raises the security bar by: 1. Preventing casual inspection of API keys in storage 2. Requiring attackers to analyze extension code + have extension context 3. Using standard crypto primitives (AES-GCM, PBKDF2) Limitations: - Extension ID is public (in manifest) - Salt is in source code (public in unpacked extension) - Anyone with extension access can decrypt by running the same code - This is obfuscation + access control, not cryptographic security Format: - Encrypted data has format: "enc:v1:<base64>" - This makes it unambiguous and prevents false positives with API keys that look like base64
+
+**Exports**:
+- `export decryptApiKey` - Decrypt an encrypted API key
+- `export encryptApiKey` - Encrypt a plaintext API key
+- `export isEncrypted` - Check if a string is encrypted by looking for the encrypt...
+
 ### shared/settings/settings.ts
 **Purpose**: Application settings persistence and state management
 
@@ -1855,7 +1913,7 @@ Represents different file c...
 - `export PerTypeBehavior` - item implementation
 - `export ProcessingPreferences` - item implementation
 - `export Settings` - item implementation
-- `export CloudProvider` - item implementation
+- `export CloudModel` - item implementation
 - `export CloudTextFallbackMode` - item implementation
 - `export DebugLevel` - item implementation
 - `export FileType` - item implementation
@@ -2067,6 +2125,8 @@ Handles...
 - `export DecodeTextBufferResult` - item implementation
 - `export DetectedTextEncoding` - Lightweight text encoding helpers used during file ingest...
 - `export TextEncoding` - Lightweight text encoding helpers used during file ingestion
+- `export arrayBufferToBase64` - Convert ArrayBuffer to base64 string using browser APIs
+W...
 - `export decodeTextBuffer` - item implementation
 - `export detectTextEncoding` - item implementation
 - `export stripBom` - item implementation
