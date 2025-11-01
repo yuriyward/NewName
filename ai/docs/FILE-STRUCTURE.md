@@ -158,7 +158,7 @@ shared/ # 18 directories
   │ │ ├─ helpers.ts # Shared helpers for AI provider integrations
   │ │ ├─ local-adapter.ts # Local AI Adapter Wraps Chrome's built-in AI (Gemini Nano) for on-device processing. This adapter delegates to existing pipeline orchestrators without changing their logic.
   │ │ └─ types.ts # AI Provider Abstraction Layer This module defines a unified interface for AI providers (local Chrome AI vs. cloud services). Allows seamless switching between on-device and cloud-based processing.
-  │ ├─ chrome-ai/ # 9 files, 2 directories
+  │ ├─ chrome-ai/ # 10 files, 2 directories
   │ │ ├─ diagnostics-rules/ # 6 files
   │ │ │ ├─ chrome-version-rule.ts # 2 exports
   │ │ │ ├─ flags-enabled-rule.ts # 2 exports
@@ -174,6 +174,7 @@ shared/ # 18 directories
   │ │ │ └─ status-utils.ts # 21 exports
   │ │ ├─ adapter.ts # Shared adapter interface for Chrome built-in AI APIs. The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector). This adapter keeps our background/offscreen logic decoupled from the actual runtime implementation so we can swap the mock below with real bindings once the APIs are ready.
   │ │ ├─ diagnostics.ts # Diagnostic utilities for Chrome built-in AI troubleshooting. Identifies specific failure modes and provides targeted fix instructions.
+  │ │ ├─ ensure-local-ai-setup.ts # Utilities for checking and ensuring local AI setup is complete. Used across Settings and Downloads Permission screens to guide users through AI setup.
   │ │ ├─ language-helpers.ts # Shared helpers for normalising and resolving language preferences when interacting with Chrome's built-in AI surfaces.
   │ │ ├─ model-status-service.ts # Proxy service for AI model status management. Ensures model availability checks and downloads run in the background context where storage access is guaranteed.
   │ │ ├─ model-status.ts # 12 exports
@@ -1337,6 +1338,14 @@ Each provider (local or cl...
 - `export getDiagnosticSummary` - Get a summary message based on diagnostic results
 - `export getPlatform` - Get platform information
 - `export runDiagnostics` - Run comprehensive diagnostics and return specific issues
+
+### shared/integrations/chrome-ai/ensure-local-ai-setup.ts
+**Purpose**: Utilities for checking and ensuring local AI setup is complete. Used across Settings and Downloads Permission screens to guide users through AI setup.
+
+**Exports**:
+- `export ensureLocalAiSetup` - Checks if local AI setup is needed and opens the setup pa...
+- `export isLocalAiSetupNeeded` - Checks if local AI setup is needed
+- `export openAiModelSetupPage` - Opens the AI model setup page in a new tab
 
 ### shared/integrations/chrome-ai/language-helpers.ts
 **Purpose**: Shared helpers for normalising and resolving language preferences when interacting with Chrome's built-in AI surfaces.
