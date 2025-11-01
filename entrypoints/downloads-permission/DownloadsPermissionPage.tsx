@@ -16,6 +16,7 @@ import {
   storeDirectoryHandle,
   updateLastVerified,
 } from '@/entrypoints/shared/filesystem/handle-storage';
+import { ensureLocalAiSetup } from '@/entrypoints/shared/integrations/chrome-ai/ensure-local-ai-setup';
 import { markOnboardingCompleted } from '@/entrypoints/shared/onboarding/onboarding-state';
 
 type RequestState =
@@ -165,6 +166,9 @@ export function DownloadsPermissionPage(): JSX.Element {
         createdManagedFolder,
         parentDirectoryName,
       });
+
+      // Check if local AI setup is needed and open setup page if necessary
+      void ensureLocalAiSetup();
     } catch (err) {
       const lastPickerError =
         (
@@ -223,6 +227,9 @@ export function DownloadsPermissionPage(): JSX.Element {
         createdManagedFolder: false,
         parentDirectoryName: handle.name,
       });
+
+      // Check if local AI setup is needed and open setup page if necessary
+      void ensureLocalAiSetup();
     } catch (err) {
       debugLogger.error(
         '[DownloadsPermissionPage] Restoring saved access failed',

@@ -9,6 +9,7 @@ import type {
   PdfUpgradeAnalysisRequest,
   RenderedPdfPage,
 } from '@/entrypoints/offscreen/pdf-analysis/types';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type {
   ImageIngestionResult,
   ImageUpgradeAnalysisRequest,
@@ -19,6 +20,7 @@ import type {
   TextUpgradeAnalysisResponse,
   TextUpgradeIngestionResult,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
+import { ensureAiModelsReadyRemote } from '@/entrypoints/shared/messaging/text-messages';
 import type { IAiProvider } from './types';
 
 /**
@@ -36,23 +38,31 @@ export class LocalAiAdapter implements IAiProvider {
   /**
    * Check if Chrome's built-in AI is available
    *
-   * Note: This is a basic check. Full availability checking happens
-   * in the pipeline orchestrators when they call ensureAiModelsReady().
+   * Uses message-based approach to check availability in background context
+   * because window.ai is NOT available in offscreen documents.
    */
   async isAvailable(): Promise<boolean> {
-    // Check if Chrome AI APIs exist
-    if (typeof window === 'undefined') {
+    try {
+      // Check if AI models are available via background context
+      // window.ai is only available in service worker, not offscreen documents
+      const modelStatuses = await ensureAiModelsReadyRemote({
+        ids: ['language-model'],
+      });
+
+      const languageModelStatus = modelStatuses['language-model'];
+      const isAvailable = languageModelStatus?.state === 'available';
+
+      debugLogger.log('[LocalAiAdapter] Availability check via background', {
+        state: languageModelStatus?.state,
+        availability: languageModelStatus?.availability,
+        isAvailable,
+      });
+
+      return isAvailable;
+    } catch (error) {
+      debugLogger.warn('[LocalAiAdapter] Availability check failed', { error });
       return false;
     }
-
-    // Check for Prompt API (primary API for text/image analysis)
-    const hasPromptApi =
-      'ai' in window &&
-      window.ai !== null &&
-      typeof window.ai === 'object' &&
-      'languageModel' in window.ai;
-
-    return hasPromptApi;
   }
 
   /**

@@ -11,9 +11,6 @@ import {
   OFFSCREEN_HANDSHAKE_MAX_RETRIES,
 } from './constants';
 
-const OFFSCREEN_JUSTIFICATION =
-  'Analyze media metadata via MediaInfo in offscreen document';
-
 const OFFSCREEN_DOCUMENT_PATH = '/offscreen.html';
 
 let ensureOffscreenPromise: Promise<void> | null = null;
@@ -115,8 +112,9 @@ async function ensureOffscreenDocument(
       logMediaDebug(debug, 'offscreen-create-call', { url });
       await offscreenApi.createDocument({
         url,
-        reasons: ['BLOBS'],
-        justification: OFFSCREEN_JUSTIFICATION,
+        reasons: ['BLOBS', 'DOM_PARSER', 'IFRAME_SCRIPTING'],
+        justification:
+          'Run built-in AI + PDF/media analysis for Contextual Upgrade processing',
       });
       const hasDocumentAfter = await offscreenApi.hasDocument?.();
       logMediaDebug(debug, 'offscreen-created', {

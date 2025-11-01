@@ -7,6 +7,7 @@ import { Button } from '@heroui/button';
 import { Card } from '@heroui/card';
 import { Select, SelectItem } from '@heroui/select';
 import { useState } from 'react';
+import { ensureLocalAiSetup } from '@/entrypoints/shared/integrations/chrome-ai/ensure-local-ai-setup';
 import type {
   ProcessingMode,
   ProcessingPreferences,
@@ -57,6 +58,11 @@ export function ProcessingPreferencesSection({
       pdf: mode,
       image: mode,
     });
+
+    // Check if local AI setup is needed when selecting 'local' or 'auto'
+    if (mode === 'local' || mode === 'auto') {
+      void ensureLocalAiSetup();
+    }
   };
 
   const handleTogglePerType = () => {
@@ -70,6 +76,20 @@ export function ProcessingPreferencesSection({
       pdf: preferences.global,
       image: preferences.global,
     });
+  };
+
+  const handleTypeChange = (
+    type: 'text' | 'pdf' | 'image',
+    keys: 'all' | Set<React.Key>,
+  ) => {
+    if (keys === 'all') return;
+    const mode = Array.from(keys)[0] as ProcessingMode;
+    onUpdate({ [type]: mode });
+
+    // Check if local AI setup is needed when selecting 'local' or 'auto'
+    if (mode === 'local' || mode === 'auto') {
+      void ensureLocalAiSetup();
+    }
   };
 
   return (
@@ -128,11 +148,7 @@ export function ProcessingPreferencesSection({
                     ? preferences.text
                     : preferences.global,
                 ]}
-                onSelectionChange={(keys) => {
-                  if (keys === 'all') return;
-                  const value = Array.from(keys)[0] as ProcessingMode;
-                  onUpdate({ text: value });
-                }}
+                onSelectionChange={(keys) => handleTypeChange('text', keys)}
                 description={
                   modeOptions.find(
                     (o) =>
@@ -161,11 +177,7 @@ export function ProcessingPreferencesSection({
                     ? preferences.pdf
                     : preferences.global,
                 ]}
-                onSelectionChange={(keys) => {
-                  if (keys === 'all') return;
-                  const value = Array.from(keys)[0] as ProcessingMode;
-                  onUpdate({ pdf: value });
-                }}
+                onSelectionChange={(keys) => handleTypeChange('pdf', keys)}
                 description={
                   modeOptions.find(
                     (o) =>
@@ -194,11 +206,7 @@ export function ProcessingPreferencesSection({
                     ? preferences.image
                     : preferences.global,
                 ]}
-                onSelectionChange={(keys) => {
-                  if (keys === 'all') return;
-                  const value = Array.from(keys)[0] as ProcessingMode;
-                  onUpdate({ image: value });
-                }}
+                onSelectionChange={(keys) => handleTypeChange('image', keys)}
                 description={
                   modeOptions.find(
                     (o) =>
