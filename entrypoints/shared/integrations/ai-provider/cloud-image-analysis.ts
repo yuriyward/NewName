@@ -8,6 +8,7 @@
 import type { LanguageModel } from 'ai';
 import { generateText } from 'ai';
 import { buildProposedPath } from '@/entrypoints/offscreen/text-analysis/filename-builder';
+import { AUTO_APPLY_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type {
   ImageIngestionResult,
@@ -143,8 +144,9 @@ Respond with JSON:
     const proposal: UpgradeProposal = {
       proposedFilename,
       proposedPath,
-      confidence: decision.confidence >= 0.8 ? 'high' : 'suggested',
-      autoApply: decision.confidence >= 0.9,
+      confidenceScore: decision.confidence,
+      // Unified threshold: >=0.5 enables countdown, >=0.8 triggers silent rename in coordinator
+      autoApply: decision.confidence >= AUTO_APPLY_THRESHOLD,
       reasonTags: ['cloud', 'gemini', 'image'],
       generatedAt: Date.now(),
       source: 'ai',

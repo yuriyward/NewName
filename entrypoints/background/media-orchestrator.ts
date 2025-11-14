@@ -84,7 +84,7 @@ export async function applyMediaAnalysisResponse(
           upgrade = {
             proposedFilename: enhanced.filename,
             proposedPath: pathDir + enhanced.filename,
-            confidence: 'suggested',
+            confidenceScore: 0.8, // High confidence for metadata-based upgrades
             autoApply: true,
             reasonTags: ['media-specs', 'contextual-upgrade'],
             generatedAt: analyzedAt,

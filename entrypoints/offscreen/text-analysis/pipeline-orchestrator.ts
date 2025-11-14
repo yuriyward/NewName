@@ -5,6 +5,7 @@
  * We still use debugLogger.warn() and debugLogger.error() for warnings/errors.
  */
 
+import { AUTO_APPLY_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { AiModelStatusMap } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import type {
@@ -35,10 +36,6 @@ import {
   recordPromptPipelineComplete,
 } from './telemetry';
 import { summarizeText } from './text-summarization';
-
-// Confidence thresholds for rename decision logic
-const HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD = 0.9;
-const HIGH_CONFIDENCE_DISPLAY_THRESHOLD = 0.8;
 
 function mapModelStatuses(statuses: AiModelStatusMap): Record<string, string> {
   return Object.fromEntries(
@@ -257,8 +254,7 @@ export async function runTextUpgradePipeline(
   const promptUsed = !!generatedStem; // Prompt API used if we generated a stem
 
   // Determine auto-apply based on decision confidence
-  const shouldAutoApply =
-    decision.confidence >= HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD;
+  const shouldAutoApply = decision.confidence >= AUTO_APPLY_THRESHOLD;
 
   const success: TextUpgradeAnalysisSuccess = {
     status: 'success',
@@ -267,10 +263,7 @@ export async function runTextUpgradePipeline(
     proposal: {
       proposedFilename,
       proposedPath,
-      confidence:
-        decision.confidence >= HIGH_CONFIDENCE_DISPLAY_THRESHOLD
-          ? 'high'
-          : 'suggested',
+      confidenceScore: decision.confidence,
       autoApply: shouldAutoApply,
       reasonTags: formatReasonTags(
         subjectLanguage.language,

@@ -14,6 +14,7 @@ import type {
   RenderedPdfPage,
 } from '@/entrypoints/offscreen/pdf-analysis/types';
 import { buildProposedPath } from '@/entrypoints/offscreen/text-analysis/filename-builder';
+import { AUTO_APPLY_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type { ImageUpgradeAnalysisResponse } from '@/entrypoints/shared/integrations/image-analysis/types';
 import { applyFilenamePolicy } from '@/entrypoints/shared/naming/policy-engine';
@@ -234,8 +235,9 @@ Respond with JSON:
     const proposal: UpgradeProposal = {
       proposedFilename,
       proposedPath,
-      confidence: renameDecision.confidence >= 0.8 ? 'high' : 'suggested',
-      autoApply: renameDecision.confidence >= 0.9,
+      confidenceScore: renameDecision.confidence,
+      // Unified threshold: >=0.5 enables countdown, >=0.8 triggers silent rename in coordinator
+      autoApply: renameDecision.confidence >= AUTO_APPLY_THRESHOLD,
       reasonTags: ['cloud', 'gemini', 'pdf'],
       generatedAt: Date.now(),
       source: 'ai',

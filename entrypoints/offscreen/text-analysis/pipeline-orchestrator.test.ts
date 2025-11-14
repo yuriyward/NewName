@@ -317,12 +317,12 @@ describe('pipeline-orchestrator - ensureAiModelsReady integration', () => {
       }
     });
 
-    it('sets confidence to suggested when below threshold', async () => {
+    it('enables auto-apply for moderate confidence (0.5-0.79)', async () => {
       mockEnsureAiModelsReadySuccess(mockEnsureAiModelsReadyRemote);
 
       mockDecideIfShouldRename.mockResolvedValue({
         shouldRename: true,
-        confidence: 0.75, // Below high confidence threshold (0.8)
+        confidence: 0.75, // Moderate confidence: >= 0.5 but < 0.8
         reason: 'poor-formatting',
       });
 
@@ -331,8 +331,9 @@ describe('pipeline-orchestrator - ensureAiModelsReady integration', () => {
       const result = await runTextUpgradePipeline(request, ingestion);
 
       if (result?.status === 'success') {
-        expect(result.proposal.confidence).toBe('suggested');
-        expect(result.proposal.autoApply).toBe(false);
+        expect(result.proposal.confidenceScore).toBe(0.75);
+        // New unified threshold: 0.75 >= 0.5, so autoApply should be true
+        expect(result.proposal.autoApply).toBe(true);
       } else {
         expect(result).not.toBeNull();
       }

@@ -83,7 +83,7 @@ export async function requestMockUpgradeAnalysis(
   return {
     proposedFilename,
     proposedPath,
-    confidence: 'suggested',
+    confidenceScore: 0.6, // Mock analysis has moderate confidence
     autoApply: false,
     reasonTags: ['mock-summary', 'contextual-upgrade'],
     generatedAt: now,

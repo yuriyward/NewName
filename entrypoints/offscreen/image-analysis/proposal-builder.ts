@@ -3,10 +3,7 @@
  * Constructs the final upgrade proposal with all metadata
  */
 
-import {
-  HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD,
-  HIGH_CONFIDENCE_DISPLAY_THRESHOLD,
-} from '@/entrypoints/shared/integrations/image-analysis/constants';
+import { AUTO_APPLY_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import type {
   ImageIngestionResult,
   ImageUpgradeAnalysisRequest,
@@ -119,8 +116,7 @@ export function buildProposalFromAnalysis(
   );
 
   const promptUsed = !!generateResult.stem;
-  const shouldAutoApply =
-    decideResult.confidence >= HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD;
+  const shouldAutoApply = decideResult.confidence >= AUTO_APPLY_THRESHOLD;
 
   const success: ImageUpgradeAnalysisSuccess = {
     status: 'success',
@@ -129,10 +125,7 @@ export function buildProposalFromAnalysis(
     proposal: {
       proposedFilename,
       proposedPath,
-      confidence:
-        decideResult.confidence >= HIGH_CONFIDENCE_DISPLAY_THRESHOLD
-          ? 'high'
-          : 'suggested',
+      confidenceScore: decideResult.confidence,
       autoApply: shouldAutoApply,
       reasonTags: formatReasonTags(undefined, promptUsed, 'on-device'),
       generatedAt: Date.now(),
@@ -267,8 +260,7 @@ export function buildProposalFromPhase3Inputs(
     proposedFilename,
   );
 
-  const shouldAutoApply =
-    decisionConfidence >= HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD;
+  const shouldAutoApply = decisionConfidence >= AUTO_APPLY_THRESHOLD;
 
   const success: ImageUpgradeAnalysisSuccess = {
     status: 'success',
@@ -277,10 +269,7 @@ export function buildProposalFromPhase3Inputs(
     proposal: {
       proposedFilename,
       proposedPath,
-      confidence:
-        decisionConfidence >= HIGH_CONFIDENCE_DISPLAY_THRESHOLD
-          ? 'high'
-          : 'suggested',
+      confidenceScore: decisionConfidence,
       autoApply: shouldAutoApply,
       reasonTags: formatReasonTags(undefined, promptUsed, 'on-device'),
       generatedAt: Date.now(),

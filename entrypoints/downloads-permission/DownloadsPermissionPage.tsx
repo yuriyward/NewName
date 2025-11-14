@@ -311,8 +311,8 @@ export function DownloadsPermissionPage(): JSX.Element {
               <p className="text-xs text-default-600">
                 For easy organization, create a new folder like{' '}
                 <strong>Downloads/Organized</strong> or{' '}
-                <strong>Downloads/Web Downloads</strong>. You can create it right in the
-                picker!
+                <strong>Downloads/Web Downloads</strong>. You can create it
+                right in the picker!
               </p>
             </div>
           ) : null}

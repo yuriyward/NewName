@@ -67,7 +67,7 @@ export function normalizeProposal(
   return {
     proposedFilename: proposal.proposedFilename,
     proposedPath: proposal.proposedPath,
-    confidence: proposal.confidence,
+    confidenceScore: proposal.confidenceScore,
     autoApply: proposal.autoApply ?? false,
     reasonTags: proposal.reasonTags ?? [],
     generatedAt: proposal.generatedAt ?? now,

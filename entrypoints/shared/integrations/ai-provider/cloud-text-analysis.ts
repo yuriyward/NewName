@@ -11,6 +11,7 @@ import {
   buildFilename,
   buildProposedPath,
 } from '@/entrypoints/offscreen/text-analysis/filename-builder';
+import { AUTO_APPLY_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type {
   TextUpgradeAnalysisError,
@@ -145,12 +146,13 @@ Respond with JSON:
       proposedFilename,
     );
 
-    const shouldAutoApply = decision.confidence >= 0.9;
+    // Unified threshold: >=0.5 enables countdown, >=0.8 triggers silent rename in coordinator
+    const shouldAutoApply = decision.confidence >= AUTO_APPLY_THRESHOLD;
 
     const proposal: UpgradeProposal = {
       proposedFilename,
       proposedPath,
-      confidence: decision.confidence >= 0.8 ? 'high' : 'suggested',
+      confidenceScore: decision.confidence,
       autoApply: shouldAutoApply,
       reasonTags: ['cloud', 'gemini'],
       generatedAt: Date.now(),

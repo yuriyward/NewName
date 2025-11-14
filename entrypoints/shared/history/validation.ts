@@ -146,9 +146,11 @@ export function isUpgradeProposal(value: unknown): value is UpgradeProposal {
     return false;
   }
   if (
-    maybe.confidence !== 'high' &&
-    maybe.confidence !== 'suggested' &&
-    maybe.confidence !== 'alternative'
+    maybe.confidenceScore !== undefined &&
+    (typeof maybe.confidenceScore !== 'number' ||
+      !Number.isFinite(maybe.confidenceScore) ||
+      maybe.confidenceScore < 0 ||
+      maybe.confidenceScore > 1)
   ) {
     return false;
   }
