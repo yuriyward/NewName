@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
 import { getOnboardingState } from '@/entrypoints/shared/onboarding/onboarding-state';
@@ -8,7 +9,11 @@ interface UseDownloadsAccessResult {
   hasDownloadsAccess: boolean | null;
   showOnboarding: boolean;
   accessCheckError: string | null;
+  persistentAccessGranted: boolean;
+  needsPersistentSetup: boolean;
+  isRedirecting: boolean;
   openOnboarding: () => void;
+  openPersistentSetup: () => Promise<void>;
   handleOnboardingComplete: () => void;
   handleOnboardingSkip: () => void;
 }
@@ -20,6 +25,9 @@ export const useDownloadsAccess = (): UseDownloadsAccessResult => {
   );
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [accessCheckError, setAccessCheckError] = useState<string | null>(null);
+  const [persistentAccessGranted, setPersistentAccessGranted] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [needsPersistentSetup, setNeedsPersistentSetup] = useState(false);
 
   const refreshDownloadsAccess = useCallback(async () => {
     setDownloadsAccessChecked(false);
@@ -29,8 +37,10 @@ export const useDownloadsAccess = (): UseDownloadsAccessResult => {
         getStoredDirectoryHandle(),
       ]);
       let permitted = false;
+      let isPersistent = false;
       if (handle) {
         try {
+          // First try queryPermission
           const permissionFn = (
             handle as unknown as {
               queryPermission?: (descriptor?: {
@@ -43,8 +53,30 @@ export const useDownloadsAccess = (): UseDownloadsAccessResult => {
               mode: 'readwrite',
             });
             permitted = permission === 'granted';
-          } else {
-            permitted = false;
+            isPersistent = permission === 'granted'; // 'granted' means persistent
+          }
+
+          // If queryPermission says 'prompt' or fails, try actually accessing the handle
+          // This helps detect session permissions that queryPermission might miss
+          if (!permitted) {
+            try {
+              // Attempt to iterate the directory - this will fail if permission is truly denied
+              const iterator = handle.values();
+              await iterator.next();
+              // If we got here without throwing, we have access (at least session-level)
+              permitted = true;
+              isPersistent = false; // We only got here because queryPermission didn't return 'granted'
+              debugLogger.log(
+                '[useDownloadsAccess] queryPermission returned denied/prompt but handle is accessible (session permission)',
+              );
+            } catch (accessErr) {
+              // Access truly denied
+              debugLogger.warn(
+                '[useDownloadsAccess] Directory access verification failed',
+                { error: accessErr },
+              );
+              permitted = false;
+            }
           }
         } catch (err) {
           debugLogger.warn('Querying directory permission failed', {
@@ -54,7 +86,11 @@ export const useDownloadsAccess = (): UseDownloadsAccessResult => {
         }
       }
       setHasDownloadsAccess(permitted);
-      setShowOnboarding(!permitted && state.status !== 'skipped');
+      setPersistentAccessGranted(isPersistent);
+      // Only show onboarding if status is 'pending' (not completed or skipped)
+      // Once completed, trust that the user has set up access even if permission check fails
+      setShowOnboarding(!permitted && state.status === 'pending');
+      setNeedsPersistentSetup(state.status === 'awaiting-persistent');
       setAccessCheckError(null);
     } catch (err) {
       debugLogger.error('Failed to evaluate onboarding state', { error: err });
@@ -86,6 +122,20 @@ export const useDownloadsAccess = (): UseDownloadsAccessResult => {
     setShowOnboarding(true);
   }, []);
 
+  const openPersistentSetup = useCallback(async () => {
+    try {
+      setIsRedirecting(true);
+      const url = browser.runtime.getURL('/downloads-permission.html');
+      await browser.tabs.create({ url });
+      // Note: Keep popup open so user can see what happened
+    } catch (err) {
+      debugLogger.error('[useDownloadsAccess] Failed to open setup page', {
+        error: err,
+      });
+      setIsRedirecting(false);
+    }
+  }, []);
+
   useEffect(() => {
     void refreshDownloadsAccess();
   }, [refreshDownloadsAccess]);
@@ -95,7 +145,11 @@ export const useDownloadsAccess = (): UseDownloadsAccessResult => {
     hasDownloadsAccess,
     showOnboarding,
     accessCheckError,
+    persistentAccessGranted,
+    needsPersistentSetup,
+    isRedirecting,
     openOnboarding,
+    openPersistentSetup,
     handleOnboardingComplete,
     handleOnboardingSkip,
   };

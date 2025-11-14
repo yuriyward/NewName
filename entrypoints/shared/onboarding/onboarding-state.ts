@@ -5,12 +5,17 @@ import { getStorageAdapter } from '@/entrypoints/shared/settings/storage-state';
 
 const ONBOARDING_STORAGE_KEY = 'local:onboarding-state.v1';
 
-export type OnboardingStatus = 'pending' | 'completed' | 'skipped';
+export type OnboardingStatus =
+  | 'pending'
+  | 'awaiting-persistent'
+  | 'completed'
+  | 'skipped';
 
 export interface OnboardingState {
   status: OnboardingStatus;
   completedAt?: number;
   skippedAt?: number;
+  awaitingPersistentAt?: number;
 }
 
 const DEFAULT_STATE: OnboardingState = {
@@ -23,7 +28,7 @@ async function readState(): Promise<OnboardingState> {
       (await getStorageAdapter().getItem<OnboardingState>(
         ONBOARDING_STORAGE_KEY,
       )) ?? DEFAULT_STATE;
-    const { status, completedAt, skippedAt } = stored;
+    const { status, completedAt, skippedAt, awaitingPersistentAt } = stored;
     if (status === 'completed') {
       return {
         status: 'completed',
@@ -34,6 +39,12 @@ async function readState(): Promise<OnboardingState> {
       return {
         status: 'skipped',
         skippedAt: skippedAt ?? Date.now(),
+      };
+    }
+    if (status === 'awaiting-persistent') {
+      return {
+        status: 'awaiting-persistent',
+        awaitingPersistentAt: awaitingPersistentAt ?? Date.now(),
       };
     }
     return DEFAULT_STATE;
@@ -54,6 +65,13 @@ export async function markOnboardingCompleted(): Promise<void> {
   await writeState({
     status: 'completed',
     completedAt: Date.now(),
+  });
+}
+
+export async function markOnboardingAwaitingPersistent(): Promise<void> {
+  await writeState({
+    status: 'awaiting-persistent',
+    awaitingPersistentAt: Date.now(),
   });
 }
 

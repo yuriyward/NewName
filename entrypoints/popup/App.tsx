@@ -41,7 +41,10 @@ function App(): JSX.Element {
     hasDownloadsAccess,
     showOnboarding,
     accessCheckError,
+    persistentAccessGranted,
+    needsPersistentSetup,
     openOnboarding,
+    openPersistentSetup,
     handleOnboardingComplete,
     handleOnboardingSkip,
   } = useDownloadsAccess();
@@ -216,17 +219,57 @@ function App(): JSX.Element {
         onEnableAi={handleOpenAiSetup}
       />
 
+      {needsPersistentSetup ? (
+        <Alert
+          color="primary"
+          variant="flat"
+          className="mb-3 text-xs space-y-2"
+        >
+          <p className="font-medium">📋 Complete persistent access setup</p>
+          <p>
+            Close all browser tabs and reopen to grant permanent folder access.
+            Or click below to continue setup now.
+          </p>
+          <PrimaryButton onClick={() => void openPersistentSetup()}>
+            Complete setup
+          </PrimaryButton>
+        </Alert>
+      ) : null}
+
       {hasDownloadsAccess === false ? (
         <Alert
           color="warning"
           variant="flat"
           className="mb-3 text-xs space-y-2"
         >
-          <p>
-            Downloads access is disabled. Post-download renames and undo will be
-            paused until access is granted.
+          <p className="font-medium">
+            Session expired - Grant persistent access
           </p>
-          <PrimaryButton onClick={openOnboarding}>Grant access</PrimaryButton>
+          <p>
+            Your temporary folder access has expired. Click below to grant
+            persistent &quot;Allow on every visit&quot; permission so this
+            doesn&apos;t happen again.
+          </p>
+          <PrimaryButton onClick={openOnboarding}>
+            Grant persistent access
+          </PrimaryButton>
+        </Alert>
+      ) : null}
+
+      {hasDownloadsAccess === true && !persistentAccessGranted ? (
+        <Alert
+          color="default"
+          variant="flat"
+          className="mb-3 text-xs space-y-2"
+        >
+          <p className="font-medium">⚡ Upgrade to persistent access</p>
+          <p>
+            Currently using temporary access. Grant persistent access to skip
+            setup on future visits.
+          </p>
+          <PrimaryButton onClick={openOnboarding}>
+            Enable persistent access
+          </PrimaryButton>
         </Alert>
       ) : null}
 
