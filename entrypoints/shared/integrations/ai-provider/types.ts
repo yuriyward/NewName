@@ -58,6 +58,26 @@ export interface AiAnalysisResult<T> {
 }
 
 /**
+ * Result returned when AI decision pipelines intentionally keep the baseline filename.
+ *
+ * This is treated as a successful outcome (not an error) so router fallbacks
+ * should not attempt to call alternate providers when this status is returned.
+ */
+export interface KeepBaselineAnalysisResult {
+  status: 'keep-baseline';
+  requestId: string;
+  analyzedAt: number;
+  /** Why the pipeline chose to keep the current filename */
+  reason: string;
+  /** Optional classifier confidence from the rename decision stage */
+  confidence?: number;
+  /** Optional explanation emitted by the rename decision */
+  explanation?: string;
+  /** Baseline filename that was preserved */
+  baselineFilename: string;
+}
+
+/**
  * Unified AI provider interface
  *
  * Each provider (local or cloud) implements this interface to provide

@@ -14,7 +14,10 @@ import { mergePdfContext } from './pdf-context-merger';
 import type { ExtractedPageForAnalysis } from './pdf-page-extractor';
 import { decidePdfRename } from './pdf-rename-decision';
 import { extractPdfTitlesAndDescriptions } from './pdf-title-description';
-import type { PdfUpgradeAnalysisRequest } from './types';
+import type {
+  PdfUpgradeAnalysisKeepBaseline,
+  PdfUpgradeAnalysisRequest,
+} from './types';
 
 /**
  * Run the complete PDF upgrade analysis pipeline
@@ -29,7 +32,7 @@ import type { PdfUpgradeAnalysisRequest } from './types';
 export async function runPdfUpgradePipeline(
   pages: ExtractedPageForAnalysis[],
   request: PdfUpgradeAnalysisRequest,
-): Promise<UpgradeProposal | null> {
+): Promise<UpgradeProposal | PdfUpgradeAnalysisKeepBaseline | null> {
   // PHASE 1: Extract titles and descriptions from PDF pages
   const titleDescriptionContext = await extractPdfTitlesAndDescriptions(
     pages.map((page) => page.blob),
@@ -51,7 +54,15 @@ export async function runPdfUpgradePipeline(
 
   // If Phase 2 decides not to rename, return null (no proposal)
   if (!renameDecision.shouldRename) {
-    return null;
+    return {
+      status: 'keep-baseline',
+      requestId: request.requestId,
+      analyzedAt: Date.now(),
+      reason: renameDecision.reason,
+      confidence: renameDecision.confidence,
+      explanation: renameDecision.explanation,
+      baselineFilename: request.baseline.final || request.filename,
+    } satisfies PdfUpgradeAnalysisKeepBaseline;
   }
 
   // PHASE 3: Filename generation
@@ -99,5 +110,18 @@ export async function runPdfUpgradePipeline(
   if (aiResponse && aiResponse.status === 'success') {
     return aiResponse.proposal;
   }
+
+  if (aiResponse && aiResponse.status === 'keep-baseline') {
+    return {
+      status: 'keep-baseline',
+      requestId: aiResponse.requestId,
+      analyzedAt: aiResponse.analyzedAt,
+      reason: aiResponse.reason,
+      confidence: aiResponse.confidence,
+      explanation: aiResponse.explanation,
+      baselineFilename: aiResponse.baselineFilename,
+    } satisfies PdfUpgradeAnalysisKeepBaseline;
+  }
+
   return null;
 }

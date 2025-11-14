@@ -130,6 +130,15 @@ function logNonSuccessResponse(
   _request: PdfUpgradeAnalysisRequest,
   response: PdfNonSuccessResponse,
 ): void {
+  if (response.status === 'keep-baseline') {
+    debugLogger.log('[PdfUpgradeAnalysis] Baseline kept by AI decision', {
+      requestId,
+      reason: response.reason,
+      confidence: response.confidence,
+    });
+    return;
+  }
+
   if (response.status === 'ingested') {
     debugLogger.log(
       '[PdfUpgradeAnalysis] PDF pages extracted (no AI proposal)',
@@ -138,6 +147,15 @@ function logNonSuccessResponse(
         pagesExtracted: response.pageCount,
       },
     );
+    return;
+  }
+
+  if (response.status === 'unavailable') {
+    debugLogger.log('[PdfUpgradeAnalysis] Analysis unavailable', {
+      requestId,
+      reason: response.reason,
+      message: response.message,
+    });
     return;
   }
 

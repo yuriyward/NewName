@@ -338,6 +338,47 @@ describe('pipeline-orchestrator - ensureAiModelsReady integration', () => {
         expect(result).not.toBeNull();
       }
     });
+
+    it('returns keep-baseline when rename decision declines change', async () => {
+      mockEnsureAiModelsReadySuccess(mockEnsureAiModelsReadyRemote);
+
+      mockDecideIfShouldRename.mockResolvedValue({
+        shouldRename: false,
+        confidence: 0.88,
+        reason: 'already-descriptive',
+        explanation: 'Filename already conveys the subject',
+      });
+
+      const request = createMockRequest();
+      const ingestion = createMockIngestion();
+      const result = await runTextUpgradePipeline(request, ingestion);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          status: 'keep-baseline',
+          reason: 'already-descriptive',
+          baselineFilename: 'document.pdf',
+        }),
+      );
+    });
+
+    it('returns keep-baseline when generated filename matches baseline', async () => {
+      mockEnsureAiModelsReadySuccess(mockEnsureAiModelsReadyRemote);
+
+      const request = createMockRequest({
+        baseline: { final: 'Q1 Budget Planning 2024.pdf' },
+      });
+      const ingestion = createMockIngestion();
+      const result = await runTextUpgradePipeline(request, ingestion);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          status: 'keep-baseline',
+          reason: 'same-as-baseline',
+          baselineFilename: 'Q1 Budget Planning 2024.pdf',
+        }),
+      );
+    });
   });
 
   describe('error handling - models unavailable', () => {

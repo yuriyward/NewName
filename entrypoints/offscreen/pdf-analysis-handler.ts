@@ -13,6 +13,7 @@ import type {
   PdfAnalysisSuccess,
   PdfPageIngestionResult,
   PdfUpgradeAnalysisErrorResponse,
+  PdfUpgradeAnalysisKeepBaseline,
   PdfUpgradeAnalysisRequest,
   PdfUpgradeAnalysisUnavailable,
 } from './pdf-analysis/types';
@@ -101,6 +102,18 @@ export function initializePdfAnalysisHandler(): void {
           pagesAnalyzed: extractionResult.pages.length,
           totalPages: extractionResult.totalPages,
         } satisfies PdfAnalysisSuccess;
+      }
+
+      if (aiResponse && aiResponse.status === 'keep-baseline') {
+        return {
+          status: 'keep-baseline',
+          requestId: aiResponse.requestId,
+          analyzedAt: aiResponse.analyzedAt,
+          reason: aiResponse.reason,
+          confidence: aiResponse.confidence,
+          explanation: aiResponse.explanation,
+          baselineFilename: aiResponse.baselineFilename,
+        } satisfies PdfUpgradeAnalysisKeepBaseline;
       }
 
       // No proposal from any page - return ingestion result

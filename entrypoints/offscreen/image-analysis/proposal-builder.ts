@@ -6,6 +6,7 @@
 import { AUTO_APPLY_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import type {
   ImageIngestionResult,
+  ImageUpgradeAnalysisKeepBaseline,
   ImageUpgradeAnalysisRequest,
   ImageUpgradeAnalysisSuccess,
 } from '@/entrypoints/shared/integrations/image-analysis/types';
@@ -37,7 +38,7 @@ export function buildProposalFromAnalysis(
   decideResult: DecidePhaseResult,
   generateResult: GeneratePhaseResult,
   decisionElapsedMs: number,
-): ImageUpgradeAnalysisSuccess | null {
+): ImageUpgradeAnalysisSuccess | ImageUpgradeAnalysisKeepBaseline | null {
   // Use generated stem or fallback to baseline extraction
   const subject =
     generateResult.stem ||
@@ -107,7 +108,13 @@ export function buildProposalFromAnalysis(
     currentFinal &&
     currentFinal.toLowerCase() === proposedFilename.toLowerCase()
   ) {
-    return null; // No change needed
+    return buildKeepBaselineResponse({
+      request,
+      reason: 'same-as-baseline',
+      confidence: decideResult.confidence,
+      explanation: 'Generated filename matches current baseline',
+      decisionReason: decideResult.reason,
+    });
   }
 
   const proposedPath = buildProposedPath(
@@ -166,6 +173,32 @@ export function buildProposalFromAnalysis(
   return success;
 }
 
+function buildKeepBaselineResponse({
+  request,
+  reason,
+  confidence,
+  explanation,
+  decisionReason,
+}: {
+  request: ImageUpgradeAnalysisRequest;
+  reason: string;
+  confidence: number;
+  explanation: string;
+  decisionReason?: string;
+}): ImageUpgradeAnalysisKeepBaseline {
+  return {
+    status: 'keep-baseline',
+    requestId: request.requestId,
+    analyzedAt: Date.now(),
+    reason,
+    confidence,
+    explanation,
+    baselineFilename: request.baseline.final ?? request.filename,
+    modelSource: 'on-device',
+    decisionReason,
+  };
+}
+
 /**
  * Build proposal from Phase 3 inputs (for direct Phase 3 calls)
  * Used by PDF pipeline which bypasses generic Phase 2
@@ -185,7 +218,7 @@ export function buildProposalFromPhase3Inputs(
   generatedStem: string | null,
   decisionConfidence: number,
   promptUsed: boolean,
-): ImageUpgradeAnalysisSuccess | null {
+): ImageUpgradeAnalysisSuccess | ImageUpgradeAnalysisKeepBaseline | null {
   // Use generated stem or fallback to baseline extraction
   const subject =
     generatedStem ||
@@ -252,7 +285,12 @@ export function buildProposalFromPhase3Inputs(
     currentFinal &&
     currentFinal.toLowerCase() === proposedFilename.toLowerCase()
   ) {
-    return null; // No change needed
+    return buildKeepBaselineResponse({
+      request,
+      reason: 'same-as-baseline',
+      confidence: decisionConfidence,
+      explanation: 'Generated filename matches current baseline',
+    });
   }
 
   const proposedPath = buildProposedPath(

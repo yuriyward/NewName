@@ -9,6 +9,7 @@ import { AUTO_APPLY_THRESHOLD } from '@/entrypoints/shared/constants/confidence-
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { AiModelStatusMap } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import type {
+  TextUpgradeAnalysisKeepBaseline,
   TextUpgradeAnalysisRequest,
   TextUpgradeAnalysisResponse,
   TextUpgradeAnalysisSuccess,
@@ -158,15 +159,29 @@ export async function runTextUpgradePipeline(
 
   // If AI says don't rename or decision failed, respect that and keep baseline
   if (!decision || !decision.shouldRename) {
+    const keepBaseline: TextUpgradeAnalysisKeepBaseline = {
+      status: 'keep-baseline',
+      requestId: request.requestId,
+      analyzedAt: Date.now(),
+      reason: decision?.reason || 'no-decision',
+      confidence: decision?.confidence,
+      explanation: decision?.explanation,
+      baselineFilename: request.baseline.final || request.filename,
+      modelSource,
+      language: subjectLanguage.language,
+      languageConfidence: subjectLanguage.confidence,
+      decisionReason: decision?.reason,
+    };
+
     console.log('[TextUpgradeAI] Keeping baseline filename', {
       requestId: request.requestId,
       filename: request.baseline.final,
       hasDecision: !!decision,
-      reason: decision?.reason || 'no-decision',
-      confidence: decision?.confidence,
-      explanation: decision?.explanation,
+      reason: keepBaseline.reason,
+      confidence: keepBaseline.confidence,
+      explanation: keepBaseline.explanation,
     });
-    return null; // No upgrade proposal - keep baseline
+    return keepBaseline;
   }
 
   console.log('[TextUpgradeAI] Decision: rename needed', {
@@ -243,7 +258,19 @@ export async function runTextUpgradePipeline(
     currentFinal &&
     currentFinal.toLowerCase() === proposedFilename.toLowerCase()
   ) {
-    return null;
+    return {
+      status: 'keep-baseline',
+      requestId: request.requestId,
+      analyzedAt: Date.now(),
+      reason: 'same-as-baseline',
+      confidence: decision.confidence,
+      explanation: 'Generated filename matches current baseline',
+      baselineFilename: currentFinal,
+      modelSource,
+      language: subjectLanguage.language,
+      languageConfidence: subjectLanguage.confidence,
+      decisionReason: decision.reason,
+    } satisfies TextUpgradeAnalysisKeepBaseline;
   }
 
   const proposedPath = buildProposedPath(

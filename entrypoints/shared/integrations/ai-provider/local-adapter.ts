@@ -6,10 +6,12 @@
  */
 
 import type {
+  PdfUpgradeAnalysisKeepBaseline,
   PdfUpgradeAnalysisRequest,
   RenderedPdfPage,
 } from '@/entrypoints/offscreen/pdf-analysis/types';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type {
   ImageIngestionResult,
   ImageUpgradeAnalysisRequest,
@@ -128,6 +130,19 @@ export class LocalAiAdapter implements IAiProvider {
       return null;
     }
 
+    if (isKeepBaseline(proposal)) {
+      return {
+        status: 'keep-baseline',
+        requestId: proposal.requestId,
+        analyzedAt: proposal.analyzedAt,
+        reason: proposal.reason,
+        confidence: proposal.confidence,
+        explanation: proposal.explanation,
+        baselineFilename: proposal.baselineFilename,
+        modelSource: 'on-device',
+      };
+    }
+
     // Return in ImageUpgradeAnalysisResponse format
     return {
       status: 'success',
@@ -139,4 +154,10 @@ export class LocalAiAdapter implements IAiProvider {
       promptUsed: true,
     };
   }
+}
+
+function isKeepBaseline(
+  value: UpgradeProposal | PdfUpgradeAnalysisKeepBaseline,
+): value is PdfUpgradeAnalysisKeepBaseline {
+  return typeof value === 'object' && value !== null && 'status' in value;
 }

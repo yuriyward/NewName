@@ -3,6 +3,7 @@
  */
 
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
+import type { KeepBaselineAnalysisResult } from '@/entrypoints/shared/integrations/ai-provider/types';
 import type { ImageUpgradeAnalysisRequest } from '@/entrypoints/shared/integrations/image-analysis/types';
 
 /** Metadata for a single rendered PDF page */
@@ -94,8 +95,11 @@ export interface PdfAnalysisSuccess {
   totalPages: number;
 }
 
+export type PdfUpgradeAnalysisKeepBaseline = KeepBaselineAnalysisResult;
+
 export type PdfUpgradeAnalysisResponse =
   | PdfAnalysisSuccess
+  | PdfUpgradeAnalysisKeepBaseline
   | PdfPageIngestionResult
   | PdfUpgradeAnalysisUnavailable
   | PdfUpgradeAnalysisErrorResponse;
