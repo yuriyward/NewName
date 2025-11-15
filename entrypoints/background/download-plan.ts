@@ -48,6 +48,10 @@ export interface DownloadPlan {
   confirmRoute: ConfirmToastRoute;
   debugContext: DebugContext | null;
   debugSettings: MediaDebugSettings | undefined;
+  /** Page context captured at download time (title, heading, URL) */
+  pageContext: ReturnType<PageContextService['read']> extends Promise<infer T>
+    ? T
+    : never;
 }
 
 interface BuildPlanParams {
@@ -172,5 +176,6 @@ export async function buildDownloadPlan({
     confirmRoute,
     debugContext,
     debugSettings,
+    pageContext,
   };
 }

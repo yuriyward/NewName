@@ -66,6 +66,7 @@ function buildImageRequest(
       final: historyItem.final,
       decision: historyItem.decision,
     },
+    pageContext: historyItem.pageContext,
     settings: {
       mode: 'on-device-only', // Images don't support cloud fallback yet
       maxBytes: MAX_IMAGE_FILE_SIZE_BYTES,

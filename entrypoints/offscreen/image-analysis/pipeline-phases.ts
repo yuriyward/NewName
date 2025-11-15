@@ -41,9 +41,10 @@ export interface GeneratePhaseResult {
 export async function runDescribePhase(
   blob: Blob,
   requestId: string,
+  request: ImageUpgradeAnalysisRequest,
 ): Promise<DescribePhaseResult | null> {
   const descriptionStartTime = Date.now();
-  const description = await describeImage(blob);
+  const description = await describeImage(blob, request.pageContext);
   const descriptionElapsedMs = Date.now() - descriptionStartTime;
 
   if (!description) {
@@ -76,6 +77,7 @@ export async function runDecidePhase(
     currentFilename: request.baseline.final || request.filename,
     description,
     fileType: request.fileType,
+    pageContext: request.pageContext,
   });
   const decisionElapsedMs = Date.now() - decisionStartTime;
 
@@ -131,6 +133,8 @@ export async function runGeneratePhase(
         shouldPrioritizeTitle: request.pdfContext.shouldPrioritizeTitle,
       },
     }),
+    // Pass page context from download
+    pageContext: request.pageContext,
   });
 
   const generationElapsedMs = Date.now() - generationStartTime;

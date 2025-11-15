@@ -4,7 +4,9 @@
  */
 
 import { SILENT_RENAME_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
+import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 import {
   createPromptSession,
   destroyPromptSession,
@@ -30,12 +32,14 @@ Guidelines:
  * Uses multimodal session to analyze image and return plain text description
  *
  * @param imageBlob - PNG blob of image to describe
+ * @param pageContext - Optional page context (title, heading, URL) from download
  * @returns Description object with text and baseline confidence
  *
  * Note: Multimodal availability is verified by the pipeline orchestrator before calling this function.
  */
 export async function describeImage(
   imageBlob: Blob,
+  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>,
 ): Promise<ImageDescription | null> {
   let session = null;
 
@@ -72,8 +76,14 @@ export async function describeImage(
     }
 
     // Build multimodal prompt with image and text instruction
-    const promptText = `Analyze this image and provide a 1-2 sentence description.
+    let promptText = `Analyze this image and provide a 1-2 sentence description.
 Keep it under 120 characters and focus on what the image shows.`;
+
+    // Add page context if available
+    promptText += formatPageContextForPrompt(pageContext, {
+      prefix: '\n\nThis image was downloaded from:',
+      multiline: true,
+    });
 
     // Send prompt with image content using multimodal format
     // For multimodal sessions, content must be an array of content items

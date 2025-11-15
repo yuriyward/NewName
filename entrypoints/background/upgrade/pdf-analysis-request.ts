@@ -70,6 +70,7 @@ function buildPdfRequest(
       final: historyItem.final,
       decision: historyItem.decision,
     },
+    pageContext: historyItem.pageContext,
     settings: {
       mode: 'on-device-only',
       maxBytes: MAX_PDF_FILE_SIZE_BYTES,

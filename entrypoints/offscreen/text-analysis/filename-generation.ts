@@ -7,6 +7,7 @@
 import { SILENT_RENAME_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { Separator } from '@/entrypoints/shared/settings/settings';
+import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 import {
   buildBaseContextDescription,
   createPromptSession,
@@ -45,6 +46,8 @@ export interface FilenameGenerationContext {
     documentTitle: string | null;
     shouldPrioritizeTitle: boolean;
   };
+  // Page context captured at download time (title, heading, URL)
+  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>;
 }
 
 /**
@@ -99,6 +102,7 @@ function buildGenerationPrompt(context: FilenameGenerationContext): string {
     summary: context.summary,
     language: context.language,
     fileType: 'image', // Image pipeline reuses this generator
+    pageContext: context.pageContext,
   });
 
   // Truncate summary if too long to avoid token limits

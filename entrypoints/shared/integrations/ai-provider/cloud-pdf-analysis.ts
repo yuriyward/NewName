@@ -15,6 +15,7 @@ import type {
 } from '@/entrypoints/offscreen/pdf-analysis/types';
 import { buildProposedPath } from '@/entrypoints/offscreen/text-analysis/filename-builder';
 import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
+import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type { ImageUpgradeAnalysisResponse } from '@/entrypoints/shared/integrations/image-analysis/types';
 import { applyFilenamePolicy } from '@/entrypoints/shared/naming/policy-engine';
@@ -61,6 +62,12 @@ export async function analyzePdfWithGemini(
       pageCount: pages.length,
     });
 
+    // Build page context for prompts
+    const pageContextInfo = formatPageContextForPrompt(request.pageContext, {
+      prefix:
+        '\n\nNote: This PDF was downloaded from the following page. This may provide context about the document origin:',
+    });
+
     // PHASE 1: Extract title and description from each page
     const pageAnalyses = [];
     for (const page of pages) {
@@ -78,7 +85,7 @@ export async function analyzePdfWithGemini(
                 type: 'text',
                 text: `Analyze this PDF page and provide:
 1. EXACT document/article title if present at the top (null if no clear title)
-2. A concise description of what this page shows, including main topics and content type
+2. A concise description of what this page shows, including main topics and content type${pageContextInfo}
 
 Format your response as JSON with exactly this structure:
 {
@@ -186,7 +193,7 @@ Format your response as JSON with exactly this structure:
 
 ${mergedContext.fullDescription}
 
-Current name: ${currentFilename}
+Current name: ${currentFilename}${pageContextInfo}
 Max length: ${request.settings.maxFilenameLength} characters
 
 ${

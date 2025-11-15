@@ -59,6 +59,7 @@ export async function runImageUpgradePipeline(
   const describeResult = await runDescribePhase(
     ingestion.blob,
     request.requestId,
+    request,
   );
   if (!describeResult) {
     return buildSessionCreationFailureResponse(request.requestId);

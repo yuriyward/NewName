@@ -8,6 +8,7 @@ import type {
   FileType,
   Settings,
 } from '@/entrypoints/shared/settings/settings';
+import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 
 export type ImageAnalysisMode =
   | 'off'
@@ -73,6 +74,8 @@ export interface ImageUpgradeAnalysisRequest {
    * Only set when analyzing PDF pages as images
    */
   pdfContext?: PdfContextForImage;
+  /** Page context captured at download time (title, heading, URL) */
+  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>;
 }
 
 export interface ImageUpgradeAnalysisSuccess {

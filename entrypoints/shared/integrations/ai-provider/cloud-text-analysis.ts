@@ -12,6 +12,7 @@ import {
   buildProposedPath,
 } from '@/entrypoints/offscreen/text-analysis/filename-builder';
 import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
+import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type {
   TextUpgradeAnalysisError,
@@ -57,6 +58,9 @@ export async function analyzeTextWithGemini(
   try {
     const currentFilename = request.baseline.final || request.filename;
 
+    // Build page context for prompts
+    const pageContextInfo = formatPageContextForPrompt(request.pageContext);
+
     // Step 1: Decision phase - should we rename?
     const decisionResult = await generateText({
       model,
@@ -64,7 +68,7 @@ export async function analyzeTextWithGemini(
 
 Current filename: ${currentFilename}
 File type: ${request.fileType}
-Content summary: ${ingestion.text.slice(0, TEXT_DECISION_SUMMARY_MAX_CHARS)}
+Content summary: ${ingestion.text.slice(0, TEXT_DECISION_SUMMARY_MAX_CHARS)}${pageContextInfo}
 
 Respond with JSON:
 {
@@ -95,7 +99,7 @@ Respond with JSON:
       prompt: `Generate a clear, descriptive filename for this file.
 
 Content: ${ingestion.text.slice(0, TEXT_GENERATION_CONTENT_MAX_CHARS)}
-Current name: ${currentFilename}
+Current name: ${currentFilename}${pageContextInfo}
 Max length: ${request.settings.maxFilenameLength} characters
 Separator: ${request.settings.separator}
 Language: ${request.settings.languagePreference}

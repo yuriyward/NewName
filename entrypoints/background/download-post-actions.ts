@@ -86,6 +86,13 @@ export async function applyPostDownloadActions({
     reasonTags: evaluation.reasonTags,
     downloadId: plan.rawDownloadId,
     decision: historyDecision,
+    pageContext: plan.pageContext
+      ? {
+          title: plan.pageContext.title,
+          heading: plan.pageContext.heading,
+          url: plan.pageContext.url,
+        }
+      : undefined,
   });
 
   if (plan.rawDownloadId !== undefined) {

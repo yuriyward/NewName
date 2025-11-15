@@ -4,7 +4,9 @@
  * Analyzes both pages to find document titles and gather comprehensive context
  */
 
+import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 import {
   createPromptSession,
   destroyPromptSession,
@@ -89,6 +91,7 @@ function normalizeTitle(value: unknown): string | null {
 async function analyzePdfPage(
   pageBlob: Blob,
   pageNumber: number,
+  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>,
 ): Promise<PdfPageAnalysis | null> {
   let session: Awaited<ReturnType<typeof createPromptSession>> = null;
 
@@ -113,11 +116,17 @@ async function analyzePdfPage(
     }
 
     // Prompt to extract title and description
-    const promptText = `Analyze this PDF page and provide:
+    let promptText = `Analyze this PDF page and provide:
 1. EXACT document/article title if present at the top (null if no clear title)
-2. A concise description of what this page shows, including main topics and content type
+2. A concise description of what this page shows, including main topics and content type`;
 
-Format your response as JSON with exactly this structure:
+    // Add page context as a hint if available
+    promptText += formatPageContextForPrompt(pageContext, {
+      prefix:
+        '\n\nNote: This PDF was downloaded from the following page. This may provide context about the document origin:',
+    });
+
+    promptText += `\n\nFormat your response as JSON with exactly this structure:
 {
   "title": "Exact title here or null",
   "description": "What this page shows - 2-3 sentences covering main topics and content"
@@ -194,6 +203,7 @@ Format your response as JSON with exactly this structure:
  */
 export async function extractPdfTitlesAndDescriptions(
   pageBlobs: Blob[],
+  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>,
 ): Promise<PdfTitleDescriptionContext | null> {
   if (pageBlobs.length === 0) {
     debugLogger.warn('[PdfTitleDescription] No pages provided for analysis');
@@ -209,7 +219,7 @@ export async function extractPdfTitlesAndDescriptions(
   // Analyze each page
   const pageAnalyses: PdfPageAnalysis[] = [];
   for (let i = 0; i < pageBlobs.length; i++) {
-    const analysis = await analyzePdfPage(pageBlobs[i], i + 1);
+    const analysis = await analyzePdfPage(pageBlobs[i], i + 1, pageContext);
     if (analysis) {
       pageAnalyses.push(analysis);
     }

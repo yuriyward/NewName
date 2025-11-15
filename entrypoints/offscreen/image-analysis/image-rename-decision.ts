@@ -4,8 +4,10 @@
  */
 
 import { normalizeConfidenceScore } from '@/entrypoints/shared/constants/confidence-thresholds';
+import { formatPageContextInline } from '@/entrypoints/shared/context/page-context-formatter';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
+import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 import {
   createPromptSession,
   destroyPromptSession,
@@ -69,16 +71,27 @@ function buildDecisionPrompt(params: {
   currentFilename: string;
   description: string;
   fileType: FileType;
+  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>;
 }): string {
   const filenameLiteral = JSON.stringify(params.currentFilename);
   const descriptionLiteral = JSON.stringify(params.description.trim());
 
+  const contextLines = [
+    `- Current filename: ${filenameLiteral}`,
+    `- Image description: ${descriptionLiteral}`,
+    `- File type: "${params.fileType}"`,
+  ];
+
+  // Add page context if available
+  const pageContextFormatted = formatPageContextInline(params.pageContext);
+  if (pageContextFormatted) {
+    contextLines.push(`- Source page: ${pageContextFormatted}`);
+  }
+
   return `You are evaluating whether an image filename needs improvement. Use the description to judge how well the current name fits the content. Be conservative—rename only when the name is clearly poor.
 
 Context:
-- Current filename: ${filenameLiteral}
-- Image description: ${descriptionLiteral}
-- File type: "${params.fileType}"
+${contextLines.join('\n')}
 
 Decision rules:
 1. Rename when the name is generic (e.g., "image", "photo", "download"), a meaningless hash/UUID, only a timestamp, severely formatted (ALL_CAPS_NO_SEPARATORS), or mismatched with the description.
@@ -137,6 +150,7 @@ export async function decideIfImageNeedsRename(params: {
   currentFilename: string;
   description: string;
   fileType: FileType;
+  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>;
 }): Promise<RenameDecision | null> {
   let session = null;
 

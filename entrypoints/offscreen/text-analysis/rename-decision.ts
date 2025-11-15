@@ -7,6 +7,7 @@
 
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
+import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 import {
   buildBaseContextDescription,
   createPromptSession,
@@ -47,6 +48,7 @@ export interface RenameDecisionContext {
   language?: string;
   originalName: string;
   fileType: FileType;
+  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>;
 }
 
 /**
@@ -99,6 +101,7 @@ function buildDecisionPrompt(context: RenameDecisionContext): string {
     summary: context.summary,
     language: context.language,
     fileType: context.fileType,
+    pageContext: context.pageContext,
   });
 
   return `Analyze this filename and decide if it needs renaming:

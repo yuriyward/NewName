@@ -9,6 +9,7 @@ import type { LanguageModel } from 'ai';
 import { generateText } from 'ai';
 import { buildProposedPath } from '@/entrypoints/offscreen/text-analysis/filename-builder';
 import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
+import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type {
   ImageIngestionResult,
@@ -46,6 +47,11 @@ export async function analyzeImageWithGemini(
   try {
     const currentFilename = request.baseline.final || request.filename;
 
+    // Build page context for prompts
+    const pageContextInfo = formatPageContextForPrompt(request.pageContext, {
+      prefix: '\n\nThis image was downloaded from:',
+    });
+
     // Convert blob to base64 for ai-sdk using browser-compatible method
     const arrayBuffer = await ingestion.blob.arrayBuffer();
     const base64 = arrayBufferToBase64(arrayBuffer);
@@ -60,7 +66,7 @@ export async function analyzeImageWithGemini(
           content: [
             {
               type: 'text',
-              text: 'Describe this image in 1-2 sentences. Be specific and concise.',
+              text: `Describe this image in 1-2 sentences. Be specific and concise.${pageContextInfo}`,
             },
             {
               type: 'image',

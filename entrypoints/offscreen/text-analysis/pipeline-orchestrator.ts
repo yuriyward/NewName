@@ -145,6 +145,7 @@ export async function runTextUpgradePipeline(
     language: subjectLanguage.language,
     originalName: request.filename,
     fileType: request.fileType,
+    pageContext: request.pageContext,
   });
   const decisionElapsedMs = Date.now() - decisionStartTime;
 
@@ -209,6 +210,7 @@ export async function runTextUpgradePipeline(
         separator: request.settings.separator,
         transliterateAscii: request.settings.transliterateAscii,
       },
+      pageContext: request.pageContext,
     });
   }
 

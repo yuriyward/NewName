@@ -36,6 +36,7 @@ export async function runPdfUpgradePipeline(
   // PHASE 1: Extract titles and descriptions from PDF pages
   const titleDescriptionContext = await extractPdfTitlesAndDescriptions(
     pages.map((page) => page.blob),
+    request.pageContext,
   );
 
   if (!titleDescriptionContext) {

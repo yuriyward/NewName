@@ -63,6 +63,7 @@ function buildTextRequest(
       final: historyItem.final,
       decision: historyItem.decision,
     },
+    pageContext: historyItem.pageContext,
     settings: {
       languagePreference: settings.language,
       mode: modeOverride ?? resolveTextAnalysisMode(settings),

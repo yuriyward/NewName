@@ -4,6 +4,7 @@
  * and response parsing.
  */
 
+import { formatPageContextInline } from '@/entrypoints/shared/context/page-context-formatter';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type {
   ChromeLanguageModelConstructor,
@@ -11,6 +12,7 @@ import type {
   ChromeLanguageModelSession,
 } from '@/entrypoints/shared/integrations/chrome-ai/types';
 import type { Separator } from '@/entrypoints/shared/settings/settings';
+import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 
 /**
  * Resolve LanguageModel constructor from Chrome's global scope.
@@ -195,6 +197,7 @@ export interface BasePromptContext {
   summary?: string;
   language?: string;
   fileType: string;
+  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>;
 }
 
 export function buildBaseContextDescription(
@@ -218,6 +221,12 @@ export function buildBaseContextDescription(
   }
 
   parts.push(`File type: ${context.fileType}`);
+
+  // Add page context if available
+  const pageContextFormatted = formatPageContextInline(context.pageContext);
+  if (pageContextFormatted) {
+    parts.push(`Source page: ${pageContextFormatted}`);
+  }
 
   return parts.join('\n');
 }

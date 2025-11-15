@@ -167,6 +167,7 @@ describe('pipeline-orchestrator', () => {
       expect(mockRunDescribePhase).toHaveBeenCalledWith(
         ingestion.blob,
         'test-request-id',
+        request,
       );
       expect(mockRunDecidePhase).toHaveBeenCalled();
       expect(mockRunGeneratePhase).toHaveBeenCalled();
@@ -182,6 +183,7 @@ describe('pipeline-orchestrator', () => {
       expect(mockRunDescribePhase).toHaveBeenCalledWith(
         ingestion.blob,
         'test-request-id',
+        request,
       );
     });
 
