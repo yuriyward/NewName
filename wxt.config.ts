@@ -21,6 +21,9 @@ const MUPDF_WASM_SOURCE = path.resolve(
 
 export default defineConfig({
   modules: ['@wxt-dev/module-react', '@wxt-dev/auto-icons'],
+  autoIcons: {
+    baseIconPath: 'assets/icon.svg',
+  },
   manifest: {
     name: 'NewName',
     description:

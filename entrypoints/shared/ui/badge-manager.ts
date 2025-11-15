@@ -25,7 +25,10 @@ async function applyBadgeUpdate(update: () => Promise<void>): Promise<void> {
   }
 }
 
-export async function showBadge(intent: BadgeIntent, overrides?: Partial<BadgeStyle>): Promise<void> {
+export async function showBadge(
+  intent: BadgeIntent,
+  overrides?: Partial<BadgeStyle>,
+): Promise<void> {
   const style = {
     ...BADGE_STYLES[intent],
     ...overrides,

@@ -9,7 +9,9 @@ type PermissionStateDescriptor = {
 };
 
 type DirectoryHandleWithQuery = FileSystemDirectoryHandle & {
-  queryPermission?: (descriptor?: PermissionStateDescriptor) => Promise<PermissionState>;
+  queryPermission?: (
+    descriptor?: PermissionStateDescriptor,
+  ) => Promise<PermissionState>;
 };
 
 interface DirectoryAccessResult {
@@ -46,9 +48,12 @@ async function verifySessionDirectoryAccess(
     );
     return true;
   } catch (error) {
-    debugLogger.warn('[useDownloadsAccess] Directory access verification failed', {
-      error,
-    });
+    debugLogger.warn(
+      '[useDownloadsAccess] Directory access verification failed',
+      {
+        error,
+      },
+    );
     return false;
   }
 }
@@ -61,7 +66,9 @@ async function evaluateDirectoryAccess(
   }
 
   try {
-    const permission = await queryDirectoryPermission(handle as DirectoryHandleWithQuery);
+    const permission = await queryDirectoryPermission(
+      handle as DirectoryHandleWithQuery,
+    );
     if (permission === 'granted') {
       return { permitted: true, isPersistent: true };
     }

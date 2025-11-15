@@ -105,6 +105,7 @@ function createConfirmToastControllerMock(): ConfirmToastController {
     cancel: vi.fn(async () => false),
     getPendingByHistory: vi.fn(() => undefined),
     getAllPending: vi.fn(() => []),
+    triggerAutoApplyNow: vi.fn(async () => false),
     emitStatus: vi.fn(async () => {}),
     setAutoApplyPaused: vi.fn(async () => true),
   };

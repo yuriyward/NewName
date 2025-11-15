@@ -135,10 +135,15 @@ describe('createConfirmToastController', () => {
     expect(entry.proposal.autoApplyRemainingMs).toBe(1_000);
     expect(entry.autoApplyRemainingMs).toBe(1_000);
     expect(entry.visibleOnTabs?.has(42)).toBe(true);
-    expect(sendShowConfirmToast).toHaveBeenCalledWith(
-      { proposal: entry.proposal },
-      42,
-    );
+    expect(sendShowConfirmToast).toHaveBeenCalledTimes(1);
+    const [[showPayload, showTarget]] = sendShowConfirmToast.mock.calls;
+    expect(showTarget).toBe(42);
+    expect(showPayload).toMatchObject({
+      proposal: {
+        toastId: entry.proposal.toastId,
+        autoApplyRemainingMs: 1_000,
+      },
+    });
 
     expect(controller.getPendingByHistory(BASE_OPTIONS.historyId)).toBe(entry);
     expect(controller.getAllPending()).toHaveLength(1);
@@ -267,6 +272,43 @@ describe('createConfirmToastController', () => {
     expect(result).toBe(true);
     expect(emitStatus).toHaveBeenCalledWith(entry, 'kept', 'user cancel');
     expect(controller.getPendingByHistory('history-2')).toBeUndefined();
+  });
+
+  it('forces auto-apply immediately when countdown already elapsed', async () => {
+    const { hooks, onAutoApply } = createHooks();
+    const controller = createConfirmToastController(hooks);
+    const entry = await controller.queueConfirmation({
+      ...BASE_OPTIONS,
+      historyId: 'history-auto-apply-now',
+      autoApplyDelaySeconds: 5,
+    });
+    assertEntry(entry);
+
+    const result = await controller.triggerAutoApplyNow(entry.proposal.toastId);
+
+    expect(result).toBe(true);
+    expect(onAutoApply).toHaveBeenCalledTimes(1);
+    expect(onAutoApply.mock.calls[0]?.[0]).toBe(entry);
+    expect(
+      controller.getPendingByHistory('history-auto-apply-now'),
+    ).toBeUndefined();
+  });
+
+  it('does not force auto-apply when countdown is disabled', async () => {
+    const { hooks, onAutoApply } = createHooks();
+    const controller = createConfirmToastController(hooks);
+    const entry = await controller.queueConfirmation({
+      ...BASE_OPTIONS,
+      historyId: 'history-no-force',
+      autoApplyDelaySeconds: null,
+    });
+    assertEntry(entry);
+
+    const result = await controller.triggerAutoApplyNow(entry.proposal.toastId);
+
+    expect(result).toBe(false);
+    expect(onAutoApply).not.toHaveBeenCalled();
+    expect(controller.getPendingByHistory('history-no-force')).toBe(entry);
   });
 
   it('ignores cancel call for unknown toast id', async () => {

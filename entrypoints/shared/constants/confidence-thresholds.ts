@@ -72,7 +72,7 @@ export function normalizeConfidenceScore(
   fallbackConfidence: number = AUTO_APPLY_THRESHOLD,
 ): number {
   const fallback = clampConfidence(fallbackConfidence);
-  if (!isValidConfidenceScore(value)) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
     return fallback;
   }
   return clampConfidence(value);
@@ -121,8 +121,7 @@ export function getAutoApplyBehavior(
     options?.fallbackConfidence,
   );
 
-  const shouldSilentRename =
-    normalizedConfidence >= SILENT_RENAME_THRESHOLD;
+  const shouldSilentRename = normalizedConfidence >= SILENT_RENAME_THRESHOLD;
   const shouldAutoApply = normalizedConfidence >= AUTO_APPLY_THRESHOLD;
 
   let level: AutoApplyBehaviorLevel = 'manual';

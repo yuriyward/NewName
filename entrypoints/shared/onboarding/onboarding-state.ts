@@ -32,22 +32,21 @@ const DEFAULT_STATE: OnboardingState = {
   status: 'pending',
 };
 
-const VALID_TRANSITIONS: Record<OnboardingStatus, ReadonlySet<OnboardingStatus>> =
-  {
-    pending: new Set<OnboardingStatus>([
-      'awaiting-persistent',
-      'completed',
-      'skipped',
-    ]),
-    'awaiting-persistent': new Set<OnboardingStatus>(['completed', 'skipped']),
-    completed: new Set<OnboardingStatus>(),
-    skipped: new Set<OnboardingStatus>(),
-  };
+const VALID_TRANSITIONS: Record<
+  OnboardingStatus,
+  ReadonlySet<OnboardingStatus>
+> = {
+  pending: new Set<OnboardingStatus>([
+    'awaiting-persistent',
+    'completed',
+    'skipped',
+  ]),
+  'awaiting-persistent': new Set<OnboardingStatus>(['completed', 'skipped']),
+  completed: new Set<OnboardingStatus>(),
+  skipped: new Set<OnboardingStatus>(),
+};
 
-function canTransition(
-  from: OnboardingStatus,
-  to: OnboardingStatus,
-): boolean {
+function canTransition(from: OnboardingStatus, to: OnboardingStatus): boolean {
   return VALID_TRANSITIONS[from]?.has(to) ?? false;
 }
 
