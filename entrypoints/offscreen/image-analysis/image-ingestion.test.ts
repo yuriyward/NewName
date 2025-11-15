@@ -62,11 +62,16 @@ describe('image-ingestion', () => {
     } as unknown as OffscreenCanvas;
 
     // Mock OffscreenCanvas constructor
-    global.OffscreenCanvas = vi.fn().mockImplementation((width, height) => {
-      mockCanvas.width = width;
-      mockCanvas.height = height;
-      return mockCanvas;
-    }) as unknown as typeof OffscreenCanvas;
+    const OffscreenCanvasMock = vi
+      .fn(function mockOffscreenCanvas(width: number, height: number) {
+        mockCanvas.width = width;
+        mockCanvas.height = height;
+        return mockCanvas;
+      })
+      .mockName('OffscreenCanvasMock');
+
+    globalThis.OffscreenCanvas =
+      OffscreenCanvasMock as unknown as typeof OffscreenCanvas;
 
     // Mock ImageBitmap
     _mockImageBitmap = {
