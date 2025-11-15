@@ -4,7 +4,7 @@
  * Separate from image pipeline to properly handle document titles
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { PdfTitleDescriptionContext } from './pdf-title-description';
 
 /**
@@ -37,7 +37,7 @@ export async function decidePdfRename(
 ): Promise<PdfRenameDecision> {
   const { documentTitle, pageAnalyses } = titleDescriptionContext;
 
-  console.log('[PdfRenameDecision] Analyzing rename decision', {
+  offscreenLogger.log('[PdfRenameDecision] Analyzing rename decision', {
     hasTitle: !!documentTitle,
     titleLength: documentTitle?.length,
     currentFilename,
@@ -48,7 +48,7 @@ export async function decidePdfRename(
   if (documentTitle && documentTitle.trim().length > 0) {
     const isTitleDescriptive = documentTitle.length > 5;
 
-    console.log('[PdfRenameDecision] Found document title', {
+    offscreenLogger.log('[PdfRenameDecision] Found document title', {
       title: documentTitle,
       isDescriptive: isTitleDescriptive,
     });
@@ -64,15 +64,18 @@ export async function decidePdfRename(
   }
 
   // No title extracted - check if baseline filename is problematic
-  console.log('[PdfRenameDecision] No title extracted, checking baseline', {
-    baseline: currentFilename,
-  });
+  offscreenLogger.log(
+    '[PdfRenameDecision] No title extracted, checking baseline',
+    {
+      baseline: currentFilename,
+    },
+  );
 
   const lowerBaseline = currentFilename.toLowerCase();
 
   // Check for generic/meaningless names
   if (isHashOrUUID(lowerBaseline)) {
-    debugLogger.log('[PdfRenameDecision] Baseline is hash/UUID', {
+    offscreenLogger.log('[PdfRenameDecision] Baseline is hash/UUID', {
       filename: currentFilename,
     });
     return {
@@ -84,7 +87,7 @@ export async function decidePdfRename(
   }
 
   if (isTimestampOnly(lowerBaseline)) {
-    debugLogger.log('[PdfRenameDecision] Baseline is timestamp only', {
+    offscreenLogger.log('[PdfRenameDecision] Baseline is timestamp only', {
       filename: currentFilename,
     });
     return {
@@ -96,7 +99,7 @@ export async function decidePdfRename(
   }
 
   if (isGenericName(lowerBaseline)) {
-    debugLogger.log('[PdfRenameDecision] Baseline is generic', {
+    offscreenLogger.log('[PdfRenameDecision] Baseline is generic', {
       filename: currentFilename,
     });
     return {
@@ -108,7 +111,7 @@ export async function decidePdfRename(
   }
 
   // Baseline seems reasonable - don't rename
-  debugLogger.log('[PdfRenameDecision] Baseline is already good', {
+  offscreenLogger.log('[PdfRenameDecision] Baseline is already good', {
     filename: currentFilename,
   });
 

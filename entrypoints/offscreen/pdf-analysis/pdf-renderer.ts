@@ -3,7 +3,7 @@
  * Exports main entry point for rendering PDF files to images
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { MuPdfModule } from '@/entrypoints/shared/integrations/mupdf/mupdf-loader';
 import { getMuPdfModule } from '@/entrypoints/shared/integrations/mupdf/mupdf-loader';
 import {
@@ -59,7 +59,7 @@ async function extractPdfPages(
     document = mupdf.Document.openDocument(arrayBuffer, 'application/pdf');
 
     if (!document) {
-      debugLogger.warn('[PdfRenderer] Failed to open PDF document');
+      offscreenLogger.warn('[PdfRenderer] Failed to open PDF document');
       return null;
     }
 
@@ -101,7 +101,7 @@ async function extractPdfPages(
         })();
 
         if (!canvas) {
-          debugLogger.warn('[PdfRenderer] Failed to render page', {
+          offscreenLogger.warn('[PdfRenderer] Failed to render page', {
             pageIndex,
           });
           continue;
@@ -109,7 +109,7 @@ async function extractPdfPages(
 
         const blob = await canvasToBlob(canvas);
         if (!blob) {
-          debugLogger.warn(
+          offscreenLogger.warn(
             '[PdfRenderer] Failed to convert page canvas to blob',
             {
               pageIndex,
@@ -128,7 +128,7 @@ async function extractPdfPages(
           renderTimeMs,
         });
       } catch (error) {
-        debugLogger.warn('[PdfRenderer] Failed to extract page', {
+        offscreenLogger.warn('[PdfRenderer] Failed to extract page', {
           pageIndex,
           error,
         });
@@ -136,7 +136,7 @@ async function extractPdfPages(
       }
     }
   } catch (error) {
-    debugLogger.warn('[PdfRenderer] Failed to extract pages', { error });
+    offscreenLogger.warn('[PdfRenderer] Failed to extract pages', { error });
     return null;
   } finally {
     document?.destroy();
@@ -232,8 +232,8 @@ export async function renderPdfPages(
 
     const totalTimeMs = Math.round(performance.now() - totalStartTime);
 
-    if (debugLogger.isEnabled()) {
-      debugLogger.log('[PdfRenderer] PDF extraction complete', {
+    if (offscreenLogger.isEnabled()) {
+      offscreenLogger.log('[PdfRenderer] PDF extraction complete', {
         pagesExtracted: pages.length,
         totalPages: numPages,
         totalTimeMs,
@@ -248,7 +248,7 @@ export async function renderPdfPages(
     };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-    debugLogger.error('[PdfRenderer] PDF extraction failed', { error });
+    offscreenLogger.error('[PdfRenderer] PDF extraction failed', { error });
 
     return {
       success: false,

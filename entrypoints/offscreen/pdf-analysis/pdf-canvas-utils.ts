@@ -3,7 +3,7 @@
  * Converts OffscreenCanvas to PNG blobs with quality settings
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import { PDF_PAGE_IMAGE_FORMAT, PDF_PNG_QUALITY } from './constants';
 
 /**
@@ -20,7 +20,7 @@ export async function canvasToBlob(
       quality: PDF_PNG_QUALITY,
     });
   } catch (error) {
-    debugLogger.warn('[PdfRenderer] Failed to convert canvas to blob', {
+    offscreenLogger.warn('[PdfRenderer] Failed to convert canvas to blob', {
       error,
     });
     return null;

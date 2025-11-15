@@ -5,7 +5,7 @@
 
 import { SILENT_RENAME_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 import {
   createPromptSession,
@@ -46,7 +46,7 @@ export async function describeImage(
   try {
     const startTime = Date.now();
 
-    console.log(
+    offscreenLogger.log(
       '[ImageDescription] Creating multimodal session for image description',
       {
         blobSize: imageBlob.size,
@@ -65,13 +65,14 @@ export async function describeImage(
     });
 
     if (!session) {
-      const message =
-        '[ImageDescription] Failed to create multimodal session even though API reported as available. ' +
-        'Check chrome://flags/#prompt-api-for-gemini-nano-multimodal-input is set to "Enabled" (not "Default"). ' +
-        'This is a Chrome quirk: "Default" does NOT enable multimodal support - ' +
-        'you must explicitly select "Enabled" from the dropdown.';
-      debugLogger.warn(message);
-      console.error(message);
+      const helpText =
+        'Check chrome://flags/#prompt-api-for-gemini-nano-multimodal-input is set to "Enabled" (not "Default"). This is a Chrome quirk: "Default" does NOT enable multimodal support - you must explicitly select "Enabled" from the dropdown.';
+      offscreenLogger.warn(
+        `[ImageDescription] Failed to create multimodal session. ${helpText}`,
+      );
+      offscreenLogger.error(
+        `[ImageDescription] Failed to create multimodal session. ${helpText}`,
+      );
       return null;
     }
 
@@ -104,11 +105,11 @@ Keep it under 120 characters and focus on what the image shows.`;
     const description = response.trim();
 
     if (!description || description.length === 0) {
-      debugLogger.warn('[ImageDescription] Empty description in response');
+      offscreenLogger.warn('[ImageDescription] Empty description in response');
       return null;
     }
 
-    console.log('[ImageDescription] Description generated', {
+    offscreenLogger.log('[ImageDescription] Description generated', {
       description: description,
       elapsedMs,
     });
@@ -118,9 +119,12 @@ Keep it under 120 characters and focus on what the image shows.`;
       confidence: SILENT_RENAME_THRESHOLD, // Baseline confidence for model-generated descriptions
     };
   } catch (error) {
-    debugLogger.warn('[ImageDescription] Image description generation failed', {
-      error,
-    });
+    offscreenLogger.warn(
+      '[ImageDescription] Image description generation failed',
+      {
+        error,
+      },
+    );
     return null;
   } finally {
     if (session) {

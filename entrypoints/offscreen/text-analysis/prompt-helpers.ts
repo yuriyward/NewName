@@ -5,7 +5,7 @@
  */
 
 import { formatPageContextInline } from '@/entrypoints/shared/context/page-context-formatter';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type {
   ChromeLanguageModelConstructor,
   ChromeLanguageModelCreateOptions,
@@ -58,7 +58,7 @@ export async function checkLanguageModelAvailability(options?: {
   const LanguageModelCtor = resolveLanguageModelCtor();
 
   if (!LanguageModelCtor?.availability) {
-    console.log('[PromptHelpers] LanguageModel API not available');
+    offscreenLogger.log('[PromptHelpers] LanguageModel API not available');
     return null;
   }
 
@@ -67,14 +67,16 @@ export async function checkLanguageModelAvailability(options?: {
     const availability =
       await LanguageModelCtor.availability(normalizedOptions);
 
-    console.log('[PromptHelpers] Availability check', {
+    offscreenLogger.log('[PromptHelpers] Availability check', {
       availability,
       ...normalizedOptions,
     });
 
     return availability;
   } catch (error) {
-    debugLogger.warn('[PromptHelpers] Availability check failed', { error });
+    offscreenLogger.warn('[PromptHelpers] Availability check failed', {
+      error,
+    });
     return null;
   }
 }
@@ -91,7 +93,9 @@ export async function createPromptSession(
   const LanguageModelCtor = resolveLanguageModelCtor();
 
   if (!LanguageModelCtor?.create) {
-    console.log('[PromptHelpers] Cannot create session - API not available');
+    offscreenLogger.log(
+      '[PromptHelpers] Cannot create session - API not available',
+    );
     return null;
   }
 
@@ -101,7 +105,7 @@ export async function createPromptSession(
       ...normalizeLanguageModelOptions(options),
     };
 
-    console.log('[PromptHelpers] Creating prompt session', {
+    offscreenLogger.log('[PromptHelpers] Creating prompt session', {
       hasSystemPrompt: !!normalizedOptions.systemPrompt,
       temperature: normalizedOptions.temperature,
       topK: normalizedOptions.topK,
@@ -112,14 +116,14 @@ export async function createPromptSession(
     const session = await LanguageModelCtor.create(normalizedOptions);
 
     if (!session) {
-      debugLogger.warn('[PromptHelpers] Session created but is null');
+      offscreenLogger.warn('[PromptHelpers] Session created but is null');
       return null;
     }
 
-    console.log('[PromptHelpers] Session created successfully');
+    offscreenLogger.log('[PromptHelpers] Session created successfully');
     return session;
   } catch (error) {
-    debugLogger.warn('[PromptHelpers] Session creation failed', { error });
+    offscreenLogger.warn('[PromptHelpers] Session creation failed', { error });
     return null;
   }
 }
@@ -136,22 +140,25 @@ export function parseStructuredResponse<T>(
   try {
     const trimmed = response.trim();
     if (trimmed.length === 0) {
-      debugLogger.warn(`[PromptHelpers] Empty response for ${context}`);
+      offscreenLogger.warn(`[PromptHelpers] Empty response for ${context}`);
       return null;
     }
 
     const parsed = JSON.parse(trimmed) as T;
 
-    console.log(`[PromptHelpers] Parsed ${context} response`, {
+    offscreenLogger.log(`[PromptHelpers] Parsed ${context} response`, {
       response: parsed,
     });
 
     return parsed;
   } catch (error) {
-    debugLogger.warn(`[PromptHelpers] Failed to parse ${context} response`, {
-      error,
-      response: response.slice(0, 200), // Log first 200 chars
-    });
+    offscreenLogger.warn(
+      `[PromptHelpers] Failed to parse ${context} response`,
+      {
+        error,
+        response: response.slice(0, 200), // Log first 200 chars
+      },
+    );
     return null;
   }
 }
@@ -241,7 +248,9 @@ export function destroyPromptSession(
   try {
     session.destroy?.();
   } catch (error) {
-    debugLogger.warn('[PromptHelpers] Session destruction failed', { error });
+    offscreenLogger.warn('[PromptHelpers] Session destruction failed', {
+      error,
+    });
   }
 }
 

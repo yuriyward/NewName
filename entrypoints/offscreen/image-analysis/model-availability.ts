@@ -3,7 +3,7 @@
  * Handles Prompt API readiness verification for image analysis
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import {
   buildSessionCreationFailureMessage,
   MULTIMODAL_SETUP_INSTRUCTIONS,
@@ -22,7 +22,7 @@ export async function checkMultimodalAvailability(
   requestId: string,
 ): Promise<ImageUpgradeAnalysisUnavailable | null> {
   try {
-    console.log(
+    offscreenLogger.log(
       '[ImageUpgradeAI] Checking multimodal Prompt API availability',
       {
         requestId,
@@ -41,7 +41,7 @@ export async function checkMultimodalAvailability(
     });
 
     const languageModelStatus = modelStatuses['language-model'];
-    console.log('[ImageUpgradeAI] Language model status', {
+    offscreenLogger.log('[ImageUpgradeAI] Language model status', {
       state: languageModelStatus?.state,
       availability: languageModelStatus?.availability,
       reason: languageModelStatus?.detail,
@@ -56,7 +56,7 @@ export async function checkMultimodalAvailability(
           : `Chrome's Prompt API is not available on this device. ` +
             `Status: ${languageModelStatus?.state ?? 'unknown'}`;
 
-      debugLogger.warn('[ImageUpgradeAI] Prompt API not available', {
+      offscreenLogger.warn('[ImageUpgradeAI] Prompt API not available', {
         requestId,
         status: languageModelStatus?.state,
         availability: languageModelStatus?.availability,
@@ -79,7 +79,7 @@ export async function checkMultimodalAvailability(
         ? error.message
         : 'Failed to check API availability';
 
-    debugLogger.warn('[ImageUpgradeAI] Model availability check failed', {
+    offscreenLogger.warn('[ImageUpgradeAI] Model availability check failed', {
       requestId,
       error,
     });
@@ -103,7 +103,7 @@ export function buildSessionCreationFailureResponse(
 ): ImageUpgradeAnalysisUnavailable {
   const message = buildSessionCreationFailureMessage();
 
-  debugLogger.warn('[ImageUpgradeAI] Image description failed', {
+  offscreenLogger.warn('[ImageUpgradeAI] Image description failed', {
     requestId,
     message,
   });

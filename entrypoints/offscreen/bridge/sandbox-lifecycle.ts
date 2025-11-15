@@ -2,6 +2,7 @@
  * Sandbox iframe lifecycle management
  */
 import { browser } from 'wxt/browser';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import { SANDBOX_READY_TIMEOUT_MS } from '@/entrypoints/shared/integrations/mediainfo/constants';
 import { isSandboxMessage, postToSandbox } from './sandbox-protocol';
 
@@ -28,7 +29,7 @@ function createIframe(): HTMLIFrameElement {
   frame.style.display = 'none';
   frame.sandbox.add('allow-scripts');
   document.body.appendChild(frame);
-  console.log('[SandboxBridge] Created iframe', { src: frame.src });
+  offscreenLogger.log('[SandboxBridge] Created iframe', { src: frame.src });
   return frame;
 }
 
@@ -46,7 +47,9 @@ function waitForReady(): Promise<void> {
 
     const handler = (event: MessageEvent) => {
       if (isSandboxMessage(event, 'ready')) {
-        console.log('[SandboxBridge] Received ready signal from sandbox');
+        offscreenLogger.log(
+          '[SandboxBridge] Received ready signal from sandbox',
+        );
         clearTimeout(timeout);
         window.removeEventListener('message', handler);
         cleanup();
@@ -69,14 +72,14 @@ function waitForReady(): Promise<void> {
  */
 export async function ensureSandboxReady(): Promise<void> {
   if (!iframe) {
-    console.log('[SandboxBridge] Creating sandboxed iframe');
+    offscreenLogger.log('[SandboxBridge] Creating sandboxed iframe');
     iframe = createIframe();
   }
 
   await waitForReady();
 
   // Send init message to pre-initialize MediaInfo
-  console.log('[SandboxBridge] Sending init to sandbox');
+  offscreenLogger.log('[SandboxBridge] Sending init to sandbox');
   const initId = `init_${Date.now()}`;
 
   const initResult = await new Promise<{ success: boolean; error?: string }>(
@@ -111,7 +114,7 @@ export async function ensureSandboxReady(): Promise<void> {
     throw new Error(`Sandbox initialization failed: ${initResult.error}`);
   }
 
-  console.log('[SandboxBridge] Sandbox fully initialized');
+  offscreenLogger.log('[SandboxBridge] Sandbox fully initialized');
 }
 
 /**
@@ -138,7 +141,7 @@ export function destroySandbox(
   >,
 ): void {
   if (iframe) {
-    console.log('[SandboxBridge] Destroying sandbox iframe');
+    offscreenLogger.log('[SandboxBridge] Destroying sandbox iframe');
     iframe.remove();
     iframe = null;
     readyPromise = null;

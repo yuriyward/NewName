@@ -21,12 +21,14 @@ import {
 } from '@/entrypoints/shared/integrations/image-analysis/constants';
 import { ingestImageForPrompt } from './image-ingestion';
 
-// Mock debug logger
-vi.mock('@/entrypoints/shared/debug/logger', () => ({
-  debugLogger: {
+// Mock offscreen logger
+vi.mock('@/entrypoints/shared/debug/offscreen-logger', () => ({
+  offscreenLogger: {
     warn: vi.fn(),
     error: vi.fn(),
     log: vi.fn(),
+    isEnabled: vi.fn().mockReturnValue(true),
+    setEnabled: vi.fn(),
   },
 }));
 

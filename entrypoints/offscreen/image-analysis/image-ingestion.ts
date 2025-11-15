@@ -3,7 +3,7 @@
  * Handles file reading, ImageBitmap creation, downscaling, and PNG encoding
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import {
   IMAGE_ANALYSIS_FORMAT,
   MAX_IMAGE_EDGE_PX,
@@ -49,7 +49,7 @@ async function createBitmapFromBlob(blob: Blob): Promise<ImageBitmap | null> {
   try {
     return await createImageBitmap(blob);
   } catch (error) {
-    debugLogger.warn('[ImageIngestion] Failed to create ImageBitmap', {
+    offscreenLogger.warn('[ImageIngestion] Failed to create ImageBitmap', {
       error,
       mimeType: blob.type,
       size: blob.size,
@@ -93,7 +93,7 @@ async function downscaleAndEncodeImage(
       const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        debugLogger.warn('[ImageIngestion] Failed to get canvas context');
+        offscreenLogger.warn('[ImageIngestion] Failed to get canvas context');
         return null;
       }
       ctx.drawImage(bitmap, 0, 0);
@@ -104,7 +104,7 @@ async function downscaleAndEncodeImage(
     const canvas = new OffscreenCanvas(targetWidth, targetHeight);
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      debugLogger.warn(
+      offscreenLogger.warn(
         '[ImageIngestion] Failed to get canvas context for resizing',
       );
       return null;
@@ -116,7 +116,7 @@ async function downscaleAndEncodeImage(
       type: IMAGE_ANALYSIS_FORMAT,
     });
 
-    console.log('[ImageIngestion] Downscaling complete', {
+    offscreenLogger.log('[ImageIngestion] Downscaling complete', {
       originalDimensions: `${bitmap.width}x${bitmap.height}`,
       resizedDimensions: `${targetWidth}x${targetHeight}`,
       resizeRatio: resizeRatio.toFixed(2),
@@ -127,11 +127,14 @@ async function downscaleAndEncodeImage(
 
     return pngBlob;
   } catch (error) {
-    debugLogger.warn('[ImageIngestion] Failed to downscale and encode image', {
-      error,
-      originalWidth: bitmap.width,
-      originalHeight: bitmap.height,
-    });
+    offscreenLogger.warn(
+      '[ImageIngestion] Failed to downscale and encode image',
+      {
+        error,
+        originalWidth: bitmap.width,
+        originalHeight: bitmap.height,
+      },
+    );
     return null;
   }
 }
@@ -147,8 +150,8 @@ async function downscaleAndEncodeImage(
  * const result = await ingestImageForPrompt(imageHandle);
  * if (result.success) {
  *   const blob = result.blob; // PNG blob ready for Prompt API
- *   console.log(`Original: ${result.originalWidth}x${result.originalHeight}`);
- *   console.log(`Resized: ${result.resizedWidth}x${result.resizedHeight}`);
+ *   offscreenLogger.log(`Original: ${result.originalWidth}x${result.originalHeight}`);
+ *   offscreenLogger.log(`Resized: ${result.resizedWidth}x${result.resizedHeight}`);
  * }
  */
 export async function ingestImageForPrompt(
@@ -181,7 +184,7 @@ export async function ingestImageForPrompt(
     const fileBlob = file.slice(0, fileSizeBytes);
 
     // Create ImageBitmap to validate image and get dimensions
-    console.log('[ImageIngestion] Creating ImageBitmap from file', {
+    offscreenLogger.log('[ImageIngestion] Creating ImageBitmap from file', {
       filename: fileHandle.name,
       size: fileSizeBytes,
       type: file.type,
@@ -228,7 +231,7 @@ export async function ingestImageForPrompt(
 
     const elapsedMs = Math.round(performance.now() - startedAt);
 
-    console.log('[ImageIngestion] Image ingestion successful', {
+    offscreenLogger.log('[ImageIngestion] Image ingestion successful', {
       filename: fileHandle.name,
       originalSize: `${originalWidth}x${originalHeight}`,
       resizedSize: `${resizedWidth}x${resizedHeight}`,
@@ -256,7 +259,7 @@ export async function ingestImageForPrompt(
         ? error.message
         : 'Unknown error during image ingestion';
 
-    debugLogger.error('[ImageIngestion] Image ingestion failed', {
+    offscreenLogger.error('[ImageIngestion] Image ingestion failed', {
       error,
       elapsedMs,
     });

@@ -5,7 +5,7 @@
  */
 
 import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 import {
   createPromptSession,
@@ -96,7 +96,9 @@ async function analyzePdfPage(
   let session: Awaited<ReturnType<typeof createPromptSession>> = null;
 
   try {
-    console.log(`[PdfTitleDescription] Analyzing page ${pageNumber} for title`);
+    offscreenLogger.log(
+      `[PdfTitleDescription] Analyzing page ${pageNumber} for title`,
+    );
 
     // Create multimodal session for analyzing PDF page images
     session = await createPromptSession({
@@ -109,7 +111,7 @@ async function analyzePdfPage(
     });
 
     if (!session) {
-      debugLogger.warn(
+      offscreenLogger.warn(
         '[PdfTitleDescription] Failed to create multimodal session',
       );
       return null;
@@ -152,13 +154,16 @@ async function analyzePdfPage(
         parsed = JSON.parse(jsonMatch[0]);
       }
     } catch (_e) {
-      debugLogger.warn('[PdfTitleDescription] Failed to parse JSON response', {
-        response,
-      });
+      offscreenLogger.warn(
+        '[PdfTitleDescription] Failed to parse JSON response',
+        {
+          response,
+        },
+      );
     }
 
     if (!isValidModelResponse(parsed)) {
-      debugLogger.warn(
+      offscreenLogger.warn(
         `[PdfTitleDescription] Invalid response structure from page ${pageNumber}`,
         { parsed },
       );
@@ -176,15 +181,18 @@ async function analyzePdfPage(
       hasTitle: parsedTitle !== null,
     };
 
-    console.log(`[PdfTitleDescription] Page ${pageNumber} analysis complete`, {
-      hasTitle: analysis.hasTitle,
-      titleLength: analysis.title?.length,
-      descriptionLength: analysis.description.length,
-    });
+    offscreenLogger.log(
+      `[PdfTitleDescription] Page ${pageNumber} analysis complete`,
+      {
+        hasTitle: analysis.hasTitle,
+        titleLength: analysis.title?.length,
+        descriptionLength: analysis.description.length,
+      },
+    );
 
     return analysis;
   } catch (error) {
-    debugLogger.warn(
+    offscreenLogger.warn(
       `[PdfTitleDescription] Failed to analyze page ${pageNumber}`,
       { error },
     );
@@ -206,11 +214,13 @@ export async function extractPdfTitlesAndDescriptions(
   pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>,
 ): Promise<PdfTitleDescriptionContext | null> {
   if (pageBlobs.length === 0) {
-    debugLogger.warn('[PdfTitleDescription] No pages provided for analysis');
+    offscreenLogger.warn(
+      '[PdfTitleDescription] No pages provided for analysis',
+    );
     return null;
   }
 
-  console.log('[PdfTitleDescription] Starting analysis of PDF pages', {
+  offscreenLogger.log('[PdfTitleDescription] Starting analysis of PDF pages', {
     pageCount: pageBlobs.length,
   });
 
@@ -226,7 +236,7 @@ export async function extractPdfTitlesAndDescriptions(
   }
 
   if (pageAnalyses.length === 0) {
-    debugLogger.warn('[PdfTitleDescription] Failed to analyze any pages');
+    offscreenLogger.warn('[PdfTitleDescription] Failed to analyze any pages');
     return null;
   }
 
@@ -255,7 +265,7 @@ export async function extractPdfTitlesAndDescriptions(
       pageAnalyses.length,
   };
 
-  console.log('[PdfTitleDescription] Analysis complete', {
+  offscreenLogger.log('[PdfTitleDescription] Analysis complete', {
     pagesAnalyzed: pageAnalyses.length,
     documentTitle: documentTitle ? 'found' : 'not-found',
     elapsedMs,

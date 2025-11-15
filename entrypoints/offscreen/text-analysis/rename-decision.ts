@@ -5,7 +5,7 @@
  * the decision logic, independent of filename generation.
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
 import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 import {
@@ -142,7 +142,7 @@ function validateDecisionResponse(
   decision: RenameDecision,
 ): decision is RenameDecision {
   if (typeof decision.shouldRename !== 'boolean') {
-    debugLogger.warn('[RenameDecision] Invalid shouldRename type', {
+    offscreenLogger.warn('[RenameDecision] Invalid shouldRename type', {
       type: typeof decision.shouldRename,
     });
     return false;
@@ -153,7 +153,7 @@ function validateDecisionResponse(
     decision.confidence < 0 ||
     decision.confidence > 1
   ) {
-    debugLogger.warn('[RenameDecision] Invalid confidence value', {
+    offscreenLogger.warn('[RenameDecision] Invalid confidence value', {
       confidence: decision.confidence,
     });
     return false;
@@ -169,7 +169,7 @@ function validateDecisionResponse(
   ];
 
   if (!validReasons.includes(decision.reason)) {
-    debugLogger.warn('[RenameDecision] Invalid reason value', {
+    offscreenLogger.warn('[RenameDecision] Invalid reason value', {
       reason: decision.reason,
     });
     return false;
@@ -179,7 +179,7 @@ function validateDecisionResponse(
     decision.explanation !== undefined &&
     typeof decision.explanation !== 'string'
   ) {
-    debugLogger.warn('[RenameDecision] Invalid explanation type', {
+    offscreenLogger.warn('[RenameDecision] Invalid explanation type', {
       type: typeof decision.explanation,
     });
     return false;
@@ -218,7 +218,7 @@ Always respond with valid JSON matching the provided schema.`;
 export async function decideIfShouldRename(
   context: RenameDecisionContext,
 ): Promise<RenameDecision | null> {
-  console.log('[RenameDecision] Starting decision analysis', {
+  offscreenLogger.log('[RenameDecision] Starting decision analysis', {
     filename: context.currentFilename,
     hasSummary: !!context.summary,
     language: context.language,
@@ -237,16 +237,19 @@ export async function decideIfShouldRename(
     });
 
     if (!session) {
-      console.log('[RenameDecision] Failed to create prompt session');
+      offscreenLogger.log('[RenameDecision] Failed to create prompt session');
       return null;
     }
 
     // Build the decision prompt
     const prompt = buildDecisionPrompt(context);
 
-    console.log('[RenameDecision] Calling Prompt API', {
+    offscreenLogger.log('[AI Prompt local-prompt-api text decision]', {
       promptLength: prompt.length,
+      prompt,
+      filename: context.currentFilename,
     });
+    offscreenLogger.log('[AI Prompt local-prompt-api text decision]', prompt);
 
     // Make the Prompt API call with JSON schema constraint
     const response = await session.prompt(prompt, {
@@ -254,8 +257,14 @@ export async function decideIfShouldRename(
       omitResponseConstraintInput: true, // Omit schema to save tokens (format guidance in prompt)
     });
 
+    offscreenLogger.log('[AI Response local-prompt-api text decision]', {
+      responseLength: response.length,
+      response,
+      filename: context.currentFilename,
+    });
+
     // Log token usage for debugging
-    console.log('[RenameDecision] Token usage after prompt', {
+    offscreenLogger.log('[RenameDecision] Token usage after prompt', {
       inputUsage: session.inputUsage,
       inputQuota: session.inputQuota,
       percentUsed:
@@ -264,7 +273,7 @@ export async function decideIfShouldRename(
           : 'unknown',
     });
 
-    console.log('[RenameDecision] Received response', {
+    offscreenLogger.log('[RenameDecision] Received response', {
       responseLength: response.length,
     });
 
@@ -274,18 +283,31 @@ export async function decideIfShouldRename(
       'rename-decision',
     );
 
+    if (decision) {
+      offscreenLogger.log('[AI Parsed local-prompt-api text decision]', {
+        parsed: decision,
+        filename: context.currentFilename,
+      });
+    } else {
+      offscreenLogger.error('[AI Error local-prompt-api text decision]', {
+        error: 'Failed to parse decision response',
+        filename: context.currentFilename,
+        responseLength: response.length,
+      });
+    }
+
     if (!decision) {
-      console.log('[RenameDecision] Failed to parse response');
+      offscreenLogger.log('[RenameDecision] Failed to parse response');
       return null;
     }
 
     // Validate the decision structure
     if (!validateDecisionResponse(decision)) {
-      console.log('[RenameDecision] Response validation failed');
+      offscreenLogger.log('[RenameDecision] Response validation failed');
       return null;
     }
 
-    console.log('[RenameDecision] Decision made', {
+    offscreenLogger.log('[RenameDecision] Decision made', {
       shouldRename: decision.shouldRename,
       confidence: decision.confidence,
       reason: decision.reason,
@@ -294,7 +316,7 @@ export async function decideIfShouldRename(
 
     return decision;
   } catch (error) {
-    debugLogger.warn('[RenameDecision] Decision failed', {
+    offscreenLogger.warn('[RenameDecision] Decision failed', {
       error,
       filename: context.currentFilename,
     });

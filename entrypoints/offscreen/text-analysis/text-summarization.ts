@@ -1,11 +1,9 @@
 /**
- * Note: This file uses console.log() instead of debugLogger.log() for operational logs.
- * Reason: Offscreen documents don't have storage access, so debugLogger.setEnabled()
- * fails. AI processing logs are diagnostic/operational and should always be visible.
- * We still use debugLogger.warn() and debugLogger.error() for warnings/errors.
+ * Note: Offscreen contexts cannot persist debug toggles, so we log via offscreenLogger which is
+ * always enabled. This keeps operational telemetry available even when storage APIs are blocked.
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type {
   ChromeSummarizerConstructor,
   ChromeSummarizerInstance,
@@ -44,7 +42,7 @@ export async function summarizeText(
   const SummarizerCtor = resolveSummarizerCtor();
 
   if (!SummarizerCtor?.create) {
-    console.log('[TextUpgradeAI] Summarizer API not available', {
+    offscreenLogger.log('[TextUpgradeAI] Summarizer API not available', {
       hasGlobal: !!SummarizerCtor,
       hasCreate: !!SummarizerCtor?.create,
     });
@@ -58,13 +56,13 @@ export async function summarizeText(
       outputLanguage: 'en',
     });
 
-    console.log('[Summarizer] Availability check', {
+    offscreenLogger.log('[Summarizer] Availability check', {
       availability,
       hasAvailability: !!availability,
       detectedLanguage: language,
     });
 
-    console.log('[TextUpgradeAI] Summarizer availability', {
+    offscreenLogger.log('[TextUpgradeAI] Summarizer availability', {
       availability,
       detectedLanguage: language,
     });
@@ -77,10 +75,10 @@ export async function summarizeText(
       availability === 'no' ||
       availability === 'unavailable'
     ) {
-      console.log('[Summarizer] API unavailable', {
+      offscreenLogger.log('[Summarizer] API unavailable', {
         availability,
       });
-      console.log('[TextUpgradeAI] Summarizer unavailable');
+      offscreenLogger.log('[TextUpgradeAI] Summarizer unavailable');
       return null;
     }
 
@@ -100,7 +98,7 @@ export async function summarizeText(
       createOptions.sharedContext = `Content language: ${language}`;
     }
 
-    console.log('[Summarizer] Creating with options', createOptions);
+    offscreenLogger.log('[Summarizer] Creating with options', createOptions);
     summarizer = await SummarizerCtor.create(createOptions);
 
     const sample =
@@ -116,7 +114,7 @@ export async function summarizeText(
         inputUsage = await summarizer.measureInputUsage(sample);
         inputQuota = summarizer.inputQuota;
 
-        console.log('[Summarizer] Input usage check', {
+        offscreenLogger.log('[Summarizer] Input usage check', {
           inputUsage,
           inputQuota,
           percentUsed: `${((inputUsage / inputQuota) * 100).toFixed(1)}%`,
@@ -124,18 +122,18 @@ export async function summarizeText(
 
         // If input exceeds quota, return null
         if (inputUsage > inputQuota) {
-          debugLogger.warn('[TextUpgradeAI] Input exceeds quota');
+          offscreenLogger.warn('[TextUpgradeAI] Input exceeds quota');
           return null;
         }
       } catch (usageError) {
-        console.log('[TextUpgradeAI] Input usage check failed', {
+        offscreenLogger.log('[TextUpgradeAI] Input usage check failed', {
           usageError,
         });
         // Continue anyway - not critical
       }
     }
 
-    console.log('[Summarizer] Summarizing sample', {
+    offscreenLogger.log('[Summarizer] Summarizing sample', {
       sampleLength: sample.length,
       samplePreview: sample.slice(0, PREVIEW_LOG_LENGTH),
       language,
@@ -149,7 +147,7 @@ export async function summarizeText(
       outputLanguage: 'en',
     });
 
-    console.log('[Summarizer] Generated summary', {
+    offscreenLogger.log('[Summarizer] Generated summary', {
       inputLength: sample.length,
       summaryLength: summary?.length ?? 0,
       language,
@@ -163,7 +161,7 @@ export async function summarizeText(
     }
     return null;
   } catch (error) {
-    debugLogger.warn('[TextUpgradeAI] Summarizer failed', { error });
+    offscreenLogger.warn('[TextUpgradeAI] Summarizer failed', { error });
     return null;
   } finally {
     // CRITICAL: Always destroy to prevent memory leaks
@@ -171,7 +169,7 @@ export async function summarizeText(
       try {
         summarizer.destroy?.();
       } catch (cleanupError) {
-        console.log('[TextUpgradeAI] Summarizer cleanup failed', {
+        offscreenLogger.log('[TextUpgradeAI] Summarizer cleanup failed', {
           cleanupError,
         });
       }

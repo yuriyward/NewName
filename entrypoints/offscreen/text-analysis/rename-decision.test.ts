@@ -27,7 +27,7 @@ const {
   mockCreatePromptSession,
   mockDestroyPromptSession,
   mockParseStructuredResponse,
-  mockDebugLogger,
+  mockOffscreenLogger,
 } = vi.hoisted(() => ({
   mockSession: {
     prompt: vi.fn(),
@@ -38,8 +38,12 @@ const {
   mockCreatePromptSession: vi.fn(),
   mockDestroyPromptSession: vi.fn(),
   mockParseStructuredResponse: vi.fn(),
-  mockDebugLogger: {
+  mockOffscreenLogger: {
+    log: vi.fn(),
     warn: vi.fn(),
+    error: vi.fn(),
+    isEnabled: vi.fn().mockReturnValue(true),
+    setEnabled: vi.fn(),
   },
 }));
 
@@ -51,8 +55,8 @@ vi.mock('./prompt-helpers', () => ({
     `Current filename: "${context.filename}"\nContent summary: ${context.summary}`,
 }));
 
-vi.mock('@/entrypoints/shared/debug/logger', () => ({
-  debugLogger: mockDebugLogger,
+vi.mock('@/entrypoints/shared/debug/offscreen-logger', () => ({
+  offscreenLogger: mockOffscreenLogger,
 }));
 
 let mockConsoleLog: ReturnType<typeof vi.spyOn>;
@@ -132,9 +136,7 @@ describe('rename-decision', () => {
       const result = await decideIfShouldRename(context);
 
       expect(result).toBeNull();
-      expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('[RenameDecision] Failed to parse response'),
-      );
+      expect(mockDestroyPromptSession).toHaveBeenCalledWith(mockSession);
     });
 
     it('returns null when validation fails', async () => {
@@ -175,11 +177,13 @@ describe('rename-decision', () => {
       const context = createMockContext();
       await decideIfShouldRename(context);
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      // Token usage is logged via offscreenLogger in the actual code
+      expect(mockOffscreenLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('[RenameDecision] Token usage after prompt'),
         expect.objectContaining({
           inputUsage: 50,
           inputQuota: 500,
+          percentUsed: '10.0%',
         }),
       );
     });
@@ -188,7 +192,7 @@ describe('rename-decision', () => {
       const context = createMockContext();
       await decideIfShouldRename(context);
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('[RenameDecision] Decision made'),
         expect.objectContaining({
           shouldRename: true,
@@ -222,7 +226,7 @@ describe('rename-decision', () => {
       const result = await decideIfShouldRename(context);
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalled();
+      expect(mockOffscreenLogger.warn).toHaveBeenCalled();
     });
   });
 
@@ -243,7 +247,7 @@ describe('rename-decision', () => {
       const result = await decideIfShouldRename(context);
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('[RenameDecision] Invalid shouldRename type'),
         expect.any(Object),
       );
@@ -272,7 +276,7 @@ describe('rename-decision', () => {
       const result = await decideIfShouldRename(context);
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('[RenameDecision] Invalid confidence value'),
         expect.any(Object),
       );
@@ -344,7 +348,7 @@ describe('rename-decision', () => {
       const result = await decideIfShouldRename(context);
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('[RenameDecision] Invalid reason value'),
         expect.any(Object),
       );

@@ -29,7 +29,7 @@ const {
   mockCreatePromptSession,
   mockDestroyPromptSession,
   mockParseStructuredResponse,
-  mockDebugLogger,
+  mockOffscreenLogger,
 } = vi.hoisted(() => ({
   mockSession: {
     prompt: vi.fn(),
@@ -40,8 +40,12 @@ const {
   mockCreatePromptSession: vi.fn(),
   mockDestroyPromptSession: vi.fn(),
   mockParseStructuredResponse: vi.fn(),
-  mockDebugLogger: {
+  mockOffscreenLogger: {
     warn: vi.fn(),
+    error: vi.fn(),
+    log: vi.fn(),
+    isEnabled: vi.fn().mockReturnValue(true),
+    setEnabled: vi.fn(),
   },
 }));
 
@@ -59,8 +63,8 @@ vi.mock('./prompt-helpers', () => ({
     text.length > maxChars ? `${text.slice(0, maxChars)}...` : text,
 }));
 
-vi.mock('@/entrypoints/shared/debug/logger', () => ({
-  debugLogger: mockDebugLogger,
+vi.mock('@/entrypoints/shared/debug/offscreen-logger', () => ({
+  offscreenLogger: mockOffscreenLogger,
 }));
 
 function createMockContext(
@@ -166,7 +170,7 @@ describe('filename-generation', () => {
       const result = await generateFilenameStem(context);
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalled();
+      expect(mockOffscreenLogger.warn).toHaveBeenCalled();
       expect(mockDestroyPromptSession).toHaveBeenCalledWith(mockSession);
     });
 
@@ -289,7 +293,7 @@ describe('filename-generation', () => {
       const result = await generateFilenameComplete(context);
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('[FilenameGeneration] Invalid stem'),
         expect.any(Object),
       );
@@ -315,7 +319,7 @@ describe('filename-generation', () => {
       const result = await generateFilenameComplete(context);
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('[FilenameGeneration] Stem too long'),
         expect.any(Object),
       );
@@ -329,7 +333,7 @@ describe('filename-generation', () => {
       const result = await generateFilenameComplete(context);
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('[FilenameGeneration] Invalid confidence'),
         expect.any(Object),
       );
@@ -392,7 +396,7 @@ describe('filename-generation', () => {
       const result = await generateFilenameComplete(context);
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('[FilenameGeneration] Too many qualifiers'),
         expect.any(Object),
       );

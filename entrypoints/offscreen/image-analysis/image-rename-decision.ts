@@ -5,7 +5,7 @@
 
 import { normalizeConfidenceScore } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { formatPageContextInline } from '@/entrypoints/shared/context/page-context-formatter';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
 import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 import {
@@ -167,23 +167,28 @@ export async function decideIfImageNeedsRename(params: {
     });
 
     if (!session) {
-      debugLogger.warn('[ImageRenameDecision] Failed to create session');
+      offscreenLogger.warn('[ImageRenameDecision] Failed to create session');
       return null;
     }
 
     // Log initial session state
-    console.log('[ImageRenameDecision] Session created - initial usage', {
-      inputUsage: session.inputUsage,
-      inputQuota: session.inputQuota,
-    });
+    offscreenLogger.log(
+      '[ImageRenameDecision] Session created - initial usage',
+      {
+        inputUsage: session.inputUsage,
+        inputQuota: session.inputQuota,
+      },
+    );
 
     // Build decision prompt
     const prompt = buildDecisionPrompt(params);
 
-    console.log('[ImageRenameDecision] Sending decision request', {
+    offscreenLogger.log('[AI Prompt local-prompt-api image decision]', {
+      promptLength: prompt.length,
+      prompt,
       filename: params.currentFilename,
-      descriptionLength: params.description.length,
     });
+    offscreenLogger.log('[AI Prompt local-prompt-api image decision]', prompt);
 
     const response = await session.prompt(prompt, {
       responseConstraint: IMAGE_RENAME_DECISION_SCHEMA,
@@ -191,15 +196,21 @@ export async function decideIfImageNeedsRename(params: {
     });
     const elapsedMs = Date.now() - startTime;
 
+    offscreenLogger.log('[AI Response local-prompt-api image decision]', {
+      responseLength: response.length,
+      response,
+      filename: params.currentFilename,
+      elapsedMs,
+    });
+
     // Log token usage after prompt
-    console.log('[ImageRenameDecision] Token usage after prompt', {
+    offscreenLogger.log('[ImageRenameDecision] Token usage after prompt', {
       inputUsage: session.inputUsage,
       inputQuota: session.inputQuota,
       percentUsed:
         session.inputUsage && session.inputQuota
           ? `${((session.inputUsage / session.inputQuota) * 100).toFixed(1)}%`
           : 'unknown',
-      session: session,
     });
 
     // Parse JSON response
@@ -208,8 +219,21 @@ export async function decideIfImageNeedsRename(params: {
       'image-rename-decision',
     );
 
+    if (parsed) {
+      offscreenLogger.log('[AI Parsed local-prompt-api image decision]', {
+        parsed,
+        filename: params.currentFilename,
+      });
+    } else {
+      offscreenLogger.error('[AI Error local-prompt-api image decision]', {
+        error: 'Failed to parse decision response',
+        filename: params.currentFilename,
+        responseLength: response.length,
+      });
+    }
+
     if (!parsed) {
-      debugLogger.warn(
+      offscreenLogger.warn(
         '[ImageRenameDecision] Failed to parse decision response',
         {
           response: response,
@@ -220,7 +244,7 @@ export async function decideIfImageNeedsRename(params: {
 
     // Validate response structure
     if (typeof parsed.shouldRename !== 'boolean') {
-      debugLogger.warn('[ImageRenameDecision] Invalid shouldRename value', {
+      offscreenLogger.warn('[ImageRenameDecision] Invalid shouldRename value', {
         value: parsed.shouldRename,
       });
       return null;
@@ -231,7 +255,7 @@ export async function decideIfImageNeedsRename(params: {
 
     const reason = parsed.reason || 'unknown';
 
-    console.log('[ImageRenameDecision] Decision made', {
+    offscreenLogger.log('[ImageRenameDecision] Decision made', {
       filename: params.currentFilename,
       shouldRename: parsed.shouldRename,
       reason,
@@ -248,7 +272,7 @@ export async function decideIfImageNeedsRename(params: {
       explanation: parsed.explanation,
     };
   } catch (error) {
-    debugLogger.warn('[ImageRenameDecision] Decision making failed', {
+    offscreenLogger.warn('[ImageRenameDecision] Decision making failed', {
       error,
     });
     return null;

@@ -5,7 +5,7 @@
  */
 
 import { SILENT_RENAME_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { Separator } from '@/entrypoints/shared/settings/settings';
 import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 import {
@@ -190,14 +190,14 @@ function validateGenerationResponse(
     typeof generation.stem !== 'string' ||
     generation.stem.trim().length === 0
   ) {
-    debugLogger.warn('[FilenameGeneration] Invalid stem', {
+    offscreenLogger.warn('[FilenameGeneration] Invalid stem', {
       stem: generation.stem,
     });
     return false;
   }
 
   if (generation.stem.length > 60) {
-    debugLogger.warn('[FilenameGeneration] Stem too long', {
+    offscreenLogger.warn('[FilenameGeneration] Stem too long', {
       length: generation.stem.length,
     });
     return false;
@@ -208,7 +208,7 @@ function validateGenerationResponse(
     generation.confidence < 0 ||
     generation.confidence > 1
   ) {
-    debugLogger.warn('[FilenameGeneration] Invalid confidence', {
+    offscreenLogger.warn('[FilenameGeneration] Invalid confidence', {
       confidence: generation.confidence,
     });
     return false;
@@ -216,14 +216,14 @@ function validateGenerationResponse(
 
   if (generation.qualifiers !== undefined) {
     if (!Array.isArray(generation.qualifiers)) {
-      debugLogger.warn('[FilenameGeneration] Qualifiers not an array', {
+      offscreenLogger.warn('[FilenameGeneration] Qualifiers not an array', {
         type: typeof generation.qualifiers,
       });
       return false;
     }
 
     if (generation.qualifiers.length > 3) {
-      debugLogger.warn('[FilenameGeneration] Too many qualifiers', {
+      offscreenLogger.warn('[FilenameGeneration] Too many qualifiers', {
         count: generation.qualifiers.length,
       });
       return false;
@@ -231,7 +231,7 @@ function validateGenerationResponse(
 
     for (const qualifier of generation.qualifiers) {
       if (typeof qualifier !== 'string' || qualifier.length > 20) {
-        debugLogger.warn('[FilenameGeneration] Invalid qualifier', {
+        offscreenLogger.warn('[FilenameGeneration] Invalid qualifier', {
           qualifier,
         });
         return false;
@@ -243,7 +243,7 @@ function validateGenerationResponse(
     generation.explanation !== undefined &&
     typeof generation.explanation !== 'string'
   ) {
-    debugLogger.warn('[FilenameGeneration] Invalid explanation type', {
+    offscreenLogger.warn('[FilenameGeneration] Invalid explanation type', {
       type: typeof generation.explanation,
     });
     return false;
@@ -285,7 +285,7 @@ Always respond with valid JSON matching the provided schema.`;
 export async function generateFilenameStem(
   context: FilenameGenerationContext,
 ): Promise<string | null> {
-  console.log('[FilenameGeneration] Starting generation', {
+  offscreenLogger.log('[FilenameGeneration] Starting generation', {
     summaryLength: context.summary.length,
     language: context.language,
     baseline: context.currentBaseline,
@@ -297,7 +297,9 @@ export async function generateFilenameStem(
     const generation = await generateFilenameComplete(context);
 
     if (!generation) {
-      console.log('[FilenameGeneration] Failed to generate complete filename');
+      offscreenLogger.log(
+        '[FilenameGeneration] Failed to generate complete filename',
+      );
       return null;
     }
 
@@ -306,7 +308,7 @@ export async function generateFilenameStem(
     // The stem is typically passed to buildFilename() which applies naming policies.
     const trimmedStem = generation.stem.trim();
 
-    console.log('[FilenameGeneration] Generation successful', {
+    offscreenLogger.log('[FilenameGeneration] Generation successful', {
       stem: trimmedStem,
       qualifiers: generation.qualifiers,
       confidence: generation.confidence,
@@ -315,7 +317,7 @@ export async function generateFilenameStem(
 
     return trimmedStem;
   } catch (error) {
-    debugLogger.warn('[FilenameGeneration] Generation failed', {
+    offscreenLogger.warn('[FilenameGeneration] Generation failed', {
       error,
       baseline: context.currentBaseline,
     });
@@ -331,7 +333,7 @@ export async function generateFilenameStem(
 export async function generateFilenameComplete(
   context: FilenameGenerationContext,
 ): Promise<FilenameGeneration | null> {
-  console.log('[FilenameGeneration] Starting complete generation', {
+  offscreenLogger.log('[FilenameGeneration] Starting complete generation', {
     summaryLength: context.summary.length,
     language: context.language,
   });
@@ -350,13 +352,16 @@ export async function generateFilenameComplete(
       return null;
     }
 
-    console.log('[FilenameGeneration] Session created - initial usage', {
-      inputUsage: session.inputUsage,
-      inputQuota: session.inputQuota,
-    });
+    offscreenLogger.log(
+      '[FilenameGeneration] Session created - initial usage',
+      {
+        inputUsage: session.inputUsage,
+        inputQuota: session.inputQuota,
+      },
+    );
 
     const prompt = buildGenerationPrompt(context);
-    console.log('[FilenameGeneration] Sending generation request', {
+    offscreenLogger.log('[FilenameGeneration] Sending generation request', {
       baseline: context.currentBaseline,
       summaryLength: context.summary.length,
     });
@@ -366,7 +371,7 @@ export async function generateFilenameComplete(
     });
 
     // Log token usage for debugging
-    console.log('[FilenameGeneration] Token usage after prompt', {
+    offscreenLogger.log('[FilenameGeneration] Token usage after prompt', {
       inputUsage: session.inputUsage,
       inputQuota: session.inputQuota,
       percentUsed:
@@ -387,7 +392,7 @@ export async function generateFilenameComplete(
 
     return generation;
   } catch (error) {
-    debugLogger.warn('[FilenameGeneration] Complete generation failed', {
+    offscreenLogger.warn('[FilenameGeneration] Complete generation failed', {
       error,
     });
     return null;
