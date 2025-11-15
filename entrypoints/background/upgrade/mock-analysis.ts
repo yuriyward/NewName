@@ -1,6 +1,7 @@
 /**
  * Mock AI-powered contextual upgrade proposal generator
  */
+import { MODERATE_CONFIDENCE_SCORE } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import {
@@ -83,7 +84,7 @@ export async function requestMockUpgradeAnalysis(
   return {
     proposedFilename,
     proposedPath,
-    confidenceScore: 0.6, // Mock analysis has moderate confidence
+    confidenceScore: MODERATE_CONFIDENCE_SCORE, // Mock analysis has moderate confidence
     autoApply: false,
     reasonTags: ['mock-summary', 'contextual-upgrade'],
     generatedAt: now,

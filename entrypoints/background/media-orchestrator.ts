@@ -1,6 +1,7 @@
 /**
  * Media analysis orchestration and upgrade proposal generation
  */
+import { SILENT_RENAME_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { updateHistoryItem } from '@/entrypoints/shared/history/history';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type { MediaDebugSettings } from '@/entrypoints/shared/integrations/mediainfo/debug';
@@ -84,7 +85,7 @@ export async function applyMediaAnalysisResponse(
           upgrade = {
             proposedFilename: enhanced.filename,
             proposedPath: pathDir + enhanced.filename,
-            confidenceScore: 0.8, // High confidence for metadata-based upgrades
+            confidenceScore: SILENT_RENAME_THRESHOLD, // High confidence for metadata-based upgrades
             autoApply: true,
             reasonTags: ['media-specs', 'contextual-upgrade'],
             generatedAt: analyzedAt,

@@ -3,6 +3,7 @@
  * Generates concise 1-2 sentence descriptions of image content
  */
 
+import { SILENT_RENAME_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
   createPromptSession,
@@ -104,7 +105,7 @@ Keep it under 120 characters and focus on what the image shows.`;
 
     return {
       description,
-      confidence: 0.8, // Baseline confidence for model-generated descriptions
+      confidence: SILENT_RENAME_THRESHOLD, // Baseline confidence for model-generated descriptions
     };
   } catch (error) {
     debugLogger.warn('[ImageDescription] Image description generation failed', {

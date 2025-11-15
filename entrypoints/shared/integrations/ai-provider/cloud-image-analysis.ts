@@ -8,7 +8,7 @@
 import type { LanguageModel } from 'ai';
 import { generateText } from 'ai';
 import { buildProposedPath } from '@/entrypoints/offscreen/text-analysis/filename-builder';
-import { AUTO_APPLY_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
+import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type {
   ImageIngestionResult,
@@ -141,12 +141,13 @@ Respond with JSON:
       proposedFilename,
     );
 
+    const behavior = getAutoApplyBehavior(decision.confidence);
+
     const proposal: UpgradeProposal = {
       proposedFilename,
       proposedPath,
-      confidenceScore: decision.confidence,
-      // Unified threshold: >=0.5 enables countdown, >=0.8 triggers silent rename in coordinator
-      autoApply: decision.confidence >= AUTO_APPLY_THRESHOLD,
+      confidenceScore: behavior.confidence,
+      autoApply: behavior.shouldAutoApply,
       reasonTags: ['cloud', 'gemini', 'image'],
       generatedAt: Date.now(),
       source: 'ai',
@@ -160,7 +161,7 @@ Respond with JSON:
       proposal,
       description,
       modelSource: 'cloud',
-      promptConfidence: decision.confidence,
+      promptConfidence: behavior.confidence,
       promptUsed: true,
       decisionReason: decision.reason,
       metrics: {
@@ -168,7 +169,7 @@ Respond with JSON:
         requests: 3,
         elapsedMs: ingestion.metrics.elapsedMs,
         promptCalls: 3,
-        decisionConfidence: decision.confidence,
+        decisionConfidence: behavior.confidence,
         resizeRatio: ingestion.resizeRatio,
         originalWidth: ingestion.originalWidth,
         originalHeight: ingestion.originalHeight,

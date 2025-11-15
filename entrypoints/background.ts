@@ -23,6 +23,10 @@ import type {
 import { getOnboardingState } from '@/entrypoints/shared/onboarding/onboarding-state';
 import { updateSettings } from '@/entrypoints/shared/settings/settings';
 import { registerPageContextService } from '@/entrypoints/shared/state/page-context-service';
+import {
+  clearBadge,
+  showPersistentPermissionBadge,
+} from '@/entrypoints/shared/ui/badge-manager';
 import { createDeterminingListener } from './background/download-coordinator';
 import {
   type DownloadTrackingEntry,
@@ -73,12 +77,9 @@ async function checkPersistentPermissionSetup(): Promise<void> {
         '[Background] Detected awaiting-persistent status, setting badge',
       );
 
-      // Set badge to indicate action needed
-      await browser.action.setBadgeText({ text: '!' });
-      await browser.action.setBadgeBackgroundColor({ color: '#F59E0B' }); // Amber/warning color
+      await showPersistentPermissionBadge();
     } else {
-      // Clear badge if setup is complete or skipped
-      await browser.action.setBadgeText({ text: '' });
+      await clearBadge();
     }
   } catch (err) {
     debugLogger.error('[Background] Failed to check permission setup status', {

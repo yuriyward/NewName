@@ -3,7 +3,7 @@
  * Constructs the final upgrade proposal with all metadata
  */
 
-import { AUTO_APPLY_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
+import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
 import type {
   ImageIngestionResult,
   ImageUpgradeAnalysisKeepBaseline,
@@ -104,6 +104,8 @@ export function buildProposalFromAnalysis(
   }
 
   const currentFinal = request.baseline.final ?? request.filename;
+  const behavior = getAutoApplyBehavior(decideResult.confidence);
+
   if (
     currentFinal &&
     currentFinal.toLowerCase() === proposedFilename.toLowerCase()
@@ -111,7 +113,7 @@ export function buildProposalFromAnalysis(
     return buildKeepBaselineResponse({
       request,
       reason: 'same-as-baseline',
-      confidence: decideResult.confidence,
+      confidence: behavior.confidence,
       explanation: 'Generated filename matches current baseline',
       decisionReason: decideResult.reason,
     });
@@ -123,7 +125,6 @@ export function buildProposalFromAnalysis(
   );
 
   const promptUsed = !!generateResult.stem;
-  const shouldAutoApply = decideResult.confidence >= AUTO_APPLY_THRESHOLD;
 
   const success: ImageUpgradeAnalysisSuccess = {
     status: 'success',
@@ -132,8 +133,8 @@ export function buildProposalFromAnalysis(
     proposal: {
       proposedFilename,
       proposedPath,
-      confidenceScore: decideResult.confidence,
-      autoApply: shouldAutoApply,
+      confidenceScore: behavior.confidence,
+      autoApply: behavior.shouldAutoApply,
       reasonTags: formatReasonTags(undefined, promptUsed, 'on-device'),
       generatedAt: Date.now(),
       source: 'ai',
@@ -143,7 +144,7 @@ export function buildProposalFromAnalysis(
     },
     description: describeResult.description,
     modelSource: 'on-device',
-    promptConfidence: decideResult.confidence,
+    promptConfidence: behavior.confidence,
     promptUsed,
     decisionReason: decideResult.reason,
     metrics: {
@@ -151,7 +152,7 @@ export function buildProposalFromAnalysis(
       requests: 1,
       elapsedMs: ingestion.metrics.elapsedMs,
       promptCalls: 3, // Describe + decision + generation
-      decisionConfidence: decideResult.confidence,
+      decisionConfidence: behavior.confidence,
       resizeRatio: ingestion.resizeRatio,
       originalWidth: ingestion.originalWidth,
       originalHeight: ingestion.originalHeight,
@@ -281,6 +282,8 @@ export function buildProposalFromPhase3Inputs(
   }
 
   const currentFinal = request.baseline.final ?? request.filename;
+  const fallbackBehavior = getAutoApplyBehavior(decisionConfidence);
+
   if (
     currentFinal &&
     currentFinal.toLowerCase() === proposedFilename.toLowerCase()
@@ -288,7 +291,7 @@ export function buildProposalFromPhase3Inputs(
     return buildKeepBaselineResponse({
       request,
       reason: 'same-as-baseline',
-      confidence: decisionConfidence,
+      confidence: fallbackBehavior.confidence,
       explanation: 'Generated filename matches current baseline',
     });
   }
@@ -298,8 +301,6 @@ export function buildProposalFromPhase3Inputs(
     proposedFilename,
   );
 
-  const shouldAutoApply = decisionConfidence >= AUTO_APPLY_THRESHOLD;
-
   const success: ImageUpgradeAnalysisSuccess = {
     status: 'success',
     requestId: request.requestId,
@@ -307,8 +308,8 @@ export function buildProposalFromPhase3Inputs(
     proposal: {
       proposedFilename,
       proposedPath,
-      confidenceScore: decisionConfidence,
-      autoApply: shouldAutoApply,
+      confidenceScore: fallbackBehavior.confidence,
+      autoApply: fallbackBehavior.shouldAutoApply,
       reasonTags: formatReasonTags(undefined, promptUsed, 'on-device'),
       generatedAt: Date.now(),
       source: 'ai',
@@ -316,7 +317,7 @@ export function buildProposalFromPhase3Inputs(
     },
     description,
     modelSource: 'on-device',
-    promptConfidence: decisionConfidence,
+    promptConfidence: fallbackBehavior.confidence,
     promptUsed,
     decisionReason: 'user-approved', // Phase 2 already decided to rename
     metrics: {
@@ -324,7 +325,7 @@ export function buildProposalFromPhase3Inputs(
       requests: 1,
       elapsedMs: ingestion.metrics.elapsedMs,
       promptCalls: 3, // Describe + decision + generation
-      decisionConfidence,
+      decisionConfidence: fallbackBehavior.confidence,
       resizeRatio: ingestion.resizeRatio,
       originalWidth: ingestion.originalWidth,
       originalHeight: ingestion.originalHeight,

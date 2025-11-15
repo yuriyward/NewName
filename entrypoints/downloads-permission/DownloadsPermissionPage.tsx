@@ -22,6 +22,7 @@ import {
   markOnboardingAwaitingPersistent,
   markOnboardingCompleted,
 } from '@/entrypoints/shared/onboarding/onboarding-state';
+import { clearBadge } from '@/entrypoints/shared/ui/badge-manager';
 
 type RequestState =
   | { status: 'idle' }
@@ -246,7 +247,7 @@ export function DownloadsPermissionPage(): JSX.Element {
       await markOnboardingCompleted();
 
       // Clear badge since setup is complete
-      await browser.action.setBadgeText({ text: '' });
+      await clearBadge();
 
       setHasStoredHandle(true);
       setState({

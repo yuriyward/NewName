@@ -5,7 +5,7 @@
  * We still use debugLogger.warn() and debugLogger.error() for warnings/errors.
  */
 
-import { AUTO_APPLY_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
+import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { AiModelStatusMap } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import type {
@@ -281,7 +281,7 @@ export async function runTextUpgradePipeline(
   const promptUsed = !!generatedStem; // Prompt API used if we generated a stem
 
   // Determine auto-apply based on decision confidence
-  const shouldAutoApply = decision.confidence >= AUTO_APPLY_THRESHOLD;
+  const behavior = getAutoApplyBehavior(decision.confidence);
 
   const success: TextUpgradeAnalysisSuccess = {
     status: 'success',
@@ -290,8 +290,8 @@ export async function runTextUpgradePipeline(
     proposal: {
       proposedFilename,
       proposedPath,
-      confidenceScore: decision.confidence,
-      autoApply: shouldAutoApply,
+      confidenceScore: behavior.confidence,
+      autoApply: behavior.shouldAutoApply,
       reasonTags: formatReasonTags(
         subjectLanguage.language,
         promptUsed,
@@ -307,15 +307,15 @@ export async function runTextUpgradePipeline(
     languageConfidence: subjectLanguage.confidence,
     modelSource,
     truncatedInput: ingestion.truncated,
-    promptConfidence: decision.confidence,
+    promptConfidence: behavior.confidence,
     promptUsed,
-    decisionReason: decision.reason, // NEW: Include decision reason
+    decisionReason: decision.reason,
     metrics: {
       bytesFetched: ingestion.metrics.readBytes,
       requests: 1,
       elapsedMs: ingestion.metrics.elapsedMs,
-      promptCalls: 2, // NEW: Decision + generation calls
-      decisionConfidence: decision.confidence, // NEW: Decision confidence
+      promptCalls: 2,
+      decisionConfidence: behavior.confidence,
     },
   };
 

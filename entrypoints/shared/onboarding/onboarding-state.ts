@@ -5,6 +5,16 @@ import { getStorageAdapter } from '@/entrypoints/shared/settings/storage-state';
 
 const ONBOARDING_STORAGE_KEY = 'local:onboarding-state.v1';
 
+/**
+ * Two-step onboarding flow for Downloads access:
+ * 1. pending → awaiting-persistent once the user picks a directory and Chrome needs a new tab
+ *    to request persistent permission.
+ * 2. awaiting-persistent → completed when the follow-up tab verifies persistent permission.
+ * Users can also take shortcuts:
+ * - pending → completed when an existing directory handle is restored successfully.
+ * - pending/awaiting-persistent → skipped if the user explicitly opts out.
+ * completed and skipped are terminal states (except for tests calling reset).
+ */
 export type OnboardingStatus =
   | 'pending'
   | 'awaiting-persistent'
@@ -21,6 +31,25 @@ export interface OnboardingState {
 const DEFAULT_STATE: OnboardingState = {
   status: 'pending',
 };
+
+const VALID_TRANSITIONS: Record<OnboardingStatus, ReadonlySet<OnboardingStatus>> =
+  {
+    pending: new Set<OnboardingStatus>([
+      'awaiting-persistent',
+      'completed',
+      'skipped',
+    ]),
+    'awaiting-persistent': new Set<OnboardingStatus>(['completed', 'skipped']),
+    completed: new Set<OnboardingStatus>(),
+    skipped: new Set<OnboardingStatus>(),
+  };
+
+function canTransition(
+  from: OnboardingStatus,
+  to: OnboardingStatus,
+): boolean {
+  return VALID_TRANSITIONS[from]?.has(to) ?? false;
+}
 
 async function readState(): Promise<OnboardingState> {
   try {
@@ -57,29 +86,45 @@ async function writeState(state: OnboardingState): Promise<void> {
   await getStorageAdapter().setItem(ONBOARDING_STORAGE_KEY, state);
 }
 
+async function transitionState(
+  targetStatus: OnboardingStatus,
+  buildState: () => OnboardingState,
+): Promise<void> {
+  const current = await readState();
+  if (current.status === targetStatus) {
+    return;
+  }
+  if (!canTransition(current.status, targetStatus)) {
+    throw new Error(
+      `[OnboardingState] Invalid transition from ${current.status} to ${targetStatus}`,
+    );
+  }
+  await writeState(buildState());
+}
+
 export async function getOnboardingState(): Promise<OnboardingState> {
   return readState();
 }
 
 export async function markOnboardingCompleted(): Promise<void> {
-  await writeState({
+  await transitionState('completed', () => ({
     status: 'completed',
     completedAt: Date.now(),
-  });
+  }));
 }
 
 export async function markOnboardingAwaitingPersistent(): Promise<void> {
-  await writeState({
+  await transitionState('awaiting-persistent', () => ({
     status: 'awaiting-persistent',
     awaitingPersistentAt: Date.now(),
-  });
+  }));
 }
 
 export async function markOnboardingSkipped(): Promise<void> {
-  await writeState({
+  await transitionState('skipped', () => ({
     status: 'skipped',
     skippedAt: Date.now(),
-  });
+  }));
 }
 
 export async function resetOnboardingState(): Promise<void> {
