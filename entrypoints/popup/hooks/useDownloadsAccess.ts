@@ -4,6 +4,79 @@ import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
 import { getOnboardingState } from '@/entrypoints/shared/onboarding/onboarding-state';
 
+type PermissionStateDescriptor = {
+  mode?: 'read' | 'readwrite';
+};
+
+type DirectoryHandleWithQuery = FileSystemDirectoryHandle & {
+  queryPermission?: (descriptor?: PermissionStateDescriptor) => Promise<PermissionState>;
+};
+
+interface DirectoryAccessResult {
+  permitted: boolean;
+  isPersistent: boolean;
+}
+
+const READWRITE_DESCRIPTOR: PermissionStateDescriptor = { mode: 'readwrite' };
+
+async function queryDirectoryPermission(
+  handle: DirectoryHandleWithQuery,
+): Promise<PermissionState | null> {
+  const permissionFn = handle.queryPermission;
+  if (typeof permissionFn !== 'function') {
+    return null;
+  }
+
+  try {
+    return await permissionFn.call(handle, READWRITE_DESCRIPTOR);
+  } catch (error) {
+    debugLogger.warn('[useDownloadsAccess] queryPermission failed', { error });
+    return null;
+  }
+}
+
+async function verifySessionDirectoryAccess(
+  handle: FileSystemDirectoryHandle,
+): Promise<boolean> {
+  try {
+    const iterator = handle.values();
+    await iterator.next();
+    debugLogger.log(
+      '[useDownloadsAccess] Session-level directory permission detected after queryPermission denial',
+    );
+    return true;
+  } catch (error) {
+    debugLogger.warn('[useDownloadsAccess] Directory access verification failed', {
+      error,
+    });
+    return false;
+  }
+}
+
+async function evaluateDirectoryAccess(
+  handle: FileSystemDirectoryHandle | null,
+): Promise<DirectoryAccessResult> {
+  if (!handle) {
+    return { permitted: false, isPersistent: false };
+  }
+
+  try {
+    const permission = await queryDirectoryPermission(handle as DirectoryHandleWithQuery);
+    if (permission === 'granted') {
+      return { permitted: true, isPersistent: true };
+    }
+
+    if (permission === 'denied') {
+      return { permitted: false, isPersistent: false };
+    }
+  } catch (error) {
+    debugLogger.warn('Querying directory permission failed', { error });
+  }
+
+  const hasSessionAccess = await verifySessionDirectoryAccess(handle);
+  return { permitted: hasSessionAccess, isPersistent: false };
+}
+
 interface UseDownloadsAccessResult {
   downloadsAccessChecked: boolean;
   hasDownloadsAccess: boolean | null;
@@ -36,55 +109,7 @@ export const useDownloadsAccess = (): UseDownloadsAccessResult => {
         getOnboardingState(),
         getStoredDirectoryHandle(),
       ]);
-      let permitted = false;
-      let isPersistent = false;
-      if (handle) {
-        try {
-          // First try queryPermission
-          const permissionFn = (
-            handle as unknown as {
-              queryPermission?: (descriptor?: {
-                mode?: 'read' | 'readwrite';
-              }) => Promise<PermissionState>;
-            }
-          ).queryPermission;
-          if (typeof permissionFn === 'function') {
-            const permission = await permissionFn.call(handle, {
-              mode: 'readwrite',
-            });
-            permitted = permission === 'granted';
-            isPersistent = permission === 'granted'; // 'granted' means persistent
-          }
-
-          // If queryPermission says 'prompt' or fails, try actually accessing the handle
-          // This helps detect session permissions that queryPermission might miss
-          if (!permitted) {
-            try {
-              // Attempt to iterate the directory - this will fail if permission is truly denied
-              const iterator = handle.values();
-              await iterator.next();
-              // If we got here without throwing, we have access (at least session-level)
-              permitted = true;
-              isPersistent = false; // We only got here because queryPermission didn't return 'granted'
-              debugLogger.log(
-                '[useDownloadsAccess] queryPermission returned denied/prompt but handle is accessible (session permission)',
-              );
-            } catch (accessErr) {
-              // Access truly denied
-              debugLogger.warn(
-                '[useDownloadsAccess] Directory access verification failed',
-                { error: accessErr },
-              );
-              permitted = false;
-            }
-          }
-        } catch (err) {
-          debugLogger.warn('Querying directory permission failed', {
-            error: err,
-          });
-          permitted = false;
-        }
-      }
+      const { permitted, isPersistent } = await evaluateDirectoryAccess(handle);
       setHasDownloadsAccess(permitted);
       setPersistentAccessGranted(isPersistent);
       // Only show onboarding if status is 'pending' (not completed or skipped)
