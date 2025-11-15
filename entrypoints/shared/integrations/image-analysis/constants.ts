@@ -36,12 +36,6 @@ export const IMAGE_ANALYSIS_FORMAT = 'image/png';
 export const MAX_DESCRIPTION_LENGTH_CHARS = 120;
 
 /**
- * Confidence thresholds for image rename decision
- */
-export const HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD = 0.9;
-export const HIGH_CONFIDENCE_DISPLAY_THRESHOLD = 0.8;
-
-/**
  * User-friendly instructions for enabling multimodal AI support
  * Note: The flag MUST be set to "Enabled", not "Default" - these are different states.
  */

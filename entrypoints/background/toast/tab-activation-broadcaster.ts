@@ -62,10 +62,16 @@ export function createTabActivationBroadcaster(
 
         // Send all pending toasts to the newly active tab
         for (const entry of pendingToasts) {
-          void sendShowConfirmToast(
-            { proposal: entry.proposal },
-            activeInfo.tabId,
-          )
+          // Recalculate remaining time for auto-apply countdown
+          // The proposal's autoApplyRemainingMs was set at creation time,
+          // but we need to update it based on actual elapsed time
+          const proposal = { ...entry.proposal };
+          if (proposal.autoApplyAt !== null && proposal.allowAutoApply) {
+            const remainingMs = Math.max(0, proposal.autoApplyAt - Date.now());
+            proposal.autoApplyRemainingMs = remainingMs;
+          }
+
+          void sendShowConfirmToast({ proposal }, activeInfo.tabId)
             .then(() => {
               // Track that this tab has received the toast
               if (entry.visibleOnTabs) {

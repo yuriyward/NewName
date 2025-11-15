@@ -4,6 +4,7 @@
  * It only runs AFTER the decision module determines that renaming is needed.
  */
 
+import { SILENT_RENAME_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { Separator } from '@/entrypoints/shared/settings/settings';
 import {
@@ -400,5 +401,5 @@ export async function generateFilenameComplete(
 export function isHighConfidenceGeneration(
   generation: FilenameGeneration,
 ): boolean {
-  return generation.confidence >= 0.8;
+  return generation.confidence >= SILENT_RENAME_THRESHOLD;
 }

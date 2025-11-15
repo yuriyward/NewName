@@ -70,12 +70,24 @@ export async function runImageUpgradePipeline(
     describeResult.description,
   );
   if (!decideResult || !decideResult.shouldRename) {
+    const reason = decideResult?.reason || 'no-decision';
     console.log('[ImageUpgradeAI] Keeping baseline filename', {
       requestId: request.requestId,
       filename: request.baseline.final,
-      reason: decideResult?.reason || 'no-decision',
+      reason,
     });
-    return null;
+    return {
+      status: 'keep-baseline',
+      requestId: request.requestId,
+      analyzedAt: Date.now(),
+      reason,
+      confidence: decideResult?.confidence,
+      explanation: decideResult?.explanation,
+      baselineFilename: request.baseline.final ?? request.filename,
+      modelSource: 'on-device',
+      decisionReason: decideResult?.reason,
+      promptUsed: Boolean(decideResult),
+    };
   }
 
   // PHASE 3: Filename Generation

@@ -10,7 +10,14 @@ export type UpgradeProposalSource = 'ai' | 'metadata';
 export interface UpgradeProposal {
   proposedFilename: string;
   proposedPath: string;
-  confidence: 'high' | 'suggested' | 'alternative';
+  /**
+   * Numeric confidence score from AI analysis (0-1 range).
+   * Three-tier system:
+   * - >= 0.8: Silent rename (no confirmation, shows completion notification)
+   * - >= 0.5: Auto-apply with countdown (10s to review/cancel)
+   * - < 0.5: Manual confirmation required (no auto-apply)
+   */
+  confidenceScore?: number;
   /**
    * When true, the proposal is deemed safe to apply automatically without additional user review.
    * Useful for deterministic metadata upgrades or very high-confidence AI results.

@@ -3,6 +3,7 @@
  * Decides if an image filename needs renaming based on description and metadata
  */
 
+import { normalizeConfidenceScore } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
 import {
@@ -212,7 +213,7 @@ export async function decideIfImageNeedsRename(params: {
     }
 
     // Ensure confidence is in valid range
-    const confidence = Math.max(0, Math.min(1, parsed.confidence ?? 0.5));
+    const confidence = normalizeConfidenceScore(parsed.confidence);
 
     const reason = parsed.reason || 'unknown';
 

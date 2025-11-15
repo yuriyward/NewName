@@ -14,6 +14,7 @@ import type {
   RenderedPdfPage,
 } from '@/entrypoints/offscreen/pdf-analysis/types';
 import { buildProposedPath } from '@/entrypoints/offscreen/text-analysis/filename-builder';
+import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type { ImageUpgradeAnalysisResponse } from '@/entrypoints/shared/integrations/image-analysis/types';
 import { applyFilenamePolicy } from '@/entrypoints/shared/naming/policy-engine';
@@ -231,11 +232,13 @@ Respond with JSON:
       proposedFilename,
     );
 
+    const behavior = getAutoApplyBehavior(renameDecision.confidence);
+
     const proposal: UpgradeProposal = {
       proposedFilename,
       proposedPath,
-      confidence: renameDecision.confidence >= 0.8 ? 'high' : 'suggested',
-      autoApply: renameDecision.confidence >= 0.9,
+      confidenceScore: behavior.confidence,
+      autoApply: behavior.shouldAutoApply,
       reasonTags: ['cloud', 'gemini', 'pdf'],
       generatedAt: Date.now(),
       source: 'ai',
@@ -257,7 +260,7 @@ Respond with JSON:
       proposal,
       description: mergedContext.fullDescription,
       modelSource: 'cloud',
-      promptConfidence: renameDecision.confidence,
+      promptConfidence: behavior.confidence,
       promptUsed: true,
       decisionReason: renameDecision.reason,
       metrics: {
@@ -265,7 +268,7 @@ Respond with JSON:
         requests: pageAnalyses.length + 1, // Page analyses + generation
         elapsedMs: 0,
         promptCalls: pageAnalyses.length + 1,
-        decisionConfidence: renameDecision.confidence,
+        decisionConfidence: behavior.confidence,
       },
     };
   } catch (error) {

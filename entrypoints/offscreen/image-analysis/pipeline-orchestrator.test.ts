@@ -321,7 +321,7 @@ describe('pipeline-orchestrator', () => {
       expect(mockRunGeneratePhase).not.toHaveBeenCalled();
     });
 
-    it('returns null when decide phase returns null', async () => {
+    it('returns keep-baseline when decide phase returns null', async () => {
       mockRunDecidePhase.mockResolvedValue(null);
 
       const request = createMockRequest();
@@ -329,12 +329,17 @@ describe('pipeline-orchestrator', () => {
 
       const result = await runImageUpgradePipeline(request, ingestion);
 
-      expect(result).toBeNull();
+      expect(result).toEqual(
+        expect.objectContaining({
+          status: 'keep-baseline',
+          reason: 'no-decision',
+        }),
+      );
       expect(mockRunGeneratePhase).not.toHaveBeenCalled();
       expect(mockBuildProposalFromAnalysis).not.toHaveBeenCalled();
     });
 
-    it('returns null when shouldRename is false', async () => {
+    it('returns keep-baseline when shouldRename is false', async () => {
       mockRunDecidePhase.mockResolvedValue({
         shouldRename: false,
         reason: 'already-good',
@@ -346,7 +351,13 @@ describe('pipeline-orchestrator', () => {
 
       const result = await runImageUpgradePipeline(request, ingestion);
 
-      expect(result).toBeNull();
+      expect(result).toEqual(
+        expect.objectContaining({
+          status: 'keep-baseline',
+          reason: 'already-good',
+          baselineFilename: 'IMG_1234.jpg',
+        }),
+      );
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringContaining('Keeping baseline filename'),
         expect.objectContaining({

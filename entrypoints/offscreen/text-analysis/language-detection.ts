@@ -1,3 +1,4 @@
+import { AUTO_APPLY_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
   detectBrowserLanguage,
@@ -31,7 +32,7 @@ export async function detectLanguage(
     const browserLocale = detectBrowserLanguage();
     return {
       language: browserLocale,
-      confidence: browserLocale ? 0.5 : undefined,
+      confidence: browserLocale ? AUTO_APPLY_THRESHOLD : undefined,
       source: 'browser',
     };
   }

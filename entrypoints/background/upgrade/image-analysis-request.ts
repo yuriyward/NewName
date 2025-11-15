@@ -135,6 +135,16 @@ function logNonSuccessResponse(
     return;
   }
 
+  if (response.status === 'keep-baseline') {
+    debugLogger.log('[ImageUpgradeAnalysis] Baseline kept by AI decision', {
+      requestId,
+      filename: request.filename,
+      reason: response.reason,
+      confidence: response.confidence,
+    });
+    return;
+  }
+
   if (response.status === 'unavailable' || response.status === 'skipped') {
     debugLogger.log('[ImageUpgradeAnalysis] Image analysis unavailable', {
       requestId,

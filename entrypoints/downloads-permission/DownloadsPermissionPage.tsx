@@ -4,6 +4,7 @@
 import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
 import ShieldExclamationIcon from '@heroicons/react/24/outline/ShieldExclamationIcon';
 import { type JSX, useEffect, useRef, useState } from 'react';
+import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
   ManagedSubfolderRequiredError,
@@ -17,7 +18,11 @@ import {
   updateLastVerified,
 } from '@/entrypoints/shared/filesystem/handle-storage';
 import { ensureLocalAiSetup } from '@/entrypoints/shared/integrations/chrome-ai/ensure-local-ai-setup';
-import { markOnboardingCompleted } from '@/entrypoints/shared/onboarding/onboarding-state';
+import {
+  markOnboardingAwaitingPersistent,
+  markOnboardingCompleted,
+} from '@/entrypoints/shared/onboarding/onboarding-state';
+import { clearBadge } from '@/entrypoints/shared/ui/badge-manager';
 
 type RequestState =
   | { status: 'idle' }
@@ -27,6 +32,11 @@ type RequestState =
       grantedAt: number;
       managedRelativePath: string;
       createdManagedFolder: boolean;
+      parentDirectoryName: string;
+    }
+  | {
+      status: 'step1-complete';
+      managedRelativePath: string;
       parentDirectoryName: string;
     }
   | { status: 'error'; message: string; hint?: string };
@@ -147,7 +157,7 @@ export function DownloadsPermissionPage(): JSX.Element {
       const {
         handle,
         managedRelativePath,
-        createdManagedFolder,
+        createdManagedFolder: _createdManagedFolder,
         parentDirectoryName,
       } = await requestDownloadsAccess();
       const permission = await verifyDirectoryPermission(handle);
@@ -156,19 +166,35 @@ export function DownloadsPermissionPage(): JSX.Element {
       }
       await storeDirectoryHandle(handle, { relativePath: managedRelativePath });
       await updateLastVerified();
-      await markOnboardingCompleted();
+      await markOnboardingAwaitingPersistent();
       storedHandleRef.current = handle;
       setHasStoredHandle(true);
-      setState({
-        status: 'success',
-        grantedAt: Date.now(),
-        managedRelativePath,
-        createdManagedFolder,
-        parentDirectoryName,
-      });
 
-      // Check if local AI setup is needed and open setup page if necessary
-      void ensureLocalAiSetup();
+      // Experimental: Close current page and reopen to see if Chrome shows persistent permission modal
+      debugLogger.log(
+        '[DownloadsPermissionPage] Closing and reopening setup page to trigger persistent permission',
+      );
+
+      // Open new setup page before closing current one
+      const setupUrl = browser.runtime.getURL('/downloads-permission.html');
+      await browser.tabs.create({ url: setupUrl });
+
+      // Close current setup page
+      // The new page will detect 'awaiting-persistent' status and auto-trigger requestPermission()
+      try {
+        window.close();
+      } catch (closeErr) {
+        debugLogger.warn(
+          '[DownloadsPermissionPage] Could not close setup page after reopening',
+          { error: closeErr },
+        );
+        // If close fails, show success state
+        setState({
+          status: 'step1-complete',
+          managedRelativePath,
+          parentDirectoryName,
+        });
+      }
     } catch (err) {
       const lastPickerError =
         (
@@ -219,6 +245,10 @@ export function DownloadsPermissionPage(): JSX.Element {
 
       await updateLastVerified();
       await markOnboardingCompleted();
+
+      // Clear badge since setup is complete
+      await clearBadge();
+
       setHasStoredHandle(true);
       setState({
         status: 'success',
@@ -256,22 +286,53 @@ export function DownloadsPermissionPage(): JSX.Element {
             NewName Setup
           </p>
           <h1 className="text-2xl font-semibold">
-            Grant access to your managed Downloads folder
+            {hasStoredHandle
+              ? 'Step 2: Grant permanent access'
+              : 'Choose your folder'}
           </h1>
           <p className="text-sm leading-relaxed text-default-500">
-            You&apos;re almost done. Use the picker to make or choose any folder
-            you want NewName to manage (for example{' '}
-            <span className="font-semibold">Downloads/Organized</span> or{' '}
-            <span className="font-semibold">Desktop/NewName</span>). Select it,
-            allow the prompt, and NewName will take it from there.
+            {hasStoredHandle ? (
+              <>
+                Click the button below and select the same folder again. This
+                time, choose <strong>&quot;Allow on every visit&quot;</strong>{' '}
+                so you never have to do this again.
+              </>
+            ) : (
+              <>
+                We&apos;ll ask you to select your folder twice — once for
+                initial access, then again for permanent access.
+              </>
+            )}
           </p>
+          {!hasStoredHandle ? (
+            <div className="rounded-lg bg-primary-50/50 border border-primary-200 px-4 py-3 text-sm text-default-600">
+              <p className="font-medium text-primary-900 mb-1">
+                💡 Recommended: Create a subfolder in Downloads
+              </p>
+              <p className="text-xs text-default-600">
+                For easy organization, create a new folder like{' '}
+                <strong>Downloads/Organized</strong> or{' '}
+                <strong>Downloads/Web Downloads</strong>. You can create it
+                right in the picker!
+              </p>
+            </div>
+          ) : null}
         </header>
 
-        {hasStoredHandle && state.status !== 'success' ? (
-          <div className="rounded-lg border border-default-200 bg-default-50/60 px-3 py-2 text-xs text-default-600">
-            Saved folder detected. Click “Re-enable existing folder” below and
-            choose “Allow on every visit” in Chrome&apos;s prompt to stay
-            connected.
+        {state.status === 'step1-complete' ? (
+          <div className="rounded-2xl border border-success-200 bg-success-50/80 p-5 shadow-sm">
+            <div className="flex flex-wrap items-start gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-success-100 text-success-700">
+                <CheckCircleIcon className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1 space-y-2 text-sm text-success-800">
+                <p className="font-semibold">Page should have reopened</p>
+                <p className="text-xs text-success-600">
+                  A new tab should open automatically for step 2. If not, close
+                  this tab and open the extension again.
+                </p>
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -282,26 +343,9 @@ export function DownloadsPermissionPage(): JSX.Element {
                 <CheckCircleIcon className="h-5 w-5" />
               </span>
               <div className="min-w-0 flex-1 space-y-2 text-sm text-success-800">
-                <div className="space-y-1">
-                  <p className="font-semibold">All set! Access granted.</p>
-                  <p className="text-xs text-success-600">
-                    Granted at {new Date(state.grantedAt).toLocaleTimeString()}.
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white/70 px-3 py-2 text-xs text-success-700 shadow-inner">
-                  <p className="font-medium">Managed folder</p>
-                  <p className="truncate font-mono text-[11px] uppercase tracking-wide text-success-600">
-                    {state.managedRelativePath}
-                  </p>
-                  {state.createdManagedFolder ? (
-                    <p className="mt-1 text-[11px] text-success-500">
-                      We created this folder for you.
-                    </p>
-                  ) : null}
-                </div>
-                <p className="text-xs text-success-700">
-                  You can close this tab and return to the popup whenever
-                  you&apos;re ready.
+                <p className="font-semibold">Setup complete!</p>
+                <p className="text-xs text-success-600">
+                  You&apos;re all set. This tab will close automatically.
                 </p>
               </div>
             </div>
@@ -324,33 +368,33 @@ export function DownloadsPermissionPage(): JSX.Element {
           </div>
         ) : null}
 
-        <section className="space-y-3 rounded-lg border border-default-200 bg-default-50/40 p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-default-500">
-            Steps
-          </h2>
-          <ol className="space-y-3 text-sm leading-relaxed text-default-600">
-            <li className="flex items-start gap-3">
-              <span className="mt-0.5 h-5 w-5 rounded-full bg-primary/10 text-center text-[11px] leading-5 text-primary">
-                1
-              </span>
-              <span>Click “Grant access”. A folder window appears.</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="mt-0.5 h-5 w-5 rounded-full bg-primary/10 text-center text-[11px] leading-5 text-primary">
-                2
-              </span>
-              <span>Pick or create the folder you want NewName to use.</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <span className="mt-0.5 h-5 w-5 rounded-full bg-primary/10 text-center text-[11px] leading-5 text-primary">
-                3
-              </span>
-              <span>
-                Press “Select” and approve the Chrome permission prompt.
-              </span>
-            </li>
-          </ol>
-        </section>
+        {!hasStoredHandle ? (
+          <section className="space-y-3 rounded-lg border border-default-200 bg-default-50/40 p-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-default-500">
+              What to expect
+            </h2>
+            <ol className="space-y-2 text-sm leading-relaxed text-default-600">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 text-primary">1.</span>
+                <span>Choose your folder from the picker</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 text-primary">2.</span>
+                <span>
+                  Page will reopen — choose the <strong>same folder</strong>{' '}
+                  again
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 text-primary">3.</span>
+                <span>
+                  Click <strong>&quot;Allow on every visit&quot;</strong> —
+                  Done!
+                </span>
+              </li>
+            </ol>
+          </section>
+        ) : null}
 
         {state.status === 'error' ? (
           <section className="space-y-3 rounded-lg border border-default-200 bg-default-50/80 p-4 text-xs text-default-600">
@@ -378,42 +422,65 @@ export function DownloadsPermissionPage(): JSX.Element {
         ) : null}
 
         <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              void handleGrantAccess();
-            }}
-            disabled={state.status === 'pending' || state.status === 'success'}
-            className={`inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition ${
-              state.status === 'pending' || state.status === 'success'
-                ? 'cursor-not-allowed opacity-60'
-                : 'hover:opacity-90'
-            }`}
-          >
-            {state.status === 'pending' && pendingAction === 'grant'
-              ? 'Requesting access…'
-              : 'Grant access'}
-          </button>
           {hasStoredHandle ? (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleRestoreExisting();
+                }}
+                disabled={
+                  state.status === 'pending' || state.status === 'success'
+                }
+                className={`inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition ${
+                  state.status === 'pending' || state.status === 'success'
+                    ? 'cursor-not-allowed opacity-60'
+                    : 'hover:opacity-90'
+                }`}
+              >
+                {state.status === 'pending' && pendingAction === 'restore'
+                  ? 'Opening…'
+                  : 'Choose folder again'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleGrantAccess();
+                }}
+                disabled={
+                  state.status === 'pending' || state.status === 'success'
+                }
+                className={`inline-flex items-center justify-center rounded-md border border-default-300 px-4 py-2 text-sm font-semibold text-default-600 transition ${
+                  state.status === 'pending' || state.status === 'success'
+                    ? 'cursor-not-allowed opacity-60'
+                    : 'hover:bg-default-100'
+                }`}
+              >
+                {state.status === 'pending' && pendingAction === 'grant'
+                  ? 'Opening…'
+                  : 'Start over'}
+              </button>
+            </>
+          ) : (
             <button
               type="button"
               onClick={() => {
-                void handleRestoreExisting();
+                void handleGrantAccess();
               }}
               disabled={
                 state.status === 'pending' || state.status === 'success'
               }
-              className={`inline-flex items-center justify-center rounded-md border border-default-300 px-4 py-2 text-sm font-semibold text-default-600 transition ${
+              className={`inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition ${
                 state.status === 'pending' || state.status === 'success'
                   ? 'cursor-not-allowed opacity-60'
-                  : 'hover:bg-default-100'
+                  : 'hover:opacity-90'
               }`}
             >
-              {state.status === 'pending' && pendingAction === 'restore'
-                ? 'Re-enabling…'
-                : 'Re-enable existing folder'}
+              {state.status === 'pending' && pendingAction === 'grant'
+                ? 'Opening…'
+                : 'Choose folder'}
             </button>
-          ) : null}
+          )}
           <button
             type="button"
             onClick={() => {

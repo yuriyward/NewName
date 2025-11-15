@@ -9,6 +9,7 @@
 
 import type {
   ImageIngestionResult,
+  ImageUpgradeAnalysisKeepBaseline,
   ImageUpgradeAnalysisRequest,
   ImageUpgradeAnalysisSuccess,
 } from '@/entrypoints/shared/integrations/image-analysis/types';
@@ -32,7 +33,9 @@ export async function generateFilenamePhase3(
   description: string,
   decisionConfidence: number,
   promptUsed: boolean,
-): Promise<ImageUpgradeAnalysisSuccess | null> {
+): Promise<
+  ImageUpgradeAnalysisSuccess | ImageUpgradeAnalysisKeepBaseline | null
+> {
   const generationStartTime = Date.now();
 
   // Generate filename stem using Prompt API

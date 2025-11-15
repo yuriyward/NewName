@@ -6,8 +6,6 @@
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
   buildSessionCreationFailureMessage,
-  HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD,
-  HIGH_CONFIDENCE_DISPLAY_THRESHOLD,
   MULTIMODAL_SETUP_INSTRUCTIONS,
 } from '@/entrypoints/shared/integrations/image-analysis/constants';
 import type { ImageUpgradeAnalysisUnavailable } from '@/entrypoints/shared/integrations/image-analysis/types';
@@ -118,9 +116,3 @@ export function buildSessionCreationFailureResponse(
     message,
   };
 }
-
-// Re-export thresholds for use in orchestrator
-export {
-  HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD,
-  HIGH_CONFIDENCE_DISPLAY_THRESHOLD,
-};

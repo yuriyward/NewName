@@ -1,4 +1,5 @@
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
+import type { BaseKeepBaselineResult } from '@/entrypoints/shared/integrations/ai-provider/types';
 import type { InstantBaselineDecision } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type {
   FileType,
@@ -81,6 +82,14 @@ export interface TextUpgradeAnalysisSuccess {
   };
 }
 
+export interface TextUpgradeAnalysisKeepBaseline
+  extends BaseKeepBaselineResult {
+  modelSource: TextUpgradeModelSource;
+  language?: string;
+  languageConfidence?: number;
+  decisionReason?: string;
+}
+
 export interface TextUpgradeIngestionResult {
   status: 'ingested';
   requestId: string;
@@ -134,6 +143,7 @@ export interface TextUpgradeAnalysisPermission {
 
 export type TextUpgradeAnalysisResponse =
   | TextUpgradeAnalysisSuccess
+  | TextUpgradeAnalysisKeepBaseline
   | TextUpgradeIngestionResult
   | TextUpgradeAnalysisUnavailable
   | TextUpgradeAnalysisSkipped

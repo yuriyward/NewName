@@ -1,3 +1,8 @@
+import {
+  MODERATE_CONFIDENCE_SCORE,
+  SILENT_RENAME_THRESHOLD,
+} from '@/entrypoints/shared/constants/confidence-thresholds';
+
 /**
  * Shared adapter interface for Chrome built-in AI APIs.
  * The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector).
@@ -117,7 +122,10 @@ export function createMockBuiltInAiAdapter(): BuiltInAiAdapter {
         return language
           ? {
               language,
-              probability: language === 'en' ? 0.8 : 0.6,
+              probability:
+                language === 'en'
+                  ? SILENT_RENAME_THRESHOLD
+                  : MODERATE_CONFIDENCE_SCORE,
             }
           : null;
       },

@@ -179,6 +179,16 @@ async function requestTextUpgradeAnalysis(
       return handleSuccessfulResponse(requestId, request, response);
     }
 
+    if (response.status === 'keep-baseline') {
+      debugLogger.log('[TextUpgradeAnalysis] Baseline kept locally', {
+        requestId,
+        filename: request.filename,
+        reason: response.reason,
+        confidence: response.confidence,
+      });
+      return null;
+    }
+
     if (response.status === 'permission-required') {
       if (!deps.requestCloudConsent) {
         debugLogger.warn(
@@ -241,6 +251,19 @@ async function requestTextUpgradeAnalysis(
             retryRequest,
             retryResponse,
           );
+        }
+
+        if (retryResponse.status === 'keep-baseline') {
+          debugLogger.log(
+            '[TextUpgradeAnalysis] Cloud fallback kept baseline',
+            {
+              requestId: retryRequestId,
+              filename: retryRequest.filename,
+              reason: retryResponse.reason,
+              confidence: retryResponse.confidence,
+            },
+          );
+          return null;
         }
 
         if (retryResponse.status === 'permission-required') {

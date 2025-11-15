@@ -3,12 +3,10 @@
  * Constructs the final upgrade proposal with all metadata
  */
 
-import {
-  HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD,
-  HIGH_CONFIDENCE_DISPLAY_THRESHOLD,
-} from '@/entrypoints/shared/integrations/image-analysis/constants';
+import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
 import type {
   ImageIngestionResult,
+  ImageUpgradeAnalysisKeepBaseline,
   ImageUpgradeAnalysisRequest,
   ImageUpgradeAnalysisSuccess,
 } from '@/entrypoints/shared/integrations/image-analysis/types';
@@ -40,7 +38,7 @@ export function buildProposalFromAnalysis(
   decideResult: DecidePhaseResult,
   generateResult: GeneratePhaseResult,
   decisionElapsedMs: number,
-): ImageUpgradeAnalysisSuccess | null {
+): ImageUpgradeAnalysisSuccess | ImageUpgradeAnalysisKeepBaseline | null {
   // Use generated stem or fallback to baseline extraction
   const subject =
     generateResult.stem ||
@@ -106,11 +104,19 @@ export function buildProposalFromAnalysis(
   }
 
   const currentFinal = request.baseline.final ?? request.filename;
+  const behavior = getAutoApplyBehavior(decideResult.confidence);
+
   if (
     currentFinal &&
     currentFinal.toLowerCase() === proposedFilename.toLowerCase()
   ) {
-    return null; // No change needed
+    return buildKeepBaselineResponse({
+      request,
+      reason: 'same-as-baseline',
+      confidence: behavior.confidence,
+      explanation: 'Generated filename matches current baseline',
+      decisionReason: decideResult.reason,
+    });
   }
 
   const proposedPath = buildProposedPath(
@@ -119,8 +125,6 @@ export function buildProposalFromAnalysis(
   );
 
   const promptUsed = !!generateResult.stem;
-  const shouldAutoApply =
-    decideResult.confidence >= HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD;
 
   const success: ImageUpgradeAnalysisSuccess = {
     status: 'success',
@@ -129,11 +133,8 @@ export function buildProposalFromAnalysis(
     proposal: {
       proposedFilename,
       proposedPath,
-      confidence:
-        decideResult.confidence >= HIGH_CONFIDENCE_DISPLAY_THRESHOLD
-          ? 'high'
-          : 'suggested',
-      autoApply: shouldAutoApply,
+      confidenceScore: behavior.confidence,
+      autoApply: behavior.shouldAutoApply,
       reasonTags: formatReasonTags(undefined, promptUsed, 'on-device'),
       generatedAt: Date.now(),
       source: 'ai',
@@ -143,7 +144,7 @@ export function buildProposalFromAnalysis(
     },
     description: describeResult.description,
     modelSource: 'on-device',
-    promptConfidence: decideResult.confidence,
+    promptConfidence: behavior.confidence,
     promptUsed,
     decisionReason: decideResult.reason,
     metrics: {
@@ -151,7 +152,7 @@ export function buildProposalFromAnalysis(
       requests: 1,
       elapsedMs: ingestion.metrics.elapsedMs,
       promptCalls: 3, // Describe + decision + generation
-      decisionConfidence: decideResult.confidence,
+      decisionConfidence: behavior.confidence,
       resizeRatio: ingestion.resizeRatio,
       originalWidth: ingestion.originalWidth,
       originalHeight: ingestion.originalHeight,
@@ -173,6 +174,32 @@ export function buildProposalFromAnalysis(
   return success;
 }
 
+function buildKeepBaselineResponse({
+  request,
+  reason,
+  confidence,
+  explanation,
+  decisionReason,
+}: {
+  request: ImageUpgradeAnalysisRequest;
+  reason: string;
+  confidence: number;
+  explanation: string;
+  decisionReason?: string;
+}): ImageUpgradeAnalysisKeepBaseline {
+  return {
+    status: 'keep-baseline',
+    requestId: request.requestId,
+    analyzedAt: Date.now(),
+    reason,
+    confidence,
+    explanation,
+    baselineFilename: request.baseline.final ?? request.filename,
+    modelSource: 'on-device',
+    decisionReason,
+  };
+}
+
 /**
  * Build proposal from Phase 3 inputs (for direct Phase 3 calls)
  * Used by PDF pipeline which bypasses generic Phase 2
@@ -192,7 +219,7 @@ export function buildProposalFromPhase3Inputs(
   generatedStem: string | null,
   decisionConfidence: number,
   promptUsed: boolean,
-): ImageUpgradeAnalysisSuccess | null {
+): ImageUpgradeAnalysisSuccess | ImageUpgradeAnalysisKeepBaseline | null {
   // Use generated stem or fallback to baseline extraction
   const subject =
     generatedStem ||
@@ -255,20 +282,24 @@ export function buildProposalFromPhase3Inputs(
   }
 
   const currentFinal = request.baseline.final ?? request.filename;
+  const fallbackBehavior = getAutoApplyBehavior(decisionConfidence);
+
   if (
     currentFinal &&
     currentFinal.toLowerCase() === proposedFilename.toLowerCase()
   ) {
-    return null; // No change needed
+    return buildKeepBaselineResponse({
+      request,
+      reason: 'same-as-baseline',
+      confidence: fallbackBehavior.confidence,
+      explanation: 'Generated filename matches current baseline',
+    });
   }
 
   const proposedPath = buildProposedPath(
     request.relativePath,
     proposedFilename,
   );
-
-  const shouldAutoApply =
-    decisionConfidence >= HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD;
 
   const success: ImageUpgradeAnalysisSuccess = {
     status: 'success',
@@ -277,11 +308,8 @@ export function buildProposalFromPhase3Inputs(
     proposal: {
       proposedFilename,
       proposedPath,
-      confidence:
-        decisionConfidence >= HIGH_CONFIDENCE_DISPLAY_THRESHOLD
-          ? 'high'
-          : 'suggested',
-      autoApply: shouldAutoApply,
+      confidenceScore: fallbackBehavior.confidence,
+      autoApply: fallbackBehavior.shouldAutoApply,
       reasonTags: formatReasonTags(undefined, promptUsed, 'on-device'),
       generatedAt: Date.now(),
       source: 'ai',
@@ -289,7 +317,7 @@ export function buildProposalFromPhase3Inputs(
     },
     description,
     modelSource: 'on-device',
-    promptConfidence: decisionConfidence,
+    promptConfidence: fallbackBehavior.confidence,
     promptUsed,
     decisionReason: 'user-approved', // Phase 2 already decided to rename
     metrics: {
@@ -297,7 +325,7 @@ export function buildProposalFromPhase3Inputs(
       requests: 1,
       elapsedMs: ingestion.metrics.elapsedMs,
       promptCalls: 3, // Describe + decision + generation
-      decisionConfidence,
+      decisionConfidence: fallbackBehavior.confidence,
       resizeRatio: ingestion.resizeRatio,
       originalWidth: ingestion.originalWidth,
       originalHeight: ingestion.originalHeight,

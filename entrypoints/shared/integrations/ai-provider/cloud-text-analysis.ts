@@ -11,6 +11,7 @@ import {
   buildFilename,
   buildProposedPath,
 } from '@/entrypoints/offscreen/text-analysis/filename-builder';
+import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type {
   TextUpgradeAnalysisError,
@@ -145,13 +146,13 @@ Respond with JSON:
       proposedFilename,
     );
 
-    const shouldAutoApply = decision.confidence >= 0.9;
+    const behavior = getAutoApplyBehavior(decision.confidence);
 
     const proposal: UpgradeProposal = {
       proposedFilename,
       proposedPath,
-      confidence: decision.confidence >= 0.8 ? 'high' : 'suggested',
-      autoApply: shouldAutoApply,
+      confidenceScore: behavior.confidence,
+      autoApply: behavior.shouldAutoApply,
       reasonTags: ['cloud', 'gemini'],
       generatedAt: Date.now(),
       source: 'ai',
@@ -167,7 +168,7 @@ Respond with JSON:
       languageConfidence: 1.0,
       modelSource: 'cloud',
       truncatedInput: ingestion.truncated,
-      promptConfidence: decision.confidence,
+      promptConfidence: behavior.confidence,
       promptUsed: true,
       decisionReason: decision.reason,
       metrics: {
@@ -175,7 +176,7 @@ Respond with JSON:
         requests: 2, // Decision + generation
         elapsedMs: ingestion.metrics.elapsedMs,
         promptCalls: 2,
-        decisionConfidence: decision.confidence,
+        decisionConfidence: behavior.confidence,
       },
     };
 

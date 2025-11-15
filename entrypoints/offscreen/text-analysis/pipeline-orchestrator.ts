@@ -5,9 +5,11 @@
  * We still use debugLogger.warn() and debugLogger.error() for warnings/errors.
  */
 
+import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { AiModelStatusMap } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import type {
+  TextUpgradeAnalysisKeepBaseline,
   TextUpgradeAnalysisRequest,
   TextUpgradeAnalysisResponse,
   TextUpgradeAnalysisSuccess,
@@ -35,10 +37,6 @@ import {
   recordPromptPipelineComplete,
 } from './telemetry';
 import { summarizeText } from './text-summarization';
-
-// Confidence thresholds for rename decision logic
-const HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD = 0.9;
-const HIGH_CONFIDENCE_DISPLAY_THRESHOLD = 0.8;
 
 function mapModelStatuses(statuses: AiModelStatusMap): Record<string, string> {
   return Object.fromEntries(
@@ -161,15 +159,29 @@ export async function runTextUpgradePipeline(
 
   // If AI says don't rename or decision failed, respect that and keep baseline
   if (!decision || !decision.shouldRename) {
+    const keepBaseline: TextUpgradeAnalysisKeepBaseline = {
+      status: 'keep-baseline',
+      requestId: request.requestId,
+      analyzedAt: Date.now(),
+      reason: decision?.reason || 'no-decision',
+      confidence: decision?.confidence,
+      explanation: decision?.explanation,
+      baselineFilename: request.baseline.final || request.filename,
+      modelSource,
+      language: subjectLanguage.language,
+      languageConfidence: subjectLanguage.confidence,
+      decisionReason: decision?.reason,
+    };
+
     console.log('[TextUpgradeAI] Keeping baseline filename', {
       requestId: request.requestId,
       filename: request.baseline.final,
       hasDecision: !!decision,
-      reason: decision?.reason || 'no-decision',
-      confidence: decision?.confidence,
-      explanation: decision?.explanation,
+      reason: keepBaseline.reason,
+      confidence: keepBaseline.confidence,
+      explanation: keepBaseline.explanation,
     });
-    return null; // No upgrade proposal - keep baseline
+    return keepBaseline;
   }
 
   console.log('[TextUpgradeAI] Decision: rename needed', {
@@ -246,7 +258,19 @@ export async function runTextUpgradePipeline(
     currentFinal &&
     currentFinal.toLowerCase() === proposedFilename.toLowerCase()
   ) {
-    return null;
+    return {
+      status: 'keep-baseline',
+      requestId: request.requestId,
+      analyzedAt: Date.now(),
+      reason: 'same-as-baseline',
+      confidence: decision.confidence,
+      explanation: 'Generated filename matches current baseline',
+      baselineFilename: currentFinal,
+      modelSource,
+      language: subjectLanguage.language,
+      languageConfidence: subjectLanguage.confidence,
+      decisionReason: decision.reason,
+    } satisfies TextUpgradeAnalysisKeepBaseline;
   }
 
   const proposedPath = buildProposedPath(
@@ -257,8 +281,7 @@ export async function runTextUpgradePipeline(
   const promptUsed = !!generatedStem; // Prompt API used if we generated a stem
 
   // Determine auto-apply based on decision confidence
-  const shouldAutoApply =
-    decision.confidence >= HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD;
+  const behavior = getAutoApplyBehavior(decision.confidence);
 
   const success: TextUpgradeAnalysisSuccess = {
     status: 'success',
@@ -267,11 +290,8 @@ export async function runTextUpgradePipeline(
     proposal: {
       proposedFilename,
       proposedPath,
-      confidence:
-        decision.confidence >= HIGH_CONFIDENCE_DISPLAY_THRESHOLD
-          ? 'high'
-          : 'suggested',
-      autoApply: shouldAutoApply,
+      confidenceScore: behavior.confidence,
+      autoApply: behavior.shouldAutoApply,
       reasonTags: formatReasonTags(
         subjectLanguage.language,
         promptUsed,
@@ -287,15 +307,15 @@ export async function runTextUpgradePipeline(
     languageConfidence: subjectLanguage.confidence,
     modelSource,
     truncatedInput: ingestion.truncated,
-    promptConfidence: decision.confidence,
+    promptConfidence: behavior.confidence,
     promptUsed,
-    decisionReason: decision.reason, // NEW: Include decision reason
+    decisionReason: decision.reason,
     metrics: {
       bytesFetched: ingestion.metrics.readBytes,
       requests: 1,
       elapsedMs: ingestion.metrics.elapsedMs,
-      promptCalls: 2, // NEW: Decision + generation calls
-      decisionConfidence: decision.confidence, // NEW: Decision confidence
+      promptCalls: 2,
+      decisionConfidence: behavior.confidence,
     },
   };
 

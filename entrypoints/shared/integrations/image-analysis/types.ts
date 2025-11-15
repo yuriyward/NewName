@@ -2,6 +2,7 @@
  * Type definitions for image analysis upgrade pipeline
  */
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
+import type { BaseKeepBaselineResult } from '@/entrypoints/shared/integrations/ai-provider/types';
 import type { InstantBaselineDecision } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type {
   FileType,
@@ -100,6 +101,13 @@ export interface ImageUpgradeAnalysisSuccess {
   };
 }
 
+export interface ImageUpgradeAnalysisKeepBaseline
+  extends BaseKeepBaselineResult {
+  modelSource: ImageUpgradeModelSource;
+  decisionReason?: string;
+  promptUsed?: boolean;
+}
+
 export interface ImageIngestionResult {
   status: 'ingested';
   requestId: string;
@@ -149,6 +157,7 @@ export interface ImageUpgradeAnalysisError {
 
 export type ImageUpgradeAnalysisResponse =
   | ImageUpgradeAnalysisSuccess
+  | ImageUpgradeAnalysisKeepBaseline
   | ImageIngestionResult
   | ImageUpgradeAnalysisUnavailable
   | ImageUpgradeAnalysisSkipped

@@ -20,8 +20,13 @@ import type {
   AiPipelineTelemetryPayload,
   EnsureAiModelsRequestPayload,
 } from '@/entrypoints/shared/messaging/text-messages';
+import { getOnboardingState } from '@/entrypoints/shared/onboarding/onboarding-state';
 import { updateSettings } from '@/entrypoints/shared/settings/settings';
 import { registerPageContextService } from '@/entrypoints/shared/state/page-context-service';
+import {
+  clearBadge,
+  showPersistentPermissionBadge,
+} from '@/entrypoints/shared/ui/badge-manager';
 import { createDeterminingListener } from './background/download-coordinator';
 import {
   type DownloadTrackingEntry,
@@ -58,6 +63,30 @@ browser.runtime.onInstalled.addListener((details) => {
     });
   });
 });
+
+/**
+ * Check if persistent permission setup is pending and set badge accordingly
+ * This runs on service worker startup to detect new browser sessions
+ */
+async function checkPersistentPermissionSetup(): Promise<void> {
+  try {
+    const state = await getOnboardingState();
+
+    if (state.status === 'awaiting-persistent') {
+      debugLogger.log(
+        '[Background] Detected awaiting-persistent status, setting badge',
+      );
+
+      await showPersistentPermissionBadge();
+    } else {
+      await clearBadge();
+    }
+  } catch (err) {
+    debugLogger.error('[Background] Failed to check permission setup status', {
+      error: err,
+    });
+  }
+}
 
 function initializeBackground(): void {
   const cloudConsentManager = createCloudConsentManager();
@@ -381,6 +410,9 @@ function initializeBackground(): void {
       alarmName: alarm.name,
     });
   });
+
+  // Check for pending persistent permission setup and set badge
+  void checkPersistentPermissionSetup();
 }
 
 export default defineBackground(() => {

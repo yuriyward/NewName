@@ -317,12 +317,12 @@ describe('pipeline-orchestrator - ensureAiModelsReady integration', () => {
       }
     });
 
-    it('sets confidence to suggested when below threshold', async () => {
+    it('enables auto-apply for moderate confidence (0.5-0.79)', async () => {
       mockEnsureAiModelsReadySuccess(mockEnsureAiModelsReadyRemote);
 
       mockDecideIfShouldRename.mockResolvedValue({
         shouldRename: true,
-        confidence: 0.75, // Below high confidence threshold (0.8)
+        confidence: 0.75, // Moderate confidence: >= 0.5 but < 0.8
         reason: 'poor-formatting',
       });
 
@@ -331,11 +331,53 @@ describe('pipeline-orchestrator - ensureAiModelsReady integration', () => {
       const result = await runTextUpgradePipeline(request, ingestion);
 
       if (result?.status === 'success') {
-        expect(result.proposal.confidence).toBe('suggested');
-        expect(result.proposal.autoApply).toBe(false);
+        expect(result.proposal.confidenceScore).toBe(0.75);
+        // New unified threshold: 0.75 >= 0.5, so autoApply should be true
+        expect(result.proposal.autoApply).toBe(true);
       } else {
         expect(result).not.toBeNull();
       }
+    });
+
+    it('returns keep-baseline when rename decision declines change', async () => {
+      mockEnsureAiModelsReadySuccess(mockEnsureAiModelsReadyRemote);
+
+      mockDecideIfShouldRename.mockResolvedValue({
+        shouldRename: false,
+        confidence: 0.88,
+        reason: 'already-descriptive',
+        explanation: 'Filename already conveys the subject',
+      });
+
+      const request = createMockRequest();
+      const ingestion = createMockIngestion();
+      const result = await runTextUpgradePipeline(request, ingestion);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          status: 'keep-baseline',
+          reason: 'already-descriptive',
+          baselineFilename: 'document.pdf',
+        }),
+      );
+    });
+
+    it('returns keep-baseline when generated filename matches baseline', async () => {
+      mockEnsureAiModelsReadySuccess(mockEnsureAiModelsReadyRemote);
+
+      const request = createMockRequest({
+        baseline: { final: 'Q1 Budget Planning 2024.pdf' },
+      });
+      const ingestion = createMockIngestion();
+      const result = await runTextUpgradePipeline(request, ingestion);
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          status: 'keep-baseline',
+          reason: 'same-as-baseline',
+          baselineFilename: 'Q1 Budget Planning 2024.pdf',
+        }),
+      );
     });
   });
 
