@@ -127,7 +127,8 @@ shared/ # 18 directories
   ├─ classification/ # 2 files
   │ ├─ file-types.ts # File type detection from MIME and extensions
   │ └─ sensitive-content.ts # Sensitive content detection heuristics for confirmation routing.
-  ├─ constants/ # 1 file
+  ├─ constants/ # 2 files
+  │ ├─ confidence-thresholds.ts # Confidence thresholds for AI rename decisions shared across the codebase. The rename pipeline uses a three-tier scale: - `>= 0.8` ⟶ silent rename without showing a confirmation toast. - `>= 0.5` ⟶ confirmation toast with an auto-apply countdown. - `< 0.5`  ⟶ manual confirmation, no automatic actions. Keeping the thresholds and helpers here ensures every surface (toast routing, history entries, tests, etc.) speaks the same language. If we ever make them user-configurable we only need to touch this module.
   │ └─ file-constants.ts # Shared file-related constants used across the application
   ├─ context/ # 1 file
   │ └─ page-analyzer.ts # 6 exports
@@ -172,7 +173,7 @@ shared/ # 18 directories
   │ │ │ ├─ status-probe.ts # 2 exports
   │ │ │ ├─ status-types.ts # 9 exports
   │ │ │ └─ status-utils.ts # 21 exports
-  │ │ ├─ adapter.ts # Shared adapter interface for Chrome built-in AI APIs. The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector). This adapter keeps our background/offscreen logic decoupled from the actual runtime implementation so we can swap the mock below with real bindings once the APIs are ready.
+  │ │ ├─ adapter.ts # 9 exports
   │ │ ├─ diagnostics.ts # Diagnostic utilities for Chrome built-in AI troubleshooting. Identifies specific failure modes and provides targeted fix instructions.
   │ │ ├─ ensure-local-ai-setup.ts # Utilities for checking and ensuring local AI setup is complete. Used across Settings and Downloads Permission screens to guide users through AI setup.
   │ │ ├─ language-helpers.ts # Shared helpers for normalising and resolving language preferences when interacting with Chrome's built-in AI surfaces.
@@ -201,7 +202,7 @@ shared/ # 18 directories
   │ │ └─ mupdf-loader.ts # MuPDF WASM loader and instance management Configures MuPDF's WASM loading with proper fallbacks for dev/prod MuPDF auto-initializes on import, so we configure globalThis before importing
   │ ├─ text-analysis/ # 2 files
   │ │ ├─ normalize.ts # 3 exports
-  │ │ └─ types.ts # 12 exports
+  │ │ └─ types.ts # 13 exports
   │ └─ range-fetcher.ts # Generic HTTP range fetch utilities shared across integrations. Designed to support resumable, partial reads without forcing the caller to download full files when the remote server advertises byte range support.
   ├─ lifecycle/ # 1 file
   │ └─ install-tracking.ts # Extension installation date tracking and storage utilities
@@ -240,7 +241,7 @@ shared/ # 18 directories
   ├─ toast/ # 2 files
   │ ├─ timing-constants.ts # Centralized timing constants for toast behavior. All values are in milliseconds unless otherwise noted.
   │ └─ types.ts # Shared types for confirm toast messaging between contexts.
-  ├─ ui/ # 9 files, 1 directories
+  ├─ ui/ # 10 files, 1 directories
   │ ├─ toast/ # 8 files
   │ │ ├─ keyboard-handler.ts # Keyboard event handler for toast interactions.
   │ │ ├─ rename-toast.tsx # RenameToast component displays confirmation feedback for applied renames. Simplified design matching ai/design/src/notification-examples.tsx
@@ -250,6 +251,7 @@ shared/ # 18 directories
   │ │ ├─ toast-overlay.tsx # ToastOverlay renders both confirm and rename toasts in a fixed overlay.
   │ │ ├─ toast-state-manager.ts # State management for confirm and rename toasts.
   │ │ └─ toast-theme-manager.ts # Theme management for toast UI elements.
+  │ ├─ badge-manager.ts # 4 exports
   │ ├─ confirm-toast-manager.test.tsx # Tests for toast manager lifecycle and interactions
   │ ├─ confirm-toast-manager.tsx # Toast manager rendered inside the content script via Shadow DOM.
   │ ├─ ConfirmToast.accessibility.test.tsx # Accessibility tests for confirm toast component
@@ -652,8 +654,6 @@ Handles read...
 - `export buildSessionCreationFailureResponse` - Build unavailability response when session creation fails...
 - `export checkMultimodalAvailability` - Check if multimodal Prompt API is available and ready
 Req...
-- `export HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD` - item implementation
-- `export HIGH_CONFIDENCE_DISPLAY_THRESHOLD` - item implementation
 
 ### offscreen/image-analysis/phase3-filename-generation.ts
 **Purpose**: Phase 3: Filename Generation (extracted from pipeline for reuse) Generates filename stem based on content description Can be called independently by other pipelines (e.g., PDF) Note: This is a thin wrapper around buildProposalFromPhase3Inputs The stem generation is the only unique logic; proposal building is shared.
@@ -797,6 +797,7 @@ Renders pages ...
 - `export PdfUpgradeAnalysisUnavailable` - Response indicating PDF analysis is unavailable
 - `export RenderedPdfPage` - Metadata for a single rendered PDF page
 - `export PdfExtractionOutput` - item implementation
+- `export PdfUpgradeAnalysisKeepBaseline` - item implementation
 - `export PdfUpgradeAnalysisResponse` - item implementation
 
 ### offscreen/sandbox-bridge.ts
@@ -1053,6 +1054,20 @@ Renders pages ...
 - `export SensitiveReason` - Sensitive content detection heuristics for confirmation r...
 - `export detectSensitiveContent` - item implementation
 
+### shared/constants/confidence-thresholds.ts
+**Purpose**: Confidence thresholds for AI rename decisions shared across the codebase. The rename pipeline uses a three-tier scale: - `>= 0.8` ⟶ silent rename without showing a confirmation toast. - `>= 0.5` ⟶ confirmation toast with an auto-apply countdown. - `< 0.5`  ⟶ manual confirmation, no automatic actions. Keeping the thresholds and helpers here ensures every surface (toast routing, history entries, tests, etc.) speaks the same language. If we ever make them user-configurable we only need to touch this module.
+
+**Exports**:
+- `export AutoApplyBehavior` - item implementation
+- `export AutoApplyBehaviorOptions` - item implementation
+- `export AutoApplyBehaviorLevel` - item implementation
+- `export AUTO_APPLY_THRESHOLD` - Threshold for auto-apply with countdown
+- `export MODERATE_CONFIDENCE_SCORE` - Represents a moderate-confidence state (auto-apply disabl...
+- `export SILENT_RENAME_THRESHOLD` - Threshold for silent rename (no confirmation toast)
+- `export getAutoApplyBehavior` - Normalizes a confidence score into actionable behavior flags
+- `export isValidConfidenceScore` - Runtime guard for confidence scores
+- `export normalizeConfidenceScore` - Ensures the provided score lives inside the [0, 1] range ...
+
 ### shared/constants/file-constants.ts
 **Purpose**: Shared file-related constants used across the application
 
@@ -1261,17 +1276,19 @@ Consis...
 **Exports**:
 - `export AiAnalysisResult` - Analysis result with provider metadata
 - `export AiRouterConfig` - Router configuration for AI provider selection
+- `export BaseKeepBaselineResult` - Shared shape for keep-baseline responses across all upgra...
 - `export CloudProviderConfig` - Configuration for cloud AI provider
 - `export IAiProvider` - Unified AI provider interface
 
 Each provider (local or cl...
+- `export KeepBaselineAnalysisResult` - Result returned when AI decision pipelines intentionally ...
 - `export ProcessingPreferences` - Processing preferences per file type
 - `export ProviderMetadata` - Metadata about the provider used for a specific analysis
 - `export AiProviderType` - Provider type identifier
 - `export ProcessingMode` - Processing mode preference (per file type)
 
 ### shared/integrations/chrome-ai/adapter.ts
-**Purpose**: Shared adapter interface for Chrome built-in AI APIs. The chrome team currently exposes several surface-specific APIs (Prompt, Summarizer, Language Detector). This adapter keeps our background/offscreen logic decoupled from the actual runtime implementation so we can swap the mock below with real bindings once the APIs are ready.
+**Purpose**: 9 exports
 
 **Exports**:
 - `export BuiltInAiAdapter` - item implementation
@@ -1520,8 +1537,6 @@ Each provider (local or cl...
 **Purpose**: Centralized constants for image analysis integration and pipeline
 
 **Exports**:
-- `export HIGH_CONFIDENCE_AUTO_APPLY_THRESHOLD` - Confidence thresholds for image rename decision
-- `export HIGH_CONFIDENCE_DISPLAY_THRESHOLD` - Maximum description length before warning
 - `export IMAGE_ANALYSIS_FORMAT` - Target MIME type for all image analysis (PNG for safety a...
 - `export MAX_DESCRIPTION_LENGTH_CHARS` - Maximum description length before warning
 - `export MAX_IMAGE_EDGE_PX` - Maximum longest edge dimension in pixels for downscaled i...
@@ -1537,6 +1552,7 @@ Each provider (local or cl...
 **Exports**:
 - `export ImageIngestionResult` - item implementation
 - `export ImageUpgradeAnalysisError` - item implementation
+- `export ImageUpgradeAnalysisKeepBaseline` - Shared shape for keep-baseline responses across all upgra...
 - `export ImageUpgradeAnalysisRequest` - Optional PDF context passed through image analysis pipeline
 - `export ImageUpgradeAnalysisSkipped` - item implementation
 - `export ImageUpgradeAnalysisSuccess` - Optional PDF context for prioritizing document titles in ...
@@ -1658,11 +1674,12 @@ Each provider (local or cl...
 - `export normalizeTextBuffer` - item implementation
 
 ### shared/integrations/text-analysis/types.ts
-**Purpose**: 12 exports
+**Purpose**: 13 exports
 
 **Exports**:
 - `export CloudConsentRequestDetails` - item implementation
 - `export TextUpgradeAnalysisError` - item implementation
+- `export TextUpgradeAnalysisKeepBaseline` - Shared shape for keep-baseline responses across all upgra...
 - `export TextUpgradeAnalysisPermission` - item implementation
 - `export TextUpgradeAnalysisRequest` - item implementation
 - `export TextUpgradeAnalysisSkipped` - item implementation
@@ -1767,9 +1784,11 @@ Used for n...
 **Purpose**: Persistence helpers for onboarding progress shared across extension contexts.
 
 **Exports**:
-- `export OnboardingState` - Persistence helpers for onboarding progress shared across...
-- `export OnboardingStatus` - Persistence helpers for onboarding progress shared across...
+- `export OnboardingState` - item implementation
+- `export OnboardingStatus` - Two-step onboarding flow for Downloads access:
+1
 - `export getOnboardingState` - item implementation
+- `export markOnboardingAwaitingPersistent` - item implementation
 - `export markOnboardingCompleted` - item implementation
 - `export markOnboardingSkipped` - item implementation
 - `export resetOnboardingState` - item implementation
@@ -2027,6 +2046,15 @@ Represents different file c...
 
 **Exports**:
 - `export FilenameLabel` - FilenameLabel displays a before/after filename comparison...
+
+### shared/ui/badge-manager.ts
+**Purpose**: 4 exports
+
+**Exports**:
+- `export BadgeIntent` - item implementation
+- `export clearBadge` - item implementation
+- `export showBadge` - item implementation
+- `export showPersistentPermissionBadge` - item implementation
 
 ### shared/ui/confirm-toast-manager.test.tsx
 **Purpose**: Tests for toast manager lifecycle and interactions
