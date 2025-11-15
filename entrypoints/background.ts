@@ -38,7 +38,10 @@ import {
   executeKeep,
 } from './background/rename-orchestrator';
 import { ensureSettingsCache } from './background/settings-cache';
-import { createConfirmToastController } from './background/toast/confirmation-controller';
+import {
+  createConfirmToastController,
+  snapshotPendingToast,
+} from './background/toast/confirmation-controller';
 import { createTabActivationBroadcaster } from './background/toast/tab-activation-broadcaster';
 import { createCloudConsentManager } from './background/upgrade/cloud-consent-manager';
 import { createUpgradeCoordinator } from './background/upgrade/coordinator';
@@ -282,7 +285,7 @@ function initializeBackground(): void {
         }
         return false;
       })
-      .map((entry) => entry.proposal);
+      .map((entry) => snapshotPendingToast(entry).proposal);
 
     return { proposals };
   });

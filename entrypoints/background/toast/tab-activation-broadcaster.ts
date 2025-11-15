@@ -5,7 +5,10 @@ import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { sendShowConfirmToast } from '@/entrypoints/shared/messaging/core-messages';
 import { isUrlEligibleForContentScript } from '@/entrypoints/shared/utils/tab-eligibility';
-import type { ConfirmToastController } from './confirmation-controller';
+import {
+  type ConfirmToastController,
+  snapshotPendingToast,
+} from './confirmation-controller';
 
 export interface TabActivationBroadcaster {
   /**
@@ -62,16 +65,31 @@ export function createTabActivationBroadcaster(
 
         // Send all pending toasts to the newly active tab
         for (const entry of pendingToasts) {
-          // Recalculate remaining time for auto-apply countdown
-          // The proposal's autoApplyRemainingMs was set at creation time,
-          // but we need to update it based on actual elapsed time
-          const proposal = { ...entry.proposal };
-          if (proposal.autoApplyAt !== null && proposal.allowAutoApply) {
-            const remainingMs = Math.max(0, proposal.autoApplyAt - Date.now());
-            proposal.autoApplyRemainingMs = remainingMs;
+          const snapshot = snapshotPendingToast(entry);
+
+          if (
+            snapshot.isExpired &&
+            entry.proposal.allowAutoApply &&
+            entry.proposal.autoApplyAt !== null
+          ) {
+            const applied = await controller.triggerAutoApplyNow(
+              entry.proposal.toastId,
+            );
+            if (!applied) {
+              debugLogger.log(
+                '[ConfirmToast] Skipped expired toast on tab activation',
+                {
+                  toastId: entry.proposal.toastId,
+                },
+              );
+            }
+            continue;
           }
 
-          void sendShowConfirmToast({ proposal }, activeInfo.tabId)
+          void sendShowConfirmToast(
+            { proposal: snapshot.proposal },
+            activeInfo.tabId,
+          )
             .then(() => {
               // Track that this tab has received the toast
               if (entry.visibleOnTabs) {

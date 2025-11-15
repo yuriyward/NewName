@@ -1,0 +1,93 @@
+<svg
+  width="128"
+  height="128"
+  viewBox="0 0 128 128"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <!-- Subtle gradient background -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#0078FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#006FEE;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Inner shadow for file -->
+    <filter id="innerShadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1.5"/>
+      <feOffset dx="0" dy="1" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.08"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Soft drop shadow for n -->
+    <filter id="textShadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1"/>
+      <feOffset dx="0" dy="1" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.15"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Outer blue tile with gradient -->
+  <rect
+    x="0"
+    y="0"
+    width="128"
+    height="128"
+    rx="24"
+    fill="url(#bgGradient)"
+  />
+  
+  <!-- White file with corner and inner shadow -->
+  <path
+    d="
+      M28 18
+      H80
+      L108 46
+      V106
+      C108 112 104 116 98 116
+      H34
+      C28 112 24 108 24 102
+      V24
+      C24 18 28 18 28 18
+      Z
+    "
+    fill="#FFFFFF"
+    filter="url(#innerShadow)"
+  />
+  
+  <!-- Corner fold with subtle shadow -->
+  <path
+    d="M80 18 V42 C80 44 82 46 84 46 H108 L80 18"
+    fill="#F4F4F5"
+  />
+  
+  <!-- Subtle page lines to suggest text -->
+  <line x1="38" y1="58" x2="94" y2="58" stroke="#E4E4E7" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="38" y1="68" x2="84" y2="68" stroke="#E4E4E7" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="38" y1="78" x2="90" y2="78" stroke="#E4E4E7" stroke-width="2.5" stroke-linecap="round"/>
+  
+  <!-- Lowercase n with stylish modern font -->
+  <text
+    x="50%"
+    y="50%"
+    dominant-baseline="central"
+    text-anchor="middle"
+    font-family="'Helvetica Neue', 'Arial', sans-serif"
+    font-size="72"
+    font-weight="500"
+    letter-spacing="-0.03em"
+    fill="#006FEE"
+    filter="url(#textShadow)"
+  >
+    n
+  </text>
+</svg>

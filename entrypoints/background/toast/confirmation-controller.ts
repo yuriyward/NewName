@@ -33,6 +33,49 @@ export interface ConfirmToastEntry {
   autoApplyRemainingMs: number | null;
 }
 
+export interface PendingToastSnapshot {
+  proposal: ConfirmToastProposal;
+  remainingAutoApplyMs: number | null;
+  isExpired: boolean;
+}
+
+/**
+ * Create a structured-clone-safe snapshot of a pending toast proposal.
+ * Updates the derived countdown metadata so content scripts always receive
+ * the latest remaining time, even if the toast sat in a queue for a while.
+ */
+export function snapshotPendingToast(
+  entry: ConfirmToastEntry,
+  now = Date.now(),
+): PendingToastSnapshot {
+  const proposal: ConfirmToastProposal = { ...entry.proposal };
+
+  let remainingAutoApplyMs: number | null = null;
+  let isExpired = false;
+
+  if (proposal.allowAutoApply && proposal.autoApplyAt !== null) {
+    remainingAutoApplyMs = Math.max(0, proposal.autoApplyAt - now);
+    isExpired = remainingAutoApplyMs <= 0;
+    proposal.autoApplyRemainingMs = remainingAutoApplyMs;
+    entry.proposal.autoApplyRemainingMs = remainingAutoApplyMs;
+  } else {
+    const source =
+      proposal.autoApplyRemainingMs ?? entry.autoApplyRemainingMs ?? null;
+    if (source !== null) {
+      remainingAutoApplyMs = Math.max(0, Math.round(source));
+      proposal.autoApplyRemainingMs = remainingAutoApplyMs;
+    } else {
+      proposal.autoApplyRemainingMs = null;
+    }
+  }
+
+  return {
+    proposal,
+    remainingAutoApplyMs,
+    isExpired,
+  };
+}
+
 export interface QueueConfirmToastOptions {
   historyId: string;
   downloadId?: string;
@@ -79,6 +122,7 @@ export interface ConfirmToastController {
   ): Promise<boolean>;
   getPendingByHistory(historyId: string): ConfirmToastEntry | undefined;
   getAllPending(): ConfirmToastEntry[];
+  triggerAutoApplyNow(toastId: string): Promise<boolean>;
   emitStatus(
     entry: ConfirmToastEntry,
     state: ConfirmToastStatusState,
@@ -197,9 +241,25 @@ export function createConfirmToastController(
     }
 
     activeToastId = nextToastId;
+    const snapshot = snapshotPendingToast(entry);
+
+    if (
+      entry.proposal.allowAutoApply &&
+      entry.proposal.autoApplyAt !== null &&
+      snapshot.isExpired
+    ) {
+      debugLogger.log(
+        '[ConfirmToast] Auto-applying queued toast that expired before display',
+        {
+          toastId: nextToastId,
+        },
+      );
+      void handleAutoApply(nextToastId);
+      return;
+    }
 
     try {
-      await scheduleShowToast(entry.target, { proposal: entry.proposal });
+      await scheduleShowToast(entry.target, { proposal: snapshot.proposal });
       debugLogger.log('[ConfirmToast] Queued toast now visible', {
         toastId: nextToastId,
         queueLength: queuedToasts.length,
@@ -336,8 +396,25 @@ export function createConfirmToastController(
 
       // Show immediately if no toast is active
       activeToastId = toastId;
+      const snapshot = snapshotPendingToast(entry);
+
+      if (
+        entry.proposal.allowAutoApply &&
+        entry.proposal.autoApplyAt !== null &&
+        snapshot.isExpired
+      ) {
+        debugLogger.log(
+          '[ConfirmToast] Auto-applying toast that expired before initial display',
+          {
+            toastId,
+          },
+        );
+        void handleAutoApply(toastId);
+        return entry;
+      }
+
       try {
-        await scheduleShowToast(target, { proposal });
+        await scheduleShowToast(target, { proposal: snapshot.proposal });
       } catch (error) {
         // Failed to show, try next queued toast
         debugLogger.warn('[ConfirmToast] Failed to show toast immediately', {
@@ -388,6 +465,20 @@ export function createConfirmToastController(
 
     getAllPending(): ConfirmToastEntry[] {
       return Array.from(entriesById.values());
+    },
+
+    async triggerAutoApplyNow(toastId: string): Promise<boolean> {
+      const entry = entriesById.get(toastId);
+      if (!entry) {
+        return false;
+      }
+      if (!entry.proposal.allowAutoApply) {
+        return false;
+      }
+
+      clearTimeoutFor(entry);
+      await handleAutoApply(toastId);
+      return true;
     },
 
     async setAutoApplyPaused(
