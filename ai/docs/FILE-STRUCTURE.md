@@ -440,8 +440,10 @@ content.ts # Content script for page context extraction and messaging
 - `export ConfirmToastControllerHelpers` - item implementation
 - `export ConfirmToastControllerHooks` - item implementation
 - `export ConfirmToastEntry` - item implementation
+- `export PendingToastSnapshot` - item implementation
 - `export QueueConfirmToastOptions` - item implementation
 - `export createConfirmToastController` - item implementation
+- `export snapshotPendingToast` - Create a structured-clone-safe snapshot of a pending toas...
 
 ### background/toast/status-broadcaster.ts
 **Purpose**: Status broadcasting utilities for confirm toast updates.
@@ -454,7 +456,7 @@ content.ts # Content script for page context extraction and messaging
 **Purpose**: Tab activation broadcaster for re-displaying pending toasts on newly active tabs.
 
 **Exports**:
-- `export TabActivationBroadcaster` - Tab activation broadcaster for re-displaying pending toas...
+- `export TabActivationBroadcaster` - item implementation
 - `export createTabActivationBroadcaster` - Create a tab activation broadcaster that re-displays pend...
 
 ### background/toast/target-resolver.ts
