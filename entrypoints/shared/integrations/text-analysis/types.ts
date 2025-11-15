@@ -1,5 +1,5 @@
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
-import type { KeepBaselineAnalysisResult } from '@/entrypoints/shared/integrations/ai-provider/types';
+import type { BaseKeepBaselineResult } from '@/entrypoints/shared/integrations/ai-provider/types';
 import type { InstantBaselineDecision } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type {
   FileType,
@@ -83,7 +83,7 @@ export interface TextUpgradeAnalysisSuccess {
 }
 
 export interface TextUpgradeAnalysisKeepBaseline
-  extends KeepBaselineAnalysisResult {
+  extends BaseKeepBaselineResult {
   modelSource: TextUpgradeModelSource;
   language?: string;
   languageConfidence?: number;

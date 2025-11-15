@@ -58,12 +58,9 @@ export interface AiAnalysisResult<T> {
 }
 
 /**
- * Result returned when AI decision pipelines intentionally keep the baseline filename.
- *
- * This is treated as a successful outcome (not an error) so router fallbacks
- * should not attempt to call alternate providers when this status is returned.
+ * Shared shape for keep-baseline responses across all upgrade domains.
  */
-export interface KeepBaselineAnalysisResult {
+export interface BaseKeepBaselineResult {
   status: 'keep-baseline';
   requestId: string;
   analyzedAt: number;
@@ -76,6 +73,14 @@ export interface KeepBaselineAnalysisResult {
   /** Baseline filename that was preserved */
   baselineFilename: string;
 }
+
+/**
+ * Result returned when AI decision pipelines intentionally keep the baseline filename.
+ *
+ * This is treated as a successful outcome (not an error) so router fallbacks
+ * should not attempt to call alternate providers when this status is returned.
+ */
+export interface KeepBaselineAnalysisResult extends BaseKeepBaselineResult {}
 
 /**
  * Unified AI provider interface
