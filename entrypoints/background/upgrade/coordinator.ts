@@ -8,8 +8,8 @@
  */
 
 import {
-  SILENT_RENAME_THRESHOLD,
   getAutoApplyBehavior,
+  SILENT_RENAME_THRESHOLD,
 } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
