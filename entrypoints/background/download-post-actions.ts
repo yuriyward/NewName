@@ -9,7 +9,10 @@ import type {
   MediaAnalysisRequest,
   MediaAnalysisResponse,
 } from '@/entrypoints/shared/integrations/mediainfo/messages';
-import type { InstantBaselineEvaluation } from '@/entrypoints/shared/pipeline/instant-baseline-types';
+import type {
+  InstantBaselineEvaluation,
+  InstantBaselineStrategy,
+} from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
 import { randomId } from '@/entrypoints/shared/utils/id';
 import type { DownloadPlan } from './download-plan';
@@ -38,16 +41,11 @@ interface PostActionsOptions {
   };
 }
 
-function shouldScheduleUpgrade(
-  fileType: InstantBaselineEvaluation['fileType'],
-  renameCandidate: InstantBaselineEvaluation['rename'] | undefined,
-  plan: DownloadPlan,
-): boolean {
-  return (
-    fileType === 'pdf' &&
-    Boolean(renameCandidate) &&
-    plan.confirmRoute.kind !== 'toast'
-  );
+function shouldScheduleUpgrade(strategy: InstantBaselineStrategy): boolean {
+  // All strategies except 'keep-original' should receive contextual AI upgrades.
+  // This implements the two-phase pipeline: Phase 1 (Instant Baseline) → Phase 2 (Contextual Upgrade)
+  // Additional eligibility checks (disabled file types, perfect confidence, cooldown) are handled in eligibility.ts
+  return strategy !== 'keep-original';
 }
 
 export async function applyPostDownloadActions({
@@ -118,7 +116,14 @@ export async function applyPostDownloadActions({
     });
   }
 
-  if (shouldScheduleUpgrade(evaluation.fileType, renameCandidate, plan)) {
+  if (shouldScheduleUpgrade(evaluation.strategy)) {
+    debugLogger.log('[DownloadPostActions] Scheduling contextual upgrade', {
+      historyId: plan.historyId,
+      strategy: evaluation.strategy,
+      fileType: evaluation.fileType,
+      hasDownloadId: plan.rawDownloadId !== undefined,
+    });
+
     void scheduleUpgradeAnalysis({
       historyId: plan.historyId,
       downloadId: plan.rawDownloadId,

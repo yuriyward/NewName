@@ -187,7 +187,6 @@ export async function processDeterminingFilename(
         return;
       }
       suggestionIssued = true;
-      return;
     }
 
     const finalFilename = renameCandidate

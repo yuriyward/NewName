@@ -29,6 +29,20 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
     expect(evaluation.rename).toBeUndefined();
   });
 
+  it('defers rename to AI pipeline when strategy is ai-rename', () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'ai-rename',
+    } as const;
+
+    const { evaluation } = evaluateInstantBaseline(baseSignals, settings);
+
+    expect(evaluation.decision.outcome).toBe('keep');
+    expect(evaluation.decision.guardrail).toBe('strategy-unavailable');
+    expect(evaluation.decision.reasons).toContain('missing:strategy:ai-rename');
+    expect(evaluation.rename).toBeUndefined();
+  });
+
   it('appends date to original filename when strategy is original-with-date', () => {
     const settings = {
       ...DEFAULT_SETTINGS,

@@ -35,14 +35,13 @@ export function createUpgradeScheduler(
   async function scheduleMockAnalysis({
     historyId,
     downloadId,
-    fileType,
+    fileType: _fileType,
   }: ScheduleUpgradeAnalysisParams): Promise<void> {
-    if (fileType !== 'pdf') {
-      return;
-    }
     if (downloadId === undefined) {
-      debugLogger.warn(
-        '[UpgradeScheduler] Cannot schedule mock analysis without download id',
+      // No downloadId available yet - upgrade will be handled by handleDownloadChange
+      // when the download completes instead of being scheduled via alarm
+      debugLogger.log(
+        '[UpgradeScheduler] Skipping scheduled analysis (no download id), will use immediate path',
         { historyId },
       );
       return;

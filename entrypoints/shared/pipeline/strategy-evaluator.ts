@@ -43,6 +43,9 @@ export function evaluateStrategy(
       case 'keep-original':
         signals.missingInputs.push('strategy:keep-original');
         return { subject: inputs.originalBase, reasonTags, signals };
+      case 'ai-rename':
+        signals.missingInputs.push('strategy:ai-rename');
+        return { subject: inputs.originalBase, reasonTags, signals };
       case 'original-with-date': {
         if (!inputs.isoDate) {
           signals.inputsUsed.push('original');

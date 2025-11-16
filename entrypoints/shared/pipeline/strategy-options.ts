@@ -21,18 +21,23 @@ export const STRATEGY_OPTIONS: ReadonlyArray<StrategyOption> = [
     description: 'Never rename downloads.',
   },
   {
+    value: 'ai-rename',
+    title: 'AI rename',
+    description: 'Save first, then rename with AI.',
+  },
+  {
     value: 'original-with-date',
-    title: 'Original name + date',
+    title: 'Original name + date + AI',
     description: 'Add download date to filename.',
   },
   {
     value: 'page-title',
-    title: 'Page title only',
+    title: 'Page title + AI',
     description: 'Use the page title as filename.',
   },
   {
     value: 'page-title-with-date',
-    title: 'Page title + date',
+    title: 'Page title + date + AI',
     description: 'Combine page title with download date.',
   },
 ] as const;

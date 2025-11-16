@@ -99,6 +99,7 @@ function isInstantBaselineDecision(
   if (maybe.outcome !== 'rename' && maybe.outcome !== 'keep') return false;
   if (
     maybe.strategy !== 'keep-original' &&
+    maybe.strategy !== 'ai-rename' &&
     maybe.strategy !== 'original-with-date' &&
     maybe.strategy !== 'page-title' &&
     maybe.strategy !== 'page-title-with-date'

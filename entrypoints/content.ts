@@ -19,6 +19,7 @@ const MAX_IMMEDIATE_SEND_ATTEMPTS = 3;
 const MAX_TOTAL_SEND_ATTEMPTS = 6;
 const RETRY_BASE_DELAY_MS = 75;
 const QUEUED_RETRY_DELAY_MS = 1_000;
+const PAGE_CONTEXT_REFRESH_INTERVAL_MS = 2 * 60_000;
 
 type ContextUpdate =
   | {
@@ -43,6 +44,8 @@ interface PendingUpdate {
 
 let pendingUpdates: PendingUpdate[] = [];
 let pendingFlushTimer: ReturnType<typeof setTimeout> | undefined;
+let contextRefreshTimer: ReturnType<typeof setInterval> | undefined;
+let lastContextPublishTimestamp = 0;
 
 interface RuntimeContext {
   tabId?: number;
@@ -262,6 +265,18 @@ function publishPageContext(force = false): void {
     type: 'PAGE_CONTEXT',
     payload: snapshot,
   });
+
+  lastContextPublishTimestamp = Date.now();
+}
+
+function ensureContextRefreshTimer(): void {
+  if (contextRefreshTimer) return;
+  contextRefreshTimer = setInterval(() => {
+    const now = Date.now();
+    if (now - lastContextPublishTimestamp >= PAGE_CONTEXT_REFRESH_INTERVAL_MS) {
+      publishPageContext(true);
+    }
+  }, PAGE_CONTEXT_REFRESH_INTERVAL_MS);
 }
 
 function handleLinkInteraction(event: Event): void {
@@ -305,6 +320,7 @@ export default defineContentScript({
     });
     void syncPendingToasts();
     publishPageContext(true);
+    ensureContextRefreshTimer();
     observeTitle();
     window.addEventListener('click', handleLinkInteraction, true);
     window.addEventListener('auxclick', handleLinkInteraction, true);

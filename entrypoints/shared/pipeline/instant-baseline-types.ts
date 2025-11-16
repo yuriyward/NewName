@@ -5,6 +5,7 @@ import type { FileType } from '@/entrypoints/shared/settings/settings';
 
 export type InstantBaselineStrategy =
   | 'keep-original'
+  | 'ai-rename'
   | 'original-with-date'
   | 'page-title'
   | 'page-title-with-date';
@@ -14,6 +15,7 @@ export function isInstantBaselineStrategy(
 ): value is InstantBaselineStrategy {
   return (
     value === 'keep-original' ||
+    value === 'ai-rename' ||
     value === 'original-with-date' ||
     value === 'page-title' ||
     value === 'page-title-with-date'

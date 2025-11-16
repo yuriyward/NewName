@@ -16,6 +16,11 @@ export function shouldAnalyzeUpgrade(
   settings: Settings,
   now: number,
 ): boolean {
+  // When the user explicitly disables renaming, skip contextual upgrades.
+  if (settings.instantBaselineStrategy === 'keep-original') {
+    return false;
+  }
+
   // Check behavior setting
   if (settings.perType[historyItem.fileType]?.behavior === 'off') {
     return false;
