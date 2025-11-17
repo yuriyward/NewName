@@ -131,6 +131,24 @@ function buildGenerationPrompt(context: FilenameGenerationContext): string {
   const jsonSummary = JSON.stringify(summaryForPrompt || 'Not available');
   const jsonBaseline = JSON.stringify(context.currentBaseline);
 
+  const pageContextHints: string[] = [];
+  if (context.pageContext?.title) {
+    pageContextHints.push(`  • Page title: ${JSON.stringify(context.pageContext.title)}`);
+  }
+  if (context.pageContext?.heading) {
+    pageContextHints.push(`  • Page heading: ${JSON.stringify(context.pageContext.heading)}`);
+  }
+  if (context.pageContext?.url) {
+    pageContextHints.push(`  • Source URL: ${context.pageContext.url}`);
+  }
+
+  const sourceSpecificGuidance =
+    pageContextHints.length > 0
+      ? `- The source includes:\n${pageContextHints.join(
+          '\n',
+        )}\n- If these contain specific names or locations that the baseline omits, reuse them verbatim near the start of the stem.\n- Preserve numeric identifiers that appear in the source by appending them as short qualifiers when helpful.`
+      : '';
+
   // Add PDF-specific generation guidance if title was extracted
   const pdfGuidance =
     context.pdfContext?.shouldPrioritizeTitle &&
@@ -161,6 +179,7 @@ Generation guidance:
 - Focus on the most important subject (3-6 words ideal).
 - Prefer concrete nouns and descriptors over vague phrases.
 - Qualifiers are optional; include at most three short items if they add clarity.
+${sourceSpecificGuidance}
 
 Output schema:
 \`\`\`json

@@ -24,10 +24,24 @@ export function isInstantBaselineStrategy(
 
 export type InstantBaselineGuardrail =
   | 'strategy-applied'
+  | 'strategy-deferred'
   | 'strategy-unavailable'
   | 'evaluation-failed'
   | 'debug-evaluation-failed'
   | 'decision-creation-failed';
+
+export function isInstantBaselineGuardrail(
+  value: unknown,
+): value is InstantBaselineGuardrail {
+  return (
+    value === 'strategy-applied' ||
+    value === 'strategy-deferred' ||
+    value === 'strategy-unavailable' ||
+    value === 'evaluation-failed' ||
+    value === 'debug-evaluation-failed' ||
+    value === 'decision-creation-failed'
+  );
+}
 
 export interface InstantBaselineDecisionSignals {
   inputsUsed: string[];

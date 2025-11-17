@@ -179,7 +179,8 @@ export function createDecision(
       outcome: 'keep',
       strategy,
       confidence: 0,
-      guardrail: 'strategy-unavailable',
+      guardrail:
+        strategy === 'ai-rename' ? 'strategy-deferred' : 'strategy-unavailable',
       reasons: [
         `strategy:${strategy}`,
         ...signals.missingInputs.map((input) => `missing:${input}`),

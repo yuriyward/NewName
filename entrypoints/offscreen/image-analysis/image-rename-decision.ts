@@ -88,14 +88,34 @@ function buildDecisionPrompt(params: {
     contextLines.push(`- Source page: ${pageContextFormatted}`);
   }
 
+  const decisionRules = [
+    '1. Rename when the name is generic (e.g., "image", "photo", "download"), a meaningless hash/UUID, only a timestamp, severely formatted (ALL_CAPS_NO_SEPARATORS), or mismatched with the description.',
+    '2. Keep the current name when it is already descriptive, professional, and properly formatted. When in doubt, keep it.',
+  ];
+
+  const pageSpecificParts: string[] = [];
+  if (params.pageContext?.title) {
+    pageSpecificParts.push(`title ${JSON.stringify(params.pageContext.title)}`);
+  }
+  if (params.pageContext?.heading) {
+    pageSpecificParts.push(`heading ${JSON.stringify(params.pageContext.heading)}`);
+  }
+
+  if (pageSpecificParts.length > 0) {
+    decisionRules.push(
+      `3. The source page mentions ${pageSpecificParts.join(
+        ' and ',
+      )}. If those specific names are missing from the filename, treat it as incomplete and choose shouldRename: true.`,
+    );
+  }
+
   return `You are evaluating whether an image filename needs improvement. Use the description to judge how well the current name fits the content. Be conservative—rename only when the name is clearly poor.
 
 Context:
 ${contextLines.join('\n')}
 
 Decision rules:
-1. Rename when the name is generic (e.g., "image", "photo", "download"), a meaningless hash/UUID, only a timestamp, severely formatted (ALL_CAPS_NO_SEPARATORS), or mismatched with the description.
-2. Keep the current name when it is already descriptive, professional, and properly formatted. When in doubt, keep it.
+${decisionRules.join('\n')}
 
 Return JSON that matches this schema:
 \`\`\`json

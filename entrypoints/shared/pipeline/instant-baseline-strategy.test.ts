@@ -38,7 +38,7 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
     const { evaluation } = evaluateInstantBaseline(baseSignals, settings);
 
     expect(evaluation.decision.outcome).toBe('keep');
-    expect(evaluation.decision.guardrail).toBe('strategy-unavailable');
+    expect(evaluation.decision.guardrail).toBe('strategy-deferred');
     expect(evaluation.decision.reasons).toContain('missing:strategy:ai-rename');
     expect(evaluation.rename).toBeUndefined();
   });

@@ -9,6 +9,7 @@ import type {
 } from '@/entrypoints/shared/history/types';
 import type { MediaMetadataSummary } from '@/entrypoints/shared/integrations/mediainfo/media-summary';
 import type { InstantBaselineDecision } from '@/entrypoints/shared/pipeline/instant-baseline-types';
+import { isInstantBaselineGuardrail } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import { isFileType } from '@/entrypoints/shared/settings/settings';
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -113,10 +114,7 @@ function isInstantBaselineDecision(
   ) {
     return false;
   }
-  if (
-    maybe.guardrail !== 'strategy-applied' &&
-    maybe.guardrail !== 'strategy-unavailable'
-  ) {
+  if (!isInstantBaselineGuardrail(maybe.guardrail)) {
     return false;
   }
   if (!Array.isArray(maybe.reasons)) return false;

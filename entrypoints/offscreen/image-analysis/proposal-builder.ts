@@ -65,6 +65,7 @@ export function buildProposalFromAnalysis(
     sizeBytes: request.sizeBytes,
     fileType: request.fileType,
     baseline: request.baseline,
+    pageContext: request.pageContext,
     settings: {
       languagePreference: 'auto',
       mode: request.settings.mode,
@@ -243,6 +244,7 @@ export function buildProposalFromPhase3Inputs(
     sizeBytes: request.sizeBytes,
     fileType: request.fileType,
     baseline: request.baseline,
+    pageContext: request.pageContext,
     settings: {
       languagePreference: 'auto',
       mode: request.settings.mode,

@@ -9,6 +9,7 @@ import {
 } from '@/entrypoints/shared/naming/policy-engine';
 import { detectOriginalDelimiter } from '@/entrypoints/shared/pipeline/path-utils';
 import { extractExtension } from '@/entrypoints/shared/utils/filename';
+import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 
 /**
  * Extract filename stem (without extension) from baseline filename
@@ -26,6 +27,69 @@ export interface FilenameContext {
   ingestion: TextUpgradeIngestionResult;
   subject: string;
   language?: string;
+}
+
+const MIN_CONTEXTUAL_ID_LENGTH = 5;
+
+const UNDERSCORE_DIMENSION_REGEX = /_(\d{3,5})_(\d{3,5})(?=\D|$)/g;
+const X_DIMENSION_REGEX = /(\d{3,5})[xX](\d{3,5})(?=\D|$)/g;
+
+function extractContextualNumericTokens(
+  baselineStem: string,
+  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>,
+  url?: string | null,
+): string[] {
+  const candidates = baselineStem
+    .split(/[^0-9]+/)
+    .map((token) => token.trim())
+    .filter((token) => /^\d+$/.test(token) && token.length >= MIN_CONTEXTUAL_ID_LENGTH);
+
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  const contextPool = [
+    pageContext?.title,
+    pageContext?.heading,
+    pageContext?.url,
+    url ?? undefined,
+  ]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .map((value) => value.toLowerCase());
+
+  if (contextPool.length === 0) {
+    return [];
+  }
+
+  const preserved: string[] = [];
+  const seen = new Set<string>();
+
+  for (const token of candidates) {
+    if (seen.has(token)) continue;
+    const tokenLower = token.toLowerCase();
+    const matchesContext = contextPool.some((ctx) => ctx.includes(tokenLower));
+    if (matchesContext) {
+      preserved.push(token);
+      seen.add(token);
+    }
+  }
+
+  return preserved;
+}
+
+function extractDimensionQualifiers(baselineStem: string): string[] {
+  const qualifiers = new Set<string>();
+
+  let match: RegExpExecArray | null;
+  while ((match = UNDERSCORE_DIMENSION_REGEX.exec(baselineStem)) !== null) {
+    qualifiers.add(`${match[1]}x${match[2]}`);
+  }
+
+  while ((match = X_DIMENSION_REGEX.exec(baselineStem)) !== null) {
+    qualifiers.add(`${match[1]}x${match[2]}`);
+  }
+
+  return Array.from(qualifiers);
 }
 
 export function buildFilename({
@@ -73,6 +137,18 @@ export function buildFilename({
         : language.toLowerCase();
     qualifiers.push(formattedLanguage);
   }
+
+  const contextualNumericTokens = extractContextualNumericTokens(
+    baselineStem,
+    request.pageContext,
+    request.url,
+  );
+  if (request.fileType !== 'image') {
+    qualifiers.push(...contextualNumericTokens);
+  }
+
+  const dimensionQualifiers = extractDimensionQualifiers(baselineStem);
+  qualifiers.push(...dimensionQualifiers);
 
   const result = applyFilenamePolicy({
     subject,

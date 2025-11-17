@@ -1,6 +1,6 @@
 /**
  * Image description generation using Prompt API
- * Generates concise 1-2 sentence descriptions of image content
+ * Generates concise multi-sentence descriptions of image content
  */
 
 import { SILENT_RENAME_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
@@ -18,11 +18,11 @@ export interface ImageDescription {
 }
 
 const DESCRIPTION_SYSTEM_PROMPT = `You are a precise image analyst. Your task is to generate a clear,
-concise description of image content in 1-2 sentences. Focus on what the image shows, not metadata.
+concise description of image content in up to three sentences. Focus on what the image shows, not metadata.
 
 Guidelines:
 - Be specific: describe objects, scenes, text, or activity
-- Keep it brief: aim for under 120 characters
+- Keep it tight but expressive: aim for under 3 sentences total
 - No metadata: avoid file info, dimensions, format
 - Natural language: write as you'd describe it to someone
 - Reply with only the description text, no formatting`;
@@ -77,8 +77,8 @@ export async function describeImage(
     }
 
     // Build multimodal prompt with image and text instruction
-    let promptText = `Analyze this image and provide a 1-2 sentence description.
-Keep it under 120 characters and focus on what the image shows.`;
+    let promptText = `Analyze this image and provide a detailed description in up to three sentences.
+Focus on the visual content and key details; avoid metadata or technical comments.`;
 
     // Add page context if available
     promptText += formatPageContextForPrompt(pageContext, {
