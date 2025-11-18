@@ -142,7 +142,7 @@ Sample copy:
 
 **Details drawer**
 
-* Mini preview: first-page title / detected issuer / excerpt (if text path)
+* Mini preview: first-page heading / detected issuer / excerpt (if text path)
 * Why this name (one-liner), processing source badge: **On-device** / **Cloud assist**
 
 ### 5.3 Confirm Modal

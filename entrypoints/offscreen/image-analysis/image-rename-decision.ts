@@ -7,7 +7,7 @@ import { normalizeConfidenceScore } from '@/entrypoints/shared/constants/confide
 import { formatPageContextInline } from '@/entrypoints/shared/context/page-context-formatter';
 import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
-import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 import {
   createPromptSession,
   destroyPromptSession,
@@ -71,7 +71,7 @@ function buildDecisionPrompt(params: {
   currentFilename: string;
   description: string;
   fileType: FileType;
-  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>;
+  pageContext?: PageContextDetails;
 }): string {
   const filenameLiteral = JSON.stringify(params.currentFilename);
   const descriptionLiteral = JSON.stringify(params.description.trim());
@@ -149,6 +149,14 @@ Decide if an image filename needs improvement based on its description, current 
 
 PRIMARY RULE: When page context (title/heading) is provided, the filename MUST contain recognizable keywords from that context. A timestamp + random code is insufficient.
 
+Be CONSERVATIVE in your decisions:
+- Generic names should be flagged for rename
+- Meaningless hashes or UUID-style codes must be renamed
+- Timestamp-only names almost always need improvement
+- Poor formatting (ALL_CAPS_NO_SEPARATORS) is unacceptable
+- Already descriptive, professional names should be kept
+- When uncertain, prefer keeping the current filename
+
 Reasons to RENAME (shouldRename: true):
 1. **Missing page context keywords**: Page title/heading exists but filename lacks those terms
 2. Generic names: "image", "photo", "download", "pic", "screenshot", "image (1)"
@@ -159,7 +167,7 @@ Reasons to RENAME (shouldRename: true):
 
 Reasons to KEEP (shouldRename: false) - ONLY when:
 1. Filename already contains page title/heading keywords (if page context was provided)
-2. Well-formatted, descriptive, and professional
+2. Already descriptive and professional
 3. Accurately reflects image content
 4. Good balance of clarity and specificity
 
@@ -186,7 +194,7 @@ export async function decideIfImageNeedsRename(params: {
   currentFilename: string;
   description: string;
   fileType: FileType;
-  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>;
+  pageContext?: PageContextDetails;
 }): Promise<RenameDecision | null> {
   let session = null;
 

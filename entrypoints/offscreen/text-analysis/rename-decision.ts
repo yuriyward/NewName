@@ -7,7 +7,7 @@
 
 import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
-import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 import {
   buildBaseContextDescription,
   createPromptSession,
@@ -48,7 +48,7 @@ export interface RenameDecisionContext {
   language?: string;
   originalName: string;
   fileType: FileType;
-  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>;
+  pageContext?: PageContextDetails;
 }
 
 /**

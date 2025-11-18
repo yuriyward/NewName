@@ -6,7 +6,7 @@
 import { SILENT_RENAME_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
 import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
-import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 import {
   createPromptSession,
   destroyPromptSession,
@@ -39,7 +39,7 @@ Guidelines:
  */
 export async function describeImage(
   imageBlob: Blob,
-  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>,
+  pageContext?: PageContextDetails,
 ): Promise<ImageDescription | null> {
   let session = null;
 

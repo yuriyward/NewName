@@ -14,6 +14,7 @@
  * Regular expression pattern for datetime prefix: YYYY-MM-DD_HH-MM
  * Matches the start of a filename with this exact format
  */
+const DATETIME_PREFIX_LENGTH = 16; // YYYY-MM-DD_HH-MM
 const DATETIME_PREFIX_PATTERN = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}/;
 
 /**
@@ -83,8 +84,8 @@ export function removeDateTimePrefix(filename: string): {
     return { datetime: null, filename, separator: null };
   }
 
-  // Remove the datetime prefix (16 characters: "YYYY-MM-DD_HH-MM")
-  const remaining = filename.slice(datetime.length);
+  // Remove the datetime prefix (YYYY-MM-DD_HH-MM)
+  const remaining = filename.slice(DATETIME_PREFIX_LENGTH);
 
   // Detect the separator (first character after datetime)
   const separator = remaining.length > 0 ? remaining.charAt(0) : null;

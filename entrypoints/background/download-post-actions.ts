@@ -41,10 +41,9 @@ interface PostActionsOptions {
   };
 }
 
-function shouldScheduleUpgrade(strategy: InstantBaselineStrategy): boolean {
-  // All strategies except 'keep-original' should receive contextual AI upgrades.
-  // This implements the two-phase pipeline: Phase 1 (Instant Baseline) → Phase 2 (Contextual Upgrade)
-  // Additional eligibility checks (disabled file types, perfect confidence, cooldown) are handled in eligibility.ts
+function strategyNeedsUpgrade(strategy: InstantBaselineStrategy): boolean {
+  // Only the keep-original strategy opts out of contextual upgrades; the upgrade
+  // coordinator runs deeper eligibility checks once it loads the history item.
   return strategy !== 'keep-original';
 }
 
@@ -116,7 +115,7 @@ export async function applyPostDownloadActions({
     });
   }
 
-  if (shouldScheduleUpgrade(evaluation.strategy)) {
+  if (strategyNeedsUpgrade(evaluation.strategy)) {
     debugLogger.log('[DownloadPostActions] Scheduling contextual upgrade', {
       historyId: plan.historyId,
       strategy: evaluation.strategy,

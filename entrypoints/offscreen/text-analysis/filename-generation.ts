@@ -7,7 +7,7 @@
 import { SILENT_RENAME_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
 import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { Separator } from '@/entrypoints/shared/settings/settings';
-import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 import {
   buildBaseContextDescription,
   createPromptSession,
@@ -47,7 +47,7 @@ export interface FilenameGenerationContext {
     shouldPrioritizeTitle: boolean;
   };
   // Page context captured at download time (title, heading, URL)
-  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>;
+  pageContext?: PageContextDetails;
 }
 
 /**

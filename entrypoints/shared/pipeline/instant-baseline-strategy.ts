@@ -23,11 +23,17 @@ import {
   evaluateStrategy,
 } from './strategy-evaluator';
 
-function parseIsoDate(startTime?: string): string | null {
+function parseIsoTimestamp(startTime?: string): Date | null {
   if (!startTime) return null;
   const timestamp = Date.parse(startTime);
   if (!Number.isFinite(timestamp)) return null;
-  const iso = new Date(timestamp).toISOString();
+  return new Date(timestamp);
+}
+
+function parseIsoDate(startTime?: string): string | null {
+  const date = parseIsoTimestamp(startTime);
+  if (!date) return null;
+  const iso = date.toISOString();
   // Defensive: ensure the derived ISO string produces a calendar date portion
   return iso.length >= 10 ? iso.slice(0, 10) : null;
 }
@@ -37,10 +43,8 @@ function parseIsoDate(startTime?: string): string | null {
  * Example: "2025-11-18T14:30:45.123Z" → "2025-11-18_14-30"
  */
 export function parseIsoDateTime(startTime?: string): string | null {
-  if (!startTime) return null;
-  const timestamp = Date.parse(startTime);
-  if (!Number.isFinite(timestamp)) return null;
-  const date = new Date(timestamp);
+  const date = parseIsoTimestamp(startTime);
+  if (!date) return null;
   const iso = date.toISOString();
 
   // Ensure we have enough characters for date and time

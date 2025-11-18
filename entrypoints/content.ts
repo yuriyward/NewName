@@ -314,7 +314,7 @@ function observeTitle(): void {
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
-  main() {
+  main(ctx) {
     void ensureRuntimeContext().catch(() => {
       // Resolution will be retried by individual updates on demand.
     });
@@ -325,5 +325,12 @@ export default defineContentScript({
     window.addEventListener('click', handleLinkInteraction, true);
     window.addEventListener('auxclick', handleLinkInteraction, true);
     window.addEventListener('contextmenu', handleLinkInteraction, true);
+
+    ctx.onInvalidated(() => {
+      if (contextRefreshTimer) {
+        clearInterval(contextRefreshTimer);
+        contextRefreshTimer = undefined;
+      }
+    });
   },
 });

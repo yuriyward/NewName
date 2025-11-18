@@ -3,7 +3,7 @@
  * Provides consistent formatting of page context (title, heading, URL) across all AI providers
  */
 
-import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 
 /**
  * Format page context for inline display (single line with separators)
@@ -14,7 +14,7 @@ import type { PageContext } from '@/entrypoints/shared/state/page-context-store'
  * @returns Formatted string or empty string if no context
  */
 export function formatPageContextInline(
-  pageContext: Pick<PageContext, 'title' | 'heading' | 'url'> | undefined,
+  pageContext: PageContextDetails | undefined,
   separator = ' - ',
 ): string {
   if (!pageContext) {
@@ -42,7 +42,7 @@ export function formatPageContextInline(
  * @returns Formatted string or empty string if no context
  */
 export function formatPageContextMultiline(
-  pageContext: Pick<PageContext, 'title' | 'heading' | 'url'> | undefined,
+  pageContext: PageContextDetails | undefined,
 ): string {
   if (!pageContext) {
     return '';
@@ -65,7 +65,7 @@ export function formatPageContextMultiline(
  * @returns Formatted prompt snippet with prefix, or empty string if no context
  */
 export function formatPageContextForPrompt(
-  pageContext: Pick<PageContext, 'title' | 'heading' | 'url'> | undefined,
+  pageContext: PageContextDetails | undefined,
   options: {
     /**
      * Prefix to prepend before the context (can include newlines)
@@ -107,5 +107,5 @@ export function formatPageContextForPrompt(
   const needsSpace = !prefix.endsWith(':') && !prefix.endsWith(' ');
   return multiline
     ? `${prefix}\n${formatted}`
-    : `${prefix}${needsSpace ? ' ' : ' '}${formatted}`;
+    : `${prefix}${needsSpace ? ' ' : ''}${formatted}`;
 }

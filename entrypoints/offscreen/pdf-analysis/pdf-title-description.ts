@@ -6,7 +6,7 @@
 
 import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
 import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
-import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 import {
   createPromptSession,
   destroyPromptSession,
@@ -91,7 +91,7 @@ function normalizeTitle(value: unknown): string | null {
 async function analyzePdfPage(
   pageBlob: Blob,
   pageNumber: number,
-  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>,
+  pageContext?: PageContextDetails,
 ): Promise<PdfPageAnalysis | null> {
   let session: Awaited<ReturnType<typeof createPromptSession>> = null;
 
@@ -211,7 +211,7 @@ async function analyzePdfPage(
  */
 export async function extractPdfTitlesAndDescriptions(
   pageBlobs: Blob[],
-  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>,
+  pageContext?: PageContextDetails,
 ): Promise<PdfTitleDescriptionContext | null> {
   if (pageBlobs.length === 0) {
     offscreenLogger.warn(

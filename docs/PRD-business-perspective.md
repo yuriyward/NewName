@@ -6,7 +6,7 @@
 
 ## 1) Summary
 
-NewName automatically gives new files short, human-like names. The Instant Baseline stage now applies **deterministic strategies** (keep original, append date, reuse page title) selected by the user, with automatic fallbacks to the original name when inputs are missing. Anything more ambitious is deferred to the Contextual Upgrade stage, which the user can opt into via “Upgrade”. Processing is **local-first** using Chrome’s **built-in AI** (Prompt, Summarizer, Language Detector). An **explicit, opt-in cloud fallback** (Firebase AI Logic → Gemini) is available. Users can **Undo** and **Upgrade** post-save thanks to one-time **Downloads folder** access via File System Access.
+NewName automatically gives new files short, human-like names. The Instant Baseline stage now applies **deterministic strategies** (keep original, append date/time) selected by the user, with automatic fallbacks to the original name when inputs are missing. Anything more ambitious is deferred to the Contextual Upgrade stage, which the user can opt into via “Upgrade”. Processing is **local-first** using Chrome’s **built-in AI** (Prompt, Summarizer, Language Detector). An **explicit, opt-in cloud fallback** (Firebase AI Logic → Gemini) is available. Users can **Undo** and **Upgrade** post-save thanks to one-time **Downloads folder** access via File System Access.
 
 ## 2) Problem & Opportunity
 

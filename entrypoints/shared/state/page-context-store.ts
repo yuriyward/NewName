@@ -10,6 +10,8 @@ export interface PageContext {
   url?: string;
 }
 
+export type PageContextDetails = Pick<PageContext, 'title' | 'heading' | 'url'>;
+
 const CONTEXT_CACHE = new Map<number, PageContext>();
 const URL_CONTEXT_CACHE = new Map<string, PageContext>();
 const MAX_CONTEXT_AGE_MS = 5 * 60 * 1000; // 5 minutes

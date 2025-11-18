@@ -12,7 +12,7 @@ import {
   extractDateTimePrefix,
 } from '@/entrypoints/shared/pipeline/datetime-prefix';
 import { detectOriginalDelimiter } from '@/entrypoints/shared/pipeline/path-utils';
-import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 import { extractExtension } from '@/entrypoints/shared/utils/filename';
 
 /**
@@ -40,7 +40,7 @@ const X_DIMENSION_REGEX = /(\d{3,5})[xX](\d{3,5})(?=\D|$)/g;
 
 function extractContextualNumericTokens(
   baselineStem: string,
-  pageContext?: Pick<PageContext, 'title' | 'heading' | 'url'>,
+  pageContext?: PageContextDetails,
   url?: string | null,
 ): string[] {
   const candidates = baselineStem
