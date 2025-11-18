@@ -111,13 +111,15 @@ function buildDecisionPrompt(params: {
     );
   }
 
-  return `You are evaluating whether an image filename needs improvement. Use the description to judge how well the current name fits the content. Be conservative—rename only when the name is clearly poor.
+  return `You are evaluating whether an image filename needs improvement based on the content description and page context.
 
 Context:
 ${contextLines.join('\n')}
 
-Decision rules:
+Decision rules (IN ORDER OF PRIORITY):
 ${decisionRules.join('\n')}
+
+CRITICAL: Rule #3 overrides all other considerations. A timestamp + generic code (like "2025-11-18_14-22 s-l1600") is NOT sufficient when meaningful page context exists. The filename MUST contain recognizable keywords from the source page title or heading.
 
 Return JSON that matches this schema:
 \`\`\`json
@@ -130,35 +132,47 @@ Return JSON that matches this schema:
 \`\`\`
 
 Examples:
-1. Good filename:
-{"shouldRename": false, "confidence": 0.82, "reason": "already-descriptive", "explanation": "File name already mentions the sunset beach scene."}
-2. Needs rename:
-{"shouldRename": true, "confidence": 0.9, "reason": "generic-name", "explanation": "Current name is generic and does not describe the infographic."}
+1. Good filename (has page keywords):
+{"shouldRename": false, "confidence": 0.82, "reason": "already-descriptive", "explanation": "Filename contains 'sunset beach' matching the page title."}
+
+2. Needs rename (missing page context):
+{"shouldRename": true, "confidence": 0.9, "reason": "generic-name", "explanation": "Filename is timestamp+code but missing 'Silent Angel Switch' from page title."}
+
+3. Needs rename (timestamp only):
+{"shouldRename": true, "confidence": 0.85, "reason": "timestamp-only", "explanation": "Filename lacks any keywords from page title 'Network Switch Product'."}
 
 Respond with JSON only—no markdown, no explanations outside the JSON object.`;
 }
 
 const RENAME_DECISION_SYSTEM_PROMPT = `You are a filename quality analyzer for images.
-Decide if an image filename needs improvement based on its description and current name.
+Decide if an image filename needs improvement based on its description, current name, and page context.
 
-Be CONSERVATIVE in your decisions. Only rename if the current name is truly poor.
+PRIMARY RULE: When page context (title/heading) is provided, the filename MUST contain recognizable keywords from that context. A timestamp + random code is insufficient.
 
 Reasons to RENAME (shouldRename: true):
-1. Generic names: "image", "photo", "download", "pic", "screenshot", "image (1)"
-2. Meaningless hashes or UUIDs: "IMG_1234", "DSC_5678", "DCIM123", random hex strings
-3. Timestamp-only names: "2024-01-15", "20240115_1430", dates without context
-4. Poor formatting: ALL_CAPS only, no separators, hard to read
-5. Name completely mismatches content: screenshot about "coding" named "vacation"
+1. **Missing page context keywords**: Page title/heading exists but filename lacks those terms
+2. Generic names: "image", "photo", "download", "pic", "screenshot", "image (1)"
+3. Meaningless hashes or UUIDs: "IMG_1234", "DSC_5678", "DCIM123", random hex strings
+4. Timestamp-only names: "2024-01-15", "20240115_1430", dates without descriptive context
+5. Poor formatting: ALL_CAPS_NO_SEPARATORS, unreadable structure
+6. Mismatched content: filename doesn't reflect what's actually in the image
 
-Reasons to KEEP (shouldRename: false):
-1. Already descriptive and specific
-2. Well-formatted and professional
-3. Already contains relevant keywords about content
-4. Name accurately reflects content
-5. Good balance of clarity and brevity
+Reasons to KEEP (shouldRename: false) - ONLY when:
+1. Filename already contains page title/heading keywords (if page context was provided)
+2. Well-formatted, descriptive, and professional
+3. Accurately reflects image content
+4. Good balance of clarity and specificity
 
-IMPORTANT: If the current name is already good, return shouldRename: false.
-Users uploaded this file - trust their naming unless it's clearly poor.
+EVALUATION HIERARCHY:
+- First: Check if page context keywords are present in filename → if missing, MUST rename
+- Second: Evaluate if filename is descriptive of actual content
+- Third: Check formatting quality
+
+Real-world examples:
+- "2025-11-18_14-22 s-l1600.webp" with page "Silent Angel Switch" → shouldRename: true (missing product name)
+- "2025-11-18 Silent-Angel-Network-Switch.webp" with page "Silent Angel Switch" → shouldRename: false (has keywords)
+- "IMG_1234.jpg" → shouldRename: true (meaningless code)
+- "sunset-over-ocean.jpg" → shouldRename: false (descriptive)
 
 Respond with JSON only: {"shouldRename": boolean, "confidence": 0.0-1.0, "reason": "...", "explanation": "..."}`;
 

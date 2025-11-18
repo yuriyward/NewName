@@ -9,6 +9,7 @@ export interface SuggestController<SuggestPayload> {
   trySuggest(payload?: SuggestPayload): boolean;
   ensureDefault(): void;
   finish(): void;
+  isResolved(): boolean;
 }
 
 export function createSuggestController<SuggestPayload>(
@@ -66,6 +67,9 @@ export function createSuggestController<SuggestPayload>(
       if (resolved) return;
       resolved = true;
       clearTimer();
+    },
+    isResolved() {
+      return resolved;
     },
   } as SuggestController<SuggestPayload>;
 }
