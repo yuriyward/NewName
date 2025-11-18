@@ -9,7 +9,7 @@
 
 ## 0) Goals (engineering)
 
-* Instant Baseline rename via `downloads.onDeterminingFilename` using **deterministic user-selected strategies** (keep original, append date, or combine with page title); never infer semantic content at this stage.
+* Instant Baseline rename via `downloads.onDeterminingFilename` using **deterministic user-selected strategies** (keep original or append date); never infer semantic content at this stage.
 * Carry Instant Baseline confidence + "why kept" metadata forward so the Contextual Upgrade stage knows which items need deeper inspection.
 * Contextual Upgrade background **“upgrade”** using **text-first** PDF strategy; image/scan fallback; media keyframes.
 * **Local-first** AI with explicit **cloud fallback**.
@@ -106,7 +106,7 @@ async function ensureOffscreen() {
 type Mode = 'balanced'|'silent'|'careful'|'custom';
 type Sep = 'clean'|'kebab'|'snake';
 type FileType = 'pdf'|'image'|'audio'|'video'|'archive'|'data';
-type Phase1Strategy = 'keep-original'|'original-with-date'|'page-title'|'page-title-with-date';
+type Phase1Strategy = 'keep-original'|'original-with-date';
 
 interface Settings {
   version: 2;
@@ -180,8 +180,6 @@ The service worker resolves the configured strategy and produces a safe filename
 
 * `keep-original`: leave the download untouched; the Instant Baseline stage emits a `keep` decision with guardrail `strategy-unavailable`.
 * `original-with-date`: sanitize the original basename and append the ISO date from `startTime`. If a date is missing, fall back to the original filename.
-* `page-title`: sanitize the page title. If no title is available, fall back to the original filename.
-* `page-title-with-date`: combine the sanitized page title with the ISO date. Missing inputs degrade to the best available deterministic data (title only, or original name).
 
 All variants share the same post-processing: apply separator preference, enforce safe characters, and cap length via `maxLen`.
 
@@ -344,8 +342,7 @@ All variants share the same post-processing: apply separator preference, enforce
 ### 12.1 Unit
 
 * Filename policy sanitization & length trimming.
-* Strategy outputs (original/date/title combinations) across locales and separators.
-* Filename policy sanitization for page-title derived names.
+* Strategy outputs (original/date combinations) across locales and separators.
 
 ### 12.2 Integration
 

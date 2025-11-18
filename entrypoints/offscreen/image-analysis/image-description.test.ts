@@ -333,8 +333,7 @@ describe('image-description', () => {
 
       const sessionCall = mockCreatePromptSession.mock.calls[0][0];
       expect(sessionCall.systemPrompt).toContain('precise image analyst');
-      expect(sessionCall.systemPrompt).toContain('1-2 sentences');
-      expect(sessionCall.systemPrompt).toContain('120 characters');
+      expect(sessionCall.systemPrompt).toContain('up to three sentences');
       expect(sessionCall.systemPrompt).toContain('No metadata');
     });
   });

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { TextUpgradeAnalysisRequest, TextUpgradeIngestionResult } from '@/entrypoints/shared/integrations/text-analysis/types';
+import type {
+  TextUpgradeAnalysisRequest,
+  TextUpgradeIngestionResult,
+} from '@/entrypoints/shared/integrations/text-analysis/types';
 import type { FileType } from '@/entrypoints/shared/settings/types';
 import { buildFilename } from './filename-builder';
 

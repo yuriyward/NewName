@@ -172,38 +172,6 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
 
     expect(evaluation.rename?.filename).toBe('report-2025-04-01.txt');
   });
-
-  it('uses page title when strategy is page-title-with-date', () => {
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      instantBaselineStrategy: 'page-title-with-date',
-    } as const;
-
-    const { evaluation } = evaluateInstantBaseline(baseSignals, settings);
-
-    expect(evaluation.decision.outcome).toBe('rename');
-    expect(evaluation.rename?.filename).toBe(
-      'Example Corp Quarterly Report 2025-04-01.pdf',
-    );
-    expect(evaluation.reasonTags).toEqual(['PageTitle', 'Date']);
-  });
-
-  it('gracefully falls back when page title missing', () => {
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      instantBaselineStrategy: 'page-title',
-    } as const;
-    const signals = {
-      ...baseSignals,
-      page: undefined,
-    };
-
-    const { evaluation } = evaluateInstantBaseline(signals, settings);
-
-    expect(evaluation.decision.outcome).toBe('keep');
-    expect(evaluation.decision.guardrail).toBe('strategy-unavailable');
-    expect(evaluation.rename).toBeUndefined();
-  });
 });
 
 describe('evaluateInstantBaseline (file-type awareness)', () => {
@@ -212,7 +180,7 @@ describe('evaluateInstantBaseline (file-type awareness)', () => {
   it('preserves multi-part archive extensions and classifies as archive', () => {
     const settings: Settings = {
       ...DEFAULT_SETTINGS,
-      instantBaselineStrategy: 'page-title-with-date',
+      instantBaselineStrategy: 'original-with-date',
     };
 
     const signals: InstantBaselineSignals = {
@@ -229,7 +197,7 @@ describe('evaluateInstantBaseline (file-type awareness)', () => {
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
     expect(evaluation.fileType).toBe('archive');
-    expect(evaluation.rename?.filename).toBe('Release Build 2025-05-04.tar.gz');
+    expect(evaluation.rename?.filename).toBe('bundle 2025-05-04.tar.gz');
   });
 
   it.each([

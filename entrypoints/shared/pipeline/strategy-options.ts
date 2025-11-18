@@ -30,16 +30,6 @@ export const STRATEGY_OPTIONS: ReadonlyArray<StrategyOption> = [
     title: 'Original name + date + AI',
     description: 'Add download date to filename.',
   },
-  {
-    value: 'page-title',
-    title: 'Page title + AI',
-    description: 'Use the page title as filename.',
-  },
-  {
-    value: 'page-title-with-date',
-    title: 'Page title + date + AI',
-    description: 'Combine page title with download date.',
-  },
 ] as const;
 
 /**

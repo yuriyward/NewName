@@ -12,10 +12,7 @@ import type {
   InstantBaselineStrategyInputs,
 } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
-import {
-  buildOriginalWithDateRename,
-  buildRenameProposal,
-} from './filename-composer';
+import { buildOriginalWithDateRename } from './filename-composer';
 import { stripExtension } from './path-utils';
 
 export function evaluateStrategy(
@@ -73,70 +70,6 @@ export function evaluateStrategy(
           subject:
             inputs.originalBase.length > 0 ? inputs.originalBase : 'file',
           reasonTags: ['Original', 'Date'],
-          signals,
-        };
-      }
-      case 'page-title': {
-        if (!inputs.pageTitle) {
-          signals.inputsUsed.push('original');
-          signals.missingInputs.push('title');
-          return {
-            subject: inputs.originalBase,
-            reasonTags,
-            signals,
-          };
-        }
-        const rename = buildRenameProposal(
-          inputs.pageTitle,
-          [],
-          extension,
-          directory,
-          originalPath,
-          fileType,
-          settings,
-          ['PageTitle'],
-        );
-        signals.inputsUsed.push('title');
-        return {
-          rename,
-          subject: inputs.pageTitle,
-          reasonTags: ['PageTitle'],
-          signals,
-        };
-      }
-      case 'page-title-with-date': {
-        if (!inputs.pageTitle) {
-          signals.inputsUsed.push('original');
-          signals.missingInputs.push('title');
-          return {
-            subject: inputs.originalBase,
-            reasonTags,
-            signals,
-          };
-        }
-        const qualifiers: string[] = [];
-        if (inputs.isoDate) {
-          qualifiers.push(inputs.isoDate);
-          signals.inputsUsed.push('date');
-        } else {
-          signals.missingInputs.push('date');
-        }
-        signals.inputsUsed.push('title');
-        const rename = buildRenameProposal(
-          inputs.pageTitle,
-          qualifiers,
-          extension,
-          directory,
-          originalPath,
-          fileType,
-          settings,
-          qualifiers.length > 0 ? ['PageTitle', 'Date'] : ['PageTitle'],
-        );
-        return {
-          rename,
-          subject: inputs.pageTitle,
-          reasonTags:
-            qualifiers.length > 0 ? ['PageTitle', 'Date'] : ['PageTitle'],
           signals,
         };
       }

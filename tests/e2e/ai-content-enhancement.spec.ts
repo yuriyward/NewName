@@ -129,9 +129,9 @@ test.describe('Contextual Upgrade - AI Enhancement Pipeline (Future)', () => {
       await page.goto('/scenarios/design/figma-component.html');
 
       const instantBaselineDecision = {
-        strategy: 'page-title-with-date',
+        strategy: 'original-with-date',
         renameApplied: true,
-        reasonTags: ['page-title', 'date'],
+        reasonTags: ['original', 'date'],
       };
 
       expect(instantBaselineDecision.renameApplied).toBe(true);

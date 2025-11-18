@@ -8,8 +8,8 @@ import {
   type FilenamePolicyResult,
 } from '@/entrypoints/shared/naming/policy-engine';
 import { detectOriginalDelimiter } from '@/entrypoints/shared/pipeline/path-utils';
-import { extractExtension } from '@/entrypoints/shared/utils/filename';
 import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
+import { extractExtension } from '@/entrypoints/shared/utils/filename';
 
 /**
  * Extract filename stem (without extension) from baseline filename
@@ -42,7 +42,10 @@ function extractContextualNumericTokens(
   const candidates = baselineStem
     .split(/[^0-9]+/)
     .map((token) => token.trim())
-    .filter((token) => /^\d+$/.test(token) && token.length >= MIN_CONTEXTUAL_ID_LENGTH);
+    .filter(
+      (token) =>
+        /^\d+$/.test(token) && token.length >= MIN_CONTEXTUAL_ID_LENGTH,
+    );
 
   if (candidates.length === 0) {
     return [];
@@ -54,7 +57,9 @@ function extractContextualNumericTokens(
     pageContext?.url,
     url ?? undefined,
   ]
-    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .filter(
+      (value): value is string => typeof value === 'string' && value.length > 0,
+    )
     .map((value) => value.toLowerCase());
 
   if (contextPool.length === 0) {
@@ -80,13 +85,17 @@ function extractContextualNumericTokens(
 function extractDimensionQualifiers(baselineStem: string): string[] {
   const qualifiers = new Set<string>();
 
-  let match: RegExpExecArray | null;
-  while ((match = UNDERSCORE_DIMENSION_REGEX.exec(baselineStem)) !== null) {
+  let match: RegExpExecArray | null =
+    UNDERSCORE_DIMENSION_REGEX.exec(baselineStem);
+  while (match !== null) {
     qualifiers.add(`${match[1]}x${match[2]}`);
+    match = UNDERSCORE_DIMENSION_REGEX.exec(baselineStem);
   }
 
-  while ((match = X_DIMENSION_REGEX.exec(baselineStem)) !== null) {
+  match = X_DIMENSION_REGEX.exec(baselineStem);
+  while (match !== null) {
     qualifiers.add(`${match[1]}x${match[2]}`);
+    match = X_DIMENSION_REGEX.exec(baselineStem);
   }
 
   return Array.from(qualifiers);

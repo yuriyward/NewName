@@ -101,9 +101,7 @@ function isInstantBaselineDecision(
   if (
     maybe.strategy !== 'keep-original' &&
     maybe.strategy !== 'ai-rename' &&
-    maybe.strategy !== 'original-with-date' &&
-    maybe.strategy !== 'page-title' &&
-    maybe.strategy !== 'page-title-with-date'
+    maybe.strategy !== 'original-with-date'
   ) {
     return false;
   }

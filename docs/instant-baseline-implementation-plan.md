@@ -2,7 +2,7 @@
 
 ## Overview
 
-Originally authored for a heuristic-based guardrail rollout, this document is retained for historical context. Instant Baseline now relies exclusively on deterministic strategies (keep original, append date, reuse page title). The sections below describe the prior guardrail work and can be considered deprecated guidance.
+Originally authored for a heuristic-based guardrail rollout, this document is retained for historical context. Instant Baseline now relies exclusively on deterministic strategies (keep original, append date). The sections below describe the prior guardrail work and can be considered deprecated guidance.
 
 ## Key Gaps Identified
 

@@ -98,7 +98,9 @@ function buildDecisionPrompt(params: {
     pageSpecificParts.push(`title ${JSON.stringify(params.pageContext.title)}`);
   }
   if (params.pageContext?.heading) {
-    pageSpecificParts.push(`heading ${JSON.stringify(params.pageContext.heading)}`);
+    pageSpecificParts.push(
+      `heading ${JSON.stringify(params.pageContext.heading)}`,
+    );
   }
 
   if (pageSpecificParts.length > 0) {

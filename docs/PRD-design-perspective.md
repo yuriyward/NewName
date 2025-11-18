@@ -111,7 +111,7 @@ Sample copy:
 ### 4.4 Deterministic Auto-rename (All modes)
 
 * Trigger: download starts.
-* **Instant Baseline stage**: apply the configured deterministic strategy (keep original, original + download date, page title, or page title + date). Missing inputs automatically fall back to the original filename, and toasts reflect the outcome per mode.
+* **Instant Baseline stage**: apply the configured deterministic strategy (keep original or original + download date). Missing inputs automatically fall back to the original filename, and toasts reflect the outcome per mode.
 * **Contextual Upgrade stage** (offscreen): text-first for PDFs (Summarizer “headline”); image/scan fallback (MuPDF raster → Prompt image or OCR); keyframe+audio for media; Language Detector if Auto language.
 
 ---

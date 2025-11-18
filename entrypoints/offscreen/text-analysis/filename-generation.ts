@@ -133,10 +133,14 @@ function buildGenerationPrompt(context: FilenameGenerationContext): string {
 
   const pageContextHints: string[] = [];
   if (context.pageContext?.title) {
-    pageContextHints.push(`  • Page title: ${JSON.stringify(context.pageContext.title)}`);
+    pageContextHints.push(
+      `  • Page title: ${JSON.stringify(context.pageContext.title)}`,
+    );
   }
   if (context.pageContext?.heading) {
-    pageContextHints.push(`  • Page heading: ${JSON.stringify(context.pageContext.heading)}`);
+    pageContextHints.push(
+      `  • Page heading: ${JSON.stringify(context.pageContext.heading)}`,
+    );
   }
   if (context.pageContext?.url) {
     pageContextHints.push(`  • Source URL: ${context.pageContext.url}`);
