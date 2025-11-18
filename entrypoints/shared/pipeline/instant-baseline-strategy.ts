@@ -32,6 +32,29 @@ function parseIsoDate(startTime?: string): string | null {
   return iso.length >= 10 ? iso.slice(0, 10) : null;
 }
 
+/**
+ * Parse ISO timestamp to datetime prefix format: YYYY-MM-DD_HH-MM
+ * Example: "2025-11-18T14:30:45.123Z" → "2025-11-18_14-30"
+ */
+export function parseIsoDateTime(startTime?: string): string | null {
+  if (!startTime) return null;
+  const timestamp = Date.parse(startTime);
+  if (!Number.isFinite(timestamp)) return null;
+  const date = new Date(timestamp);
+  const iso = date.toISOString();
+
+  // Ensure we have enough characters for date and time
+  if (iso.length < 16) return null;
+
+  // Extract YYYY-MM-DD from positions 0-9
+  const datePart = iso.slice(0, 10);
+
+  // Extract HH-MM from positions 11-15 (HH:MM) and replace : with -
+  const timePart = iso.slice(11, 16).replace(':', '-');
+
+  return `${datePart}_${timePart}`;
+}
+
 function sanitizePageTitle(title?: string): string | null {
   if (!title) return null;
   const trimmed = title.trim();
@@ -51,6 +74,7 @@ function determineStrategyInputs(
       pageTitle:
         sanitizePageTitle(signals.page?.title ?? undefined) ?? undefined,
       isoDate: parseIsoDate(signals.startTime) ?? undefined,
+      isoDateTime: parseIsoDateTime(signals.startTime) ?? undefined,
     };
   } catch {
     // Fallback to safe defaults if input parsing fails
@@ -60,6 +84,7 @@ function determineStrategyInputs(
       originalDelimiter: ' ',
       pageTitle: undefined,
       isoDate: undefined,
+      isoDateTime: undefined,
     };
   }
 }

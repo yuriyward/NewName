@@ -27,8 +27,8 @@ export const STRATEGY_OPTIONS: ReadonlyArray<StrategyOption> = [
   },
   {
     value: 'original-with-date',
-    title: 'Original name + date + AI',
-    description: 'Add download date to filename.',
+    title: 'AI Rename + date',
+    description: 'Prefix with date & time, then rename with AI.',
   },
 ] as const;
 

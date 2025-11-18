@@ -6,170 +6,25 @@ import type { detectFileType } from '@/entrypoints/shared/classification/file-ty
 import { applyFilenamePolicy } from '@/entrypoints/shared/naming/policy-engine';
 import type { InstantBaselineRenameProposal } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
+import { applyDateTimePrefix } from './datetime-prefix';
 import { sanitizeLiteralSegment } from './path-utils';
 
-interface ComposeLiteralBaseParams {
-  base: string;
-  delimiter: string;
-  isoDate: string;
-  extension: string | null;
-  maxLength: number;
-}
-
-function composeOriginalWithDateBase(params: ComposeLiteralBaseParams): string {
-  const allowance = calculateAllowance(params.maxLength, params.extension);
-  if (allowance <= 0) {
-    return isoTail(params.isoDate, allowance);
-  }
-
-  const isoLength = params.isoDate.length;
-  if (isoLength >= allowance) {
-    return isoTail(params.isoDate, allowance);
-  }
-
-  const prepared = prepareBaseSegment({ ...params, allowance, isoLength });
-  if (!prepared.base) {
-    return isoTail(params.isoDate, allowance);
-  }
-
-  return finalizeBaseWithDate({
-    ...params,
-    allowance,
-    base: prepared.base,
-    joiner: prepared.joiner,
-    baseEndsWithDelimiter: prepared.baseEndsWithDelimiter,
-  });
-}
-
-interface PreparedBase {
-  base: string;
-  joiner: string;
-  baseEndsWithDelimiter: boolean;
-}
-
-interface PrepareBaseParams extends ComposeLiteralBaseParams {
-  allowance: number;
-  isoLength: number;
-}
-
-function prepareBaseSegment(params: PrepareBaseParams): PreparedBase {
-  const { base, delimiter, isoLength, allowance } = params;
-  let workingBase = base;
-  const baseEndsWithDelimiter =
-    delimiter.length > 0 && workingBase.endsWith(delimiter);
-
-  let joiner =
-    workingBase.length > 0 && !baseEndsWithDelimiter ? delimiter : '';
-
-  let maxBaseLength = allowance - isoLength - joiner.length;
-  if (maxBaseLength < 0) {
-    joiner = '';
-    maxBaseLength = allowance - isoLength;
-  }
-
-  if (maxBaseLength < 0) {
-    return { base: '', joiner: '', baseEndsWithDelimiter };
-  }
-
-  if (workingBase.length > maxBaseLength) {
-    workingBase = workingBase.slice(0, maxBaseLength);
-  }
-
-  if (baseEndsWithDelimiter) {
-    if (!workingBase.endsWith(delimiter)) {
-      if (maxBaseLength >= delimiter.length) {
-        const keep = Math.max(0, maxBaseLength - delimiter.length);
-        workingBase = `${workingBase.slice(0, keep)}${delimiter}`;
-      } else {
-        workingBase = '';
-      }
-    }
-    joiner = '';
-  } else if (joiner.length > 0 && workingBase.endsWith(delimiter)) {
-    joiner = '';
-  }
-
-  return { base: workingBase, joiner, baseEndsWithDelimiter };
-}
-
-interface FinalizeParams extends ComposeLiteralBaseParams {
-  allowance: number;
-  base: string;
-  joiner: string;
-  baseEndsWithDelimiter: boolean;
-}
-
-function finalizeBaseWithDate(params: FinalizeParams): string {
-  const { baseEndsWithDelimiter, allowance, base, delimiter, isoDate } = params;
-  let workingBase = base;
-  let joiner = params.joiner;
-
-  let candidate = `${workingBase}${joiner}${isoDate}`;
-  if (candidate.length <= allowance) {
-    return candidate;
-  }
-
-  const overflow = candidate.length - allowance;
-  if (overflow >= workingBase.length) {
-    return isoTail(isoDate, allowance);
-  }
-
-  workingBase = workingBase.slice(0, workingBase.length - overflow);
-
-  if (baseEndsWithDelimiter) {
-    if (!workingBase.endsWith(delimiter)) {
-      if (workingBase.length >= delimiter.length) {
-        workingBase = `${workingBase.slice(
-          0,
-          workingBase.length - delimiter.length,
-        )}${delimiter}`;
-      } else {
-        workingBase = '';
-      }
-    }
-    joiner = '';
-  } else if (
-    delimiter.length > 0 &&
-    workingBase.length > 0 &&
-    !workingBase.endsWith(delimiter)
-  ) {
-    joiner = delimiter;
-  } else {
-    joiner = '';
-  }
-
-  if (workingBase.length === 0) {
-    return isoTail(isoDate, allowance);
-  }
-
-  candidate = `${workingBase}${joiner}${isoDate}`;
-  if (candidate.length <= allowance) {
-    return candidate;
-  }
-
-  return candidate.slice(candidate.length - allowance);
-}
-
-function calculateAllowance(
-  maxLength: number,
-  extension: string | null,
-): number {
-  const extensionAllowance = extension ? extension.length + 1 : 0;
-  return maxLength - extensionAllowance;
-}
-
-function isoTail(isoDate: string, allowance: number): string {
-  if (allowance <= 0) return isoDate;
-  const isoLength = isoDate.length;
-  const start = Math.max(0, isoLength - allowance);
-  return isoDate.slice(start);
-}
-
+/**
+ * Build rename proposal with datetime prefix
+ *
+ * Format: YYYY-MM-DD_HH-MM{separator}{base}.{ext}
+ * Example: "2025-11-18_14-30-report.pdf"
+ *
+ * The separator is determined by:
+ * 1. User's explicit separator setting (from settings.separator)
+ * 2. Detected delimiter from original filename (fallback)
+ * 3. Space (default fallback)
+ */
 export function buildOriginalWithDateRename(
   rawBase: string,
   fallbackBase: string,
   delimiter: string,
-  isoDate: string,
+  isoDateTime: string,
   extension: string | null,
   directory: string,
   originalPath: string,
@@ -191,29 +46,55 @@ export function buildOriginalWithDateRename(
     return 'file';
   })();
 
-  const effectiveDelimiter = delimiter.length > 0 ? delimiter : ' ';
-  const baseWithDate = composeOriginalWithDateBase({
-    base: baseCandidate,
-    delimiter: effectiveDelimiter,
-    isoDate,
-    extension,
-    maxLength: settings.maxLen,
-  });
+  // Determine effective separator: user setting takes priority, then detected delimiter
+  const separatorChar = getSeparatorChar(settings.separator);
+  const effectiveSeparator =
+    separatorChar || (delimiter.length > 0 ? delimiter : ' ');
 
-  const normalizedBase = baseWithDate.length > 0 ? baseWithDate : isoDate;
-  const filename = extension
-    ? `${normalizedBase}.${extension}`
-    : normalizedBase;
+  // Calculate length constraints
+  const extensionLength = extension ? extension.length + 1 : 0; // +1 for dot
+  const datetimeLength = isoDateTime.length; // 16 chars: "YYYY-MM-DD_HH-MM"
+  const separatorLength = effectiveSeparator.length;
+  const maxBaseLength =
+    settings.maxLen - datetimeLength - separatorLength - extensionLength;
+
+  // Truncate base if it exceeds max length
+  const truncatedBase =
+    maxBaseLength > 0 ? baseCandidate.slice(0, maxBaseLength) : '';
+
+  // If no space for base, just use datetime
+  const finalBase =
+    truncatedBase.length > 0
+      ? applyDateTimePrefix(truncatedBase, isoDateTime, effectiveSeparator)
+      : isoDateTime;
+
+  const filename = extension ? `${finalBase}.${extension}` : finalBase;
   const path = directory ? `${directory}/${filename}` : filename;
 
   return {
     path,
     filename,
-    reasonTags: ['Original', 'Date'],
+    reasonTags: ['DateTime', 'Original'],
     source: 'metadata',
     originalPath,
     fileType,
   };
+}
+
+/**
+ * Convert separator setting to character
+ */
+function getSeparatorChar(separator: Settings['separator']): string | null {
+  switch (separator) {
+    case 'clean':
+      return ' ';
+    case 'kebab':
+      return '-';
+    case 'snake':
+      return '_';
+    default:
+      return null;
+  }
 }
 
 export function buildRenameProposal(

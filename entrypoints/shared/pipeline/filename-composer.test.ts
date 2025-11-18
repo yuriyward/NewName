@@ -12,16 +12,16 @@ describe('filename-composer', () => {
         'document',
         'fallback',
         '_',
-        '2025-01-01',
+        '2025-01-01_08-30',
         'txt', // extension takes 4 chars (.txt)
         '',
         'original.txt',
         'data',
-        { maxLen: 3 } as Settings, // Only 3 chars total - less than extension
+        { maxLen: 3, separator: 'clean' } as Settings, // Only 3 chars total - less than extension
       );
 
-      // Should return the date with extension when no room for base
-      expect(result.filename).toBe('2025-01-01.txt');
+      // Should return just the datetime with extension when no room for base
+      expect(result.filename).toBe('2025-01-01_08-30.txt');
     });
 
     it('handles max length exactly equal to extension length', () => {
@@ -29,16 +29,16 @@ describe('filename-composer', () => {
         'document',
         'fallback',
         '_',
-        '2025-01-01',
+        '2025-01-01_08-30',
         'txt',
         '',
         'original.txt',
         'data',
-        { maxLen: 4 } as Settings, // Exactly .txt length
+        { maxLen: 4, separator: 'clean' } as Settings, // Exactly .txt length
       );
 
-      // Should return the date with extension when no room for base
-      expect(result.filename).toBe('2025-01-01.txt');
+      // Should return just the datetime with extension when no room for base
+      expect(result.filename).toBe('2025-01-01_08-30.txt');
     });
 
     it('handles very long extension that exceeds maxLen', () => {
@@ -46,16 +46,16 @@ describe('filename-composer', () => {
         'document',
         'fallback',
         '_',
-        '2025-01-01',
+        '2025-01-01_08-30',
         'verylongextension', // 17 chars + 1 for dot = 18 chars
         '',
         'original.verylongextension',
         'data',
-        { maxLen: 10 } as Settings, // Much shorter than extension
+        { maxLen: 10, separator: 'clean' } as Settings, // Much shorter than extension
       );
 
-      // Should return the date with extension
-      expect(result.filename).toBe('2025-01-01.verylongextension');
+      // Should return just the datetime with extension
+      expect(result.filename).toBe('2025-01-01_08-30.verylongextension');
     });
 
     it('handles empty base with fallback', () => {
@@ -63,15 +63,15 @@ describe('filename-composer', () => {
         '', // empty raw base
         'fallback-name',
         '_',
-        '2025-01-01',
+        '2025-01-01_08-30',
         'txt',
         '',
         'original.txt',
         'data',
-        { maxLen: 30 } as Settings,
+        { maxLen: 50, separator: 'clean' } as Settings,
       );
 
-      expect(result.filename).toBe('fallback-name_2025-01-01.txt');
+      expect(result.filename).toBe('2025-01-01_08-30 fallback-name.txt');
     });
 
     it('handles both empty raw and fallback base', () => {
@@ -79,15 +79,15 @@ describe('filename-composer', () => {
         '',
         '',
         '_',
-        '2025-01-01',
+        '2025-01-01_08-30',
         'txt',
         '',
         'original.txt',
         'data',
-        { maxLen: 30 } as Settings,
+        { maxLen: 50, separator: 'clean' } as Settings,
       );
 
-      expect(result.filename).toBe('file_2025-01-01.txt');
+      expect(result.filename).toBe('2025-01-01_08-30 file.txt');
     });
 
     it('handles no extension', () => {
@@ -95,16 +95,16 @@ describe('filename-composer', () => {
         'document',
         'fallback',
         '_',
-        '2025-01-01',
+        '2025-01-01_08-30',
         null, // no extension
         '',
         'original',
         'data',
-        { maxLen: 30 } as Settings,
+        { maxLen: 50, separator: 'clean' } as Settings,
       );
 
-      expect(result.filename).toBe('document_2025-01-01');
-      expect(result.filename.length).toBeLessThanOrEqual(30);
+      expect(result.filename).toBe('2025-01-01_08-30 document');
+      expect(result.filename.length).toBeLessThanOrEqual(50);
     });
 
     it('handles very long base name that needs truncation', () => {
@@ -112,17 +112,17 @@ describe('filename-composer', () => {
         'this-is-a-very-long-document-name-that-should-be-truncated',
         'fallback',
         '_',
-        '2025-01-01',
+        '2025-01-01_08-30',
         'txt',
         '',
         'original.txt',
         'data',
-        { maxLen: 25 } as Settings,
+        { maxLen: 30, separator: 'clean' } as Settings,
       );
 
       expect(result.filename).toMatch(/\.txt$/);
-      expect(result.filename.length).toBeLessThanOrEqual(25);
-      expect(result.filename).toContain('2025-01-01');
+      expect(result.filename.length).toBeLessThanOrEqual(30);
+      expect(result.filename).toContain('2025-01-01_08-30');
     });
   });
 

@@ -7,6 +7,10 @@ import {
   applyFilenamePolicy,
   type FilenamePolicyResult,
 } from '@/entrypoints/shared/naming/policy-engine';
+import {
+  applyDateTimePrefix,
+  extractDateTimePrefix,
+} from '@/entrypoints/shared/pipeline/datetime-prefix';
 import { detectOriginalDelimiter } from '@/entrypoints/shared/pipeline/path-utils';
 import type { PageContext } from '@/entrypoints/shared/state/page-context-store';
 import { extractExtension } from '@/entrypoints/shared/utils/filename';
@@ -118,13 +122,25 @@ export function buildFilename({
   const baselineStem = extractStemFromBaseline(
     request.baseline.final || request.filename,
   );
-  const baselineNormalized = baselineStem.trim().toLowerCase();
+
+  // Extract datetime prefix from baseline (Phase 1 added it)
+  const datetimePrefix = extractDateTimePrefix(baselineStem);
+
+  // Remove datetime prefix to analyze the actual filename
+  const stemWithoutDatetime = datetimePrefix
+    ? baselineStem
+        .slice(datetimePrefix.length)
+        .replace(/^[-_ ]/, '') // Remove separator after datetime
+    : baselineStem;
+
+  const baselineNormalized = stemWithoutDatetime.trim().toLowerCase();
   const subjectNormalized = subject.trim().toLowerCase();
-  const originalDelimiter = detectOriginalDelimiter(baselineStem);
+  const originalDelimiter = detectOriginalDelimiter(stemWithoutDatetime);
   const isKebabLike = originalDelimiter === '-';
   const isSnakeLike = originalDelimiter === '_';
   const isLowercaseBaseline =
-    baselineStem.length > 0 && baselineStem === baselineStem.toLowerCase();
+    stemWithoutDatetime.length > 0 &&
+    stemWithoutDatetime === stemWithoutDatetime.toLowerCase();
   const shouldMirrorBaselineDelimiter =
     request.settings.separator === 'clean' &&
     isLowercaseBaseline &&
@@ -148,7 +164,7 @@ export function buildFilename({
   }
 
   const contextualNumericTokens = extractContextualNumericTokens(
-    baselineStem,
+    stemWithoutDatetime,
     request.pageContext,
     request.url,
   );
@@ -156,17 +172,50 @@ export function buildFilename({
     qualifiers.push(...contextualNumericTokens);
   }
 
-  const dimensionQualifiers = extractDimensionQualifiers(baselineStem);
+  const dimensionQualifiers = extractDimensionQualifiers(stemWithoutDatetime);
   qualifiers.push(...dimensionQualifiers);
+
+  // Get separator character for datetime prefix
+  const separatorChar =
+    effectiveSeparator === 'clean'
+      ? ' '
+      : effectiveSeparator === 'kebab'
+        ? '-'
+        : '_';
+
+  // Calculate max length accounting for datetime prefix if present
+  const maxLength = datetimePrefix
+    ? request.settings.maxFilenameLength -
+      datetimePrefix.length -
+      separatorChar.length
+    : request.settings.maxFilenameLength;
 
   const result = applyFilenamePolicy({
     subject,
     qualifiers,
     extension,
-    maxLength: request.settings.maxFilenameLength,
+    maxLength,
     separator: effectiveSeparator,
     transliterateAscii: request.settings.transliterateAscii,
   });
+
+  // Re-apply datetime prefix to the AI-generated base
+  if (datetimePrefix) {
+    const baseWithDatetime = applyDateTimePrefix(
+      result.base,
+      datetimePrefix,
+      separatorChar,
+    );
+    const filenameWithDatetime = extension
+      ? `${baseWithDatetime}.${extension}`
+      : baseWithDatetime;
+
+    return {
+      base: baseWithDatetime,
+      extension: result.extension,
+      filename: filenameWithDatetime,
+    };
+  }
 
   return result;
 }

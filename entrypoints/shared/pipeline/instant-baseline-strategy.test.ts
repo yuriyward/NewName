@@ -53,8 +53,8 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
 
     expect(evaluation.decision.outcome).toBe('rename');
     expect(evaluation.decision.guardrail).toBe('strategy-applied');
-    expect(evaluation.rename?.filename).toBe('report 2025-04-01.pdf');
-    expect(evaluation.reasonTags).toEqual(['Original', 'Date']);
+    expect(evaluation.rename?.filename).toBe('2025-04-01_08-30 report.pdf');
+    expect(evaluation.reasonTags).toEqual(['DateTime', 'Original']);
   });
 
   it('falls back to original when date missing for original-with-date', () => {
@@ -72,7 +72,7 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
     expect(evaluation.decision.outcome).toBe('keep');
     expect(evaluation.decision.guardrail).toBe('strategy-unavailable');
     expect(evaluation.rename).toBeUndefined();
-    expect(evaluation.decision.reasons).toContain('missing:date');
+    expect(evaluation.decision.reasons).toContain('missing:datetime');
   });
 
   it('preserves underscores when appending date for original-with-date', () => {
@@ -88,7 +88,9 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
 
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
-    expect(evaluation.rename?.filename).toBe('meeting_notes_2025-04-01.txt');
+    expect(evaluation.rename?.filename).toBe(
+      '2025-04-01_08-30 meeting_notes.txt',
+    );
   });
 
   it('preserves hyphenated names when appending date for original-with-date', () => {
@@ -104,7 +106,9 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
 
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
-    expect(evaluation.rename?.filename).toBe('release-notes-2025-04-01.md');
+    expect(evaluation.rename?.filename).toBe(
+      '2025-04-01_08-30 release-notes.md',
+    );
   });
 
   it('preserves space-delimited names when appending date for original-with-date', () => {
@@ -120,7 +124,9 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
 
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
-    expect(evaluation.rename?.filename).toBe('My project plan 2025-04-01.docx');
+    expect(evaluation.rename?.filename).toBe(
+      '2025-04-01_08-30 My project plan.docx',
+    );
   });
 
   it('preserves dotted names when appending date for original-with-date', () => {
@@ -136,7 +142,9 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
 
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
-    expect(evaluation.rename?.filename).toBe('release.notes.2025-04-01.txt');
+    expect(evaluation.rename?.filename).toBe(
+      '2025-04-01_08-30 release.notes.txt',
+    );
   });
 
   it('prefers the most frequent delimiter when multiple styles are present', () => {
@@ -153,7 +161,7 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
     expect(evaluation.rename?.filename).toBe(
-      'project_overview-v2 final_2025-04-01.docx',
+      '2025-04-01_08-30 project_overview-v2 final.docx',
     );
   });
 
@@ -170,7 +178,7 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
 
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
-    expect(evaluation.rename?.filename).toBe('report-2025-04-01.txt');
+    expect(evaluation.rename?.filename).toBe('2025-04-01_08-30 report-.txt');
   });
 });
 
@@ -197,7 +205,7 @@ describe('evaluateInstantBaseline (file-type awareness)', () => {
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
     expect(evaluation.fileType).toBe('archive');
-    expect(evaluation.rename?.filename).toBe('bundle 2025-05-04.tar.gz');
+    expect(evaluation.rename?.filename).toBe('2025-05-04_10-15 bundle.tar.gz');
   });
 
   it.each([

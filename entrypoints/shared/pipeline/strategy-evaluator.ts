@@ -44,9 +44,9 @@ export function evaluateStrategy(
         signals.missingInputs.push('strategy:ai-rename');
         return { subject: inputs.originalBase, reasonTags, signals };
       case 'original-with-date': {
-        if (!inputs.isoDate) {
+        if (!inputs.isoDateTime) {
           signals.inputsUsed.push('original');
-          signals.missingInputs.push('date');
+          signals.missingInputs.push('datetime');
           return {
             subject: inputs.originalBase,
             reasonTags,
@@ -57,19 +57,19 @@ export function evaluateStrategy(
           inputs.rawOriginalBase,
           inputs.originalBase,
           inputs.originalDelimiter,
-          inputs.isoDate,
+          inputs.isoDateTime,
           extension,
           directory,
           originalPath,
           fileType,
           settings,
         );
-        signals.inputsUsed.push('original', 'date');
+        signals.inputsUsed.push('original', 'datetime');
         return {
           rename,
           subject:
             inputs.originalBase.length > 0 ? inputs.originalBase : 'file',
-          reasonTags: ['Original', 'Date'],
+          reasonTags: ['DateTime', 'Original'],
           signals,
         };
       }
