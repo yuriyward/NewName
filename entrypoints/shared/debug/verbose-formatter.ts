@@ -24,7 +24,6 @@ export function logVerboseContext(context: DebugContext): void {
   console.table({
     Strategy: context.strategy.selected,
     'Original Base': context.strategy.inputs.originalBase,
-    'Page Title': context.strategy.inputs.pageTitle || 'none',
     'ISO Date': context.strategy.inputs.isoDate || 'none',
     Output:
       context.strategy.generatedFilename ||

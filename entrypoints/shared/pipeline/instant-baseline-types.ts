@@ -79,7 +79,6 @@ export interface InstantBaselineStrategyInputs {
   originalBase: string;
   rawOriginalBase: string;
   originalDelimiter: string;
-  pageTitle?: string;
   isoDate?: string;
   isoDateTime?: string;
 }

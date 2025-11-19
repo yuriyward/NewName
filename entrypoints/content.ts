@@ -269,14 +269,36 @@ function publishPageContext(force = false): void {
   lastContextPublishTimestamp = Date.now();
 }
 
+function isDocumentVisible(): boolean {
+  return document.visibilityState === 'visible';
+}
+
 function ensureContextRefreshTimer(): void {
   if (contextRefreshTimer) return;
+  if (!isDocumentVisible()) return;
   contextRefreshTimer = setInterval(() => {
     const now = Date.now();
     if (now - lastContextPublishTimestamp >= PAGE_CONTEXT_REFRESH_INTERVAL_MS) {
       publishPageContext(true);
     }
   }, PAGE_CONTEXT_REFRESH_INTERVAL_MS);
+}
+
+function clearContextRefreshTimer(): void {
+  if (!contextRefreshTimer) return;
+  clearInterval(contextRefreshTimer);
+  contextRefreshTimer = undefined;
+}
+
+function handleVisibilityChange(): void {
+  if (!isDocumentVisible()) {
+    clearContextRefreshTimer();
+    return;
+  }
+
+  // Force a refresh when returning to an active tab to avoid stale context
+  publishPageContext(true);
+  ensureContextRefreshTimer();
 }
 
 function handleLinkInteraction(event: Event): void {
@@ -321,16 +343,16 @@ export default defineContentScript({
     void syncPendingToasts();
     publishPageContext(true);
     ensureContextRefreshTimer();
+    const visibilityListener = () => handleVisibilityChange();
+    document.addEventListener('visibilitychange', visibilityListener);
     observeTitle();
     window.addEventListener('click', handleLinkInteraction, true);
     window.addEventListener('auxclick', handleLinkInteraction, true);
     window.addEventListener('contextmenu', handleLinkInteraction, true);
 
     ctx.onInvalidated(() => {
-      if (contextRefreshTimer) {
-        clearInterval(contextRefreshTimer);
-        contextRefreshTimer = undefined;
-      }
+      document.removeEventListener('visibilitychange', visibilityListener);
+      clearContextRefreshTimer();
     });
   },
 });

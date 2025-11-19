@@ -59,12 +59,6 @@ export function parseIsoDateTime(startTime?: string): string | null {
   return `${datePart}_${timePart}`;
 }
 
-function sanitizePageTitle(title?: string): string | null {
-  if (!title) return null;
-  const trimmed = title.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
 function determineStrategyInputs(
   signals: InstantBaselineSignals,
 ): InstantBaselineStrategyInputs {
@@ -75,8 +69,6 @@ function determineStrategyInputs(
       originalBase: sanitizeBaseName(base),
       rawOriginalBase: base,
       originalDelimiter: detectOriginalDelimiter(base),
-      pageTitle:
-        sanitizePageTitle(signals.page?.title ?? undefined) ?? undefined,
       isoDate: parseIsoDate(signals.startTime) ?? undefined,
       isoDateTime: parseIsoDateTime(signals.startTime) ?? undefined,
     };
@@ -86,7 +78,6 @@ function determineStrategyInputs(
       originalBase: 'file',
       rawOriginalBase: 'file',
       originalDelimiter: ' ',
-      pageTitle: undefined,
       isoDate: undefined,
       isoDateTime: undefined,
     };
