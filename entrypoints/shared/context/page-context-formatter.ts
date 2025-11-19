@@ -1,9 +1,16 @@
 /**
  * Page context formatting utilities for AI prompts
  * Provides consistent formatting of page context (title, heading, URL) across all AI providers
+ *
+ * SECURITY: All inputs are sanitized to prevent prompt injection attacks.
+ * Page context values (title, heading, URL) come from untrusted web pages.
  */
 
 import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
+import {
+  sanitizeForPrompt,
+  sanitizeUrl,
+} from '@/entrypoints/shared/utils/prompt-sanitization';
 
 /**
  * Format page context for inline display (single line with separators)
@@ -22,9 +29,10 @@ export function formatPageContextInline(
   }
 
   const parts: string[] = [];
-  if (pageContext.title) parts.push(pageContext.title);
-  if (pageContext.heading) parts.push(pageContext.heading);
-  if (pageContext.url) parts.push(pageContext.url);
+  // Sanitize all fields to prevent prompt injection
+  if (pageContext.title) parts.push(sanitizeForPrompt(pageContext.title));
+  if (pageContext.heading) parts.push(sanitizeForPrompt(pageContext.heading));
+  if (pageContext.url) parts.push(sanitizeUrl(pageContext.url));
 
   return parts.length > 0 ? parts.join(separator) : '';
 }
@@ -49,9 +57,20 @@ export function formatPageContextMultiline(
   }
 
   const lines: string[] = [];
-  if (pageContext.title) lines.push(`Page: "${pageContext.title}"`);
-  if (pageContext.heading) lines.push(`Heading: "${pageContext.heading}"`);
-  if (pageContext.url) lines.push(`URL: ${pageContext.url}`);
+  // Sanitize all fields and properly escape quotes to prevent injection
+  if (pageContext.title) {
+    const sanitized = sanitizeForPrompt(pageContext.title);
+    const escaped = sanitized.replace(/"/g, '\\"');
+    lines.push(`Page: "${escaped}"`);
+  }
+  if (pageContext.heading) {
+    const sanitized = sanitizeForPrompt(pageContext.heading);
+    const escaped = sanitized.replace(/"/g, '\\"');
+    lines.push(`Heading: "${escaped}"`);
+  }
+  if (pageContext.url) {
+    lines.push(`URL: ${sanitizeUrl(pageContext.url)}`);
+  }
 
   return lines.length > 0 ? lines.join('\n') : '';
 }

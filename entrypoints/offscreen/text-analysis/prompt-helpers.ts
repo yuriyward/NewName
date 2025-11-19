@@ -2,6 +2,9 @@
  * Shared utilities for Prompt API integration across decision and generation modules.
  * These helpers provide common functionality for session management, availability checks,
  * and response parsing.
+ *
+ * SECURITY: All untrusted inputs (filenames, content summaries) are sanitized
+ * to prevent prompt injection attacks.
  */
 
 import { formatPageContextInline } from '@/entrypoints/shared/context/page-context-formatter';
@@ -13,6 +16,7 @@ import type {
 } from '@/entrypoints/shared/integrations/chrome-ai/types';
 import type { Separator } from '@/entrypoints/shared/settings/settings';
 import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
+import { sanitizeForPrompt } from '@/entrypoints/shared/utils/prompt-sanitization';
 
 /**
  * Resolve LanguageModel constructor from Chrome's global scope.
@@ -212,10 +216,15 @@ export function buildBaseContextDescription(
 ): string {
   const parts: string[] = [];
 
-  parts.push(`Current filename: "${context.filename}"`);
+  // Sanitize filename and escape quotes to prevent injection/breakout
+  const sanitizedFilename = sanitizeForPrompt(context.filename);
+  const escapedFilename = sanitizedFilename.replace(/"/g, '\\"');
+  parts.push(`Current filename: "${escapedFilename}"`);
 
+  // Sanitize summary (file content) to prevent injection
   if (context.summary && context.summary.trim().length > 0) {
-    parts.push(`Content summary: ${context.summary.trim()}`);
+    const sanitizedSummary = sanitizeForPrompt(context.summary, 5, 200);
+    parts.push(`Content summary: ${sanitizedSummary}`);
   } else {
     parts.push('Content summary: Not available');
   }
@@ -229,7 +238,7 @@ export function buildBaseContextDescription(
 
   parts.push(`File type: ${context.fileType}`);
 
-  // Add page context if available
+  // Add page context if available (already sanitized by formatter)
   const pageContextFormatted = formatPageContextInline(context.pageContext);
   if (pageContextFormatted) {
     parts.push(`Source page: ${pageContextFormatted}`);

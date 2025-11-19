@@ -14,12 +14,12 @@ import {
   vi,
 } from 'vitest';
 import type { BasePromptContext } from './prompt-helpers';
+import { decideIfShouldRename } from './rename-decision';
 import type {
   RenameDecision,
   RenameDecisionContext,
   RenameDecisionReason,
-} from './rename-decision';
-import { decideIfShouldRename } from './rename-decision';
+} from './rename-decision-types';
 
 // Mock dependencies must be in hoisted callback
 const {

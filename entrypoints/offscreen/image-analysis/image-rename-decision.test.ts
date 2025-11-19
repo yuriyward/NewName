@@ -12,10 +12,8 @@ import {
   it,
   vi,
 } from 'vitest';
-import {
-  decideIfImageNeedsRename,
-  type RenameDecision,
-} from './image-rename-decision';
+import { decideIfImageNeedsRename } from './image-rename-decision';
+import type { RenameDecision } from './image-rename-decision-types';
 
 // Mock dependencies in hoisted callback
 const {

@@ -12,15 +12,15 @@ import {
   it,
   vi,
 } from 'vitest';
-import type {
-  FilenameGeneration,
-  FilenameGenerationContext,
-} from './filename-generation';
 import {
   generateFilenameComplete,
   generateFilenameStem,
   isHighConfidenceGeneration,
 } from './filename-generation';
+import type {
+  FilenameGeneration,
+  FilenameGenerationContext,
+} from './filename-generation-types';
 import type { BasePromptContext } from './prompt-helpers';
 
 // Mock dependencies must be in hoisted callback

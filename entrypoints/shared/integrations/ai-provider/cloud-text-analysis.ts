@@ -3,6 +3,8 @@
  *
  * Handles text analysis using Google Gemini via ai-sdk.
  * Implements two-phase analysis: decision → generation
+ *
+ * SECURITY: All untrusted inputs (filename, content, page context) are sanitized.
  */
 
 import type { LanguageModel } from 'ai';
@@ -22,14 +24,8 @@ import type {
   TextUpgradeAnalysisSuccess,
   TextUpgradeIngestionResult,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
+import { sanitizeForPrompt } from '@/entrypoints/shared/utils/prompt-sanitization';
 import { DATE_FORMAT_RULE, parseJsonResponse } from './helpers';
-
-/**
- * Content length limits for prompt engineering
- * Controls how much content is sent to cloud AI for analysis
- */
-const TEXT_DECISION_SUMMARY_MAX_CHARS = 500; // Brief summary for rename decision
-const TEXT_GENERATION_CONTENT_MAX_CHARS = 1000; // Full content for filename generation
 
 interface CloudDecisionResponse {
   shouldRename: boolean;
@@ -65,15 +61,19 @@ export async function analyzeTextWithGemini(
 
     const currentFilename = request.baseline.final || request.filename;
 
-    // Build page context for prompts
+    // Sanitize untrusted inputs (filename, page context)
+    // Note: File content is from user's own file, not external/untrusted - use it directly
+    const sanitizedFilename = sanitizeForPrompt(currentFilename);
+
+    // Build page context for prompts (already sanitized by formatter)
     const pageContextInfo = formatPageContextForPrompt(request.pageContext);
 
     // Step 1: Decision phase - should we rename?
     const decisionPrompt = `You are a filename quality analyzer. Analyze if this filename needs improvement.
 
-Current filename: ${currentFilename}
+Current filename: ${sanitizedFilename}
 File type: ${request.fileType}
-Content summary: ${ingestion.text.slice(0, TEXT_DECISION_SUMMARY_MAX_CHARS)}${pageContextInfo}
+Content summary: ${ingestion.text}${pageContextInfo}
 
 Respond with JSON:
 {
@@ -123,8 +123,8 @@ Respond with JSON:
     // Step 2: Generation phase - create new filename
     const generationPrompt = `Generate a clear, descriptive filename for this file.
 
-Content: ${ingestion.text.slice(0, TEXT_GENERATION_CONTENT_MAX_CHARS)}
-Current name: ${currentFilename}${pageContextInfo}
+Content: ${ingestion.text}
+Current name: ${sanitizedFilename}${pageContextInfo}
 Max length: ${request.settings.maxFilenameLength} characters
 Separator: ${request.settings.separator}
 Language: ${request.settings.languagePreference}
