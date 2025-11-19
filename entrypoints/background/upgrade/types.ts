@@ -42,7 +42,11 @@ export interface UpgradeAnalysisInput {
 export interface ScheduleUpgradeAnalysisParams {
   historyId: string;
   downloadId?: number;
-  fileType: HistoryItem['fileType'];
+  /**
+   * File type filtering happens inside eligibility.ts before scheduling.
+   * The field remains optional for callers that still provide it for logging.
+   */
+  fileType?: HistoryItem['fileType'];
 }
 
 export interface UpgradeCoordinatorParams {

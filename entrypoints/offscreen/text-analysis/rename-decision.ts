@@ -3,51 +3,24 @@
  * This module decides whether a filename needs renaming by analyzing its quality
  * against the file content. It uses a separate JSON schema focused purely on
  * the decision logic, independent of filename generation.
+ *
+ * SECURITY: All untrusted inputs (filenames) are sanitized to prevent prompt injection.
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
-import type { FileType } from '@/entrypoints/shared/settings/settings';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
+import { sanitizeForPrompt } from '@/entrypoints/shared/utils/prompt-sanitization';
 import {
   buildBaseContextDescription,
   createPromptSession,
   destroyPromptSession,
   parseStructuredResponse,
 } from './prompt-helpers';
-
-/**
- * Reasons why a filename might need (or not need) renaming.
- * These are explicitly constrained in the JSON schema to ensure
- * consistent categorization.
- */
-export type RenameDecisionReason =
-  | 'generic-name' // "document", "file", "download", "untitled"
-  | 'meaningless-hash' // UUIDs, random strings
-  | 'already-descriptive' // Current name is good
-  | 'contains-topic' // Has relevant keywords from summary
-  | 'timestamp-only' // Just dates/numbers
-  | 'poor-formatting'; // Bad separators, ALL_CAPS, no structure
-
-/**
- * Structured response from the decision prompt.
- * This schema is enforced via JSON Schema in the Prompt API call.
- */
-export interface RenameDecision {
-  shouldRename: boolean;
-  confidence: number; // 0.0 to 1.0
-  reason: RenameDecisionReason;
-  explanation?: string;
-}
-
-/**
- * Context information needed to make a rename decision.
- */
-export interface RenameDecisionContext {
-  currentFilename: string;
-  summary?: string;
-  language?: string;
-  originalName: string;
-  fileType: FileType;
-}
+import { DECISION_SYSTEM_PROMPT } from './rename-decision-prompts';
+import type {
+  RenameDecision,
+  RenameDecisionContext,
+} from './rename-decision-types';
+import { validateDecisionResponse } from './rename-decision-validation';
 
 /**
  * JSON Schema for enforcing structured output from the Prompt API.
@@ -99,13 +72,18 @@ function buildDecisionPrompt(context: RenameDecisionContext): string {
     summary: context.summary,
     language: context.language,
     fileType: context.fileType,
+    pageContext: context.pageContext,
   });
+
+  // Sanitize and escape the original name to prevent injection/quote breakout
+  const sanitizedOriginalName = sanitizeForPrompt(context.originalName);
+  const escapedOriginalName = sanitizedOriginalName.replace(/"/g, '\\"');
 
   return `Analyze this filename and decide if it needs renaming:
 
 ${baseContext}
 
-Original download name: "${context.originalName}"
+Original download name: "${escapedOriginalName}"
 
 Consider these criteria carefully:
 
@@ -132,79 +110,6 @@ Make your decision and respond with JSON only.`;
 }
 
 /**
- * Validate that the decision response has required fields and correct types.
- * This adds runtime validation on top of the JSON schema constraint.
- */
-function validateDecisionResponse(
-  decision: RenameDecision,
-): decision is RenameDecision {
-  if (typeof decision.shouldRename !== 'boolean') {
-    debugLogger.warn('[RenameDecision] Invalid shouldRename type', {
-      type: typeof decision.shouldRename,
-    });
-    return false;
-  }
-
-  if (
-    typeof decision.confidence !== 'number' ||
-    decision.confidence < 0 ||
-    decision.confidence > 1
-  ) {
-    debugLogger.warn('[RenameDecision] Invalid confidence value', {
-      confidence: decision.confidence,
-    });
-    return false;
-  }
-
-  const validReasons: RenameDecisionReason[] = [
-    'generic-name',
-    'meaningless-hash',
-    'already-descriptive',
-    'contains-topic',
-    'timestamp-only',
-    'poor-formatting',
-  ];
-
-  if (!validReasons.includes(decision.reason)) {
-    debugLogger.warn('[RenameDecision] Invalid reason value', {
-      reason: decision.reason,
-    });
-    return false;
-  }
-
-  if (
-    decision.explanation !== undefined &&
-    typeof decision.explanation !== 'string'
-  ) {
-    debugLogger.warn('[RenameDecision] Invalid explanation type', {
-      type: typeof decision.explanation,
-    });
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * System prompt that establishes the AI's role as a filename quality analyzer.
- * This is separate from the per-request prompt and sets the overall context.
- */
-const DECISION_SYSTEM_PROMPT = `You are a filename quality analyzer. Your job is to decide if a filename needs improvement based on its content and current name.
-
-Be CONSERVATIVE in your decisions:
-- Only suggest renaming for truly generic, meaningless, or poorly formatted names
-- Preserve existing names that are already descriptive or well-structured
-- When uncertain, prefer keeping the existing name
-
-Focus on these principles:
-- Human readability over technical accuracy
-- Content relevance (does the name match the summary?)
-- Professional formatting standards
-- Practical usability for file organization
-
-Always respond with valid JSON matching the provided schema.`;
-
-/**
  * Main function to decide if a filename should be renamed.
  * Makes a Prompt API call with structured output constraint and returns
  * the decision or null if unavailable/failed.
@@ -215,7 +120,7 @@ Always respond with valid JSON matching the provided schema.`;
 export async function decideIfShouldRename(
   context: RenameDecisionContext,
 ): Promise<RenameDecision | null> {
-  console.log('[RenameDecision] Starting decision analysis', {
+  offscreenLogger.log('[RenameDecision] Starting decision analysis', {
     filename: context.currentFilename,
     hasSummary: !!context.summary,
     language: context.language,
@@ -234,16 +139,19 @@ export async function decideIfShouldRename(
     });
 
     if (!session) {
-      console.log('[RenameDecision] Failed to create prompt session');
+      offscreenLogger.log('[RenameDecision] Failed to create prompt session');
       return null;
     }
 
     // Build the decision prompt
     const prompt = buildDecisionPrompt(context);
 
-    console.log('[RenameDecision] Calling Prompt API', {
+    offscreenLogger.log('[AI Prompt local-prompt-api text decision]', {
       promptLength: prompt.length,
+      prompt,
+      filename: context.currentFilename,
     });
+    offscreenLogger.log('[AI Prompt local-prompt-api text decision]', prompt);
 
     // Make the Prompt API call with JSON schema constraint
     const response = await session.prompt(prompt, {
@@ -251,8 +159,14 @@ export async function decideIfShouldRename(
       omitResponseConstraintInput: true, // Omit schema to save tokens (format guidance in prompt)
     });
 
+    offscreenLogger.log('[AI Response local-prompt-api text decision]', {
+      responseLength: response.length,
+      response,
+      filename: context.currentFilename,
+    });
+
     // Log token usage for debugging
-    console.log('[RenameDecision] Token usage after prompt', {
+    offscreenLogger.log('[RenameDecision] Token usage after prompt', {
       inputUsage: session.inputUsage,
       inputQuota: session.inputQuota,
       percentUsed:
@@ -261,7 +175,7 @@ export async function decideIfShouldRename(
           : 'unknown',
     });
 
-    console.log('[RenameDecision] Received response', {
+    offscreenLogger.log('[RenameDecision] Received response', {
       responseLength: response.length,
     });
 
@@ -271,18 +185,31 @@ export async function decideIfShouldRename(
       'rename-decision',
     );
 
+    if (decision) {
+      offscreenLogger.log('[AI Parsed local-prompt-api text decision]', {
+        parsed: decision,
+        filename: context.currentFilename,
+      });
+    } else {
+      offscreenLogger.error('[AI Error local-prompt-api text decision]', {
+        error: 'Failed to parse decision response',
+        filename: context.currentFilename,
+        responseLength: response.length,
+      });
+    }
+
     if (!decision) {
-      console.log('[RenameDecision] Failed to parse response');
+      offscreenLogger.log('[RenameDecision] Failed to parse response');
       return null;
     }
 
     // Validate the decision structure
     if (!validateDecisionResponse(decision)) {
-      console.log('[RenameDecision] Response validation failed');
+      offscreenLogger.log('[RenameDecision] Response validation failed');
       return null;
     }
 
-    console.log('[RenameDecision] Decision made', {
+    offscreenLogger.log('[RenameDecision] Decision made', {
       shouldRename: decision.shouldRename,
       confidence: decision.confidence,
       reason: decision.reason,
@@ -291,7 +218,7 @@ export async function decideIfShouldRename(
 
     return decision;
   } catch (error) {
-    debugLogger.warn('[RenameDecision] Decision failed', {
+    offscreenLogger.warn('[RenameDecision] Decision failed', {
       error,
       filename: context.currentFilename,
     });

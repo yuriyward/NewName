@@ -3,6 +3,9 @@
  *
  * Handles PDF analysis using Google Gemini via ai-sdk.
  * Implements three-phase analysis: title extraction → decision → generation
+ *
+ * SECURITY: All untrusted inputs (filename, extracted titles) are sanitized.
+ * Note: mergePdfContext already sanitizes extracted titles and descriptions.
  */
 
 import type { LanguageModel } from 'ai';
@@ -15,10 +18,12 @@ import type {
 } from '@/entrypoints/offscreen/pdf-analysis/types';
 import { buildProposedPath } from '@/entrypoints/offscreen/text-analysis/filename-builder';
 import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
+import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type { ImageUpgradeAnalysisResponse } from '@/entrypoints/shared/integrations/image-analysis/types';
 import { applyFilenamePolicy } from '@/entrypoints/shared/naming/policy-engine';
 import { arrayBufferToBase64 } from '@/entrypoints/shared/utils/encoding';
+import { sanitizeForPrompt } from '@/entrypoints/shared/utils/prompt-sanitization';
 import { DATE_FORMAT_RULE, parseJsonResponse } from './helpers';
 
 /**
@@ -61,6 +66,16 @@ export async function analyzePdfWithGemini(
       pageCount: pages.length,
     });
 
+    // Sanitize filename for use in prompts (declared once at top)
+    const currentFilename = request.baseline.final || request.filename;
+    const sanitizedFilename = sanitizeForPrompt(currentFilename);
+
+    // Build page context for prompts (already sanitized by formatter)
+    const pageContextInfo = formatPageContextForPrompt(request.pageContext, {
+      prefix:
+        '\n\nNote: This PDF was downloaded from the following page. This may provide context about the document origin:',
+    });
+
     // PHASE 1: Extract title and description from each page
     const pageAnalyses = [];
     for (const page of pages) {
@@ -78,7 +93,7 @@ export async function analyzePdfWithGemini(
                 type: 'text',
                 text: `Analyze this PDF page and provide:
 1. EXACT document/article title if present at the top (null if no clear title)
-2. A concise description of what this page shows, including main topics and content type
+2. A concise description of what this page shows, including main topics and content type${pageContextInfo}
 
 Format your response as JSON with exactly this structure:
 {
@@ -158,7 +173,7 @@ Format your response as JSON with exactly this structure:
     });
 
     // PHASE 2: Decide if rename is needed (reuse shared logic)
-    const currentFilename = request.baseline.final || request.filename;
+    // Note: currentFilename already declared at top of try block
     const renameDecision = await decidePdfRename(
       titleDescriptionContext,
       currentFilename,
@@ -180,13 +195,15 @@ Format your response as JSON with exactly this structure:
     const mergedContext = mergePdfContext(titleDescriptionContext);
 
     // PHASE 3: Generate filename using Gemini
+    // Note: mergedContext.fullDescription is already sanitized in mergePdfContext
+    // Note: mergedContext.documentTitle is already sanitized in mergePdfContext
     const generationResult = await generateText({
       model,
       prompt: `Generate a clear, descriptive filename for this PDF document.
 
 ${mergedContext.fullDescription}
 
-Current name: ${currentFilename}
+Current name: ${sanitizedFilename}${pageContextInfo}
 Max length: ${request.settings.maxFilenameLength} characters
 
 ${

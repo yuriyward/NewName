@@ -1,12 +1,11 @@
 /**
- * Note: This file uses console.log() instead of debugLogger.log() for operational logs.
- * Reason: Offscreen documents don't have storage access, so debugLogger.setEnabled()
- * fails. AI processing logs are diagnostic/operational and should always be visible.
- * We still use debugLogger.warn() and debugLogger.error() for warnings/errors.
+ * Note: Offscreen contexts cannot persist debug settings, so we route all operational logs
+ * through offscreenLogger which is always enabled inside the offscreen document.
+ * Higher-severity warnings/errors still use the same logger so we have a single output path.
  */
 
 import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { AiModelStatusMap } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import type {
   TextUpgradeAnalysisKeepBaseline,
@@ -75,7 +74,7 @@ export async function runTextUpgradePipeline(
   let onDeviceReady = true;
   let modelStatuses: AiModelStatusMap | null = null;
   try {
-    console.log('[TextUpgradeAI] Checking AI model availability', {
+    offscreenLogger.log('[TextUpgradeAI] Checking AI model availability', {
       requestId: request.requestId,
       models: ['language-detector', 'summarizer', 'language-model'],
     });
@@ -89,7 +88,7 @@ export async function runTextUpgradePipeline(
   } catch (error) {
     onDeviceReady = false;
     const message = describeModelAvailabilityError(error);
-    debugLogger.warn('[TextUpgradeAI] Language detector unavailable', {
+    offscreenLogger.warn('[TextUpgradeAI] Language detector unavailable', {
       requestId: request.requestId,
       mode,
       error,
@@ -107,7 +106,7 @@ export async function runTextUpgradePipeline(
   }
 
   if (onDeviceReady && modelStatuses) {
-    console.log('[TextUpgradeAI] AI models ready', {
+    offscreenLogger.log('[TextUpgradeAI] AI models ready', {
       requestId: request.requestId,
       statuses: mapModelStatuses(modelStatuses),
     });
@@ -122,15 +121,18 @@ export async function runTextUpgradePipeline(
   // Generate summary using Chrome's built-in Summarizer API
   const summary = await summarizeText(ingestion.text, subjectLanguage.language);
 
-  console.log('[TextUpgradeAI] Language detection and summarization complete', {
-    requestId: request.requestId,
-    filename: request.filename,
-    language: subjectLanguage.language,
-    languageConfidence: subjectLanguage.confidence,
-    languageSource: subjectLanguage.source,
-    hasSummary: !!summary,
-    summary: summary,
-  });
+  offscreenLogger.log(
+    '[TextUpgradeAI] Language detection and summarization complete',
+    {
+      requestId: request.requestId,
+      filename: request.filename,
+      language: subjectLanguage.language,
+      languageConfidence: subjectLanguage.confidence,
+      languageSource: subjectLanguage.source,
+      hasSummary: !!summary,
+      summary: summary,
+    },
+  );
 
   const modelSource: TextUpgradeModelSource = 'on-device';
 
@@ -145,6 +147,7 @@ export async function runTextUpgradePipeline(
     language: subjectLanguage.language,
     originalName: request.filename,
     fileType: request.fileType,
+    pageContext: request.pageContext,
   });
   const decisionElapsedMs = Date.now() - decisionStartTime;
 
@@ -173,7 +176,7 @@ export async function runTextUpgradePipeline(
       decisionReason: decision?.reason,
     };
 
-    console.log('[TextUpgradeAI] Keeping baseline filename', {
+    offscreenLogger.log('[TextUpgradeAI] Keeping baseline filename', {
       requestId: request.requestId,
       filename: request.baseline.final,
       hasDecision: !!decision,
@@ -184,7 +187,7 @@ export async function runTextUpgradePipeline(
     return keepBaseline;
   }
 
-  console.log('[TextUpgradeAI] Decision: rename needed', {
+  offscreenLogger.log('[TextUpgradeAI] Decision: rename needed', {
     requestId: request.requestId,
     reason: decision.reason,
     confidence: decision.confidence,
@@ -209,6 +212,7 @@ export async function runTextUpgradePipeline(
         separator: request.settings.separator,
         transliterateAscii: request.settings.transliterateAscii,
       },
+      pageContext: request.pageContext,
     });
   }
 
@@ -228,13 +232,13 @@ export async function runTextUpgradePipeline(
     extractStemFromBaseline(request.baseline.final || request.filename);
 
   if (!subject || subject.trim().length === 0) {
-    console.log('[TextUpgradeAI] No valid subject for filename', {
+    offscreenLogger.log('[TextUpgradeAI] No valid subject for filename', {
       requestId: request.requestId,
     });
     return null;
   }
 
-  console.log('[TextUpgradeAI] Filename generation complete', {
+  offscreenLogger.log('[TextUpgradeAI] Filename generation complete', {
     requestId: request.requestId,
     generatedStem,
     usedFallback: !generatedStem,
@@ -319,7 +323,7 @@ export async function runTextUpgradePipeline(
     },
   };
 
-  console.log('[TextUpgradeAI] Proposal created', {
+  offscreenLogger.log('[TextUpgradeAI] Proposal created', {
     requestId: request.requestId,
     proposedFilename,
     proposalSummary: success.proposal.summary,

@@ -8,7 +8,7 @@
  * - Internal extractPdfPages: Orchestrates page rendering with timeouts
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import { type RenderPdfPagesResult, renderPdfPages } from './pdf-renderer';
 
 /**
@@ -63,7 +63,7 @@ export async function extractPdfPagesForAnalysis(
 ): Promise<PdfPagePreparationOutput> {
   const startTime = performance.now();
 
-  debugLogger.log('[PdfPageExtractor] Starting PDF page extraction', {
+  offscreenLogger.log('[PdfPageExtractor] Starting PDF page extraction', {
     filename: fileHandle.name,
   });
 
@@ -72,7 +72,7 @@ export async function extractPdfPagesForAnalysis(
     const file = await fileHandle.getFile();
 
     if (file.size === 0) {
-      debugLogger.log('[PdfPageExtractor] File is empty', {
+      offscreenLogger.log('[PdfPageExtractor] File is empty', {
         filename: fileHandle.name,
       });
       return {
@@ -86,7 +86,7 @@ export async function extractPdfPagesForAnalysis(
     const renderResult: RenderPdfPagesResult = await renderPdfPages(file);
 
     if (!renderResult.success) {
-      debugLogger.warn('[PdfPageExtractor] PDF rendering failed', {
+      offscreenLogger.warn('[PdfPageExtractor] PDF rendering failed', {
         filename: fileHandle.name,
         error: renderResult.error,
         errorType: renderResult.errorType,
@@ -119,7 +119,7 @@ export async function extractPdfPagesForAnalysis(
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     const elapsedMs = Math.round(performance.now() - startTime);
-    debugLogger.error('[PdfPageExtractor] PDF extraction failed', {
+    offscreenLogger.error('[PdfPageExtractor] PDF extraction failed', {
       filename: fileHandle.name,
       error: errorMsg,
       elapsedMs,

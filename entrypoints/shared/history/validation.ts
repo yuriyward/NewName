@@ -9,7 +9,9 @@ import type {
 } from '@/entrypoints/shared/history/types';
 import type { MediaMetadataSummary } from '@/entrypoints/shared/integrations/mediainfo/media-summary';
 import type { InstantBaselineDecision } from '@/entrypoints/shared/pipeline/instant-baseline-types';
+import { isInstantBaselineGuardrail } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import { isFileType } from '@/entrypoints/shared/settings/settings';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -26,6 +28,25 @@ function isHistoryPhase(value: unknown): value is HistoryItem['phase'] {
 function isStringArray(value: unknown): value is string[] {
   return (
     Array.isArray(value) && value.every((entry) => typeof entry === 'string')
+  );
+}
+
+function isPageContextDetails(value: unknown): value is PageContextDetails {
+  if (!isPlainObject(value)) return false;
+  const maybe = value as Partial<PageContextDetails>;
+  if (maybe.title !== undefined && typeof maybe.title !== 'string') {
+    return false;
+  }
+  if (maybe.heading !== undefined && typeof maybe.heading !== 'string') {
+    return false;
+  }
+  if (maybe.url !== undefined && typeof maybe.url !== 'string') {
+    return false;
+  }
+  return (
+    maybe.title !== undefined ||
+    maybe.heading !== undefined ||
+    maybe.url !== undefined
   );
 }
 
@@ -99,9 +120,8 @@ function isInstantBaselineDecision(
   if (maybe.outcome !== 'rename' && maybe.outcome !== 'keep') return false;
   if (
     maybe.strategy !== 'keep-original' &&
-    maybe.strategy !== 'original-with-date' &&
-    maybe.strategy !== 'page-title' &&
-    maybe.strategy !== 'page-title-with-date'
+    maybe.strategy !== 'ai-rename' &&
+    maybe.strategy !== 'original-with-date'
   ) {
     return false;
   }
@@ -112,10 +132,7 @@ function isInstantBaselineDecision(
   ) {
     return false;
   }
-  if (
-    maybe.guardrail !== 'strategy-applied' &&
-    maybe.guardrail !== 'strategy-unavailable'
-  ) {
+  if (!isInstantBaselineGuardrail(maybe.guardrail)) {
     return false;
   }
   if (!Array.isArray(maybe.reasons)) return false;
@@ -246,6 +263,12 @@ export function isValidHistoryItem(entry: unknown): entry is HistoryItem {
   if (
     maybe.pendingUpgradeAnalysis !== undefined &&
     !isPendingUpgradeAnalysis(maybe.pendingUpgradeAnalysis)
+  ) {
+    return false;
+  }
+  if (
+    maybe.pageContext !== undefined &&
+    !isPageContextDetails(maybe.pageContext)
   ) {
     return false;
   }

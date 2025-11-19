@@ -3,7 +3,7 @@
  * Handles image file reading, preparation, and AI analysis pipeline
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import { verifyDirectoryPermission } from '@/entrypoints/shared/filesystem/directory-picker';
 import { resolveFileHandle } from '@/entrypoints/shared/filesystem/file-reader';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
@@ -69,17 +69,15 @@ export function initializeImageAnalysisHandler(): void {
 
       const elapsedMs = Math.round(performance.now() - startedAt);
 
-      if (debugLogger.isEnabled()) {
-        debugLogger.log('[Offscreen][ImageAnalysis] Ingestion complete', {
-          requestId: request.requestId,
-          path: request.relativePath || fileResult.filename,
-          originalSize: `${ingestionResult.originalWidth}x${ingestionResult.originalHeight}`,
-          resizedSize: `${ingestionResult.resizedWidth}x${ingestionResult.resizedHeight}`,
-          resizeRatio: ingestionResult.resizeRatio.toFixed(2),
-          blobSize: ingestionResult.blob.size,
-          elapsedMs,
-        });
-      }
+      offscreenLogger.log('[Offscreen][ImageAnalysis] Ingestion complete', {
+        requestId: request.requestId,
+        path: request.relativePath || fileResult.filename,
+        originalSize: `${ingestionResult.originalWidth}x${ingestionResult.originalHeight}`,
+        resizedSize: `${ingestionResult.resizedWidth}x${ingestionResult.resizedHeight}`,
+        resizeRatio: ingestionResult.resizeRatio.toFixed(2),
+        blobSize: ingestionResult.blob.size,
+        elapsedMs,
+      });
 
       // Create ingestion result for pipeline
       const ingestionPayload = {
@@ -118,7 +116,7 @@ export function initializeImageAnalysisHandler(): void {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Image ingestion failed';
-      debugLogger.error('[Offscreen][ImageAnalysis] Ingestion failed', {
+      offscreenLogger.error('[Offscreen][ImageAnalysis] Ingestion failed', {
         requestId: (data as ImageUpgradeAnalysisRequest).requestId,
         error,
       });

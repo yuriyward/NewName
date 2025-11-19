@@ -46,7 +46,7 @@ const {
   mockRecordPipelineBlocked,
   mockRecordPipelineRouted,
   mockRecordPromptPipelineComplete,
-  mockDebugLogger,
+  mockOffscreenLogger,
 } = vi.hoisted(() => ({
   mockEnsureAiModelsReadyRemote: vi.fn(),
   mockDetectLanguage: vi.fn(),
@@ -64,9 +64,12 @@ const {
   mockRecordPipelineBlocked: vi.fn(),
   mockRecordPipelineRouted: vi.fn(),
   mockRecordPromptPipelineComplete: vi.fn(),
-  mockDebugLogger: {
+  mockOffscreenLogger: {
     warn: vi.fn(),
     log: vi.fn(),
+    error: vi.fn(),
+    isEnabled: vi.fn().mockReturnValue(true),
+    setEnabled: vi.fn(),
   },
 }));
 
@@ -107,8 +110,8 @@ vi.mock('./telemetry', () => ({
   recordPromptPipelineComplete: mockRecordPromptPipelineComplete,
 }));
 
-vi.mock('@/entrypoints/shared/debug/logger', () => ({
-  debugLogger: mockDebugLogger,
+vi.mock('@/entrypoints/shared/debug/offscreen-logger', () => ({
+  offscreenLogger: mockOffscreenLogger,
 }));
 
 // Mock console to avoid cluttering test output
@@ -431,7 +434,7 @@ describe('pipeline-orchestrator - ensureAiModelsReady integration', () => {
 
       expect(result?.status).toBe('unavailable');
       expect(result).not.toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalled();
+      expect(mockOffscreenLogger.warn).toHaveBeenCalled();
     });
 
     it('continues with hybrid-ask mode on error when mode allows fallback', async () => {
@@ -500,7 +503,7 @@ describe('pipeline-orchestrator - ensureAiModelsReady integration', () => {
       const ingestion = createMockIngestion();
       await runTextUpgradePipeline(request, ingestion);
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('[TextUpgradeAI] AI models ready'),
         expect.any(Object),
       );
@@ -513,7 +516,7 @@ describe('pipeline-orchestrator - ensureAiModelsReady integration', () => {
       const ingestion = createMockIngestion();
       await runTextUpgradePipeline(request, ingestion);
 
-      expect(mockDebugLogger.warn).not.toHaveBeenCalled();
+      expect(mockOffscreenLogger.warn).not.toHaveBeenCalled();
     });
   });
 

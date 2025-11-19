@@ -7,7 +7,12 @@ import {
   applyFilenamePolicy,
   type FilenamePolicyResult,
 } from '@/entrypoints/shared/naming/policy-engine';
+import {
+  applyDateTimePrefix,
+  extractDateTimePrefix,
+} from '@/entrypoints/shared/pipeline/datetime-prefix';
 import { detectOriginalDelimiter } from '@/entrypoints/shared/pipeline/path-utils';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 import { extractExtension } from '@/entrypoints/shared/utils/filename';
 
 /**
@@ -28,6 +33,78 @@ export interface FilenameContext {
   language?: string;
 }
 
+const MIN_CONTEXTUAL_ID_LENGTH = 5;
+
+const UNDERSCORE_DIMENSION_REGEX = /_(\d{3,5})_(\d{3,5})(?=\D|$)/g;
+const X_DIMENSION_REGEX = /(\d{3,5})[xX](\d{3,5})(?=\D|$)/g;
+
+function extractContextualNumericTokens(
+  baselineStem: string,
+  pageContext?: PageContextDetails,
+  url?: string | null,
+): string[] {
+  const candidates = baselineStem
+    .split(/[^0-9]+/)
+    .map((token) => token.trim())
+    .filter(
+      (token) =>
+        /^\d+$/.test(token) && token.length >= MIN_CONTEXTUAL_ID_LENGTH,
+    );
+
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  const contextPool = [
+    pageContext?.title,
+    pageContext?.heading,
+    pageContext?.url,
+    url ?? undefined,
+  ]
+    .filter(
+      (value): value is string => typeof value === 'string' && value.length > 0,
+    )
+    .map((value) => value.toLowerCase());
+
+  if (contextPool.length === 0) {
+    return [];
+  }
+
+  const preserved: string[] = [];
+  const seen = new Set<string>();
+
+  for (const token of candidates) {
+    if (seen.has(token)) continue;
+    const tokenLower = token.toLowerCase();
+    const matchesContext = contextPool.some((ctx) => ctx.includes(tokenLower));
+    if (matchesContext) {
+      preserved.push(token);
+      seen.add(token);
+    }
+  }
+
+  return preserved;
+}
+
+function extractDimensionQualifiers(baselineStem: string): string[] {
+  const qualifiers = new Set<string>();
+
+  let match: RegExpExecArray | null =
+    UNDERSCORE_DIMENSION_REGEX.exec(baselineStem);
+  while (match !== null) {
+    qualifiers.add(`${match[1]}x${match[2]}`);
+    match = UNDERSCORE_DIMENSION_REGEX.exec(baselineStem);
+  }
+
+  match = X_DIMENSION_REGEX.exec(baselineStem);
+  while (match !== null) {
+    qualifiers.add(`${match[1]}x${match[2]}`);
+    match = X_DIMENSION_REGEX.exec(baselineStem);
+  }
+
+  return Array.from(qualifiers);
+}
+
 export function buildFilename({
   request,
   ingestion: _ingestion, // Unused in simplified version
@@ -45,13 +122,25 @@ export function buildFilename({
   const baselineStem = extractStemFromBaseline(
     request.baseline.final || request.filename,
   );
-  const baselineNormalized = baselineStem.trim().toLowerCase();
+
+  // Extract datetime prefix from baseline (Phase 1 added it)
+  const datetimePrefix = extractDateTimePrefix(baselineStem);
+
+  // Remove datetime prefix to analyze the actual filename
+  const stemWithoutDatetime = datetimePrefix
+    ? baselineStem
+        .slice(datetimePrefix.length)
+        .replace(/^[-_ ]/, '') // Remove separator after datetime
+    : baselineStem;
+
+  const baselineNormalized = stemWithoutDatetime.trim().toLowerCase();
   const subjectNormalized = subject.trim().toLowerCase();
-  const originalDelimiter = detectOriginalDelimiter(baselineStem);
+  const originalDelimiter = detectOriginalDelimiter(stemWithoutDatetime);
   const isKebabLike = originalDelimiter === '-';
   const isSnakeLike = originalDelimiter === '_';
   const isLowercaseBaseline =
-    baselineStem.length > 0 && baselineStem === baselineStem.toLowerCase();
+    stemWithoutDatetime.length > 0 &&
+    stemWithoutDatetime === stemWithoutDatetime.toLowerCase();
   const shouldMirrorBaselineDelimiter =
     request.settings.separator === 'clean' &&
     isLowercaseBaseline &&
@@ -74,14 +163,59 @@ export function buildFilename({
     qualifiers.push(formattedLanguage);
   }
 
+  const contextualNumericTokens = extractContextualNumericTokens(
+    stemWithoutDatetime,
+    request.pageContext,
+    request.url,
+  );
+  if (request.fileType !== 'image') {
+    qualifiers.push(...contextualNumericTokens);
+  }
+
+  const dimensionQualifiers = extractDimensionQualifiers(stemWithoutDatetime);
+  qualifiers.push(...dimensionQualifiers);
+
+  // Get separator character for datetime prefix
+  const separatorChar =
+    effectiveSeparator === 'clean'
+      ? ' '
+      : effectiveSeparator === 'kebab'
+        ? '-'
+        : '_';
+
+  // Calculate max length accounting for datetime prefix if present
+  const maxLength = datetimePrefix
+    ? request.settings.maxFilenameLength -
+      datetimePrefix.length -
+      separatorChar.length
+    : request.settings.maxFilenameLength;
+
   const result = applyFilenamePolicy({
     subject,
     qualifiers,
     extension,
-    maxLength: request.settings.maxFilenameLength,
+    maxLength,
     separator: effectiveSeparator,
     transliterateAscii: request.settings.transliterateAscii,
   });
+
+  // Re-apply datetime prefix to the AI-generated base
+  if (datetimePrefix) {
+    const baseWithDatetime = applyDateTimePrefix(
+      result.base,
+      datetimePrefix,
+      separatorChar,
+    );
+    const filenameWithDatetime = extension
+      ? `${baseWithDatetime}.${extension}`
+      : baseWithDatetime;
+
+    return {
+      base: baseWithDatetime,
+      extension: result.extension,
+      filename: filenameWithDatetime,
+    };
+  }
 
   return result;
 }

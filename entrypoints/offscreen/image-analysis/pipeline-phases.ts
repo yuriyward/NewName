@@ -3,6 +3,7 @@
  * Coordinates the three-phase analysis: describe → decide → generate
  */
 
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { ImageUpgradeAnalysisRequest } from '@/entrypoints/shared/integrations/image-analysis/types';
 import { generateFilenameStem } from '../text-analysis/filename-generation';
 import { describeImage } from './image-description';
@@ -41,16 +42,17 @@ export interface GeneratePhaseResult {
 export async function runDescribePhase(
   blob: Blob,
   requestId: string,
+  request: ImageUpgradeAnalysisRequest,
 ): Promise<DescribePhaseResult | null> {
   const descriptionStartTime = Date.now();
-  const description = await describeImage(blob);
+  const description = await describeImage(blob, request.pageContext);
   const descriptionElapsedMs = Date.now() - descriptionStartTime;
 
   if (!description) {
     return null; // Session creation failed
   }
 
-  console.log('[ImageUpgradeAI] Image description complete', {
+  offscreenLogger.log('[ImageUpgradeAI] Image description complete', {
     requestId,
     description: description.description,
     confidence: description.confidence.toFixed(2),
@@ -76,6 +78,7 @@ export async function runDecidePhase(
     currentFilename: request.baseline.final || request.filename,
     description,
     fileType: request.fileType,
+    pageContext: request.pageContext,
   });
   const decisionElapsedMs = Date.now() - decisionStartTime;
 
@@ -83,7 +86,7 @@ export async function runDecidePhase(
     return null;
   }
 
-  console.log(
+  offscreenLogger.log(
     decision.shouldRename
       ? '[ImageUpgradeAI] Decision: rename needed'
       : '[ImageUpgradeAI] Keeping baseline filename',
@@ -131,11 +134,13 @@ export async function runGeneratePhase(
         shouldPrioritizeTitle: request.pdfContext.shouldPrioritizeTitle,
       },
     }),
+    // Pass page context from download
+    pageContext: request.pageContext,
   });
 
   const generationElapsedMs = Date.now() - generationStartTime;
 
-  console.log('[ImageUpgradeAI] Filename generation complete', {
+  offscreenLogger.log('[ImageUpgradeAI] Filename generation complete', {
     requestId: request.requestId,
     generatedStem,
     usedFallback: !generatedStem,

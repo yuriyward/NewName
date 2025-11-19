@@ -3,7 +3,7 @@
  * Coordinates analysis requests and response handling.
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import { ANALYSIS_TIMEOUT_MS } from '@/entrypoints/shared/integrations/mediainfo/constants';
 import { logMediaDebug } from '@/entrypoints/shared/integrations/mediainfo/debug';
 import type {
@@ -104,7 +104,7 @@ export async function fetchAndAnalyzeFromUrl(
     const elapsed = performance.now() - start;
     const message =
       error instanceof Error ? error.message : 'Streaming analysis failed';
-    debugLogger.error('[SandboxBridge] Streaming analysis failed', {
+    offscreenLogger.error('[SandboxBridge] Streaming analysis failed', {
       requestId: request.requestId,
       error: message,
       elapsedMs: Math.round(elapsed),

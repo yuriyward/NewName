@@ -3,7 +3,7 @@
  * Handles MuPDF rendering pipeline: document → page → pixmap → PNG → canvas
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type { MuPdfModule } from '@/entrypoints/shared/integrations/mupdf/mupdf-loader';
 import { PDF_PAGE_IMAGE_FORMAT } from './constants';
 
@@ -28,14 +28,14 @@ export async function renderPageToCanvas(
       'application/pdf',
     );
     if (!document) {
-      debugLogger.warn('[PdfRenderer] Failed to open PDF document');
+      offscreenLogger.warn('[PdfRenderer] Failed to open PDF document');
       return null;
     }
 
     // Get total pages
     const numPages = document.countPages();
     if (pageIndex >= numPages) {
-      debugLogger.warn('[PdfRenderer] Page index exceeds PDF page count', {
+      offscreenLogger.warn('[PdfRenderer] Page index exceeds PDF page count', {
         pageIndex,
         totalPages: numPages,
       });
@@ -46,7 +46,7 @@ export async function renderPageToCanvas(
     // Load and render the page
     const page = document.loadPage(pageIndex);
     if (!page) {
-      debugLogger.warn('[PdfRenderer] Failed to load page', { pageIndex });
+      offscreenLogger.warn('[PdfRenderer] Failed to load page', { pageIndex });
       document.destroy();
       return null;
     }
@@ -61,7 +61,9 @@ export async function renderPageToCanvas(
     );
 
     if (!pixmap) {
-      debugLogger.warn('[PdfRenderer] Failed to create pixmap', { pageIndex });
+      offscreenLogger.warn('[PdfRenderer] Failed to create pixmap', {
+        pageIndex,
+      });
       page.destroy();
       document.destroy();
       return null;
@@ -70,7 +72,7 @@ export async function renderPageToCanvas(
     // Get PNG data from pixmap
     const pngData = pixmap.asPNG();
     if (!pngData) {
-      debugLogger.warn('[PdfRenderer] Failed to convert pixmap to PNG', {
+      offscreenLogger.warn('[PdfRenderer] Failed to convert pixmap to PNG', {
         pageIndex,
       });
       pixmap.destroy();
@@ -93,7 +95,7 @@ export async function renderPageToCanvas(
       const ctx = canvas.getContext('2d');
 
       if (!ctx) {
-        debugLogger.warn('[PdfRenderer] Failed to get canvas context');
+        offscreenLogger.warn('[PdfRenderer] Failed to get canvas context');
         pixmap.destroy();
         page.destroy();
         document.destroy();
@@ -112,7 +114,7 @@ export async function renderPageToCanvas(
       imageBitmap?.close();
     }
   } catch (error) {
-    debugLogger.warn('[PdfRenderer] Failed to render page to canvas', {
+    offscreenLogger.warn('[PdfRenderer] Failed to render page to canvas', {
       error,
     });
     return null;

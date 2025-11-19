@@ -2,7 +2,7 @@
  * Offscreen document initialization with media analysis handlers
  */
 import { attachConsoleHelpers } from '@/entrypoints/shared/debug/console-helpers';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import { sendExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import { initializeImageAnalysisHandler } from './image-analysis-handler';
 import { initializeMediaAnalysisHandler } from './media-analysis-handler';
@@ -11,7 +11,7 @@ import { initializeTextAnalysisHandler } from './text-analysis-handler';
 
 // Wrap in IIFE to ensure immediate execution
 (async () => {
-  console.log('[Offscreen] Script starting execution', {
+  offscreenLogger.log('[Offscreen] Script starting execution', {
     readyState: document.readyState,
     timestamp: Date.now(),
   });
@@ -22,25 +22,37 @@ import { initializeTextAnalysisHandler } from './text-analysis-handler';
   try {
     initializeImageAnalysisHandler();
   } catch (error) {
-    console.error('[Offscreen] Failed to initialize image handler', error);
+    offscreenLogger.error(
+      '[Offscreen] Failed to initialize image handler',
+      error,
+    );
   }
 
   try {
     initializeMediaAnalysisHandler();
   } catch (error) {
-    console.error('[Offscreen] Failed to initialize media handler', error);
+    offscreenLogger.error(
+      '[Offscreen] Failed to initialize media handler',
+      error,
+    );
   }
 
   try {
     initializePdfAnalysisHandler();
   } catch (error) {
-    console.error('[Offscreen] Failed to initialize PDF handler', error);
+    offscreenLogger.error(
+      '[Offscreen] Failed to initialize PDF handler',
+      error,
+    );
   }
 
   try {
     initializeTextAnalysisHandler();
   } catch (error) {
-    console.error('[Offscreen] Failed to initialize text handler', error);
+    offscreenLogger.error(
+      '[Offscreen] Failed to initialize text handler',
+      error,
+    );
   }
 
   // Wait for document to be fully ready
@@ -57,9 +69,9 @@ import { initializeTextAnalysisHandler } from './text-analysis-handler';
   try {
     await sendExtensionMessage('offscreenReady', { ts: Date.now() });
   } catch (error) {
-    debugLogger.error('[Offscreen] Failed to send ready signal', { error });
+    offscreenLogger.error('[Offscreen] Failed to send ready signal', { error });
     // best-effort; background will still handshake-retry
   }
 })().catch((error) => {
-  debugLogger.error('[Offscreen] Fatal initialization error', { error });
+  offscreenLogger.error('[Offscreen] Fatal initialization error', { error });
 });

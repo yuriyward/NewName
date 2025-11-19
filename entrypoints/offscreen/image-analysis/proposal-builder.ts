@@ -4,6 +4,7 @@
  */
 
 import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type {
   ImageIngestionResult,
   ImageUpgradeAnalysisKeepBaseline,
@@ -45,7 +46,7 @@ export function buildProposalFromAnalysis(
     extractStemFromBaseline(request.baseline.final || request.filename);
 
   if (!subject || subject.trim().length === 0) {
-    console.log('[ImageUpgradeAI] No valid subject for filename', {
+    offscreenLogger.log('[ImageUpgradeAI] No valid subject for filename', {
       requestId: request.requestId,
     });
     return null;
@@ -64,6 +65,7 @@ export function buildProposalFromAnalysis(
     sizeBytes: request.sizeBytes,
     fileType: request.fileType,
     baseline: request.baseline,
+    pageContext: request.pageContext,
     settings: {
       languagePreference: 'auto',
       mode: request.settings.mode,
@@ -161,7 +163,7 @@ export function buildProposalFromAnalysis(
     },
   };
 
-  console.log('[ImageUpgradeAI] Proposal created', {
+  offscreenLogger.log('[ImageUpgradeAI] Proposal created', {
     requestId: request.requestId,
     proposedFilename,
     proposalSummary: success.proposal.summary,
@@ -242,6 +244,7 @@ export function buildProposalFromPhase3Inputs(
     sizeBytes: request.sizeBytes,
     fileType: request.fileType,
     baseline: request.baseline,
+    pageContext: request.pageContext,
     settings: {
       languagePreference: 'auto',
       mode: request.settings.mode,

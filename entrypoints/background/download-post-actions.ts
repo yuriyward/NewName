@@ -9,7 +9,10 @@ import type {
   MediaAnalysisRequest,
   MediaAnalysisResponse,
 } from '@/entrypoints/shared/integrations/mediainfo/messages';
-import type { InstantBaselineEvaluation } from '@/entrypoints/shared/pipeline/instant-baseline-types';
+import type {
+  InstantBaselineEvaluation,
+  InstantBaselineStrategy,
+} from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
 import { randomId } from '@/entrypoints/shared/utils/id';
 import type { DownloadPlan } from './download-plan';
@@ -38,16 +41,10 @@ interface PostActionsOptions {
   };
 }
 
-function shouldScheduleUpgrade(
-  fileType: InstantBaselineEvaluation['fileType'],
-  renameCandidate: InstantBaselineEvaluation['rename'] | undefined,
-  plan: DownloadPlan,
-): boolean {
-  return (
-    fileType === 'pdf' &&
-    Boolean(renameCandidate) &&
-    plan.confirmRoute.kind !== 'toast'
-  );
+function strategyNeedsUpgrade(strategy: InstantBaselineStrategy): boolean {
+  // Only the keep-original strategy opts out of contextual upgrades; the upgrade
+  // coordinator runs deeper eligibility checks once it loads the history item.
+  return strategy !== 'keep-original';
 }
 
 export async function applyPostDownloadActions({
@@ -86,6 +83,13 @@ export async function applyPostDownloadActions({
     reasonTags: evaluation.reasonTags,
     downloadId: plan.rawDownloadId,
     decision: historyDecision,
+    pageContext: plan.pageContext
+      ? {
+          title: plan.pageContext.title,
+          heading: plan.pageContext.heading,
+          url: plan.pageContext.url,
+        }
+      : undefined,
   });
 
   if (plan.rawDownloadId !== undefined) {
@@ -111,7 +115,14 @@ export async function applyPostDownloadActions({
     });
   }
 
-  if (shouldScheduleUpgrade(evaluation.fileType, renameCandidate, plan)) {
+  if (strategyNeedsUpgrade(evaluation.strategy)) {
+    debugLogger.log('[DownloadPostActions] Scheduling contextual upgrade', {
+      historyId: plan.historyId,
+      strategy: evaluation.strategy,
+      fileType: evaluation.fileType,
+      hasDownloadId: plan.rawDownloadId !== undefined,
+    });
+
     void scheduleUpgradeAnalysis({
       historyId: plan.historyId,
       downloadId: plan.rawDownloadId,

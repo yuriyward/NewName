@@ -1,4 +1,4 @@
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import { verifyDirectoryPermission } from '@/entrypoints/shared/filesystem/directory-picker';
 import {
   readFileSlice,
@@ -98,8 +98,8 @@ export function initializeTextAnalysisHandler(): void {
         },
       };
 
-      if (debugLogger.isEnabled()) {
-        debugLogger.log('[Offscreen][TextAnalysis] Ingestion complete', {
+      if (offscreenLogger.isEnabled()) {
+        offscreenLogger.log('[Offscreen][TextAnalysis] Ingestion complete', {
           requestId: request.requestId,
           path: request.relativePath || fileResult.filename,
           readBytes: readResult.bytesRead,
@@ -125,7 +125,7 @@ export function initializeTextAnalysisHandler(): void {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Text ingestion failed';
-      debugLogger.error('[Offscreen][TextAnalysis] Ingestion failed', {
+      offscreenLogger.error('[Offscreen][TextAnalysis] Ingestion failed', {
         requestId: (data as TextUpgradeAnalysisRequest).requestId,
         error,
       });

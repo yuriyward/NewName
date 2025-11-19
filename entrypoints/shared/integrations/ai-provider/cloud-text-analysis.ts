@@ -3,6 +3,8 @@
  *
  * Handles text analysis using Google Gemini via ai-sdk.
  * Implements two-phase analysis: decision → generation
+ *
+ * SECURITY: All untrusted inputs (filename, content, page context) are sanitized.
  */
 
 import type { LanguageModel } from 'ai';
@@ -12,6 +14,8 @@ import {
   buildProposedPath,
 } from '@/entrypoints/offscreen/text-analysis/filename-builder';
 import { getAutoApplyBehavior } from '@/entrypoints/shared/constants/confidence-thresholds';
+import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
+import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type {
   TextUpgradeAnalysisError,
@@ -20,14 +24,8 @@ import type {
   TextUpgradeAnalysisSuccess,
   TextUpgradeIngestionResult,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
+import { sanitizeForPrompt } from '@/entrypoints/shared/utils/prompt-sanitization';
 import { DATE_FORMAT_RULE, parseJsonResponse } from './helpers';
-
-/**
- * Content length limits for prompt engineering
- * Controls how much content is sent to cloud AI for analysis
- */
-const TEXT_DECISION_SUMMARY_MAX_CHARS = 500; // Brief summary for rename decision
-const TEXT_GENERATION_CONTENT_MAX_CHARS = 1000; // Full content for filename generation
 
 interface CloudDecisionResponse {
   shouldRename: boolean;
@@ -55,16 +53,27 @@ export async function analyzeTextWithGemini(
   ingestion: TextUpgradeIngestionResult,
 ): Promise<TextUpgradeAnalysisResponse | null> {
   try {
+    debugLogger.log('[AI Analysis Start cloud-gemini text]', {
+      requestId: request.requestId,
+      filename: request.filename,
+      fileType: request.fileType,
+    });
+
     const currentFilename = request.baseline.final || request.filename;
 
-    // Step 1: Decision phase - should we rename?
-    const decisionResult = await generateText({
-      model,
-      prompt: `You are a filename quality analyzer. Analyze if this filename needs improvement.
+    // Sanitize untrusted inputs (filename, page context)
+    // Note: File content is from user's own file, not external/untrusted - use it directly
+    const sanitizedFilename = sanitizeForPrompt(currentFilename);
 
-Current filename: ${currentFilename}
+    // Build page context for prompts (already sanitized by formatter)
+    const pageContextInfo = formatPageContextForPrompt(request.pageContext);
+
+    // Step 1: Decision phase - should we rename?
+    const decisionPrompt = `You are a filename quality analyzer. Analyze if this filename needs improvement.
+
+Current filename: ${sanitizedFilename}
 File type: ${request.fileType}
-Content summary: ${ingestion.text.slice(0, TEXT_DECISION_SUMMARY_MAX_CHARS)}
+Content summary: ${ingestion.text}${pageContextInfo}
 
 Respond with JSON:
 {
@@ -72,13 +81,35 @@ Respond with JSON:
   "reason": "string (clear-already | generic-name | contains-hash | date-format-only | content-mismatch)",
   "confidence": number (0.0-1.0),
   "explanation": "brief explanation why rename is needed or not"
-}`,
+}`;
+
+    debugLogger.log('[AI Prompt cloud-gemini text decision]', {
+      requestId: request.requestId,
+      promptLength: decisionPrompt.length,
+      prompt: decisionPrompt,
+    });
+    console.log('[AI Prompt cloud-gemini text decision]\n', decisionPrompt);
+
+    const decisionResult = await generateText({
+      model,
+      prompt: decisionPrompt,
       temperature: 0.3,
+    });
+
+    debugLogger.log('[AI Response cloud-gemini text decision]', {
+      requestId: request.requestId,
+      responseLength: decisionResult.text.length,
+      response: decisionResult.text,
     });
 
     const decision = parseJsonResponse<CloudDecisionResponse>(
       decisionResult.text,
     );
+
+    debugLogger.log('[AI Parsed cloud-gemini text decision]', {
+      requestId: request.requestId,
+      parsed: decision,
+    });
 
     if (!decision.shouldRename) {
       console.log('[CloudAI] Keeping baseline filename', {
@@ -90,12 +121,10 @@ Respond with JSON:
     }
 
     // Step 2: Generation phase - create new filename
-    const generationResult = await generateText({
-      model,
-      prompt: `Generate a clear, descriptive filename for this file.
+    const generationPrompt = `Generate a clear, descriptive filename for this file.
 
-Content: ${ingestion.text.slice(0, TEXT_GENERATION_CONTENT_MAX_CHARS)}
-Current name: ${currentFilename}
+Content: ${ingestion.text}
+Current name: ${sanitizedFilename}${pageContextInfo}
 Max length: ${request.settings.maxFilenameLength} characters
 Separator: ${request.settings.separator}
 Language: ${request.settings.languagePreference}
@@ -112,13 +141,35 @@ Respond with JSON:
 {
   "filename": "the generated filename stem without extension",
   "reasoning": "brief explanation of your choice"
-}`,
+}`;
+
+    debugLogger.log('[AI Prompt cloud-gemini text generation]', {
+      requestId: request.requestId,
+      promptLength: generationPrompt.length,
+      prompt: generationPrompt,
+    });
+    console.log('[AI Prompt cloud-gemini text generation]\n', generationPrompt);
+
+    const generationResult = await generateText({
+      model,
+      prompt: generationPrompt,
       temperature: 0.5,
+    });
+
+    debugLogger.log('[AI Response cloud-gemini text generation]', {
+      requestId: request.requestId,
+      responseLength: generationResult.text.length,
+      response: generationResult.text,
     });
 
     const generated = parseJsonResponse<CloudFilenameResponse>(
       generationResult.text,
     );
+
+    debugLogger.log('[AI Parsed cloud-gemini text generation]', {
+      requestId: request.requestId,
+      parsed: generated,
+    });
 
     // Build final filename using existing utilities
     // Note: No language parameter - Gemini handles multilingual content natively
@@ -180,14 +231,22 @@ Respond with JSON:
       },
     };
 
-    console.log('[CloudAI] Proposal created', {
+    debugLogger.log('[AI Analysis Complete cloud-gemini text]', {
       requestId: request.requestId,
+      status: 'success',
       proposedFilename,
     });
 
     return success;
   } catch (error) {
-    console.error('[CloudAI] Text analysis failed', { error, request });
+    const errorMessage =
+      error instanceof Error ? error.message : JSON.stringify(error);
+
+    debugLogger.error('[AI Error cloud-gemini text]', {
+      requestId: request.requestId,
+      error: errorMessage,
+      filename: request.filename,
+    });
 
     const errorResponse: TextUpgradeAnalysisError = {
       status: 'error',

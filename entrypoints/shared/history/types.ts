@@ -4,6 +4,7 @@
 import type { MediaMetadataSummary } from '@/entrypoints/shared/integrations/mediainfo/media-summary';
 import type { InstantBaselineDecision } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type { FileType } from '@/entrypoints/shared/settings/settings';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 
 export type UpgradeProposalSource = 'ai' | 'metadata';
 
@@ -57,6 +58,8 @@ export interface HistoryItem {
   image?: HistoryImageAnalysis;
   upgrade?: UpgradeProposal;
   pendingUpgradeAnalysis?: PendingUpgradeAnalysis;
+  /** Page context captured at download time (title, heading, URL) */
+  pageContext?: PageContextDetails;
 }
 
 export interface HistoryMediaMetadata {

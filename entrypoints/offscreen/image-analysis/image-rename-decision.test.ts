@@ -12,10 +12,8 @@ import {
   it,
   vi,
 } from 'vitest';
-import {
-  decideIfImageNeedsRename,
-  type RenameDecision,
-} from './image-rename-decision';
+import { decideIfImageNeedsRename } from './image-rename-decision';
+import type { RenameDecision } from './image-rename-decision-types';
 
 // Mock dependencies in hoisted callback
 const {
@@ -23,7 +21,7 @@ const {
   mockCreatePromptSession,
   mockDestroyPromptSession,
   mockParseStructuredResponse,
-  mockDebugLogger,
+  mockOffscreenLogger,
 } = vi.hoisted(() => ({
   mockSession: {
     prompt: vi.fn(),
@@ -34,10 +32,12 @@ const {
   mockCreatePromptSession: vi.fn(),
   mockDestroyPromptSession: vi.fn(),
   mockParseStructuredResponse: vi.fn(),
-  mockDebugLogger: {
+  mockOffscreenLogger: {
     warn: vi.fn(),
     error: vi.fn(),
     log: vi.fn(),
+    isEnabled: vi.fn().mockReturnValue(true),
+    setEnabled: vi.fn(),
   },
 }));
 
@@ -47,8 +47,8 @@ vi.mock('../text-analysis/prompt-helpers', () => ({
   parseStructuredResponse: mockParseStructuredResponse,
 }));
 
-vi.mock('@/entrypoints/shared/debug/logger', () => ({
-  debugLogger: mockDebugLogger,
+vi.mock('@/entrypoints/shared/debug/offscreen-logger', () => ({
+  offscreenLogger: mockOffscreenLogger,
 }));
 
 let mockConsoleLog: ReturnType<typeof vi.spyOn>;
@@ -166,7 +166,7 @@ describe('image-rename-decision', () => {
       });
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Failed to create session'),
       );
       expect(mockDestroyPromptSession).not.toHaveBeenCalled();
@@ -182,7 +182,7 @@ describe('image-rename-decision', () => {
       });
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Failed to parse decision response'),
         expect.any(Object),
       );
@@ -200,7 +200,7 @@ describe('image-rename-decision', () => {
       });
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Invalid shouldRename value'),
         expect.any(Object),
       );
@@ -262,7 +262,7 @@ describe('image-rename-decision', () => {
       });
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Decision making failed'),
         expect.objectContaining({
           error: expect.any(Error),
@@ -290,7 +290,7 @@ describe('image-rename-decision', () => {
         fileType: 'image',
       });
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('initial usage'),
         expect.objectContaining({
           inputUsage: 50,
@@ -298,7 +298,7 @@ describe('image-rename-decision', () => {
         }),
       );
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('Token usage after prompt'),
         expect.objectContaining({
           inputUsage: 50,

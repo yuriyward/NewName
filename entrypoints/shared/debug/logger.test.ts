@@ -26,23 +26,23 @@ describe('DebugLogger', () => {
   ): InstantBaselineEvaluation => ({
     decision: {
       outcome: 'rename',
-      strategy: 'page-title-with-date',
+      strategy: 'original-with-date',
       confidence: 50,
       guardrail: 'strategy-applied',
-      reasons: ['strategy:page-title-with-date'],
-      signals: { inputsUsed: ['title', 'date'], missingInputs: [] },
+      reasons: ['strategy:original-with-date'],
+      signals: { inputsUsed: ['original', 'date'], missingInputs: [] },
     },
-    strategy: 'page-title-with-date',
+    strategy: 'original-with-date',
     rename: {
       path: 'Report 2025-04-01.pdf',
       filename: 'Report 2025-04-01.pdf',
-      reasonTags: ['PageTitle', 'Date'],
+      reasonTags: ['Original', 'Date'],
       source: 'metadata',
       originalPath: 'report.pdf',
       fileType: 'pdf',
     },
-    reasonTags: ['PageTitle', 'Date'],
-    inputsUsed: ['title', 'date'],
+    reasonTags: ['Original', 'Date'],
+    inputsUsed: ['original', 'date'],
     missingInputs: [],
     fileType: 'pdf',
     source: 'metadata',
@@ -74,7 +74,6 @@ describe('DebugLogger', () => {
           originalBase: 'report',
           rawOriginalBase: 'report',
           originalDelimiter: ' ',
-          pageTitle: 'Example Corp — Q2 Report',
           isoDate: '2025-04-01',
         },
         generatedFilename: evaluation.rename?.filename,
@@ -107,7 +106,7 @@ describe('DebugLogger', () => {
       const stored = debugLogger.getContext(context.downloadId);
       expect(stored).toBeDefined();
       expect(stored?.evaluation.decision.outcome).toBe('rename');
-      expect(stored?.strategy.selected).toBe('page-title-with-date');
+      expect(stored?.strategy.selected).toBe('original-with-date');
     });
 
     it('logs final result on finish', () => {
@@ -118,24 +117,23 @@ describe('DebugLogger', () => {
         evaluation: buildEvaluation({
           decision: {
             outcome: 'keep',
-            strategy: 'page-title-with-date',
+            strategy: 'original-with-date',
             confidence: 0,
             guardrail: 'strategy-unavailable',
-            reasons: ['strategy:page-title-with-date', 'missing:title'],
-            signals: { inputsUsed: ['date'], missingInputs: ['title'] },
+            reasons: ['strategy:original-with-date', 'missing:date'],
+            signals: { inputsUsed: ['original'], missingInputs: ['date'] },
           },
           rename: undefined,
           reasonTags: [],
-          inputsUsed: ['date'],
-          missingInputs: ['title'],
+          inputsUsed: ['original'],
+          missingInputs: ['date'],
         }),
         strategy: {
-          selected: 'page-title-with-date',
+          selected: 'original-with-date',
           inputs: {
             originalBase: 'report',
             rawOriginalBase: 'report',
             originalDelimiter: ' ',
-            isoDate: '2025-04-01',
           },
         },
       });

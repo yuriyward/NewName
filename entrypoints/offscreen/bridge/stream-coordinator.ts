@@ -1,7 +1,7 @@
 /**
  * Streaming coordinator for range-based media fetching
  */
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import { MEDIAINFO_CHUNK_SIZE } from '@/entrypoints/shared/integrations/mediainfo';
 import { RangeFetchReader } from '@/entrypoints/shared/integrations/range-fetcher';
 import { getSandboxWindow, isFromSandbox } from './sandbox-lifecycle';
@@ -17,7 +17,9 @@ const activeReaders = new Map<string, RangeFetchReader>();
  * Register streaming message listeners for range-based fetching.
  */
 export function registerStreamingListeners(): void {
-  console.log('[SandboxBridge] Registering streaming message listeners');
+  offscreenLogger.log(
+    '[SandboxBridge] Registering streaming message listeners',
+  );
   window.addEventListener('message', handleStreamingMessage);
 }
 
@@ -25,7 +27,9 @@ export function registerStreamingListeners(): void {
  * Cleanup streaming message listeners to prevent memory leaks.
  */
 export function cleanupStreamingListeners(): void {
-  console.log('[SandboxBridge] Cleaning up streaming message listeners');
+  offscreenLogger.log(
+    '[SandboxBridge] Cleaning up streaming message listeners',
+  );
   window.removeEventListener('message', handleStreamingMessage);
   activeReaders.clear();
 }
@@ -34,14 +38,16 @@ export function cleanupStreamingListeners(): void {
  * Handle streaming-related messages from sandbox.
  */
 function handleStreamingMessage(event: MessageEvent): void {
-  console.log('[SandboxBridge] Received message in offscreen', {
+  offscreenLogger.log('[SandboxBridge] Received message in offscreen', {
     type: event.data?.type,
     sourceMatchesIframe: isFromSandbox(event),
   });
 
   // Only process messages from our sandbox iframe
   if (!isFromSandbox(event)) {
-    console.log('[SandboxBridge] Ignoring message - not from sandbox iframe');
+    offscreenLogger.log(
+      '[SandboxBridge] Ignoring message - not from sandbox iframe',
+    );
     return;
   }
 
@@ -66,7 +72,7 @@ function handleStreamingMessage(event: MessageEvent): void {
  */
 function handleInitStream(data: SandboxToParentMessages['init-stream']): void {
   const { requestId, url } = data;
-  console.log('[SandboxBridge] Initializing range reader', {
+  offscreenLogger.log('[SandboxBridge] Initializing range reader', {
     requestId,
     url,
   });
@@ -80,7 +86,7 @@ function handleInitStream(data: SandboxToParentMessages['init-stream']): void {
       await reader.ensureSize();
       activeReaders.set(requestId, reader);
 
-      console.log('[SandboxBridge] Range reader initialized', {
+      offscreenLogger.log('[SandboxBridge] Range reader initialized', {
         requestId,
         totalSize: reader.totalSize,
       });
@@ -94,7 +100,7 @@ function handleInitStream(data: SandboxToParentMessages['init-stream']): void {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Range reader init failed';
-      debugLogger.error('[SandboxBridge] Range reader init failed', {
+      offscreenLogger.error('[SandboxBridge] Range reader init failed', {
         requestId,
         error: message,
       });
@@ -111,7 +117,11 @@ function handleInitStream(data: SandboxToParentMessages['init-stream']): void {
  */
 function handleFetchChunk(data: SandboxToParentMessages['fetch-chunk']): void {
   const { requestId, baseRequestId, offset, size } = data;
-  console.log('[SandboxBridge] Fetching chunk', { requestId, offset, size });
+  offscreenLogger.log('[SandboxBridge] Fetching chunk', {
+    requestId,
+    offset,
+    size,
+  });
   void (async () => {
     try {
       const reader = activeReaders.get(baseRequestId);
@@ -120,7 +130,7 @@ function handleFetchChunk(data: SandboxToParentMessages['fetch-chunk']): void {
       }
 
       const bytes = await reader.read(size, offset);
-      console.log('[SandboxBridge] Sending chunk', {
+      offscreenLogger.log('[SandboxBridge] Sending chunk', {
         requestId,
         bytesLength: bytes.length,
         bytesFetched: reader.bytesFetched,
@@ -139,7 +149,7 @@ function handleFetchChunk(data: SandboxToParentMessages['fetch-chunk']): void {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Chunk fetch failed';
-      debugLogger.error('[SandboxBridge] Chunk fetch failed', {
+      offscreenLogger.error('[SandboxBridge] Chunk fetch failed', {
         requestId,
         error: message,
       });
@@ -158,10 +168,12 @@ function handleCleanupStream(
   data: SandboxToParentMessages['cleanup-stream'],
 ): void {
   const { requestId } = data;
-  console.log('[SandboxBridge] Cleaning up range reader', { requestId });
+  offscreenLogger.log('[SandboxBridge] Cleaning up range reader', {
+    requestId,
+  });
   const reader = activeReaders.get(requestId);
   if (reader) {
-    console.log('[SandboxBridge] Range reader stats', {
+    offscreenLogger.log('[SandboxBridge] Range reader stats', {
       requestId,
       bytesFetched: reader.bytesFetched,
       requests: reader.requests,

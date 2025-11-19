@@ -17,12 +17,20 @@ const {
   mockRunDecidePhase,
   mockRunGeneratePhase,
   mockBuildProposalFromAnalysis,
+  mockOffscreenLogger,
 } = vi.hoisted(() => ({
   mockCheckMultimodalAvailability: vi.fn(),
   mockRunDescribePhase: vi.fn(),
   mockRunDecidePhase: vi.fn(),
   mockRunGeneratePhase: vi.fn(),
   mockBuildProposalFromAnalysis: vi.fn(),
+  mockOffscreenLogger: {
+    log: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    isEnabled: vi.fn().mockReturnValue(true),
+    setEnabled: vi.fn(),
+  },
 }));
 
 vi.mock('./model-availability', () => ({
@@ -44,6 +52,10 @@ vi.mock('./pipeline-phases', () => ({
 
 vi.mock('./proposal-builder', () => ({
   buildProposalFromAnalysis: mockBuildProposalFromAnalysis,
+}));
+
+vi.mock('@/entrypoints/shared/debug/offscreen-logger', () => ({
+  offscreenLogger: mockOffscreenLogger,
 }));
 
 let mockConsoleLog: ReturnType<typeof vi.spyOn>;
@@ -167,6 +179,7 @@ describe('pipeline-orchestrator', () => {
       expect(mockRunDescribePhase).toHaveBeenCalledWith(
         ingestion.blob,
         'test-request-id',
+        request,
       );
       expect(mockRunDecidePhase).toHaveBeenCalled();
       expect(mockRunGeneratePhase).toHaveBeenCalled();
@@ -182,6 +195,7 @@ describe('pipeline-orchestrator', () => {
       expect(mockRunDescribePhase).toHaveBeenCalledWith(
         ingestion.blob,
         'test-request-id',
+        request,
       );
     });
 
@@ -236,7 +250,7 @@ describe('pipeline-orchestrator', () => {
 
       await runImageUpgradePipeline(request, ingestion);
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('Multimodal API ready'),
         expect.objectContaining({
           requestId: 'test-request-id',
@@ -358,7 +372,7 @@ describe('pipeline-orchestrator', () => {
           baselineFilename: 'IMG_1234.jpg',
         }),
       );
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('Keeping baseline filename'),
         expect.objectContaining({
           requestId: 'test-request-id',

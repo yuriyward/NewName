@@ -53,7 +53,6 @@ export async function processDeterminingFilename(
   ) => Promise<void>,
 ): Promise<void> {
   const controller = createSuggestController(suggest);
-  let suggestionIssued = false;
   try {
     await pageContextService.prune();
 
@@ -117,7 +116,6 @@ export async function processDeterminingFilename(
         if (!submitted) {
           return;
         }
-        suggestionIssued = true;
         try {
           await confirmToastController.queueConfirmation({
             historyId,
@@ -148,7 +146,6 @@ export async function processDeterminingFilename(
           if (!fallbackSubmitted) {
             return;
           }
-          suggestionIssued = true;
           debugLogger.log(
             '[NewName] queueConfirmation failed, showing rename overlay',
           );
@@ -166,7 +163,6 @@ export async function processDeterminingFilename(
         if (!submitted) {
           return;
         }
-        suggestionIssued = true;
         debugLogger.log('[NewName] Auto rename overlay dispatch', {
           tabId: initiatingTabId,
           original: baseFilename,
@@ -186,8 +182,6 @@ export async function processDeterminingFilename(
       if (!submitted) {
         return;
       }
-      suggestionIssued = true;
-      return;
     }
 
     const finalFilename = renameCandidate
@@ -209,7 +203,7 @@ export async function processDeterminingFilename(
     });
   } catch (error) {
     debugLogger.error('Instant Baseline rename failed', { error });
-    if (!suggestionIssued) {
+    if (!controller.isResolved()) {
       controller.ensureDefault();
     }
   } finally {

@@ -6,7 +6,7 @@
 
 ## 1) Summary
 
-NewName automatically gives new files short, human-like names. The Instant Baseline stage now applies **deterministic strategies** (keep original, append date, reuse page title) selected by the user, with automatic fallbacks to the original name when inputs are missing. Anything more ambitious is deferred to the Contextual Upgrade stage, which the user can opt into via “Upgrade”. Processing is **local-first** using Chrome’s **built-in AI** (Prompt, Summarizer, Language Detector). An **explicit, opt-in cloud fallback** (Firebase AI Logic → Gemini) is available. Users can **Undo** and **Upgrade** post-save thanks to one-time **Downloads folder** access via File System Access.
+NewName automatically gives new files short, human-like names. The Instant Baseline stage now applies **deterministic strategies** (keep original, append date/time) selected by the user, with automatic fallbacks to the original name when inputs are missing. Anything more ambitious is deferred to the Contextual Upgrade stage, which the user can opt into via “Upgrade”. Processing is **local-first** using Chrome’s **built-in AI** (Prompt, Summarizer, Language Detector). An **explicit, opt-in cloud fallback** (Firebase AI Logic → Gemini) is available. Users can **Undo** and **Upgrade** post-save thanks to one-time **Downloads folder** access via File System Access.
 
 ## 2) Problem & Opportunity
 
@@ -56,8 +56,8 @@ People accumulate poorly named files; retrieval is slow. Current renamers are ru
 ### Instant Baseline — Deterministic Stage (<1s)
 
 * **Trigger:** `chrome.downloads.onDeterminingFilename`.
-* **Signals:** original filename, download timestamp, and page title (when provided by the content script). No heuristics, scoring, or AI.
-* **Decision:** Apply the user-selected strategy (`keep-original`, `original-with-date`, `page-title`, `page-title-with-date`). If required inputs (title/date) are missing, gracefully fall back to the original filename.
+* **Signals:** original filename and download timestamp. No heuristics, scoring, or AI.
+* **Decision:** Apply the user-selected strategy (`keep-original`, `original-with-date`). If required inputs (date) are missing, gracefully fall back to the original filename.
 * **Action:** Generate the deterministic name with the Filename Policy (safe characters, separators) and call `suggest()`. When falling back, keep the original name and record the reason so the Contextual Upgrade stage can offer upgrades.
 * **Feedback:** Toasts differentiate outcomes: “Renamed (Strategy)” with Undo/Edit, or “Kept original (Upgrade available)” when inputs were insufficient.
 
@@ -97,12 +97,10 @@ People accumulate poorly named files; retrieval is slow. Current renamers are ru
 
 ## 8) Decision Policy (Rename vs Keep)
 
-The Instant Baseline stage is purely deterministic. Users choose one of four strategies, and the extension either applies it or keeps the download untouched if the required inputs are missing.
+The Instant Baseline stage is purely deterministic. Users choose one of two strategies, and the extension either applies it or keeps the download untouched if the required inputs are missing.
 
-* `keep-original` — never rename; the Instant Baseline stage logs “strategy-unavailable” for traceability.
+* `keep-original` — never rename; the Instant Baseline stage logs "strategy-unavailable" for traceability.
 * `original-with-date` — append the download date (`YYYY-MM-DD`) to the sanitized original basename. If no timestamp is provided by Chrome, fall back to the original name.
-* `page-title` — use the page title (sanitized) when present; otherwise keep the original name. No attempt is made to infer subject matter.
-* `page-title-with-date` — combine the sanitized page title with the download date, degrading to whichever inputs are available.
 
 Any richer understanding or vendor-specific logic is deferred to the Contextual Upgrade “Upgrade”, where on-device or opt-in cloud AI can inspect the file itself.
 

@@ -1,4 +1,4 @@
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type {
   TextAnalysisMode,
   TextUpgradeModelSource,
@@ -14,7 +14,7 @@ export function recordPipelineBlocked(
     mode,
     reason,
   }).catch((error) => {
-    debugLogger.warn('[TextUpgradeAI] Failed to record blocked telemetry', {
+    offscreenLogger.warn('[TextUpgradeAI] Failed to record blocked telemetry', {
       mode,
       reason,
       error,
@@ -27,7 +27,7 @@ export function recordPipelineRouted(source: TextUpgradeModelSource): void {
     type: 'routed',
     source,
   }).catch((error) => {
-    debugLogger.warn('[TextUpgradeAI] Failed to record routed telemetry', {
+    offscreenLogger.warn('[TextUpgradeAI] Failed to record routed telemetry', {
       source,
       error,
     });
@@ -43,7 +43,7 @@ export function recordDecisionMade(
   reason: string,
   confidence: number,
 ): void {
-  console.log('[TextUpgradeAI] Decision recorded', {
+  offscreenLogger.log('[TextUpgradeAI] Decision recorded', {
     shouldRename,
     reason,
     confidence,
@@ -55,11 +55,14 @@ export function recordDecisionMade(
     reason,
     confidence,
   }).catch((error) => {
-    debugLogger.warn('[TextUpgradeAI] Failed to record decision telemetry', {
-      shouldRename,
-      reason,
-      error,
-    });
+    offscreenLogger.warn(
+      '[TextUpgradeAI] Failed to record decision telemetry',
+      {
+        shouldRename,
+        reason,
+        error,
+      },
+    );
   });
 }
 
@@ -67,7 +70,7 @@ export function recordDecisionMade(
  * Record successful filename generation by the Prompt API.
  */
 export function recordGenerationSuccess(confidence: number): void {
-  console.log('[TextUpgradeAI] Generation success recorded', {
+  offscreenLogger.log('[TextUpgradeAI] Generation success recorded', {
     confidence,
   });
 
@@ -75,9 +78,12 @@ export function recordGenerationSuccess(confidence: number): void {
     type: 'generation-success',
     confidence,
   }).catch((error) => {
-    debugLogger.warn('[TextUpgradeAI] Failed to record generation success', {
-      error,
-    });
+    offscreenLogger.warn(
+      '[TextUpgradeAI] Failed to record generation success',
+      {
+        error,
+      },
+    );
   });
 }
 
@@ -85,7 +91,7 @@ export function recordGenerationSuccess(confidence: number): void {
  * Record when filename generation fails.
  */
 export function recordGenerationFailure(error: string): void {
-  console.log('[TextUpgradeAI] Generation failure recorded', {
+  offscreenLogger.log('[TextUpgradeAI] Generation failure recorded', {
     error,
   });
 
@@ -93,10 +99,13 @@ export function recordGenerationFailure(error: string): void {
     type: 'generation-failure',
     error,
   }).catch((recordError) => {
-    debugLogger.warn('[TextUpgradeAI] Failed to record generation failure', {
-      originalError: error,
-      recordError,
-    });
+    offscreenLogger.warn(
+      '[TextUpgradeAI] Failed to record generation failure',
+      {
+        originalError: error,
+        recordError,
+      },
+    );
   });
 }
 
@@ -108,7 +117,7 @@ export function recordPromptPipelineComplete(
   decisionTimeMs: number,
   generationTimeMs: number,
 ): void {
-  console.log('[TextUpgradeAI] Prompt pipeline complete', {
+  offscreenLogger.log('[TextUpgradeAI] Prompt pipeline complete', {
     decisionTimeMs,
     generationTimeMs,
     totalMs: decisionTimeMs + generationTimeMs,
@@ -120,7 +129,7 @@ export function recordPromptPipelineComplete(
     generationTimeMs,
     totalMs: decisionTimeMs + generationTimeMs,
   }).catch((error) => {
-    debugLogger.warn('[TextUpgradeAI] Failed to record pipeline complete', {
+    offscreenLogger.warn('[TextUpgradeAI] Failed to record pipeline complete', {
       error,
     });
   });

@@ -5,6 +5,7 @@ import type {
   FileType,
   Settings,
 } from '@/entrypoints/shared/settings/settings';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 import type { TextEncoding } from '@/entrypoints/shared/utils/encoding';
 
 export type TextAnalysisMode =
@@ -30,6 +31,8 @@ export interface TextUpgradeAnalysisRequest {
     final: string;
     decision: InstantBaselineDecision | undefined;
   };
+  /** Page context captured at download time (title, heading, URL) */
+  pageContext?: PageContextDetails;
   settings: {
     languagePreference: Settings['language'];
     mode: TextAnalysisMode;

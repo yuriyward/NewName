@@ -35,14 +35,14 @@ export function createUpgradeScheduler(
   async function scheduleMockAnalysis({
     historyId,
     downloadId,
-    fileType,
   }: ScheduleUpgradeAnalysisParams): Promise<void> {
-    if (fileType !== 'pdf') {
-      return;
-    }
+    // Eligibility (file type, cooldowns, etc.) is enforced upstream in upgrade/eligibility.ts.
+    // By the time we reach the scheduler we simply need a download id to attach the alarm.
     if (downloadId === undefined) {
-      debugLogger.warn(
-        '[UpgradeScheduler] Cannot schedule mock analysis without download id',
+      // No downloadId available yet - handleDownloadChange will trigger the immediate
+      // analysis path once Chrome assigns one, so we skip creating an alarm here.
+      debugLogger.log(
+        '[UpgradeScheduler] Skipping scheduled analysis (no download id), will use immediate path',
         { historyId },
       );
       return;

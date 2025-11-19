@@ -19,7 +19,7 @@ const {
   mockSession,
   mockCreatePromptSession,
   mockDestroyPromptSession,
-  mockDebugLogger,
+  mockOffscreenLogger,
 } = vi.hoisted(() => ({
   mockSession: {
     prompt: vi.fn(),
@@ -29,10 +29,12 @@ const {
   },
   mockCreatePromptSession: vi.fn(),
   mockDestroyPromptSession: vi.fn(),
-  mockDebugLogger: {
+  mockOffscreenLogger: {
     warn: vi.fn(),
     error: vi.fn(),
     log: vi.fn(),
+    isEnabled: vi.fn().mockReturnValue(true),
+    setEnabled: vi.fn(),
   },
 }));
 
@@ -41,8 +43,8 @@ vi.mock('../text-analysis/prompt-helpers', () => ({
   destroyPromptSession: mockDestroyPromptSession,
 }));
 
-vi.mock('@/entrypoints/shared/debug/logger', () => ({
-  debugLogger: mockDebugLogger,
+vi.mock('@/entrypoints/shared/debug/offscreen-logger', () => ({
+  offscreenLogger: mockOffscreenLogger,
 }));
 
 let mockConsoleLog: ReturnType<typeof vi.spyOn>;
@@ -146,7 +148,7 @@ describe('image-description', () => {
       const result = await describeImage(mockImageBlob);
 
       expect(result).toBeNull();
-      expect(mockConsoleError).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.error).toHaveBeenCalledWith(
         expect.stringContaining(
           'Check chrome://flags/#prompt-api-for-gemini-nano-multimodal-input',
         ),
@@ -160,7 +162,7 @@ describe('image-description', () => {
       const result = await describeImage(mockImageBlob);
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Empty description'),
       );
     });
@@ -171,7 +173,7 @@ describe('image-description', () => {
       const result = await describeImage(mockImageBlob);
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Empty description'),
       );
     });
@@ -182,7 +184,7 @@ describe('image-description', () => {
       const result = await describeImage(mockImageBlob);
 
       expect(result).toBeNull();
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('description generation failed'),
         expect.objectContaining({
           error: expect.any(Error),
@@ -202,7 +204,7 @@ describe('image-description', () => {
     it('logs blob size and type', async () => {
       await describeImage(mockImageBlob);
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('Creating multimodal session'),
         expect.objectContaining({
           blobSize: mockImageBlob.size,
@@ -214,7 +216,7 @@ describe('image-description', () => {
     it('logs elapsed time on success', async () => {
       await describeImage(mockImageBlob);
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('Description generated'),
         expect.objectContaining({
           description: expect.any(String),
@@ -316,10 +318,10 @@ describe('image-description', () => {
 
       await describeImage(mockImageBlob);
 
-      expect(mockDebugLogger.warn).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('Failed to create multimodal session'),
       );
-      expect(mockConsoleError).toHaveBeenCalledWith(
+      expect(mockOffscreenLogger.error).toHaveBeenCalledWith(
         expect.stringContaining('chrome://flags'),
       );
     });
@@ -331,8 +333,7 @@ describe('image-description', () => {
 
       const sessionCall = mockCreatePromptSession.mock.calls[0][0];
       expect(sessionCall.systemPrompt).toContain('precise image analyst');
-      expect(sessionCall.systemPrompt).toContain('1-2 sentences');
-      expect(sessionCall.systemPrompt).toContain('120 characters');
+      expect(sessionCall.systemPrompt).toContain('up to three sentences');
       expect(sessionCall.systemPrompt).toContain('No metadata');
     });
   });

@@ -21,12 +21,14 @@ import {
 } from '@/entrypoints/shared/integrations/image-analysis/constants';
 import { ingestImageForPrompt } from './image-ingestion';
 
-// Mock debug logger
-vi.mock('@/entrypoints/shared/debug/logger', () => ({
-  debugLogger: {
+// Mock offscreen logger
+vi.mock('@/entrypoints/shared/debug/offscreen-logger', () => ({
+  offscreenLogger: {
     warn: vi.fn(),
     error: vi.fn(),
     log: vi.fn(),
+    isEnabled: vi.fn().mockReturnValue(true),
+    setEnabled: vi.fn(),
   },
 }));
 
@@ -62,11 +64,16 @@ describe('image-ingestion', () => {
     } as unknown as OffscreenCanvas;
 
     // Mock OffscreenCanvas constructor
-    global.OffscreenCanvas = vi.fn().mockImplementation((width, height) => {
-      mockCanvas.width = width;
-      mockCanvas.height = height;
-      return mockCanvas;
-    }) as unknown as typeof OffscreenCanvas;
+    const OffscreenCanvasMock = vi
+      .fn(function mockOffscreenCanvas(width: number, height: number) {
+        mockCanvas.width = width;
+        mockCanvas.height = height;
+        return mockCanvas;
+      })
+      .mockName('OffscreenCanvasMock');
+
+    globalThis.OffscreenCanvas =
+      OffscreenCanvasMock as unknown as typeof OffscreenCanvas;
 
     // Mock ImageBitmap
     _mockImageBitmap = {

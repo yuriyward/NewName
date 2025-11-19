@@ -4,7 +4,9 @@
  * Analyzes both pages to find document titles and gather comprehensive context
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 import {
   createPromptSession,
   destroyPromptSession,
@@ -89,11 +91,14 @@ function normalizeTitle(value: unknown): string | null {
 async function analyzePdfPage(
   pageBlob: Blob,
   pageNumber: number,
+  pageContext?: PageContextDetails,
 ): Promise<PdfPageAnalysis | null> {
   let session: Awaited<ReturnType<typeof createPromptSession>> = null;
 
   try {
-    console.log(`[PdfTitleDescription] Analyzing page ${pageNumber} for title`);
+    offscreenLogger.log(
+      `[PdfTitleDescription] Analyzing page ${pageNumber} for title`,
+    );
 
     // Create multimodal session for analyzing PDF page images
     session = await createPromptSession({
@@ -106,18 +111,24 @@ async function analyzePdfPage(
     });
 
     if (!session) {
-      debugLogger.warn(
+      offscreenLogger.warn(
         '[PdfTitleDescription] Failed to create multimodal session',
       );
       return null;
     }
 
     // Prompt to extract title and description
-    const promptText = `Analyze this PDF page and provide:
+    let promptText = `Analyze this PDF page and provide:
 1. EXACT document/article title if present at the top (null if no clear title)
-2. A concise description of what this page shows, including main topics and content type
+2. A concise description of what this page shows, including main topics and content type`;
 
-Format your response as JSON with exactly this structure:
+    // Add page context as a hint if available
+    promptText += formatPageContextForPrompt(pageContext, {
+      prefix:
+        '\n\nNote: This PDF was downloaded from the following page. This may provide context about the document origin:',
+    });
+
+    promptText += `\n\nFormat your response as JSON with exactly this structure:
 {
   "title": "Exact title here or null",
   "description": "What this page shows - 2-3 sentences covering main topics and content"
@@ -143,13 +154,16 @@ Format your response as JSON with exactly this structure:
         parsed = JSON.parse(jsonMatch[0]);
       }
     } catch (_e) {
-      debugLogger.warn('[PdfTitleDescription] Failed to parse JSON response', {
-        response,
-      });
+      offscreenLogger.warn(
+        '[PdfTitleDescription] Failed to parse JSON response',
+        {
+          response,
+        },
+      );
     }
 
     if (!isValidModelResponse(parsed)) {
-      debugLogger.warn(
+      offscreenLogger.warn(
         `[PdfTitleDescription] Invalid response structure from page ${pageNumber}`,
         { parsed },
       );
@@ -167,15 +181,18 @@ Format your response as JSON with exactly this structure:
       hasTitle: parsedTitle !== null,
     };
 
-    console.log(`[PdfTitleDescription] Page ${pageNumber} analysis complete`, {
-      hasTitle: analysis.hasTitle,
-      titleLength: analysis.title?.length,
-      descriptionLength: analysis.description.length,
-    });
+    offscreenLogger.log(
+      `[PdfTitleDescription] Page ${pageNumber} analysis complete`,
+      {
+        hasTitle: analysis.hasTitle,
+        titleLength: analysis.title?.length,
+        descriptionLength: analysis.description.length,
+      },
+    );
 
     return analysis;
   } catch (error) {
-    debugLogger.warn(
+    offscreenLogger.warn(
       `[PdfTitleDescription] Failed to analyze page ${pageNumber}`,
       { error },
     );
@@ -194,13 +211,16 @@ Format your response as JSON with exactly this structure:
  */
 export async function extractPdfTitlesAndDescriptions(
   pageBlobs: Blob[],
+  pageContext?: PageContextDetails,
 ): Promise<PdfTitleDescriptionContext | null> {
   if (pageBlobs.length === 0) {
-    debugLogger.warn('[PdfTitleDescription] No pages provided for analysis');
+    offscreenLogger.warn(
+      '[PdfTitleDescription] No pages provided for analysis',
+    );
     return null;
   }
 
-  console.log('[PdfTitleDescription] Starting analysis of PDF pages', {
+  offscreenLogger.log('[PdfTitleDescription] Starting analysis of PDF pages', {
     pageCount: pageBlobs.length,
   });
 
@@ -209,14 +229,14 @@ export async function extractPdfTitlesAndDescriptions(
   // Analyze each page
   const pageAnalyses: PdfPageAnalysis[] = [];
   for (let i = 0; i < pageBlobs.length; i++) {
-    const analysis = await analyzePdfPage(pageBlobs[i], i + 1);
+    const analysis = await analyzePdfPage(pageBlobs[i], i + 1, pageContext);
     if (analysis) {
       pageAnalyses.push(analysis);
     }
   }
 
   if (pageAnalyses.length === 0) {
-    debugLogger.warn('[PdfTitleDescription] Failed to analyze any pages');
+    offscreenLogger.warn('[PdfTitleDescription] Failed to analyze any pages');
     return null;
   }
 
@@ -245,7 +265,7 @@ export async function extractPdfTitlesAndDescriptions(
       pageAnalyses.length,
   };
 
-  console.log('[PdfTitleDescription] Analysis complete', {
+  offscreenLogger.log('[PdfTitleDescription] Analysis complete', {
     pagesAnalyzed: pageAnalyses.length,
     documentTitle: documentTitle ? 'found' : 'not-found',
     elapsedMs,

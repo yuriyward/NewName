@@ -1,10 +1,12 @@
 /**
  * Image description generation using Prompt API
- * Generates concise 1-2 sentence descriptions of image content
+ * Generates concise multi-sentence descriptions of image content
  */
 
 import { SILENT_RENAME_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-context-formatter';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
 import {
   createPromptSession,
   destroyPromptSession,
@@ -16,11 +18,11 @@ export interface ImageDescription {
 }
 
 const DESCRIPTION_SYSTEM_PROMPT = `You are a precise image analyst. Your task is to generate a clear,
-concise description of image content in 1-2 sentences. Focus on what the image shows, not metadata.
+concise description of image content in up to three sentences. Focus on what the image shows, not metadata.
 
 Guidelines:
 - Be specific: describe objects, scenes, text, or activity
-- Keep it brief: aim for under 120 characters
+- Keep it tight but expressive: aim for under 3 sentences total
 - No metadata: avoid file info, dimensions, format
 - Natural language: write as you'd describe it to someone
 - Reply with only the description text, no formatting`;
@@ -30,19 +32,21 @@ Guidelines:
  * Uses multimodal session to analyze image and return plain text description
  *
  * @param imageBlob - PNG blob of image to describe
+ * @param pageContext - Optional page context (title, heading, URL) from download
  * @returns Description object with text and baseline confidence
  *
  * Note: Multimodal availability is verified by the pipeline orchestrator before calling this function.
  */
 export async function describeImage(
   imageBlob: Blob,
+  pageContext?: PageContextDetails,
 ): Promise<ImageDescription | null> {
   let session = null;
 
   try {
     const startTime = Date.now();
 
-    console.log(
+    offscreenLogger.log(
       '[ImageDescription] Creating multimodal session for image description',
       {
         blobSize: imageBlob.size,
@@ -61,19 +65,26 @@ export async function describeImage(
     });
 
     if (!session) {
-      const message =
-        '[ImageDescription] Failed to create multimodal session even though API reported as available. ' +
-        'Check chrome://flags/#prompt-api-for-gemini-nano-multimodal-input is set to "Enabled" (not "Default"). ' +
-        'This is a Chrome quirk: "Default" does NOT enable multimodal support - ' +
-        'you must explicitly select "Enabled" from the dropdown.';
-      debugLogger.warn(message);
-      console.error(message);
+      const helpText =
+        'Check chrome://flags/#prompt-api-for-gemini-nano-multimodal-input is set to "Enabled" (not "Default"). This is a Chrome quirk: "Default" does NOT enable multimodal support - you must explicitly select "Enabled" from the dropdown.';
+      offscreenLogger.warn(
+        `[ImageDescription] Failed to create multimodal session. ${helpText}`,
+      );
+      offscreenLogger.error(
+        `[ImageDescription] Failed to create multimodal session. ${helpText}`,
+      );
       return null;
     }
 
     // Build multimodal prompt with image and text instruction
-    const promptText = `Analyze this image and provide a 1-2 sentence description.
-Keep it under 120 characters and focus on what the image shows.`;
+    let promptText = `Analyze this image and provide a detailed description in up to three sentences.
+Focus on the visual content and key details; avoid metadata or technical comments.`;
+
+    // Add page context if available
+    promptText += formatPageContextForPrompt(pageContext, {
+      prefix: '\n\nThis image was downloaded from:',
+      multiline: true,
+    });
 
     // Send prompt with image content using multimodal format
     // For multimodal sessions, content must be an array of content items
@@ -94,11 +105,11 @@ Keep it under 120 characters and focus on what the image shows.`;
     const description = response.trim();
 
     if (!description || description.length === 0) {
-      debugLogger.warn('[ImageDescription] Empty description in response');
+      offscreenLogger.warn('[ImageDescription] Empty description in response');
       return null;
     }
 
-    console.log('[ImageDescription] Description generated', {
+    offscreenLogger.log('[ImageDescription] Description generated', {
       description: description,
       elapsedMs,
     });
@@ -108,9 +119,12 @@ Keep it under 120 characters and focus on what the image shows.`;
       confidence: SILENT_RENAME_THRESHOLD, // Baseline confidence for model-generated descriptions
     };
   } catch (error) {
-    debugLogger.warn('[ImageDescription] Image description generation failed', {
-      error,
-    });
+    offscreenLogger.warn(
+      '[ImageDescription] Image description generation failed',
+      {
+        error,
+      },
+    );
     return null;
   } finally {
     if (session) {

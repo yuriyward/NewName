@@ -5,27 +5,39 @@ import type { FileType } from '@/entrypoints/shared/settings/settings';
 
 export type InstantBaselineStrategy =
   | 'keep-original'
-  | 'original-with-date'
-  | 'page-title'
-  | 'page-title-with-date';
+  | 'ai-rename'
+  | 'original-with-date';
 
 export function isInstantBaselineStrategy(
   value: unknown,
 ): value is InstantBaselineStrategy {
   return (
     value === 'keep-original' ||
-    value === 'original-with-date' ||
-    value === 'page-title' ||
-    value === 'page-title-with-date'
+    value === 'ai-rename' ||
+    value === 'original-with-date'
   );
 }
 
 export type InstantBaselineGuardrail =
   | 'strategy-applied'
+  | 'strategy-deferred'
   | 'strategy-unavailable'
   | 'evaluation-failed'
   | 'debug-evaluation-failed'
   | 'decision-creation-failed';
+
+export function isInstantBaselineGuardrail(
+  value: unknown,
+): value is InstantBaselineGuardrail {
+  return (
+    value === 'strategy-applied' ||
+    value === 'strategy-deferred' ||
+    value === 'strategy-unavailable' ||
+    value === 'evaluation-failed' ||
+    value === 'debug-evaluation-failed' ||
+    value === 'decision-creation-failed'
+  );
+}
 
 export interface InstantBaselineDecisionSignals {
   inputsUsed: string[];
@@ -67,6 +79,6 @@ export interface InstantBaselineStrategyInputs {
   originalBase: string;
   rawOriginalBase: string;
   originalDelimiter: string;
-  pageTitle?: string;
   isoDate?: string;
+  isoDateTime?: string;
 }

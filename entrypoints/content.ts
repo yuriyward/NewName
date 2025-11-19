@@ -19,6 +19,7 @@ const MAX_IMMEDIATE_SEND_ATTEMPTS = 3;
 const MAX_TOTAL_SEND_ATTEMPTS = 6;
 const RETRY_BASE_DELAY_MS = 75;
 const QUEUED_RETRY_DELAY_MS = 1_000;
+const PAGE_CONTEXT_REFRESH_INTERVAL_MS = 2 * 60_000;
 
 type ContextUpdate =
   | {
@@ -43,6 +44,8 @@ interface PendingUpdate {
 
 let pendingUpdates: PendingUpdate[] = [];
 let pendingFlushTimer: ReturnType<typeof setTimeout> | undefined;
+let contextRefreshTimer: ReturnType<typeof setInterval> | undefined;
+let lastContextPublishTimestamp = 0;
 
 interface RuntimeContext {
   tabId?: number;
@@ -262,6 +265,40 @@ function publishPageContext(force = false): void {
     type: 'PAGE_CONTEXT',
     payload: snapshot,
   });
+
+  lastContextPublishTimestamp = Date.now();
+}
+
+function isDocumentVisible(): boolean {
+  return document.visibilityState === 'visible';
+}
+
+function ensureContextRefreshTimer(): void {
+  if (contextRefreshTimer) return;
+  if (!isDocumentVisible()) return;
+  contextRefreshTimer = setInterval(() => {
+    const now = Date.now();
+    if (now - lastContextPublishTimestamp >= PAGE_CONTEXT_REFRESH_INTERVAL_MS) {
+      publishPageContext(true);
+    }
+  }, PAGE_CONTEXT_REFRESH_INTERVAL_MS);
+}
+
+function clearContextRefreshTimer(): void {
+  if (!contextRefreshTimer) return;
+  clearInterval(contextRefreshTimer);
+  contextRefreshTimer = undefined;
+}
+
+function handleVisibilityChange(): void {
+  if (!isDocumentVisible()) {
+    clearContextRefreshTimer();
+    return;
+  }
+
+  // Force a refresh when returning to an active tab to avoid stale context
+  publishPageContext(true);
+  ensureContextRefreshTimer();
 }
 
 function handleLinkInteraction(event: Event): void {
@@ -299,15 +336,23 @@ function observeTitle(): void {
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
-  main() {
+  main(ctx) {
     void ensureRuntimeContext().catch(() => {
       // Resolution will be retried by individual updates on demand.
     });
     void syncPendingToasts();
     publishPageContext(true);
+    ensureContextRefreshTimer();
+    const visibilityListener = () => handleVisibilityChange();
+    document.addEventListener('visibilitychange', visibilityListener);
     observeTitle();
     window.addEventListener('click', handleLinkInteraction, true);
     window.addEventListener('auxclick', handleLinkInteraction, true);
     window.addEventListener('contextmenu', handleLinkInteraction, true);
+
+    ctx.onInvalidated(() => {
+      document.removeEventListener('visibilitychange', visibilityListener);
+      clearContextRefreshTimer();
+    });
   },
 });

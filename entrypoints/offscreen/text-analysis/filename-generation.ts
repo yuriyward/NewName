@@ -2,273 +2,27 @@
  * Filename generation module using Chrome's Prompt API.
  * This module generates new filename stems based on content analysis.
  * It only runs AFTER the decision module determines that renaming is needed.
+ *
+ * SECURITY: All untrusted inputs (page context, summary) are sanitized via shared utilities.
  */
 
 import { SILENT_RENAME_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
-import type { Separator } from '@/entrypoints/shared/settings/settings';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import {
-  buildBaseContextDescription,
+  buildGenerationPrompt,
+  GENERATION_SYSTEM_PROMPT,
+} from './filename-generation-prompts';
+import type {
+  FilenameGeneration,
+  FilenameGenerationContext,
+} from './filename-generation-types';
+import { FILENAME_GENERATION_SCHEMA } from './filename-generation-types';
+import { validateGenerationResponse } from './filename-generation-validator';
+import {
   createPromptSession,
   destroyPromptSession,
-  formatPolicyRules,
   parseStructuredResponse,
-  truncateForPrompt,
 } from './prompt-helpers';
-
-/**
- * Structured response from the generation prompt.
- * This schema is enforced via JSON Schema in the Prompt API call.
- */
-export interface FilenameGeneration {
-  stem: string; // Main filename without extension
-  qualifiers?: string[]; // Optional qualifiers (version, date, etc.)
-  confidence: number; // 0.0 to 1.0
-  explanation?: string; // Brief explanation of the generated name
-}
-
-/**
- * Context information needed to generate a new filename.
- */
-export interface FilenameGenerationContext {
-  summary: string;
-  language?: string;
-  currentBaseline: string;
-  settings: {
-    maxLength: number;
-    separator: Separator;
-    transliterateAscii: boolean;
-  };
-  // Optional PDF context from phase 1 analysis
-  pdfContext?: {
-    source: 'pdf';
-    documentTitle: string | null;
-    shouldPrioritizeTitle: boolean;
-  };
-}
-
-/**
- * JSON Schema for enforcing structured output from the Prompt API.
- * This ensures the model returns filename components in a consistent format.
- */
-const FILENAME_GENERATION_SCHEMA = {
-  type: 'object',
-  properties: {
-    stem: {
-      type: 'string',
-      minLength: 1,
-      maxLength: 60,
-      description:
-        'Main filename stem without extension. Should be descriptive and based on content summary.',
-    },
-    qualifiers: {
-      type: 'array',
-      items: {
-        type: 'string',
-        maxLength: 20,
-      },
-      maxItems: 3,
-      description:
-        'Optional qualifiers like version, date, or category. Keep minimal.',
-    },
-    confidence: {
-      type: 'number',
-      minimum: 0,
-      maximum: 1,
-      description:
-        'Confidence in this filename suggestion (0.0 = uncertain, 1.0 = certain)',
-    },
-    explanation: {
-      type: 'string',
-      maxLength: 100,
-      description: 'Brief explanation of why this filename was chosen',
-    },
-  },
-  required: ['stem', 'confidence'],
-  additionalProperties: false,
-} as const;
-
-/**
- * Build the generation prompt that asks the AI to create a new filename.
- * This prompt includes policy rules and examples to guide generation.
- * For PDFs with extracted titles, prioritizes using the exact title in the filename.
- */
-function buildGenerationPrompt(context: FilenameGenerationContext): string {
-  const baseContext = buildBaseContextDescription({
-    filename: context.currentBaseline,
-    summary: context.summary,
-    language: context.language,
-    fileType: 'image', // Image pipeline reuses this generator
-  });
-
-  // Truncate summary if too long to avoid token limits
-  const summaryForPrompt = truncateForPrompt(context.summary, 800).trim();
-
-  const policyRules = formatPolicyRules(context.settings);
-
-  const separatorExample =
-    context.settings.separator === 'clean'
-      ? 'Budget Meeting Notes'
-      : context.settings.separator === 'kebab'
-        ? 'budget-meeting-notes'
-        : 'budget_meeting_notes';
-
-  const separatorDescription =
-    context.settings.separator === 'clean'
-      ? 'Use single spaces between words.'
-      : context.settings.separator === 'kebab'
-        ? 'Use lowercase words joined with hyphens.'
-        : 'Use lowercase words joined with underscores.';
-
-  const transliterationGuidance = context.settings.transliterateAscii
-    ? 'Convert diacritics to their ASCII equivalents (e.g., café → cafe).'
-    : 'Preserve Unicode characters unless unsafe for filenames.';
-
-  const jsonSummary = JSON.stringify(summaryForPrompt || 'Not available');
-  const jsonBaseline = JSON.stringify(context.currentBaseline);
-
-  // Add PDF-specific generation guidance if title was extracted
-  const pdfGuidance =
-    context.pdfContext?.shouldPrioritizeTitle &&
-    context.pdfContext?.documentTitle
-      ? `\nPDF PRIORITY: This is a PDF with an extracted document title: "${context.pdfContext.documentTitle}"
-- PRIORITIZE using this exact title as the primary component of the filename
-- If the title is a complete, descriptive phrase, use it directly
-- Only shorten or modify the title if it exceeds the max length
-- The title is authoritative for this document`
-      : '';
-
-  return `You generate descriptive filename stems that follow strict formatting policies.
-
-Context:
-${baseContext}
-
-Content summary (JSON string): ${jsonSummary}
-Current baseline name (JSON string): ${jsonBaseline}${pdfGuidance}
-
-Formatting requirements:
-${policyRules}
-- ${separatorDescription}
-- ${transliterationGuidance}
-- Keep the stem under ${context.settings.maxLength} characters.
-- Never include a file extension (no ".png", ".jpg", etc.).
-
-Generation guidance:
-- Focus on the most important subject (3-6 words ideal).
-- Prefer concrete nouns and descriptors over vague phrases.
-- Qualifiers are optional; include at most three short items if they add clarity.
-
-Output schema:
-\`\`\`json
-{
-  "stem": string,
-  "qualifiers": string[]?,
-  "confidence": number,
-  "explanation": string?
-}
-\`\`\`
-
-Well-formed examples:
-1. {"stem": "${separatorExample}", "confidence": 0.86, "explanation": "Summarizes the project roadmap topic."}
-2. {"stem": "${separatorExample}", "qualifiers": ["2025"], "confidence": 0.9, "explanation": "Adds the year as a useful qualifier."}
-
-Respond with JSON only—no markdown, no additional text, no trailing commas.`;
-}
-
-/**
- * Validate that the generation response has required fields and correct types.
- * This adds runtime validation on top of the JSON schema constraint.
- */
-function validateGenerationResponse(
-  generation: FilenameGeneration,
-): generation is FilenameGeneration {
-  if (
-    typeof generation.stem !== 'string' ||
-    generation.stem.trim().length === 0
-  ) {
-    debugLogger.warn('[FilenameGeneration] Invalid stem', {
-      stem: generation.stem,
-    });
-    return false;
-  }
-
-  if (generation.stem.length > 60) {
-    debugLogger.warn('[FilenameGeneration] Stem too long', {
-      length: generation.stem.length,
-    });
-    return false;
-  }
-
-  if (
-    typeof generation.confidence !== 'number' ||
-    generation.confidence < 0 ||
-    generation.confidence > 1
-  ) {
-    debugLogger.warn('[FilenameGeneration] Invalid confidence', {
-      confidence: generation.confidence,
-    });
-    return false;
-  }
-
-  if (generation.qualifiers !== undefined) {
-    if (!Array.isArray(generation.qualifiers)) {
-      debugLogger.warn('[FilenameGeneration] Qualifiers not an array', {
-        type: typeof generation.qualifiers,
-      });
-      return false;
-    }
-
-    if (generation.qualifiers.length > 3) {
-      debugLogger.warn('[FilenameGeneration] Too many qualifiers', {
-        count: generation.qualifiers.length,
-      });
-      return false;
-    }
-
-    for (const qualifier of generation.qualifiers) {
-      if (typeof qualifier !== 'string' || qualifier.length > 20) {
-        debugLogger.warn('[FilenameGeneration] Invalid qualifier', {
-          qualifier,
-        });
-        return false;
-      }
-    }
-  }
-
-  if (
-    generation.explanation !== undefined &&
-    typeof generation.explanation !== 'string'
-  ) {
-    debugLogger.warn('[FilenameGeneration] Invalid explanation type', {
-      type: typeof generation.explanation,
-    });
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * System prompt that establishes the AI's role as a filename generator.
- * This is separate from the per-request prompt and sets the overall context.
- */
-const GENERATION_SYSTEM_PROMPT = `You are a professional filename generator. Your job is to create clear, descriptive filenames based on file content.
-
-Follow these principles:
-- Clarity: Names should immediately convey what the file contains
-- Brevity: Keep names concise while maintaining meaning (3-6 words ideal)
-- Consistency: Follow the user's formatting preferences
-- Practicality: Create names that work well in file systems and searches
-- Relevance: Focus on the main topic, not minor details
-
-Avoid:
-- Technical jargon unless the content is technical
-- Redundant words that don't add meaning
-- File extensions in the stem (they're added separately)
-- Special characters that might cause issues
-- Overly generic terms like "document" or "file"
-
-Always respond with valid JSON matching the provided schema.`;
 
 /**
  * Main function to generate a new filename stem using Prompt API.
@@ -281,7 +35,7 @@ Always respond with valid JSON matching the provided schema.`;
 export async function generateFilenameStem(
   context: FilenameGenerationContext,
 ): Promise<string | null> {
-  console.log('[FilenameGeneration] Starting generation', {
+  offscreenLogger.log('[FilenameGeneration] Starting generation', {
     summaryLength: context.summary.length,
     language: context.language,
     baseline: context.currentBaseline,
@@ -293,7 +47,9 @@ export async function generateFilenameStem(
     const generation = await generateFilenameComplete(context);
 
     if (!generation) {
-      console.log('[FilenameGeneration] Failed to generate complete filename');
+      offscreenLogger.log(
+        '[FilenameGeneration] Failed to generate complete filename',
+      );
       return null;
     }
 
@@ -302,7 +58,7 @@ export async function generateFilenameStem(
     // The stem is typically passed to buildFilename() which applies naming policies.
     const trimmedStem = generation.stem.trim();
 
-    console.log('[FilenameGeneration] Generation successful', {
+    offscreenLogger.log('[FilenameGeneration] Generation successful', {
       stem: trimmedStem,
       qualifiers: generation.qualifiers,
       confidence: generation.confidence,
@@ -311,7 +67,7 @@ export async function generateFilenameStem(
 
     return trimmedStem;
   } catch (error) {
-    debugLogger.warn('[FilenameGeneration] Generation failed', {
+    offscreenLogger.warn('[FilenameGeneration] Generation failed', {
       error,
       baseline: context.currentBaseline,
     });
@@ -323,11 +79,14 @@ export async function generateFilenameStem(
  * Generate full filename object with qualifiers.
  * This is an alternative to generateFilenameStem that returns the complete
  * generation result including qualifiers.
+ *
+ * @param context - Filename generation context with settings and content
+ * @returns Complete filename generation or null if failed
  */
 export async function generateFilenameComplete(
   context: FilenameGenerationContext,
 ): Promise<FilenameGeneration | null> {
-  console.log('[FilenameGeneration] Starting complete generation', {
+  offscreenLogger.log('[FilenameGeneration] Starting complete generation', {
     summaryLength: context.summary.length,
     language: context.language,
   });
@@ -346,13 +105,16 @@ export async function generateFilenameComplete(
       return null;
     }
 
-    console.log('[FilenameGeneration] Session created - initial usage', {
-      inputUsage: session.inputUsage,
-      inputQuota: session.inputQuota,
-    });
+    offscreenLogger.log(
+      '[FilenameGeneration] Session created - initial usage',
+      {
+        inputUsage: session.inputUsage,
+        inputQuota: session.inputQuota,
+      },
+    );
 
     const prompt = buildGenerationPrompt(context);
-    console.log('[FilenameGeneration] Sending generation request', {
+    offscreenLogger.log('[FilenameGeneration] Sending generation request', {
       baseline: context.currentBaseline,
       summaryLength: context.summary.length,
     });
@@ -362,7 +124,7 @@ export async function generateFilenameComplete(
     });
 
     // Log token usage for debugging
-    console.log('[FilenameGeneration] Token usage after prompt', {
+    offscreenLogger.log('[FilenameGeneration] Token usage after prompt', {
       inputUsage: session.inputUsage,
       inputQuota: session.inputQuota,
       percentUsed:
@@ -383,7 +145,7 @@ export async function generateFilenameComplete(
 
     return generation;
   } catch (error) {
-    debugLogger.warn('[FilenameGeneration] Complete generation failed', {
+    offscreenLogger.warn('[FilenameGeneration] Complete generation failed', {
       error,
     });
     return null;
@@ -397,6 +159,9 @@ export async function generateFilenameComplete(
 /**
  * Helper to determine if a generation has high confidence.
  * Used to decide whether to auto-apply or show confirmation.
+ *
+ * @param generation - The generated filename to check
+ * @returns True if confidence meets or exceeds the silent rename threshold
  */
 export function isHighConfidenceGeneration(
   generation: FilenameGeneration,

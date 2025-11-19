@@ -2,15 +2,21 @@
  * Shared utilities for Prompt API integration across decision and generation modules.
  * These helpers provide common functionality for session management, availability checks,
  * and response parsing.
+ *
+ * SECURITY: All untrusted inputs (filenames, content summaries) are sanitized
+ * to prevent prompt injection attacks.
  */
 
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { formatPageContextInline } from '@/entrypoints/shared/context/page-context-formatter';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type {
   ChromeLanguageModelConstructor,
   ChromeLanguageModelCreateOptions,
   ChromeLanguageModelSession,
 } from '@/entrypoints/shared/integrations/chrome-ai/types';
 import type { Separator } from '@/entrypoints/shared/settings/settings';
+import type { PageContextDetails } from '@/entrypoints/shared/state/page-context-store';
+import { sanitizeForPrompt } from '@/entrypoints/shared/utils/prompt-sanitization';
 
 /**
  * Resolve LanguageModel constructor from Chrome's global scope.
@@ -56,7 +62,7 @@ export async function checkLanguageModelAvailability(options?: {
   const LanguageModelCtor = resolveLanguageModelCtor();
 
   if (!LanguageModelCtor?.availability) {
-    console.log('[PromptHelpers] LanguageModel API not available');
+    offscreenLogger.log('[PromptHelpers] LanguageModel API not available');
     return null;
   }
 
@@ -65,14 +71,16 @@ export async function checkLanguageModelAvailability(options?: {
     const availability =
       await LanguageModelCtor.availability(normalizedOptions);
 
-    console.log('[PromptHelpers] Availability check', {
+    offscreenLogger.log('[PromptHelpers] Availability check', {
       availability,
       ...normalizedOptions,
     });
 
     return availability;
   } catch (error) {
-    debugLogger.warn('[PromptHelpers] Availability check failed', { error });
+    offscreenLogger.warn('[PromptHelpers] Availability check failed', {
+      error,
+    });
     return null;
   }
 }
@@ -89,7 +97,9 @@ export async function createPromptSession(
   const LanguageModelCtor = resolveLanguageModelCtor();
 
   if (!LanguageModelCtor?.create) {
-    console.log('[PromptHelpers] Cannot create session - API not available');
+    offscreenLogger.log(
+      '[PromptHelpers] Cannot create session - API not available',
+    );
     return null;
   }
 
@@ -99,7 +109,7 @@ export async function createPromptSession(
       ...normalizeLanguageModelOptions(options),
     };
 
-    console.log('[PromptHelpers] Creating prompt session', {
+    offscreenLogger.log('[PromptHelpers] Creating prompt session', {
       hasSystemPrompt: !!normalizedOptions.systemPrompt,
       temperature: normalizedOptions.temperature,
       topK: normalizedOptions.topK,
@@ -110,14 +120,14 @@ export async function createPromptSession(
     const session = await LanguageModelCtor.create(normalizedOptions);
 
     if (!session) {
-      debugLogger.warn('[PromptHelpers] Session created but is null');
+      offscreenLogger.warn('[PromptHelpers] Session created but is null');
       return null;
     }
 
-    console.log('[PromptHelpers] Session created successfully');
+    offscreenLogger.log('[PromptHelpers] Session created successfully');
     return session;
   } catch (error) {
-    debugLogger.warn('[PromptHelpers] Session creation failed', { error });
+    offscreenLogger.warn('[PromptHelpers] Session creation failed', { error });
     return null;
   }
 }
@@ -134,22 +144,25 @@ export function parseStructuredResponse<T>(
   try {
     const trimmed = response.trim();
     if (trimmed.length === 0) {
-      debugLogger.warn(`[PromptHelpers] Empty response for ${context}`);
+      offscreenLogger.warn(`[PromptHelpers] Empty response for ${context}`);
       return null;
     }
 
     const parsed = JSON.parse(trimmed) as T;
 
-    console.log(`[PromptHelpers] Parsed ${context} response`, {
+    offscreenLogger.log(`[PromptHelpers] Parsed ${context} response`, {
       response: parsed,
     });
 
     return parsed;
   } catch (error) {
-    debugLogger.warn(`[PromptHelpers] Failed to parse ${context} response`, {
-      error,
-      response: response.slice(0, 200), // Log first 200 chars
-    });
+    offscreenLogger.warn(
+      `[PromptHelpers] Failed to parse ${context} response`,
+      {
+        error,
+        response: response.slice(0, 200), // Log first 200 chars
+      },
+    );
     return null;
   }
 }
@@ -195,6 +208,7 @@ export interface BasePromptContext {
   summary?: string;
   language?: string;
   fileType: string;
+  pageContext?: PageContextDetails;
 }
 
 export function buildBaseContextDescription(
@@ -202,10 +216,15 @@ export function buildBaseContextDescription(
 ): string {
   const parts: string[] = [];
 
-  parts.push(`Current filename: "${context.filename}"`);
+  // Sanitize filename and escape quotes to prevent injection/breakout
+  const sanitizedFilename = sanitizeForPrompt(context.filename);
+  const escapedFilename = sanitizedFilename.replace(/"/g, '\\"');
+  parts.push(`Current filename: "${escapedFilename}"`);
 
+  // Sanitize summary (file content) to prevent injection
   if (context.summary && context.summary.trim().length > 0) {
-    parts.push(`Content summary: ${context.summary.trim()}`);
+    const sanitizedSummary = sanitizeForPrompt(context.summary, 5, 200);
+    parts.push(`Content summary: ${sanitizedSummary}`);
   } else {
     parts.push('Content summary: Not available');
   }
@@ -218,6 +237,12 @@ export function buildBaseContextDescription(
   }
 
   parts.push(`File type: ${context.fileType}`);
+
+  // Add page context if available (already sanitized by formatter)
+  const pageContextFormatted = formatPageContextInline(context.pageContext);
+  if (pageContextFormatted) {
+    parts.push(`Source page: ${pageContextFormatted}`);
+  }
 
   return parts.join('\n');
 }
@@ -232,7 +257,9 @@ export function destroyPromptSession(
   try {
     session.destroy?.();
   } catch (error) {
-    debugLogger.warn('[PromptHelpers] Session destruction failed', { error });
+    offscreenLogger.warn('[PromptHelpers] Session destruction failed', {
+      error,
+    });
   }
 }
 

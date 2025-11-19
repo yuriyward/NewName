@@ -12,10 +12,7 @@ import type {
   InstantBaselineStrategyInputs,
 } from '@/entrypoints/shared/pipeline/instant-baseline-types';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
-import {
-  buildOriginalWithDateRename,
-  buildRenameProposal,
-} from './filename-composer';
+import { buildOriginalWithDateRename } from './filename-composer';
 import { stripExtension } from './path-utils';
 
 export function evaluateStrategy(
@@ -43,10 +40,13 @@ export function evaluateStrategy(
       case 'keep-original':
         signals.missingInputs.push('strategy:keep-original');
         return { subject: inputs.originalBase, reasonTags, signals };
+      case 'ai-rename':
+        signals.missingInputs.push('strategy:ai-rename');
+        return { subject: inputs.originalBase, reasonTags, signals };
       case 'original-with-date': {
-        if (!inputs.isoDate) {
+        if (!inputs.isoDateTime) {
           signals.inputsUsed.push('original');
-          signals.missingInputs.push('date');
+          signals.missingInputs.push('datetime');
           return {
             subject: inputs.originalBase,
             reasonTags,
@@ -57,83 +57,19 @@ export function evaluateStrategy(
           inputs.rawOriginalBase,
           inputs.originalBase,
           inputs.originalDelimiter,
-          inputs.isoDate,
+          inputs.isoDateTime,
           extension,
           directory,
           originalPath,
           fileType,
           settings,
         );
-        signals.inputsUsed.push('original', 'date');
+        signals.inputsUsed.push('original', 'datetime');
         return {
           rename,
           subject:
             inputs.originalBase.length > 0 ? inputs.originalBase : 'file',
-          reasonTags: ['Original', 'Date'],
-          signals,
-        };
-      }
-      case 'page-title': {
-        if (!inputs.pageTitle) {
-          signals.inputsUsed.push('original');
-          signals.missingInputs.push('title');
-          return {
-            subject: inputs.originalBase,
-            reasonTags,
-            signals,
-          };
-        }
-        const rename = buildRenameProposal(
-          inputs.pageTitle,
-          [],
-          extension,
-          directory,
-          originalPath,
-          fileType,
-          settings,
-          ['PageTitle'],
-        );
-        signals.inputsUsed.push('title');
-        return {
-          rename,
-          subject: inputs.pageTitle,
-          reasonTags: ['PageTitle'],
-          signals,
-        };
-      }
-      case 'page-title-with-date': {
-        if (!inputs.pageTitle) {
-          signals.inputsUsed.push('original');
-          signals.missingInputs.push('title');
-          return {
-            subject: inputs.originalBase,
-            reasonTags,
-            signals,
-          };
-        }
-        const qualifiers: string[] = [];
-        if (inputs.isoDate) {
-          qualifiers.push(inputs.isoDate);
-          signals.inputsUsed.push('date');
-        } else {
-          signals.missingInputs.push('date');
-        }
-        signals.inputsUsed.push('title');
-        const rename = buildRenameProposal(
-          inputs.pageTitle,
-          qualifiers,
-          extension,
-          directory,
-          originalPath,
-          fileType,
-          settings,
-          qualifiers.length > 0 ? ['PageTitle', 'Date'] : ['PageTitle'],
-        );
-        return {
-          rename,
-          subject: inputs.pageTitle,
-          reasonTags:
-            qualifiers.length > 0 ? ['PageTitle', 'Date'] : ['PageTitle'],
+          reasonTags: ['DateTime', 'Original'],
           signals,
         };
       }
@@ -176,7 +112,8 @@ export function createDecision(
       outcome: 'keep',
       strategy,
       confidence: 0,
-      guardrail: 'strategy-unavailable',
+      guardrail:
+        strategy === 'ai-rename' ? 'strategy-deferred' : 'strategy-unavailable',
       reasons: [
         `strategy:${strategy}`,
         ...signals.missingInputs.map((input) => `missing:${input}`),

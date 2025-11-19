@@ -10,19 +10,48 @@ export interface PageContext {
   url?: string;
 }
 
+export type PageContextDetails = Pick<PageContext, 'title' | 'heading' | 'url'>;
+
 const CONTEXT_CACHE = new Map<number, PageContext>();
 const URL_CONTEXT_CACHE = new Map<string, PageContext>();
 const MAX_CONTEXT_AGE_MS = 5 * 60 * 1000; // 5 minutes
 
+function parseUrl(value: string): URL | null {
+  try {
+    return new URL(value);
+  } catch {
+    return null;
+  }
+}
+
 function normalizeUrl(url?: string | null): string | undefined {
   if (!url) return undefined;
-  try {
-    const parsed = new URL(url);
-    parsed.hash = '';
-    return parsed.toString();
-  } catch {
-    return url;
+  const parsed = parseUrl(url);
+  if (!parsed) return url;
+  parsed.hash = '';
+  return parsed.toString();
+}
+
+function findContextByOrigin(normalizedUrl: string): PageContext | null {
+  const target = parseUrl(normalizedUrl);
+  if (!target) return null;
+  const now = Date.now();
+  let newest: PageContext | null = null;
+
+  for (const [storedUrl, context] of URL_CONTEXT_CACHE.entries()) {
+    if (now - context.capturedAt > MAX_CONTEXT_AGE_MS) {
+      URL_CONTEXT_CACHE.delete(storedUrl);
+      continue;
+    }
+    const parsedStored = parseUrl(storedUrl);
+    if (!parsedStored) continue;
+    if (parsedStored.origin !== target.origin) continue;
+    if (!newest || context.capturedAt > newest.capturedAt) {
+      newest = context;
+    }
   }
+
+  return newest;
 }
 
 function mergeContext(
@@ -132,10 +161,17 @@ export function getPageContextByUrl(
   const normalized = normalizeUrl(url);
   if (!normalized) return null;
   const context = URL_CONTEXT_CACHE.get(normalized);
-  if (!context) return null;
-  if (Date.now() - context.capturedAt > MAX_CONTEXT_AGE_MS) {
-    URL_CONTEXT_CACHE.delete(normalized);
+  if (context) {
+    if (Date.now() - context.capturedAt > MAX_CONTEXT_AGE_MS) {
+      URL_CONTEXT_CACHE.delete(normalized);
+      return null;
+    }
+    return context;
+  }
+
+  const byOrigin = findContextByOrigin(normalized);
+  if (!byOrigin) {
     return null;
   }
-  return context;
+  return byOrigin;
 }

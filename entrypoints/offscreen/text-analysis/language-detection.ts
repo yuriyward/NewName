@@ -1,5 +1,5 @@
 import { AUTO_APPLY_THRESHOLD } from '@/entrypoints/shared/constants/confidence-thresholds';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import {
   detectBrowserLanguage,
   getUserLanguagePreference,
@@ -44,13 +44,13 @@ export async function detectLanguage(
   ).LanguageDetector;
 
   if (!LanguageDetectorCtor?.create) {
-    debugLogger.log('[TextUpgradeAI] LanguageDetector API not available');
+    offscreenLogger.log('[TextUpgradeAI] LanguageDetector API not available');
     return { source: 'fallback' };
   }
 
   try {
     const availability = await LanguageDetectorCtor.availability?.();
-    debugLogger.log('[TextUpgradeAI] Language detector availability', {
+    offscreenLogger.log('[TextUpgradeAI] Language detector availability', {
       availability,
     });
 
@@ -60,14 +60,16 @@ export async function detectLanguage(
 
     const detector = await LanguageDetectorCtor.create();
     if (!detector) {
-      debugLogger.warn('[TextUpgradeAI] Language detector created but is null');
+      offscreenLogger.warn(
+        '[TextUpgradeAI] Language detector created but is null',
+      );
       return { source: 'fallback' };
     }
 
     try {
       // Chrome API uses "detect", not "detectLanguage"
       if (typeof detector.detect !== 'function') {
-        debugLogger.warn(
+        offscreenLogger.warn(
           '[TextUpgradeAI] Language detector missing detect method',
           {
             detectorType: typeof detector,
@@ -93,7 +95,9 @@ export async function detectLanguage(
       detector.destroy?.();
     }
   } catch (error) {
-    debugLogger.warn('[TextUpgradeAI] Language detection failed', { error });
+    offscreenLogger.warn('[TextUpgradeAI] Language detection failed', {
+      error,
+    });
     return { source: 'fallback' };
   }
 }

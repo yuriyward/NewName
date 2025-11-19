@@ -3,6 +3,7 @@
  * Coordinates image analysis: ingestion → description → decision → filename generation
  */
 
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type {
   ImageIngestionResult,
   ImageUpgradeAnalysisRequest,
@@ -49,7 +50,7 @@ export async function runImageUpgradePipeline(
     return null;
   }
 
-  console.log('[ImageUpgradeAI] Multimodal API ready', {
+  offscreenLogger.log('[ImageUpgradeAI] Multimodal API ready', {
     requestId: request.requestId,
     imageSize: `${ingestion.originalWidth}x${ingestion.originalHeight}`,
     resizedSize: `${ingestion.resizedWidth}x${ingestion.resizedHeight}`,
@@ -59,6 +60,7 @@ export async function runImageUpgradePipeline(
   const describeResult = await runDescribePhase(
     ingestion.blob,
     request.requestId,
+    request,
   );
   if (!describeResult) {
     return buildSessionCreationFailureResponse(request.requestId);
@@ -71,7 +73,7 @@ export async function runImageUpgradePipeline(
   );
   if (!decideResult || !decideResult.shouldRename) {
     const reason = decideResult?.reason || 'no-decision';
-    console.log('[ImageUpgradeAI] Keeping baseline filename', {
+    offscreenLogger.log('[ImageUpgradeAI] Keeping baseline filename', {
       requestId: request.requestId,
       filename: request.baseline.final,
       reason,

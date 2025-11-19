@@ -7,6 +7,7 @@
  * The stem generation is the only unique logic; proposal building is shared.
  */
 
+import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
 import type {
   ImageIngestionResult,
   ImageUpgradeAnalysisKeepBaseline,
@@ -60,7 +61,7 @@ export async function generateFilenamePhase3(
 
   const generationElapsedMs = Date.now() - generationStartTime;
 
-  console.log('[FilenameGeneration] Filename generation complete', {
+  offscreenLogger.log('[FilenameGeneration] Filename generation complete', {
     requestId: request.requestId,
     generatedStem,
     usedFallback: !generatedStem,
