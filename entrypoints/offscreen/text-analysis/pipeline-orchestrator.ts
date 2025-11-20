@@ -19,7 +19,6 @@ import type {
 import { ensureAiModelsReadyRemote } from '@/entrypoints/shared/messaging/text-messages';
 import {
   buildFilename,
-  buildProposalSummary,
   buildProposedPath,
   extractStemFromBaseline,
   formatReasonTags,
@@ -303,9 +302,11 @@ export async function runTextUpgradePipeline(
       ),
       generatedAt: Date.now(),
       source: 'ai',
-      summary:
-        decision.explanation ||
-        buildProposalSummary(subjectLanguage.language, summary),
+      summary: buildTextAnalysisSummary(
+        subjectLanguage.language,
+        summary,
+        decision.explanation,
+      ),
     },
     language: subjectLanguage.language,
     languageConfidence: subjectLanguage.confidence,
@@ -331,4 +332,38 @@ export async function runTextUpgradePipeline(
 
   recordPipelineRouted(modelSource);
   return success;
+}
+
+/**
+ * Build comprehensive summary for text analysis
+ * Combines text summary, language, and decision reasoning for richer context
+ *
+ * @param language - Detected language of the text
+ * @param summary - AI-generated summary of the text content
+ * @param decisionExplanation - Optional short explanation of why rename was needed
+ * @returns Formatted summary string with all context
+ */
+function buildTextAnalysisSummary(
+  language?: string,
+  summary?: string | null,
+  decisionExplanation?: string,
+): string | undefined {
+  const parts: string[] = [];
+
+  // Add language if detected
+  if (language) {
+    parts.push(`Language: ${language.toUpperCase()}`);
+  }
+
+  // Add text summary with label
+  if (summary && summary.trim().length > 0) {
+    parts.push(`Content: ${summary.trim()}`);
+  }
+
+  // Add decision explanation if provided
+  if (decisionExplanation && decisionExplanation.trim().length > 0) {
+    parts.push(`Decision: ${decisionExplanation.trim()}`);
+  }
+
+  return parts.length > 0 ? parts.join('\n\n') : undefined;
 }

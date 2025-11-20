@@ -5,6 +5,7 @@ import {
   updateHistoryItem,
 } from '@/entrypoints/shared/history/history';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
+import { shouldAnalyzeUpgrade } from './eligibility';
 import {
   MOCK_UPGRADE_ALARM_PREFIX,
   type ScheduleUpgradeAnalysisParams,
@@ -107,6 +108,27 @@ export function createUpgradeScheduler(
         '[UpgradeScheduler] No pending upgrade analysis for alarm',
         historyId,
       );
+      return true;
+    }
+
+    // Check eligibility before running analysis to prevent race conditions.
+    // This prevents AI analysis from overwriting metadata upgrades (like MediaInfo results)
+    // that completed after the alarm was scheduled (5s earlier) but before it fired.
+    // Without this check, scheduled AI analysis could run and overwrite good metadata.
+    if (!shouldAnalyzeUpgrade(historyItem, settings, now, 'scheduler')) {
+      debugLogger.log(
+        '[UpgradeScheduler] Skipping scheduled analysis (ineligible)',
+        {
+          historyId,
+          hasMetadataUpgrade: historyItem.upgrade?.source === 'metadata',
+          strategy: settings.instantBaselineStrategy,
+        },
+      );
+      // Clear pending state since we're not running the analysis
+      await updateHistoryItem(historyId, (item) => ({
+        ...item,
+        pendingUpgradeAnalysis: undefined,
+      }));
       return true;
     }
 

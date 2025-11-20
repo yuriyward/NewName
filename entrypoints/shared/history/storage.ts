@@ -9,7 +9,7 @@ import {
 import { isValidHistoryItem } from '@/entrypoints/shared/history/validation';
 import { getHistoryMax } from '@/entrypoints/shared/settings/settings';
 
-const HISTORY_KEY = 'history.v1';
+export const HISTORY_STORAGE_KEY = 'history.v1';
 const MAX_ITEMS = getHistoryMax();
 const MAX_HISTORY_AGE_MS = 1000 * 60 * 60 * 24 * 90; // 90 days
 
@@ -43,12 +43,12 @@ function sanitiseHistory(items: unknown): HistoryItem[] {
 }
 
 export async function readHistory(): Promise<HistoryItem[]> {
-  const stored = await browser.storage.local.get(HISTORY_KEY);
-  const raw = stored[HISTORY_KEY];
+  const stored = await browser.storage.local.get(HISTORY_STORAGE_KEY);
+  const raw = stored[HISTORY_STORAGE_KEY];
   return sanitiseHistory(raw);
 }
 
 export async function writeHistory(items: HistoryItem[]): Promise<void> {
   const normalised = pruneHistory(items);
-  await browser.storage.local.set({ [HISTORY_KEY]: normalised });
+  await browser.storage.local.set({ [HISTORY_STORAGE_KEY]: normalised });
 }

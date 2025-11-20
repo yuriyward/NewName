@@ -9,20 +9,39 @@ import { getRenameLabel } from './utils';
 
 interface HistoryItemProps {
   item: HistoryItemType;
+  managedFolder: string | null;
   isSummaryExpanded: boolean;
   onToggleSummary: () => void;
 }
 
 export const HistoryItem: React.FC<HistoryItemProps> = ({
   item,
+  managedFolder,
   isSummaryExpanded,
   onToggleSummary,
 }) => {
   const summary = item.upgrade?.summary?.trim();
 
-  const handleShowInFolder = (): void => {
-    if (item.downloadId !== undefined) {
-      browser.downloads.show(item.downloadId);
+  // Check if file was renamed by comparing original vs final names
+  const wasRenamed = item.original !== item.final;
+
+  // Build tooltip content based on rename status
+  const tooltipContent = wasRenamed
+    ? managedFolder
+      ? `Show in folder. Look in: ${managedFolder}/${item.path}`
+      : `Show in folder. File: ${item.path}`
+    : 'Show in folder';
+
+  const handleShowInFolder = async (): Promise<void> => {
+    if (item.downloadId === undefined) return;
+
+    if (wasRenamed) {
+      // File was renamed - open the downloads folder
+      // Chrome can't show the specific file because it only knows the old filename
+      await browser.downloads.showDefaultFolder();
+    } else {
+      // File not renamed - show the specific file in its folder
+      await browser.downloads.show(item.downloadId);
     }
   };
 
@@ -33,12 +52,14 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <CheckIcon className="size-4 text-green-600 flex-shrink-0" />
-            <p className="text-xs opacity-80">{getRenameLabel(item)}</p>
+            <p className="text-xs opacity-80">
+              {getRenameLabel(item, wasRenamed)}
+            </p>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {item.downloadId !== undefined && (
               <Tooltip
-                content="Show in folder"
+                content={tooltipContent}
                 size="sm"
                 delay={300}
                 closeDelay={0}

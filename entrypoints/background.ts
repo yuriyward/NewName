@@ -358,6 +358,7 @@ function initializeBackground(): void {
       downloadTracking,
       confirmToastController,
       upgradeCoordinator.scheduleMockAnalysis,
+      upgradeCoordinator.applyMetadataUpgrade,
     ),
   );
 

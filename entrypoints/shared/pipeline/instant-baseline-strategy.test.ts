@@ -1,8 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { InstantBaselineSignals } from '@/entrypoints/shared/context/page-analyzer';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
 import { DEFAULT_SETTINGS } from '@/entrypoints/shared/settings/settings';
 import { evaluateInstantBaseline } from './instant-baseline-strategy';
+
+/**
+ * Mock Date to return a fixed timezone offset (UTC+2)
+ * This makes tests deterministic across different machines
+ */
+class MockDate extends Date {
+  getTimezoneOffset(): number {
+    // Return -120 for UTC+2 (offset is inverted: negative means ahead of UTC)
+    return -120;
+  }
+}
+
+beforeEach(() => {
+  // Replace global Date with our mock for consistent timezone in tests
+  vi.stubGlobal('Date', MockDate);
+});
+
+// Restore after all tests
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('evaluateInstantBaseline (deterministic strategies)', () => {
   const baseSignals: InstantBaselineSignals = {
@@ -53,7 +74,8 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
 
     expect(evaluation.decision.outcome).toBe('rename');
     expect(evaluation.decision.guardrail).toBe('strategy-applied');
-    expect(evaluation.rename?.filename).toBe('2025-04-01_08-30 report.pdf');
+    // Input: 2025-04-01T08:30:00Z (UTC), Expected: 2025-04-01_10-30 (UTC+2)
+    expect(evaluation.rename?.filename).toBe('2025-04-01_10-30 report.pdf');
     expect(evaluation.reasonTags).toEqual(['DateTime', 'Original']);
   });
 
@@ -89,7 +111,7 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
     expect(evaluation.rename?.filename).toBe(
-      '2025-04-01_08-30 meeting_notes.txt',
+      '2025-04-01_10-30 meeting_notes.txt',
     );
   });
 
@@ -107,7 +129,7 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
     expect(evaluation.rename?.filename).toBe(
-      '2025-04-01_08-30 release-notes.md',
+      '2025-04-01_10-30 release-notes.md',
     );
   });
 
@@ -125,7 +147,7 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
     expect(evaluation.rename?.filename).toBe(
-      '2025-04-01_08-30 My project plan.docx',
+      '2025-04-01_10-30 My project plan.docx',
     );
   });
 
@@ -143,7 +165,7 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
     expect(evaluation.rename?.filename).toBe(
-      '2025-04-01_08-30 release.notes.txt',
+      '2025-04-01_10-30 release.notes.txt',
     );
   });
 
@@ -161,7 +183,7 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
     expect(evaluation.rename?.filename).toBe(
-      '2025-04-01_08-30 project_overview-v2 final.docx',
+      '2025-04-01_10-30 project_overview-v2 final.docx',
     );
   });
 
@@ -178,7 +200,7 @@ describe('evaluateInstantBaseline (deterministic strategies)', () => {
 
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
-    expect(evaluation.rename?.filename).toBe('2025-04-01_08-30 report-.txt');
+    expect(evaluation.rename?.filename).toBe('2025-04-01_10-30 report-.txt');
   });
 });
 
@@ -205,7 +227,8 @@ describe('evaluateInstantBaseline (file-type awareness)', () => {
     const { evaluation } = evaluateInstantBaseline(signals, settings);
 
     expect(evaluation.fileType).toBe('archive');
-    expect(evaluation.rename?.filename).toBe('2025-05-04_10-15 bundle.tar.gz');
+    // Input: 2025-05-04T10:15:30Z (UTC), Expected: 2025-05-04_12-15 (UTC+2)
+    expect(evaluation.rename?.filename).toBe('2025-05-04_12-15 bundle.tar.gz');
   });
 
   it.each([

@@ -39,24 +39,21 @@ function parseIsoDate(startTime?: string): string | null {
 }
 
 /**
- * Parse ISO timestamp to datetime prefix format: YYYY-MM-DD_HH-MM
- * Example: "2025-11-18T14:30:45.123Z" → "2025-11-18_14-30"
+ * Parse ISO timestamp to datetime prefix format using local time: YYYY-MM-DD_HH-MM
+ * Example: "2025-11-18T14:30:45.123Z" → "2025-11-18_15-30" (if local is UTC+1)
  */
 export function parseIsoDateTime(startTime?: string): string | null {
   const date = parseIsoTimestamp(startTime);
   if (!date) return null;
-  const iso = date.toISOString();
 
-  // Ensure we have enough characters for date and time
-  if (iso.length < 16) return null;
+  // Use local time components instead of UTC
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
 
-  // Extract YYYY-MM-DD from positions 0-9
-  const datePart = iso.slice(0, 10);
-
-  // Extract HH-MM from positions 11-15 (HH:MM) and replace : with -
-  const timePart = iso.slice(11, 16).replace(':', '-');
-
-  return `${datePart}_${timePart}`;
+  return `${year}-${month}-${day}_${hours}-${minutes}`;
 }
 
 function determineStrategyInputs(

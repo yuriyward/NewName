@@ -21,8 +21,9 @@ export async function applyMediaAnalysisResponse(
   response: MediaAnalysisResponse,
   downloadId: string | undefined,
   readSettings: () => Settings,
-): Promise<void> {
+): Promise<boolean> {
   const analyzedAt = Date.now();
+  let generatedUpgrade = false;
 
   try {
     const analysisMetrics = {
@@ -92,6 +93,7 @@ export async function applyMediaAnalysisResponse(
             source: 'metadata',
             summary: response.summary?.general?.title,
           };
+          generatedUpgrade = true;
 
           logMediaDebug(debug, 'upgrade-proposed', {
             historyId,
@@ -114,12 +116,15 @@ export async function applyMediaAnalysisResponse(
         historyId,
         requestId,
       });
+      return false;
     }
+    return generatedUpgrade;
   } catch (error) {
     logMediaDebug(debug, 'history-update-failed', {
       requestId,
       error: error instanceof Error ? error.message : 'Unknown error',
     });
+    return false;
   }
 }
 

@@ -22,6 +22,7 @@ import type {
 import { arrayBufferToBase64 } from '@/entrypoints/shared/utils/encoding';
 import { sanitizeForPrompt } from '@/entrypoints/shared/utils/prompt-sanitization';
 import { DATE_FORMAT_RULE, parseJsonResponse } from './helpers';
+import { buildCloudImageAnalysisSummary } from './summary-builder';
 
 interface CloudDecisionResponse {
   shouldRename: boolean;
@@ -229,7 +230,10 @@ Respond with JSON:
       reasonTags: ['cloud', 'gemini', 'image'],
       generatedAt: Date.now(),
       source: 'ai',
-      summary: decision.explanation || description,
+      summary: buildCloudImageAnalysisSummary(
+        description,
+        decision.explanation,
+      ),
     };
 
     debugLogger.log('[AI Analysis Complete cloud-gemini image]', {

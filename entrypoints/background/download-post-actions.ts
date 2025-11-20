@@ -35,6 +35,11 @@ interface PostActionsOptions {
   scheduleUpgradeAnalysis: (
     params: ScheduleUpgradeAnalysisParams,
   ) => Promise<void>;
+  applyMetadataUpgrade: (params: {
+    historyId: string;
+    downloadId?: number;
+    resolveTracking?: () => DownloadTrackingEntry | undefined;
+  }) => Promise<void>;
   prefetchedMedia?: {
     request: MediaAnalysisRequest;
     response: MediaAnalysisResponse;
@@ -58,8 +63,17 @@ export async function applyPostDownloadActions({
   downloadTracking,
   readSettings,
   scheduleUpgradeAnalysis,
+  applyMetadataUpgrade,
   prefetchedMedia,
 }: PostActionsOptions): Promise<void> {
+  // Helper to resolve download tracking for metadata upgrades
+  const resolveTracking = (): DownloadTrackingEntry | undefined => {
+    if (plan.rawDownloadId === undefined) {
+      return undefined;
+    }
+    return downloadTracking.get(plan.rawDownloadId);
+  };
+
   const historyDecision: InstantBaselineEvaluation['decision'] = renameCandidate
     ? evaluation.decision
     : {
@@ -139,15 +153,34 @@ export async function applyPostDownloadActions({
   }
 
   if (prefetchedMedia) {
-    void applyMediaAnalysisResponse(
-      plan.historyId,
-      plan.url,
-      prefetchedMedia.request.requestId,
-      plan.debugSettings,
-      prefetchedMedia.response,
-      plan.downloadId,
-      readSettings,
-    );
+    void (async () => {
+      try {
+        const upgradeGenerated = await applyMediaAnalysisResponse(
+          plan.historyId,
+          plan.url,
+          prefetchedMedia.request.requestId,
+          plan.debugSettings,
+          prefetchedMedia.response,
+          plan.downloadId,
+          readSettings,
+        );
+        if (upgradeGenerated) {
+          await applyMetadataUpgrade({
+            historyId: plan.historyId,
+            downloadId: plan.rawDownloadId,
+            resolveTracking,
+          });
+        }
+      } catch (error) {
+        debugLogger.error(
+          '[DownloadPostActions] Prefetched media application failed',
+          {
+            historyId: plan.historyId,
+            error,
+          },
+        );
+      }
+    })();
     return;
   }
 
@@ -175,12 +208,12 @@ export async function applyPostDownloadActions({
     });
 
     void enqueueMediaAnalysis(mediaRequest)
-      .then((response) => {
+      .then(async (response) => {
         logMediaDebug(plan.debugSettings, 'queue-response', {
           requestId: mediaRequest.requestId,
           status: response.status,
         });
-        return applyMediaAnalysisResponse(
+        const upgradeGenerated = await applyMediaAnalysisResponse(
           plan.historyId,
           plan.url,
           mediaRequest.requestId,
@@ -189,6 +222,13 @@ export async function applyPostDownloadActions({
           plan.downloadId,
           readSettings,
         );
+        if (upgradeGenerated) {
+          await applyMetadataUpgrade({
+            historyId: plan.historyId,
+            downloadId: plan.rawDownloadId,
+            resolveTracking,
+          });
+        }
       })
       .catch((error: unknown) => {
         logMediaDebug(plan.debugSettings, 'queue-failure', {

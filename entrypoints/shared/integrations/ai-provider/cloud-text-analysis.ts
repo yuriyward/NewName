@@ -26,6 +26,7 @@ import type {
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import { sanitizeForPrompt } from '@/entrypoints/shared/utils/prompt-sanitization';
 import { DATE_FORMAT_RULE, parseJsonResponse } from './helpers';
+import { buildCloudTextAnalysisSummary } from './summary-builder';
 
 interface CloudDecisionResponse {
   shouldRename: boolean;
@@ -207,7 +208,11 @@ Respond with JSON:
       reasonTags: ['cloud', 'gemini'],
       generatedAt: Date.now(),
       source: 'ai',
-      summary: decision.explanation || generated.reasoning,
+      summary: buildCloudTextAnalysisSummary(
+        ingestion.text,
+        decision.explanation,
+        generated.reasoning,
+      ),
     };
 
     const success: TextUpgradeAnalysisSuccess = {

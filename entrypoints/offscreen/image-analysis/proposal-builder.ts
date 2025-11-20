@@ -17,7 +17,6 @@ import type {
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import {
   buildFilename,
-  buildProposalSummary,
   buildProposedPath,
   extractStemFromBaseline,
   formatReasonTags,
@@ -140,9 +139,10 @@ export function buildProposalFromAnalysis(
       reasonTags: formatReasonTags(undefined, promptUsed, 'on-device'),
       generatedAt: Date.now(),
       source: 'ai',
-      summary:
-        decideResult.explanation ||
-        buildProposalSummary(undefined, describeResult.description),
+      summary: buildImageAnalysisSummary(
+        describeResult.description,
+        decideResult.explanation,
+      ),
     },
     description: describeResult.description,
     modelSource: 'on-device',
@@ -316,7 +316,7 @@ export function buildProposalFromPhase3Inputs(
       reasonTags: formatReasonTags(undefined, promptUsed, 'on-device'),
       generatedAt: Date.now(),
       source: 'ai',
-      summary: buildProposalSummary(undefined, description),
+      summary: buildImageAnalysisSummary(description),
     },
     description,
     modelSource: 'on-device',
@@ -338,4 +338,31 @@ export function buildProposalFromPhase3Inputs(
   };
 
   return success;
+}
+
+/**
+ * Build comprehensive summary for image analysis
+ * Combines description and decision reasoning for richer context
+ *
+ * @param description - AI-generated description of the image content
+ * @param decisionExplanation - Optional short explanation of why rename was needed
+ * @returns Formatted summary string with description and reasoning
+ */
+function buildImageAnalysisSummary(
+  description: string,
+  decisionExplanation?: string,
+): string {
+  const parts: string[] = [];
+
+  // Add description with label
+  if (description && description.trim().length > 0) {
+    parts.push(`Content: ${description.trim()}`);
+  }
+
+  // Add decision explanation if provided
+  if (decisionExplanation && decisionExplanation.trim().length > 0) {
+    parts.push(`Decision: ${decisionExplanation.trim()}`);
+  }
+
+  return parts.join('\n\n');
 }
