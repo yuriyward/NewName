@@ -184,4 +184,79 @@ describe('shouldAnalyzeUpgrade', () => {
     // Metadata upgrade check happens before file type check, so this returns false
     expect(result).toBe(false);
   });
+
+  it('skips immediate AI analysis for media files when media specs are enabled', () => {
+    const settings: Settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'ai-rename',
+      metadataToggles: {
+        ...DEFAULT_SETTINGS.metadataToggles,
+        mediaSpecs: true,
+      },
+    };
+
+    const historyItem: HistoryItem = {
+      ...baseHistoryItem,
+      fileType: 'video',
+    };
+
+    const result = shouldAnalyzeUpgrade(
+      historyItem,
+      settings,
+      Date.now(),
+      'immediate',
+    );
+
+    expect(result).toBe(false);
+  });
+
+  it('allows scheduler AI fallback for media files when media specs are enabled', () => {
+    const settings: Settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'ai-rename',
+      metadataToggles: {
+        ...DEFAULT_SETTINGS.metadataToggles,
+        mediaSpecs: true,
+      },
+    };
+
+    const historyItem: HistoryItem = {
+      ...baseHistoryItem,
+      fileType: 'audio',
+    };
+
+    const result = shouldAnalyzeUpgrade(
+      historyItem,
+      settings,
+      Date.now(),
+      'scheduler',
+    );
+
+    expect(result).toBe(true);
+  });
+
+  it('allows immediate AI analysis for media files when media specs toggle is off', () => {
+    const settings: Settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'ai-rename',
+      metadataToggles: {
+        ...DEFAULT_SETTINGS.metadataToggles,
+        mediaSpecs: false,
+      },
+    };
+
+    const historyItem: HistoryItem = {
+      ...baseHistoryItem,
+      fileType: 'video',
+    };
+
+    const result = shouldAnalyzeUpgrade(
+      historyItem,
+      settings,
+      Date.now(),
+      'immediate',
+    );
+
+    expect(result).toBe(true);
+  });
 });

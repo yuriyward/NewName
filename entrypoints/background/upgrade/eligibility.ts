@@ -3,6 +3,8 @@
  */
 import type { HistoryItem } from '@/entrypoints/shared/history/types';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
+import { isMediaFileType } from '../download-utils';
+import type { UpgradeAnalysisSource } from './types';
 
 /**
  * Cooldown used to avoid re-running contextual upgrades immediately after a decision.
@@ -15,6 +17,7 @@ export function shouldAnalyzeUpgrade(
   historyItem: HistoryItem,
   settings: Settings,
   now: number,
+  source: UpgradeAnalysisSource = 'immediate',
 ): boolean {
   // When the user explicitly disables renaming, skip contextual upgrades.
   if (settings.instantBaselineStrategy === 'keep-original') {
@@ -26,6 +29,17 @@ export function shouldAnalyzeUpgrade(
   // This prevents AI analysis from overwriting good metadata upgrades.
   const hasMetadataUpgrade = historyItem.upgrade?.source === 'metadata';
   if (hasMetadataUpgrade) {
+    return false;
+  }
+
+  // When MediaInfo specs are enabled we defer media files to the scheduler
+  // (5s delay) so MediaInfo results can land first. If MediaInfo fails the
+  // scheduled path will proceed and act as the fallback.
+  if (
+    source === 'immediate' &&
+    settings.metadataToggles.mediaSpecs &&
+    isMediaFileType(historyItem.fileType)
+  ) {
     return false;
   }
 

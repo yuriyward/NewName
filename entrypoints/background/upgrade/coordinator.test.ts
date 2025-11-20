@@ -10,6 +10,15 @@ import type {
 import type { BrowserDownloadDelta } from './types';
 
 vi.mock('wxt/browser', () => ({ browser: fakeBrowser }));
+vi.mock('webextension-polyfill', () => ({ __esModule: true, default: {} }));
+vi.mock('#imports', () => ({}));
+
+const executeApply = vi.fn(async () => {});
+
+vi.mock('../rename-orchestrator', () => ({
+  __esModule: true,
+  executeApply,
+}));
 
 const historyStore = new Map<string, HistoryItem>();
 
@@ -118,6 +127,7 @@ describe('createUpgradeCoordinator', () => {
     updateHistoryItem.mockClear();
     mockAiAdapter.summarizer.summarize.mockClear();
     mockAiAdapter.summarizer.isSupported.mockClear();
+    executeApply.mockClear();
     fakeBrowser.reset();
     fakeBrowser.downloads.search = vi.fn().mockResolvedValue([
       {
@@ -179,6 +189,54 @@ describe('createUpgradeCoordinator', () => {
     const updated = historyStore.get(historyItem.id);
     expect(updated?.upgrade?.source).toBe('ai');
     expect(updated?.upgrade?.autoApply).toBe(false);
+  });
+
+  it('applies metadata upgrade silently without toast', async () => {
+    const historyItem: HistoryItem = {
+      id: 'history-meta',
+      ts: Date.now(),
+      path: 'videos/clip.mp4',
+      original: 'clip.mp4',
+      final: 'clip.mp4',
+      source: 'on-device',
+      fileType: 'video',
+      phase: 'instant-baseline',
+      reasonTags: ['Original'],
+      downloadId: 501,
+      upgrade: {
+        proposedFilename: 'clip_4k.mp4',
+        proposedPath: 'videos/clip_4k.mp4',
+        autoApply: true,
+        reasonTags: ['media-specs'],
+        generatedAt: Date.now(),
+        source: 'metadata',
+      },
+    };
+
+    historyStore.set(historyItem.id, historyItem);
+
+    const confirmController = createConfirmToastControllerMock();
+    const coordinator = createUpgradeCoordinator({
+      confirmToastController: confirmController,
+      readSettings: () => DEFAULT_SETTINGS,
+    });
+
+    const trackingEntry: DownloadTrackingEntry = {
+      historyId: historyItem.id,
+      filename: historyItem.final,
+      url: 'https://example.com/clip.mp4',
+      createdAt: Date.now(),
+      tabId: 123,
+    };
+
+    await coordinator.applyMetadataUpgrade({
+      historyId: historyItem.id,
+      downloadId: historyItem.downloadId,
+      resolveTracking: () => trackingEntry,
+    });
+
+    expect(confirmController.queueConfirmation).not.toHaveBeenCalled();
+    expect(executeApply).toHaveBeenCalledTimes(1);
   });
 
   it('skips queue when analysis decides to keep original', async () => {

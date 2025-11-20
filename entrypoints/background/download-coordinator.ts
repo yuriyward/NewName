@@ -51,6 +51,11 @@ export async function processDeterminingFilename(
   scheduleUpgradeAnalysis: (
     params: ScheduleUpgradeAnalysisParams,
   ) => Promise<void>,
+  applyMetadataUpgrade: (params: {
+    historyId: string;
+    downloadId?: number;
+    resolveTracking?: () => DownloadTrackingEntry | undefined;
+  }) => Promise<void>,
 ): Promise<void> {
   const controller = createSuggestController(suggest);
   try {
@@ -199,6 +204,7 @@ export async function processDeterminingFilename(
       downloadTracking,
       readSettings,
       scheduleUpgradeAnalysis,
+      applyMetadataUpgrade,
       prefetchedMedia,
     });
   } catch (error) {
@@ -412,6 +418,11 @@ export function createDeterminingListener(
   scheduleUpgradeAnalysis: (
     params: ScheduleUpgradeAnalysisParams,
   ) => Promise<void>,
+  applyMetadataUpgrade: (params: {
+    historyId: string;
+    downloadId?: number;
+    resolveTracking?: () => DownloadTrackingEntry | undefined;
+  }) => Promise<void>,
 ): DeterminingListener {
   return (item, suggest) => {
     void processDeterminingFilename(
@@ -422,6 +433,7 @@ export function createDeterminingListener(
       downloadTracking,
       confirmToastController,
       scheduleUpgradeAnalysis,
+      applyMetadataUpgrade,
     ).catch((error) => {
       debugLogger.error('Instant Baseline rename unhandled failure', { error });
     });

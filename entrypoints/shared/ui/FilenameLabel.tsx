@@ -17,8 +17,9 @@ interface FilenameLabelProps {
  * - Toast notifications after rename
  * - Confirmation dialogs
  *
- * The original filename is shown with reduced opacity, followed by an arrow (→),
- * and the new filename is emphasized with medium font weight.
+ * When the filenames differ, the original filename is shown with reduced opacity,
+ * followed by an arrow (→), and the new filename is emphasized with medium font weight.
+ * When the filenames are identical, only the filename is shown without the arrow.
  *
  * @example
  * <FilenameLabel
@@ -38,6 +39,16 @@ export const FilenameLabel: React.FC<FilenameLabelProps> = ({
   newFilename,
   className = '',
 }) => {
+  const wasRenamed = originalFilename !== newFilename;
+
+  if (!wasRenamed) {
+    return (
+      <p className={`text-xs break-words ${className}`}>
+        <span className="font-medium">{newFilename}</span>
+      </p>
+    );
+  }
+
   return (
     <p className={`text-xs break-words ${className}`}>
       <span className="opacity-80">{originalFilename}</span>

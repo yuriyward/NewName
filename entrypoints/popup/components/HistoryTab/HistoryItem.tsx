@@ -1,8 +1,9 @@
 import { CheckIcon, FolderIcon } from '@heroicons/react/16/solid';
 import { Chip } from '@heroui/chip';
 import { Tooltip } from '@heroui/tooltip';
+import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
-import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
+import { getManagedRelativePath } from '@/entrypoints/shared/filesystem/handle-storage';
 import type { HistoryItem as HistoryItemType } from '@/entrypoints/shared/history/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
 import { SummaryDisplay } from './SummaryDisplay';
@@ -20,72 +21,33 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
   onToggleSummary,
 }) => {
   const summary = item.upgrade?.summary?.trim();
+  const [managedFolder, setManagedFolder] = useState<string | null>(null);
+
+  // Fetch managed folder path on mount
+  useEffect(() => {
+    getManagedRelativePath().then(setManagedFolder).catch(console.error);
+  }, []);
+
+  // Check if file was renamed by comparing original vs final names
+  const wasRenamed = item.original !== item.final;
+
+  // Build tooltip content based on rename status
+  const tooltipContent = wasRenamed
+    ? managedFolder
+      ? `Show in folder. Look in: ${managedFolder}/${item.path}`
+      : `Show in folder. File: ${item.path}`
+    : 'Show in folder';
 
   const handleShowInFolder = async (): Promise<void> => {
     if (item.downloadId === undefined) return;
 
-    try {
-      // First try to show using the download ID
-      // This works if the file hasn't been renamed yet or if Chrome can still find it
+    if (wasRenamed) {
+      // File was renamed - open the downloads folder
+      // Chrome can't show the specific file because it only knows the old filename
+      await browser.downloads.showDefaultFolder();
+    } else {
+      // File not renamed - show the specific file in its folder
       await browser.downloads.show(item.downloadId);
-    } catch (error) {
-      // If showing by download ID fails, the file was likely renamed via File System Access API
-      // Chrome's downloads database still has the old filename, so it can't find the file
-      console.warn(
-        '[HistoryItem] File was renamed, attempting alternative approach',
-        {
-          downloadId: item.downloadId,
-          originalFilename: item.original,
-          renamedFilename: item.final,
-          path: item.path,
-          error,
-        },
-      );
-
-      // Try to verify the renamed file exists using File System Access API
-      try {
-        const dirHandle = await getStoredDirectoryHandle();
-        if (dirHandle && item.path) {
-          // Parse the relative path to navigate to the file
-          const pathParts = item.path.split('/');
-          const filename = pathParts[pathParts.length - 1];
-
-          // Try to get the file handle to verify it exists
-          let currentDir = dirHandle;
-          for (let i = 0; i < pathParts.length - 1; i++) {
-            currentDir = await currentDir.getDirectoryHandle(pathParts[i]);
-          }
-          await currentDir.getFileHandle(filename);
-
-          // File exists! Log success and open downloads folder
-          console.info(
-            `[HistoryItem] Verified renamed file exists: "${item.final}"`,
-          );
-          await browser.downloads.showDefaultFolder();
-          console.info(
-            `[HistoryItem] Opened downloads folder. Look for: "${item.final}"`,
-          );
-          return;
-        }
-      } catch (fsError) {
-        console.warn(
-          '[HistoryItem] Could not verify file via File System Access API',
-          fsError,
-        );
-      }
-
-      // Fallback: just open the downloads folder
-      try {
-        await browser.downloads.showDefaultFolder();
-        console.info(
-          `[HistoryItem] Opened downloads folder. Look for: "${item.final}"`,
-        );
-      } catch (fallbackError) {
-        console.error(
-          '[HistoryItem] Failed to open downloads folder',
-          fallbackError,
-        );
-      }
     }
   };
 
@@ -96,12 +58,14 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <CheckIcon className="size-4 text-green-600 flex-shrink-0" />
-            <p className="text-xs opacity-80">{getRenameLabel(item)}</p>
+            <p className="text-xs opacity-80">
+              {getRenameLabel(item, wasRenamed)}
+            </p>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {item.downloadId !== undefined && (
               <Tooltip
-                content="Show in folder"
+                content={tooltipContent}
                 size="sm"
                 delay={300}
                 closeDelay={0}

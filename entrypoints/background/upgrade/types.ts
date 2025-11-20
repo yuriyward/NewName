@@ -31,6 +31,8 @@ export interface BrowserDownloadDelta {
   };
 }
 
+export type UpgradeAnalysisSource = 'immediate' | 'scheduler';
+
 export interface UpgradeAnalysisInput {
   downloadId: number;
   downloadItem: BrowserDownloadItem;

@@ -35,7 +35,16 @@ import type {
 } from './types';
 import { createUpgradeProcessor } from './upgrade-processor';
 
-type UpgradeProposalSourceContext = 'downloads-onChanged' | 'scheduler';
+type UpgradeProposalSourceContext =
+  | 'downloads-onChanged'
+  | 'scheduler'
+  | 'metadata';
+
+interface ApplyMetadataUpgradeParams {
+  historyId: string;
+  downloadId?: number;
+  resolveTracking?: () => DownloadTrackingEntry | undefined;
+}
 
 interface HandleUpgradeProposalParams {
   proposal: UpgradeProposal;
@@ -55,6 +64,7 @@ export interface UpgradeCoordinator {
   scheduleMockAnalysis(params: ScheduleUpgradeAnalysisParams): Promise<void>;
   handleAlarm(alarm: BrowserAlarm): Promise<boolean>;
   cleanupOrphanedAlarms(): Promise<void>;
+  applyMetadataUpgrade(params: ApplyMetadataUpgradeParams): Promise<void>;
 }
 
 export function createUpgradeCoordinator(
@@ -104,20 +114,24 @@ export function createUpgradeCoordinator(
     }
 
     // Determine if this should be a silent rename or confirmation toast
-    const { confidence: confidenceValue, shouldSilentRename } =
+    const { confidence: confidenceValue, shouldSilentRename: aiSilentRename } =
       getAutoApplyBehavior(proposal.confidenceScore);
+    const shouldSilentApply =
+      proposal.source === 'metadata' ||
+      (proposal.source === 'ai' && aiSilentRename);
 
-    if (shouldSilentRename && proposal.source === 'ai') {
-      // High confidence: Apply immediately without confirmation
-      debugLogger.log(
-        `[UpgradeCoordinator] Applying high-confidence rename silently${sourceLabel}`,
-        {
-          historyId,
-          downloadId,
-          confidence: confidenceValue,
-          threshold: SILENT_RENAME_THRESHOLD,
-        },
-      );
+    if (shouldSilentApply) {
+      const logLabel =
+        proposal.source === 'metadata'
+          ? '[UpgradeCoordinator] Applying metadata rename silently'
+          : '[UpgradeCoordinator] Applying high-confidence rename silently';
+      debugLogger.log(`${logLabel}${sourceLabel}`, {
+        historyId,
+        downloadId,
+        confidence: confidenceValue,
+        threshold: SILENT_RENAME_THRESHOLD,
+        source: proposal.source,
+      });
 
       const toastId = randomId();
       const entry: ConfirmToastEntry = {
@@ -161,13 +175,10 @@ export function createUpgradeCoordinator(
               if (state === 'applied') {
                 renameSuccessful = true;
               }
-              debugLogger.log(
-                `[UpgradeCoordinator] Silent rename status${sourceLabel}`,
-                {
-                  state,
-                  message,
-                },
-              );
+              debugLogger.log(`${logLabel} status${sourceLabel}`, {
+                state,
+                message,
+              });
             },
           },
         );
@@ -189,22 +200,16 @@ export function createUpgradeCoordinator(
           );
         }
 
-        debugLogger.log(
-          `[UpgradeCoordinator] Silent rename completed${sourceLabel}`,
-          {
-            historyId,
-            downloadId,
-          },
-        );
+        debugLogger.log(`${logLabel} completed${sourceLabel}`, {
+          historyId,
+          downloadId,
+        });
       } catch (error) {
-        debugLogger.error(
-          `[UpgradeCoordinator] Silent rename failed${sourceLabel}`,
-          {
-            historyId,
-            downloadId,
-            error,
-          },
-        );
+        debugLogger.error(`${logLabel} failed${sourceLabel}`, {
+          historyId,
+          downloadId,
+          error,
+        });
       }
     } else {
       // Lower confidence or non-AI: Show confirmation toast with countdown
@@ -305,7 +310,7 @@ export function createUpgradeCoordinator(
         return;
       }
 
-      if (!shouldAnalyzeUpgrade(historyItem, settings, now)) {
+      if (!shouldAnalyzeUpgrade(historyItem, settings, now, 'immediate')) {
         debugLogger.log(
           '[UpgradeCoordinator] Upgrade analysis skipped (ineligible)',
           {
@@ -350,5 +355,53 @@ export function createUpgradeCoordinator(
     scheduleMockAnalysis: scheduler.scheduleMockAnalysis,
     handleAlarm: scheduler.handleAlarm,
     cleanupOrphanedAlarms: scheduler.cleanupOrphanedAlarms,
+    async applyMetadataUpgrade({ historyId, downloadId, resolveTracking }) {
+      const settings = readSettings();
+      const historyItem = await getHistoryItem(historyId);
+      if (!historyItem) {
+        debugLogger.warn(
+          '[UpgradeCoordinator] Missing history for metadata upgrade',
+          {
+            historyId,
+          },
+        );
+        return;
+      }
+      const proposal = historyItem.upgrade;
+      if (!proposal || proposal.source !== 'metadata') {
+        debugLogger.log(
+          '[UpgradeCoordinator] No metadata upgrade available for application',
+          { historyId },
+        );
+        return;
+      }
+
+      const resolvedDownloadId =
+        typeof downloadId === 'number'
+          ? downloadId
+          : typeof historyItem.downloadId === 'number'
+            ? historyItem.downloadId
+            : undefined;
+
+      if (resolvedDownloadId === undefined) {
+        debugLogger.warn(
+          '[UpgradeCoordinator] Cannot apply metadata upgrade without download id',
+          { historyId },
+        );
+        return;
+      }
+
+      const tracking = resolveTracking?.();
+
+      await handleUpgradeProposal({
+        proposal,
+        historyId,
+        historyItem,
+        downloadId: resolvedDownloadId,
+        settings,
+        tracking,
+        source: 'metadata',
+      });
+    },
   };
 }

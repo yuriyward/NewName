@@ -114,7 +114,7 @@ export function createUpgradeScheduler(
     // Check eligibility before running analysis
     // This prevents AI analysis from overwriting metadata upgrades that completed
     // after the alarm was scheduled but before it fired
-    if (!shouldAnalyzeUpgrade(historyItem, settings, now)) {
+    if (!shouldAnalyzeUpgrade(historyItem, settings, now, 'scheduler')) {
       debugLogger.log(
         '[UpgradeScheduler] Skipping scheduled analysis (ineligible)',
         {
