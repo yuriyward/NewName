@@ -129,7 +129,11 @@ export async function applyPostDownloadActions({
     });
   }
 
-  if (strategyNeedsUpgrade(evaluation.strategy)) {
+  // Skip contextual (AI) upgrades for media files - they only use MediaInfo metadata upgrades
+  if (
+    strategyNeedsUpgrade(evaluation.strategy) &&
+    !isMediaFileType(evaluation.fileType)
+  ) {
     debugLogger.log('[DownloadPostActions] Scheduling contextual upgrade', {
       historyId: plan.historyId,
       strategy: evaluation.strategy,

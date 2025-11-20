@@ -211,9 +211,33 @@ export class RangeFetchReader {
 
     if (safeLength > 0 && response.status === 200) {
       this.rangeSupported = false;
-      throw new Error(
-        'Server does not support range requests (responded with 200 OK instead of 206 Partial Content). Aborting to avoid downloading entire file.',
-      );
+
+      // Check file size to decide if we can safely download the full file
+      const contentLengthHeader = response.headers.get('content-length');
+      const fileSize = contentLengthHeader
+        ? Number.parseInt(contentLengthHeader, 10)
+        : undefined;
+
+      // Size limit: 100MB - safe for audio files, prevents accidental large downloads
+      const MAX_FULL_DOWNLOAD_SIZE = 100 * 1024 * 1024; // 100MB in bytes
+
+      if (
+        fileSize !== undefined &&
+        Number.isFinite(fileSize) &&
+        fileSize <= MAX_FULL_DOWNLOAD_SIZE
+      ) {
+        // File is small enough - allow full download as fallback
+        // Continue processing the 200 response normally
+      } else {
+        // File is too large or size unknown - abort to avoid bandwidth/memory issues
+        const sizeInfo =
+          fileSize !== undefined && Number.isFinite(fileSize)
+            ? `${(fileSize / (1024 * 1024)).toFixed(2)}MB`
+            : 'unknown size';
+        throw new Error(
+          `Server does not support range requests (responded with 200 OK instead of 206 Partial Content). File size (${sizeInfo}) exceeds safe download limit (100MB). Aborting to avoid downloading entire file.`,
+        );
+      }
     }
 
     if (response.status === 206) {

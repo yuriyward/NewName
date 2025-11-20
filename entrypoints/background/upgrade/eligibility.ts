@@ -17,31 +17,25 @@ export function shouldAnalyzeUpgrade(
   historyItem: HistoryItem,
   settings: Settings,
   now: number,
-  source: UpgradeAnalysisSource = 'immediate',
+  _source: UpgradeAnalysisSource = 'immediate',
 ): boolean {
   // When the user explicitly disables renaming, skip contextual upgrades.
   if (settings.instantBaselineStrategy === 'keep-original') {
     return false;
   }
 
-  // If a metadata-based upgrade already exists, skip AI analysis.
-  // Metadata upgrades are deterministic and ready to apply - no need for further AI processing.
-  // This prevents AI analysis from overwriting good metadata upgrades.
-  // See also: scheduler deferral logic (lines 35-44) which gives MediaInfo time to complete
-  // before AI analysis runs, helping metadata upgrades land first.
-  const hasMetadataUpgrade = historyItem.upgrade?.source === 'metadata';
-  if (hasMetadataUpgrade) {
+  // Skip AI contextual upgrades for media files - they only use MediaInfo metadata upgrades.
+  // Media files (audio/video) rely exclusively on MediaInfo for metadata extraction.
+  // AI analysis is not designed for media content and should never run for these file types.
+  if (isMediaFileType(historyItem.fileType)) {
     return false;
   }
 
-  // When MediaInfo specs are enabled we defer media files to the scheduler
-  // (5s delay) so MediaInfo results can land first. If MediaInfo fails the
-  // scheduled path will proceed and act as the fallback.
-  if (
-    source === 'immediate' &&
-    settings.metadataToggles.mediaSpecs &&
-    isMediaFileType(historyItem.fileType)
-  ) {
+  // If a metadata-based upgrade already exists, skip AI analysis.
+  // Metadata upgrades are deterministic and ready to apply - no need for further AI processing.
+  // This prevents AI analysis from overwriting good metadata upgrades.
+  const hasMetadataUpgrade = historyItem.upgrade?.source === 'metadata';
+  if (hasMetadataUpgrade) {
     return false;
   }
 

@@ -210,7 +210,7 @@ describe('shouldAnalyzeUpgrade', () => {
     expect(result).toBe(false);
   });
 
-  it('allows scheduler AI fallback for media files when media specs are enabled', () => {
+  it('blocks AI analysis for media files regardless of source', () => {
     const settings: Settings = {
       ...DEFAULT_SETTINGS,
       instantBaselineStrategy: 'ai-rename',
@@ -232,10 +232,10 @@ describe('shouldAnalyzeUpgrade', () => {
       'scheduler',
     );
 
-    expect(result).toBe(true);
+    expect(result).toBe(false);
   });
 
-  it('allows immediate AI analysis for media files when media specs toggle is off', () => {
+  it('blocks AI analysis for media files even when media specs toggle is off', () => {
     const settings: Settings = {
       ...DEFAULT_SETTINGS,
       instantBaselineStrategy: 'ai-rename',
@@ -257,6 +257,6 @@ describe('shouldAnalyzeUpgrade', () => {
       'immediate',
     );
 
-    expect(result).toBe(true);
+    expect(result).toBe(false);
   });
 });
