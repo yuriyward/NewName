@@ -2,48 +2,25 @@
  * Content script for page context extraction and messaging
  */
 
+import {
+  createContextUpdater,
+  firstHeading,
+  truncate,
+} from '@/entrypoints/shared/context/context-updater';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { requestPendingConfirmToasts } from '@/entrypoints/shared/messaging/core-messages';
 import {
   onExtensionMessage,
   sendExtensionMessage,
 } from '@/entrypoints/shared/messaging/extension-messaging';
-import type { PageContextPublishRequest } from '@/entrypoints/shared/state/page-context-service';
-import { getPageContextService } from '@/entrypoints/shared/state/page-context-service';
 import {
   type ConfirmToastManager,
   getConfirmToastManager,
 } from '@/entrypoints/shared/ui/confirm-toast-manager';
 
-const MAX_IMMEDIATE_SEND_ATTEMPTS = 3;
-const MAX_TOTAL_SEND_ATTEMPTS = 6;
-const RETRY_BASE_DELAY_MS = 75;
-const QUEUED_RETRY_DELAY_MS = 1_000;
 const PAGE_CONTEXT_REFRESH_INTERVAL_MS = 2 * 60_000;
 
-type ContextUpdate =
-  | {
-      type: 'PAGE_CONTEXT';
-      payload: {
-        title?: string;
-        heading?: string;
-      };
-    }
-  | {
-      type: 'LINK_CONTEXT';
-      payload: {
-        linkText?: string;
-        linkRel?: string | null;
-      };
-    };
-
-interface PendingUpdate {
-  update: ContextUpdate;
-  attempts: number;
-}
-
-let pendingUpdates: PendingUpdate[] = [];
-let pendingFlushTimer: ReturnType<typeof setTimeout> | undefined;
+const contextUpdater = createContextUpdater();
 let contextRefreshTimer: ReturnType<typeof setInterval> | undefined;
 let lastContextPublishTimestamp = 0;
 let isContextInvalidated = false;
@@ -119,124 +96,6 @@ async function ensureRuntimeContext(): Promise<RuntimeContext> {
   return runtimeContextPromise;
 }
 
-function schedulePendingFlush(): void {
-  if (isContextInvalidated || pendingFlushTimer !== undefined) return;
-  pendingFlushTimer = setTimeout(() => {
-    pendingFlushTimer = undefined;
-    flushPendingUpdates();
-  }, QUEUED_RETRY_DELAY_MS);
-}
-
-function flushPendingUpdates(): void {
-  if (isContextInvalidated || pendingUpdates.length === 0) return;
-  const queue = pendingUpdates;
-  pendingUpdates = [];
-  for (const entry of queue) {
-    sendUpdateWithRetry(entry.update, entry.attempts);
-  }
-}
-
-function firstHeading(): string | undefined {
-  const root = document.body ?? document.documentElement;
-  if (!root) return undefined;
-
-  const walker = document.createTreeWalker(
-    root,
-    NodeFilter.SHOW_ELEMENT,
-    (node) => {
-      if (node.nodeType !== Node.ELEMENT_NODE) {
-        return NodeFilter.FILTER_SKIP;
-      }
-      const element = node as HTMLElement;
-      const tagName = element.tagName;
-      if (tagName !== 'H1' && tagName !== 'H2') {
-        return NodeFilter.FILTER_SKIP;
-      }
-      const text = element.textContent?.trim();
-      if (!text || text.length <= 4) {
-        return NodeFilter.FILTER_SKIP;
-      }
-      return NodeFilter.FILTER_ACCEPT;
-    },
-  );
-
-  const heading = walker.nextNode();
-  if (!(heading instanceof HTMLElement)) {
-    return undefined;
-  }
-
-  const text = heading.textContent?.trim();
-  return text ? truncate(text) : undefined;
-}
-
-function truncate(
-  value: string | null | undefined,
-  max = 160,
-): string | undefined {
-  if (!value) return undefined;
-  const trimmed = value.trim();
-  if (trimmed.length <= max) return trimmed;
-  return `${trimmed.slice(0, max - 1)}…`;
-}
-
-async function performContextUpdate(update: ContextUpdate): Promise<void> {
-  const runtimeContext = await ensureRuntimeContext();
-  const tabId =
-    typeof runtimeContext.tabId === 'number' ? runtimeContext.tabId : null;
-  const url = document.location.href;
-
-  const request: PageContextPublishRequest =
-    update.type === 'PAGE_CONTEXT'
-      ? {
-          tabId,
-          url,
-          context: {
-            title: update.payload.title,
-            heading: update.payload.heading,
-          },
-        }
-      : {
-          tabId,
-          url,
-          context: {
-            linkText: update.payload.linkText,
-            linkRel: update.payload.linkRel ?? undefined,
-          },
-        };
-
-  await getPageContextService().publish(request);
-}
-
-function sendUpdateWithRetry(update: ContextUpdate, attempts = 0): void {
-  const nextAttempt = attempts + 1;
-  void performContextUpdate(update).catch((error) => {
-    if (nextAttempt >= MAX_TOTAL_SEND_ATTEMPTS) {
-      debugLogger.warn('Dropping page context update after repeated failures', {
-        update,
-        error,
-      });
-      return;
-    }
-
-    if (nextAttempt < MAX_IMMEDIATE_SEND_ATTEMPTS) {
-      const delay = RETRY_BASE_DELAY_MS * 2 ** (nextAttempt - 1);
-      setTimeout(() => {
-        sendUpdateWithRetry(update, nextAttempt);
-      }, delay);
-      return;
-    }
-
-    pendingUpdates.push({ update, attempts: nextAttempt });
-    schedulePendingFlush();
-  });
-}
-
-function dispatchUpdate(update: ContextUpdate): void {
-  if (isContextInvalidated) return;
-  flushPendingUpdates();
-  sendUpdateWithRetry(update);
-}
-
 interface PageContextSnapshot {
   title?: string;
   heading?: string;
@@ -263,9 +122,14 @@ function publishPageContext(force = false): void {
 
   lastPublishedContext = { ...snapshot };
 
-  dispatchUpdate({
-    type: 'PAGE_CONTEXT',
-    payload: snapshot,
+  void ensureRuntimeContext().then((runtimeContext) => {
+    contextUpdater.dispatchUpdate(
+      {
+        type: 'PAGE_CONTEXT',
+        payload: snapshot,
+      },
+      runtimeContext,
+    );
   });
 
   lastContextPublishTimestamp = Date.now();
@@ -295,11 +159,7 @@ function clearContextRefreshTimer(): void {
 function markContextInvalidated(): void {
   if (isContextInvalidated) return;
   isContextInvalidated = true;
-  pendingUpdates = [];
-  if (pendingFlushTimer !== undefined) {
-    clearTimeout(pendingFlushTimer);
-    pendingFlushTimer = undefined;
-  }
+  contextUpdater.invalidate();
   clearContextRefreshTimer();
 }
 
@@ -320,12 +180,17 @@ function handleLinkInteraction(event: Event): void {
   if (!anchor) return;
   const linkText = truncate(anchor.textContent);
   const rel = anchor.getAttribute('rel');
-  dispatchUpdate({
-    type: 'LINK_CONTEXT',
-    payload: {
-      linkText,
-      linkRel: rel,
-    },
+  void ensureRuntimeContext().then((runtimeContext) => {
+    contextUpdater.dispatchUpdate(
+      {
+        type: 'LINK_CONTEXT',
+        payload: {
+          linkText,
+          linkRel: rel,
+        },
+      },
+      runtimeContext,
+    );
   });
 }
 

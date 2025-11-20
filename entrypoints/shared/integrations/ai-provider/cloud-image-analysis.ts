@@ -22,6 +22,7 @@ import type {
 import { arrayBufferToBase64 } from '@/entrypoints/shared/utils/encoding';
 import { sanitizeForPrompt } from '@/entrypoints/shared/utils/prompt-sanitization';
 import { DATE_FORMAT_RULE, parseJsonResponse } from './helpers';
+import { buildCloudImageAnalysisSummary } from './summary-builder';
 
 interface CloudDecisionResponse {
   shouldRename: boolean;
@@ -284,29 +285,4 @@ Respond with JSON:
   }
 }
 
-/**
- * Build comprehensive summary for cloud image analysis
- * Combines description and decision reasoning for richer context
- *
- * @param description - AI-generated description of the image content
- * @param decisionExplanation - Optional short explanation of why rename was needed
- * @returns Formatted summary string with description and reasoning
- */
-function buildCloudImageAnalysisSummary(
-  description: string,
-  decisionExplanation?: string,
-): string {
-  const parts: string[] = [];
 
-  // Add description with label
-  if (description && description.trim().length > 0) {
-    parts.push(`Content: ${description.trim()}`);
-  }
-
-  // Add decision explanation if provided
-  if (decisionExplanation && decisionExplanation.trim().length > 0) {
-    parts.push(`Decision: ${decisionExplanation.trim()}`);
-  }
-
-  return parts.join('\n\n');
-}
