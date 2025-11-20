@@ -128,4 +128,60 @@ describe('shouldAnalyzeUpgrade', () => {
 
     expect(result).toBe(false);
   });
+
+  it('skips AI analysis when metadata upgrade already exists', () => {
+    const settings: Settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'ai-rename',
+    };
+
+    const historyItem: HistoryItem = {
+      ...baseHistoryItem,
+      fileType: 'video',
+      upgrade: {
+        proposedFilename: 'video_1920x1080_60fps_H264.mp4',
+        proposedPath: 'downloads/video_1920x1080_60fps_H264.mp4',
+        autoApply: true,
+        reasonTags: ['media-specs'],
+        generatedAt: Date.now(),
+        source: 'metadata',
+        confidenceScore: 0.95,
+      },
+    };
+
+    const result = shouldAnalyzeUpgrade(historyItem, settings, Date.now());
+
+    // Should return false to prevent AI analysis from overwriting metadata upgrade
+    expect(result).toBe(false);
+  });
+
+  it('skips AI analysis when metadata upgrade exists even if file type is disabled', () => {
+    const settings: Settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'ai-rename',
+      perType: {
+        ...DEFAULT_SETTINGS.perType,
+        video: { behavior: 'off' },
+      },
+    };
+
+    const historyItem: HistoryItem = {
+      ...baseHistoryItem,
+      fileType: 'video',
+      upgrade: {
+        proposedFilename: 'video_1920x1080_60fps_H264.mp4',
+        proposedPath: 'downloads/video_1920x1080_60fps_H264.mp4',
+        autoApply: true,
+        reasonTags: ['media-specs'],
+        generatedAt: Date.now(),
+        source: 'metadata',
+        confidenceScore: 0.95,
+      },
+    };
+
+    const result = shouldAnalyzeUpgrade(historyItem, settings, Date.now());
+
+    // Metadata upgrade check happens before file type check, so this returns false
+    expect(result).toBe(false);
+  });
 });

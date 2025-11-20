@@ -229,7 +229,10 @@ Respond with JSON:
       reasonTags: ['cloud', 'gemini', 'image'],
       generatedAt: Date.now(),
       source: 'ai',
-      summary: decision.explanation || description,
+      summary: buildCloudImageAnalysisSummary(
+        description,
+        decision.explanation,
+      ),
     };
 
     debugLogger.log('[AI Analysis Complete cloud-gemini image]', {
@@ -279,4 +282,31 @@ Respond with JSON:
       details: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+/**
+ * Build comprehensive summary for cloud image analysis
+ * Combines description and decision reasoning for richer context
+ *
+ * @param description - AI-generated description of the image content
+ * @param decisionExplanation - Optional short explanation of why rename was needed
+ * @returns Formatted summary string with description and reasoning
+ */
+function buildCloudImageAnalysisSummary(
+  description: string,
+  decisionExplanation?: string,
+): string {
+  const parts: string[] = [];
+
+  // Add description with label
+  if (description && description.trim().length > 0) {
+    parts.push(`Content: ${description.trim()}`);
+  }
+
+  // Add decision explanation if provided
+  if (decisionExplanation && decisionExplanation.trim().length > 0) {
+    parts.push(`Decision: ${decisionExplanation.trim()}`);
+  }
+
+  return parts.join('\n\n');
 }

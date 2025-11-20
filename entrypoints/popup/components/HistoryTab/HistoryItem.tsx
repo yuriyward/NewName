@@ -2,6 +2,7 @@ import { CheckIcon, FolderIcon } from '@heroicons/react/16/solid';
 import { Chip } from '@heroui/chip';
 import { Tooltip } from '@heroui/tooltip';
 import { browser } from 'wxt/browser';
+import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
 import type { HistoryItem as HistoryItemType } from '@/entrypoints/shared/history/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
 import { SummaryDisplay } from './SummaryDisplay';
@@ -20,9 +21,71 @@ export const HistoryItem: React.FC<HistoryItemProps> = ({
 }) => {
   const summary = item.upgrade?.summary?.trim();
 
-  const handleShowInFolder = (): void => {
-    if (item.downloadId !== undefined) {
-      browser.downloads.show(item.downloadId);
+  const handleShowInFolder = async (): Promise<void> => {
+    if (item.downloadId === undefined) return;
+
+    try {
+      // First try to show using the download ID
+      // This works if the file hasn't been renamed yet or if Chrome can still find it
+      await browser.downloads.show(item.downloadId);
+    } catch (error) {
+      // If showing by download ID fails, the file was likely renamed via File System Access API
+      // Chrome's downloads database still has the old filename, so it can't find the file
+      console.warn(
+        '[HistoryItem] File was renamed, attempting alternative approach',
+        {
+          downloadId: item.downloadId,
+          originalFilename: item.original,
+          renamedFilename: item.final,
+          path: item.path,
+          error,
+        },
+      );
+
+      // Try to verify the renamed file exists using File System Access API
+      try {
+        const dirHandle = await getStoredDirectoryHandle();
+        if (dirHandle && item.path) {
+          // Parse the relative path to navigate to the file
+          const pathParts = item.path.split('/');
+          const filename = pathParts[pathParts.length - 1];
+
+          // Try to get the file handle to verify it exists
+          let currentDir = dirHandle;
+          for (let i = 0; i < pathParts.length - 1; i++) {
+            currentDir = await currentDir.getDirectoryHandle(pathParts[i]);
+          }
+          await currentDir.getFileHandle(filename);
+
+          // File exists! Log success and open downloads folder
+          console.info(
+            `[HistoryItem] Verified renamed file exists: "${item.final}"`,
+          );
+          await browser.downloads.showDefaultFolder();
+          console.info(
+            `[HistoryItem] Opened downloads folder. Look for: "${item.final}"`,
+          );
+          return;
+        }
+      } catch (fsError) {
+        console.warn(
+          '[HistoryItem] Could not verify file via File System Access API',
+          fsError,
+        );
+      }
+
+      // Fallback: just open the downloads folder
+      try {
+        await browser.downloads.showDefaultFolder();
+        console.info(
+          `[HistoryItem] Opened downloads folder. Look for: "${item.final}"`,
+        );
+      } catch (fallbackError) {
+        console.error(
+          '[HistoryItem] Failed to open downloads folder',
+          fallbackError,
+        );
+      }
     }
   };
 

@@ -46,6 +46,7 @@ let pendingUpdates: PendingUpdate[] = [];
 let pendingFlushTimer: ReturnType<typeof setTimeout> | undefined;
 let contextRefreshTimer: ReturnType<typeof setInterval> | undefined;
 let lastContextPublishTimestamp = 0;
+let isContextInvalidated = false;
 
 interface RuntimeContext {
   tabId?: number;
@@ -119,7 +120,7 @@ async function ensureRuntimeContext(): Promise<RuntimeContext> {
 }
 
 function schedulePendingFlush(): void {
-  if (pendingFlushTimer !== undefined) return;
+  if (isContextInvalidated || pendingFlushTimer !== undefined) return;
   pendingFlushTimer = setTimeout(() => {
     pendingFlushTimer = undefined;
     flushPendingUpdates();
@@ -127,7 +128,7 @@ function schedulePendingFlush(): void {
 }
 
 function flushPendingUpdates(): void {
-  if (pendingUpdates.length === 0) return;
+  if (isContextInvalidated || pendingUpdates.length === 0) return;
   const queue = pendingUpdates;
   pendingUpdates = [];
   for (const entry of queue) {
@@ -231,6 +232,7 @@ function sendUpdateWithRetry(update: ContextUpdate, attempts = 0): void {
 }
 
 function dispatchUpdate(update: ContextUpdate): void {
+  if (isContextInvalidated) return;
   flushPendingUpdates();
   sendUpdateWithRetry(update);
 }
@@ -288,6 +290,17 @@ function clearContextRefreshTimer(): void {
   if (!contextRefreshTimer) return;
   clearInterval(contextRefreshTimer);
   contextRefreshTimer = undefined;
+}
+
+function markContextInvalidated(): void {
+  if (isContextInvalidated) return;
+  isContextInvalidated = true;
+  pendingUpdates = [];
+  if (pendingFlushTimer !== undefined) {
+    clearTimeout(pendingFlushTimer);
+    pendingFlushTimer = undefined;
+  }
+  clearContextRefreshTimer();
 }
 
 function handleVisibilityChange(): void {
@@ -349,10 +362,16 @@ export default defineContentScript({
     window.addEventListener('click', handleLinkInteraction, true);
     window.addEventListener('auxclick', handleLinkInteraction, true);
     window.addEventListener('contextmenu', handleLinkInteraction, true);
+    const pageHideListener = () => markContextInvalidated();
+    window.addEventListener('pagehide', pageHideListener);
 
     ctx.onInvalidated(() => {
       document.removeEventListener('visibilitychange', visibilityListener);
-      clearContextRefreshTimer();
+      window.removeEventListener('pagehide', pageHideListener);
+      window.removeEventListener('click', handleLinkInteraction, true);
+      window.removeEventListener('auxclick', handleLinkInteraction, true);
+      window.removeEventListener('contextmenu', handleLinkInteraction, true);
+      markContextInvalidated();
     });
   },
 });

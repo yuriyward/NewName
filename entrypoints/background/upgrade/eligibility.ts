@@ -21,6 +21,14 @@ export function shouldAnalyzeUpgrade(
     return false;
   }
 
+  // If a metadata-based upgrade already exists, skip AI analysis.
+  // Metadata upgrades are deterministic and ready to apply - no need for further AI processing.
+  // This prevents AI analysis from overwriting good metadata upgrades.
+  const hasMetadataUpgrade = historyItem.upgrade?.source === 'metadata';
+  if (hasMetadataUpgrade) {
+    return false;
+  }
+
   // Check behavior setting
   if (settings.perType[historyItem.fileType]?.behavior === 'off') {
     return false;
