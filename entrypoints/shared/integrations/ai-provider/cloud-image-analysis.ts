@@ -284,5 +284,3 @@ Respond with JSON:
     };
   }
 }
-
-

@@ -27,6 +27,8 @@ export function shouldAnalyzeUpgrade(
   // If a metadata-based upgrade already exists, skip AI analysis.
   // Metadata upgrades are deterministic and ready to apply - no need for further AI processing.
   // This prevents AI analysis from overwriting good metadata upgrades.
+  // See also: scheduler deferral logic (lines 35-44) which gives MediaInfo time to complete
+  // before AI analysis runs, helping metadata upgrades land first.
   const hasMetadataUpgrade = historyItem.upgrade?.source === 'metadata';
   if (hasMetadataUpgrade) {
     return false;

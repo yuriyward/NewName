@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { HistoryItem } from '@/entrypoints/shared/history/types';
 import type { FileType } from '@/entrypoints/shared/settings/types';
 import type { HistoryFilter } from '../hooks/useHistory';
+import { useManagedFolderPath } from '../hooks/useManagedFolderPath';
 import { EmptyStateMessage } from './HistoryTab/EmptyStateMessage';
 import { HistoryFilterButton } from './HistoryTab/HistoryFilterButton';
 import { HistoryItem as HistoryItemComponent } from './HistoryTab/HistoryItem';
@@ -29,6 +30,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({
     Record<string, boolean>
   >({});
   const [visibleCount, setVisibleCount] = useState(MAX_VISIBLE_HISTORY_ITEMS);
+  const managedFolder = useManagedFolderPath();
 
   const toggleSummary = (id: string): void => {
     setExpandedSummaries((prev) => ({
@@ -93,6 +95,7 @@ const HistoryTab: React.FC<HistoryTabProps> = ({
               <HistoryItemComponent
                 key={item.id}
                 item={item}
+                managedFolder={managedFolder}
                 isSummaryExpanded={Boolean(expandedSummaries[item.id])}
                 onToggleSummary={() => toggleSummary(item.id)}
               />

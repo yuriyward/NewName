@@ -264,5 +264,3 @@ Respond with JSON:
     return errorResponse;
   }
 }
-
-

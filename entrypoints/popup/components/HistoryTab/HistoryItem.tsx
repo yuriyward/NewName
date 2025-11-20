@@ -1,9 +1,7 @@
 import { CheckIcon, FolderIcon } from '@heroicons/react/16/solid';
 import { Chip } from '@heroui/chip';
 import { Tooltip } from '@heroui/tooltip';
-import { useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
-import { getManagedRelativePath } from '@/entrypoints/shared/filesystem/handle-storage';
 import type { HistoryItem as HistoryItemType } from '@/entrypoints/shared/history/types';
 import { FilenameLabel } from '@/entrypoints/shared/ui/FilenameLabel';
 import { SummaryDisplay } from './SummaryDisplay';
@@ -11,22 +9,18 @@ import { getRenameLabel } from './utils';
 
 interface HistoryItemProps {
   item: HistoryItemType;
+  managedFolder: string | null;
   isSummaryExpanded: boolean;
   onToggleSummary: () => void;
 }
 
 export const HistoryItem: React.FC<HistoryItemProps> = ({
   item,
+  managedFolder,
   isSummaryExpanded,
   onToggleSummary,
 }) => {
   const summary = item.upgrade?.summary?.trim();
-  const [managedFolder, setManagedFolder] = useState<string | null>(null);
-
-  // Fetch managed folder path on mount
-  useEffect(() => {
-    getManagedRelativePath().then(setManagedFolder).catch(console.error);
-  }, []);
 
   // Check if file was renamed by comparing original vs final names
   const wasRenamed = item.original !== item.final;
