@@ -21,14 +21,18 @@ background/ # 11 files, 2 directories
   │ ├─ status-broadcaster.ts # Status broadcasting utilities for confirm toast updates.
   │ ├─ tab-activation-broadcaster.ts # Tab activation broadcaster for re-displaying pending toasts on newly active tabs.
   │ └─ target-resolver.ts # Tab resolution utilities for confirm toast targeting.
-  ├─ upgrade/ # 12 files
+  ├─ upgrade/ # 16 files
+  │ ├─ applyMetadataUpgrade.ts # Applies metadata-based upgrade proposals Entry point for metadata upgrades from UI interactions
+  │ ├─ applySilentRename.ts # Applies silent renames for high-confidence or metadata-based upgrades
   │ ├─ cloud-consent-manager.ts # 3 exports
   │ ├─ coordinator.ts # Contextual upgrade coordinator for completed downloads Owns the complete upgrade workflow: - Entry point for download completion events and scheduled analyses - Eligibility checking - Delegates analysis to processor - Updates history and displays results
   │ ├─ eligibility.ts # Eligibility checks for contextual upgrade analysis
+  │ ├─ handleUpgradeProposal.ts # Handles upgrade proposal processing and application Orchestrates the complete upgrade workflow by delegating to specialized handlers
   │ ├─ image-analysis-request.ts # Image upgrade analysis request builder Determines image eligibility and creates analysis requests
   │ ├─ mock-analysis.ts # Mock AI-powered contextual upgrade proposal generator
   │ ├─ normalization.ts # 6 exports
   │ ├─ pdf-analysis-request.ts # PDF upgrade analysis request builder Determines PDF eligibility and creates analysis requests
+  │ ├─ queueUpgradeToast.ts # Queues upgrade confirmation toasts for user approval
   │ ├─ scheduler.ts # 4 exports
   │ ├─ text-analysis-request.ts # 1 export
   │ ├─ types.ts # Type definitions for contextual upgrade pipeline
@@ -114,10 +118,11 @@ popup/ # 2 files, 3 directories
   │ ├─ PrimaryButton.tsx # 1 export
   │ ├─ ProcessingModeIndicator.tsx # 1 export
   │ └─ StrategyTab.tsx # 1 export
-  ├─ hooks/ # 4 files
+  ├─ hooks/ # 5 files
   │ ├─ useAiModelStatus.ts # 2 exports
   │ ├─ useDownloadsAccess.ts # 1 export
   │ ├─ useHistory.ts # 2 exports
+  │ ├─ useManagedFolderPath.ts # 1 export
   │ └─ usePopupSettings.ts # 1 export
   ├─ onboarding/ # 1 file
   │ └─ DownloadsAccessScreen.tsx # Compact downloads access onboarding screen for popup
@@ -138,7 +143,8 @@ shared/ # 18 directories
   ├─ constants/ # 2 files
   │ ├─ confidence-thresholds.ts # Confidence thresholds for AI rename decisions shared across the codebase. The rename pipeline uses a three-tier scale: - `>= 0.8` ⟶ silent rename without showing a confirmation toast. - `>= 0.5` ⟶ confirmation toast with an auto-apply countdown. - `< 0.5`  ⟶ manual confirmation, no automatic actions. Keeping the thresholds and helpers here ensures every surface (toast routing, history entries, tests, etc.) speaks the same language. If we ever make them user-configurable we only need to touch this module.
   │ └─ file-constants.ts # Shared file-related constants used across the application
-  ├─ context/ # 2 files
+  ├─ context/ # 3 files
+  │ ├─ context-updater.ts # Context update logic for content script Handles queuing, retrying, and dispatching page context updates
   │ ├─ page-analyzer.ts # 6 exports
   │ └─ page-context-formatter.ts # Page context formatting utilities for AI prompts Provides consistent formatting of page context (title, heading, URL) across all AI providers SECURITY: All inputs are sanitized to prevent prompt injection attacks. Page context values (title, heading, URL) come from untrusted web pages.
   ├─ debug/ # 5 files
@@ -160,7 +166,7 @@ shared/ # 18 directories
   │ ├─ types.ts # Type definitions for history items and metadata
   │ └─ validation.ts # Runtime validation for history data integrity
   ├─ integrations/ # 1 files, 6 directories
-  │ ├─ ai-provider/ # 8 files
+  │ ├─ ai-provider/ # 9 files
   │ │ ├─ ai-router.ts # Smart AI Router Routes analysis requests to the appropriate provider (local or cloud) based on user preferences, provider availability, and fallback logic.
   │ │ ├─ cloud-adapter.ts # Cloud AI Adapter Integrates with cloud AI services (Google Gemini) via ai-sdk. Provides fallback/alternative to local Chrome AI processing. This adapter delegates to specialized analysis pipelines: - Text: cloud-text-analysis.ts - Image: cloud-image-analysis.ts - PDF: cloud-pdf-analysis.ts
   │ │ ├─ cloud-image-analysis.ts # Cloud Image Analysis Pipeline Handles image analysis using Google Gemini via ai-sdk. Implements three-phase analysis: description → decision → generation SECURITY: All untrusted inputs (filename, AI-generated description) are sanitized.
@@ -168,6 +174,7 @@ shared/ # 18 directories
   │ │ ├─ cloud-text-analysis.ts # Cloud Text Analysis Pipeline Handles text analysis using Google Gemini via ai-sdk. Implements two-phase analysis: decision → generation SECURITY: All untrusted inputs (filename, content, page context) are sanitized.
   │ │ ├─ helpers.ts # Shared helpers for AI provider integrations
   │ │ ├─ local-adapter.ts # Local AI Adapter Wraps Chrome's built-in AI (Gemini Nano) for on-device processing. This adapter delegates to existing pipeline orchestrators without changing their logic.
+  │ │ ├─ summary-builder.ts # AI Analysis Summary Builder Provides utilities for building comprehensive summaries from AI analysis results. These summaries combine multiple pieces of information (description, decision reasoning) into user-friendly explanations.
   │ │ └─ types.ts # AI Provider Abstraction Layer This module defines a unified interface for AI providers (local Chrome AI vs. cloud services). Allows seamless switching between on-device and cloud-based processing.
   │ ├─ chrome-ai/ # 10 files, 2 directories
   │ │ ├─ diagnostics-rules/ # 6 files
@@ -478,6 +485,22 @@ content.ts # Content script for page context extraction and messaging
 - `export extractTabId` - Extract tab ID from a target (either number or SendMessag...
 - `export resolveTarget` - Resolve the active tab to use as the target for displayin...
 
+### background/upgrade/applyMetadataUpgrade.ts
+**Purpose**: Applies metadata-based upgrade proposals Entry point for metadata upgrades from UI interactions
+
+**Exports**:
+- `export ApplyMetadataUpgradeDeps` - item implementation
+- `export ApplyMetadataUpgradeParams` - item implementation
+- `export applyMetadataUpgrade` - item implementation
+
+### background/upgrade/applySilentRename.ts
+**Purpose**: Applies silent renames for high-confidence or metadata-based upgrades
+
+**Exports**:
+- `export ApplySilentRenameParams` - item implementation
+- `export applySilentRename` - Applies a rename silently without user confirmation
+Used ...
+
 ### background/upgrade/cloud-consent-manager.ts
 **Purpose**: 3 exports
 
@@ -499,6 +522,15 @@ content.ts # Content script for page context extraction and messaging
 **Exports**:
 - `export UPGRADE_RECENT_WINDOW_MS` - Cooldown used to avoid re-running contextual upgrades imm...
 - `export shouldAnalyzeUpgrade` - Cooldown used to avoid re-running contextual upgrades imm...
+
+### background/upgrade/handleUpgradeProposal.ts
+**Purpose**: Handles upgrade proposal processing and application Orchestrates the complete upgrade workflow by delegating to specialized handlers
+
+**Exports**:
+- `export HandleUpgradeProposalDeps` - item implementation
+- `export HandleUpgradeProposalParams` - item implementation
+- `export handleUpgradeProposal` - Orchestrates the upgrade proposal workflow
+- Updates hist...
 
 ### background/upgrade/image-analysis-request.ts
 **Purpose**: Image upgrade analysis request builder Determines image eligibility and creates analysis requests
@@ -529,6 +561,15 @@ content.ts # Content script for page context extraction and messaging
 **Exports**:
 - `export createPdfUpgradeAnalysisRequester` - Create PDF upgrade analysis requester function
 
+### background/upgrade/queueUpgradeToast.ts
+**Purpose**: Queues upgrade confirmation toasts for user approval
+
+**Exports**:
+- `export QueueUpgradeToastDeps` - item implementation
+- `export QueueUpgradeToastParams` - item implementation
+- `export queueUpgradeToast` - Queues a confirmation toast for an upgrade proposal
+Used ...
+
 ### background/upgrade/scheduler.ts
 **Purpose**: 4 exports
 
@@ -553,6 +594,7 @@ content.ts # Content script for page context extraction and messaging
 - `export ScheduleUpgradeAnalysisParams` - item implementation
 - `export UpgradeAnalysisInput` - item implementation
 - `export UpgradeCoordinatorParams` - File type filtering happens inside eligibility.ts before ...
+- `export UpgradeAnalysisSource` - item implementation
 - `export MOCK_UPGRADE_ALARM_PREFIX` - item implementation
 
 ### background/upgrade/unified-analysis-requester.ts
@@ -1053,6 +1095,12 @@ Renders pages ...
 - `export HistoryFilter` - item implementation
 - `export useHistory` - item implementation
 
+### popup/hooks/useManagedFolderPath.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export useManagedFolderPath` - Hook to fetch and cache the managed folder path from Inde...
+
 ### popup/hooks/usePopupSettings.ts
 **Purpose**: 1 export
 
@@ -1145,6 +1193,16 @@ Renders pages ...
 - `export MULTI_PART_ARCHIVE_EXTENSIONS` - Shared file-related constants used across the application
 - `export ORIGINAL_DELIMITER_CANDIDATES` - item implementation
 - `export TEXT_EXTENSIONS` - item implementation
+
+### shared/context/context-updater.ts
+**Purpose**: Context update logic for content script Handles queuing, retrying, and dispatching page context updates
+
+**Exports**:
+- `export ContextUpdater` - item implementation
+- `export ContextUpdate` - item implementation
+- `export createContextUpdater` - item implementation
+- `export firstHeading` - item implementation
+- `export truncate` - item implementation
 
 ### shared/context/page-analyzer.ts
 **Purpose**: 6 exports
@@ -1277,6 +1335,7 @@ Inc...
 **Purpose**: History storage operations with pruning and sanitization
 
 **Exports**:
+- `export HISTORY_STORAGE_KEY` - item implementation
 - `export readHistory` - item implementation
 - `export writeHistory` - item implementation
 
@@ -1348,6 +1407,15 @@ Consis...
 
 **Exports**:
 - `export LocalAiAdapter` - Local AI provider using Chrome's built-in AI (Gemini Nano...
+
+### shared/integrations/ai-provider/summary-builder.ts
+**Purpose**: AI Analysis Summary Builder Provides utilities for building comprehensive summaries from AI analysis results. These summaries combine multiple pieces of information (description, decision reasoning) into user-friendly explanations.
+
+**Exports**:
+- `export buildCloudImageAnalysisSummary` - Build comprehensive summary for cloud image analysis
+Comb...
+- `export buildCloudTextAnalysisSummary` - Build comprehensive summary for cloud text analysis
+Combi...
 
 ### shared/integrations/ai-provider/types.ts
 **Purpose**: AI Provider Abstraction Layer This module defines a unified interface for AI providers (local Chrome AI vs. cloud services). Allows seamless switching between on-device and cloud-based processing.
@@ -1904,7 +1972,7 @@ Format: YYYY-...
 - `export InstantBaselineComputation` - item implementation
 - `export evaluateInstantBaseline` - item implementation
 - `export evaluateInstantBaselineDebug` - item implementation
-- `export parseIsoDateTime` - Parse ISO timestamp to datetime prefix format: YYYY-MM-DD...
+- `export parseIsoDateTime` - Parse ISO timestamp to datetime prefix format using local...
 
 ### shared/pipeline/instant-baseline-types.ts
 **Purpose**: Shared Instant Baseline decision types
