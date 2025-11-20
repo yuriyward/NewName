@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { getHistory } from '@/entrypoints/shared/history/history';
+import { HISTORY_STORAGE_KEY } from '@/entrypoints/shared/history/storage';
 import type { HistoryItem } from '@/entrypoints/shared/history/types';
 import type { FileType } from '@/entrypoints/shared/settings/types';
 
@@ -23,7 +25,6 @@ export const useHistory = (): UseHistoryResult => {
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
 
   const loadHistory = useCallback(async () => {
-    if (historyLoaded) return;
     try {
       const items = await getHistory();
       setHistory(items);
@@ -31,7 +32,20 @@ export const useHistory = (): UseHistoryResult => {
     } catch (err) {
       debugLogger.error('Failed to load history', { error: err });
     }
-  }, [historyLoaded]);
+  }, []);
+
+  useEffect(() => {
+    const handleHistoryChange: Parameters<
+      typeof browser.storage.onChanged.addListener
+    >[0] = (changes, areaName) => {
+      if (areaName !== 'local') return;
+      if (!(HISTORY_STORAGE_KEY in changes)) return;
+      void loadHistory();
+    };
+
+    browser.storage.onChanged.addListener(handleHistoryChange);
+    return () => browser.storage.onChanged.removeListener(handleHistoryChange);
+  }, [loadHistory]);
 
   const filteredHistory = useMemo(() => {
     if (historyFilter === 'all') {
