@@ -62,8 +62,9 @@ import { initializeTextAnalysisHandler } from './text-analysis-handler';
     });
   }
 
-  // Additional small delay to ensure message system is ready
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  // Additional delay to ensure message system and dynamic import infrastructure is ready
+  // Increased from 50ms to 200ms to prevent race conditions on fast sites (e.g., x-kom.pl)
+  await new Promise((resolve) => setTimeout(resolve, 200));
 
   // Announce readiness to background after listeners are registered
   try {

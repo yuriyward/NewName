@@ -200,17 +200,12 @@ describe('shouldAnalyzeUpgrade', () => {
       fileType: 'video',
     };
 
-    const result = shouldAnalyzeUpgrade(
-      historyItem,
-      settings,
-      Date.now(),
-      'immediate',
-    );
+    const result = shouldAnalyzeUpgrade(historyItem, settings, Date.now());
 
     expect(result).toBe(false);
   });
 
-  it('blocks AI analysis for media files regardless of source', () => {
+  it('blocks AI analysis for media files (audio)', () => {
     const settings: Settings = {
       ...DEFAULT_SETTINGS,
       instantBaselineStrategy: 'ai-rename',
@@ -225,12 +220,7 @@ describe('shouldAnalyzeUpgrade', () => {
       fileType: 'audio',
     };
 
-    const result = shouldAnalyzeUpgrade(
-      historyItem,
-      settings,
-      Date.now(),
-      'scheduler',
-    );
+    const result = shouldAnalyzeUpgrade(historyItem, settings, Date.now());
 
     expect(result).toBe(false);
   });
@@ -250,12 +240,7 @@ describe('shouldAnalyzeUpgrade', () => {
       fileType: 'video',
     };
 
-    const result = shouldAnalyzeUpgrade(
-      historyItem,
-      settings,
-      Date.now(),
-      'immediate',
-    );
+    const result = shouldAnalyzeUpgrade(historyItem, settings, Date.now());
 
     expect(result).toBe(false);
   });

@@ -115,7 +115,7 @@ export function createUpgradeScheduler(
     // This prevents AI analysis from overwriting metadata upgrades (like MediaInfo results)
     // that completed after the alarm was scheduled (5s earlier) but before it fired.
     // Without this check, scheduled AI analysis could run and overwrite good metadata.
-    if (!shouldAnalyzeUpgrade(historyItem, settings, now, 'scheduler')) {
+    if (!shouldAnalyzeUpgrade(historyItem, settings, now)) {
       debugLogger.log(
         '[UpgradeScheduler] Skipping scheduled analysis (ineligible)',
         {

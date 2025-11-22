@@ -4,7 +4,6 @@
 import type { HistoryItem } from '@/entrypoints/shared/history/types';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
 import { isMediaFileType } from '../download-utils';
-import type { UpgradeAnalysisSource } from './types';
 
 /**
  * Cooldown used to avoid re-running contextual upgrades immediately after a decision.
@@ -13,11 +12,13 @@ import type { UpgradeAnalysisSource } from './types';
  */
 const UPGRADE_RECENT_WINDOW_MS = 15 * 60 * 1_000;
 
+/**
+ * Determine whether a history item is eligible for contextual AI upgrade analysis.
+ */
 export function shouldAnalyzeUpgrade(
   historyItem: HistoryItem,
   settings: Settings,
   now: number,
-  _source: UpgradeAnalysisSource = 'immediate',
 ): boolean {
   // When the user explicitly disables renaming, skip contextual upgrades.
   if (settings.instantBaselineStrategy === 'keep-original') {

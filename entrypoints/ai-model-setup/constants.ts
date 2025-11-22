@@ -7,7 +7,7 @@ import { AI_MODEL_IDS } from '@/entrypoints/shared/integrations/chrome-ai/model-
 import type { ModelProgress } from './types';
 
 export const MODEL_LABELS: Record<AiModelId, string> = {
-  'language-model': 'Prompt API (Gemini Nano)',
+  'language-model': 'Prompt API (text + image)',
   summarizer: 'Summarizer API',
   'language-detector': 'Language Detector API',
 };

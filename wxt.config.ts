@@ -28,7 +28,7 @@ export default defineConfig({
     name: 'NewName',
     description:
       'Intelligent, context-aware file renamer for Chrome downloads.',
-    version: '0.1.3',
+    version: '0.1.4',
     minimum_chrome_version: '138',
     permissions: ['alarms', 'downloads', 'storage', 'offscreen'],
     host_permissions: ['<all_urls>'],

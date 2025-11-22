@@ -85,12 +85,16 @@ export function WxtDevModeAlert(): JSX.Element {
               label="1. Prompt API Flag:"
             />
             <CopyableUrl
+              url="chrome://flags/#prompt-api-for-gemini-nano-multimodal-input"
+              label="2. Multimodal Prompt Flag:"
+            />
+            <CopyableUrl
               url="chrome://flags/#optimization-guide-on-device-model"
-              label="2. Optimization Guide Flag:"
+              label="3. Optimization Guide Flag:"
             />
             <CopyableUrl
               url="chrome://components/"
-              label="3. Check Components:"
+              label="4. Check Components:"
             />
           </div>
         </div>
@@ -112,6 +116,10 @@ export function PrerequisitesSection(): JSX.Element {
         <li>Keep this tab open until the progress indicator completes.</li>
         <li>
           If prompted, stay on this page so Chrome maintains user activation.
+        </li>
+        <li>
+          Enable both Prompt API flags (standard and <em>multimodal input</em>)
+          in chrome://flags, set each to "Enabled", then relaunch Chrome.
         </li>
       </ul>
     </section>
