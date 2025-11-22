@@ -33,6 +33,8 @@ import {
 } from './components/alerts';
 import { DiagnosticsSection } from './components/DiagnosticsSection';
 import { ModelStatusCard } from './components/ModelStatusCard';
+import { SectionErrorBoundary } from './components/SectionErrorBoundary';
+import { SetupChecklistSection } from './components/SetupChecklistSection';
 import {
   createInitialProgressMap,
   INITIAL_STATUS_MAP,
@@ -206,6 +208,11 @@ export function AIModelSetupPage(): JSX.Element {
     const supportedOutputLanguage =
       resolveSupportedPromptLanguage(preferredLanguage);
 
+    // Ask Chrome for a multimodal-capable language model during setup so we
+    // fail fast when the "Prompt API for Gemini Nano (Multimodal Input)"
+    // flag is left at "Default". Without the image descriptor here Chrome
+    // reports the model as ready even though image inputs will be rejected
+    // later in the pipeline.
     const languageModelOptions = {
       outputLanguage: supportedOutputLanguage,
       expectedInputs: [
@@ -214,6 +221,7 @@ export function AIModelSetupPage(): JSX.Element {
           language: preferredLanguage,
           languages: [preferredLanguage],
         },
+        { type: 'image' as const },
       ],
       expectedOutputs: [
         {
@@ -381,6 +389,13 @@ export function AIModelSetupPage(): JSX.Element {
             unlock Phase 2 renaming.
           </p>
         </header>
+
+        <SectionErrorBoundary>
+          <SetupChecklistSection
+            statuses={snapshot.statuses}
+            loading={loading}
+          />
+        </SectionErrorBoundary>
 
         {isWxtDevMode && allUnavailable ? <WxtDevModeAlert /> : null}
 

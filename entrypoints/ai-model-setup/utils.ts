@@ -54,6 +54,13 @@ export function resolveSetupErrorMessage(message: string): SetupErrorDisplay {
         'Start the Language Detector download first—the other models will unlock once that one finishes.',
     };
   }
+  if (message.toLowerCase().includes('multimodal')) {
+    return {
+      title: 'Turn on the multimodal Prompt API flag',
+      description:
+        'Open chrome://flags/#prompt-api-for-gemini-nano-multimodal-input, set it to "Enabled" (not Default), relaunch Chrome, then rerun the download.',
+    };
+  }
   if (message.includes('storage') || message.includes('space')) {
     return {
       title: 'Chrome needs a bit more free space',

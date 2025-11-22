@@ -4,7 +4,6 @@
 import type { HistoryItem } from '@/entrypoints/shared/history/types';
 import type { Settings } from '@/entrypoints/shared/settings/settings';
 import { isMediaFileType } from '../download-utils';
-import type { UpgradeAnalysisSource } from './types';
 
 /**
  * Cooldown used to avoid re-running contextual upgrades immediately after a decision.
@@ -13,44 +12,40 @@ import type { UpgradeAnalysisSource } from './types';
  */
 const UPGRADE_RECENT_WINDOW_MS = 15 * 60 * 1_000;
 
+/**
+ * Determine whether a history item is eligible for contextual AI upgrade analysis.
+ */
 export function shouldAnalyzeUpgrade(
   historyItem: HistoryItem,
   settings: Settings,
   now: number,
-  source: UpgradeAnalysisSource = 'immediate',
 ): boolean {
   // When the user explicitly disables renaming, skip contextual upgrades.
   if (settings.instantBaselineStrategy === 'keep-original') {
     return false;
   }
 
+  // Skip AI contextual upgrades for media files - they only use MediaInfo metadata upgrades.
+  // Media files (audio/video) rely exclusively on MediaInfo for metadata extraction.
+  // AI analysis is not designed for media content and should never run for these file types.
+  if (isMediaFileType(historyItem.fileType)) {
+    return false;
+  }
+
   // If a metadata-based upgrade already exists, skip AI analysis.
   // Metadata upgrades are deterministic and ready to apply - no need for further AI processing.
   // This prevents AI analysis from overwriting good metadata upgrades.
-  // See also: scheduler deferral logic (lines 35-44) which gives MediaInfo time to complete
-  // before AI analysis runs, helping metadata upgrades land first.
   const hasMetadataUpgrade = historyItem.upgrade?.source === 'metadata';
   if (hasMetadataUpgrade) {
     return false;
   }
 
-  // When MediaInfo specs are enabled we defer media files to the scheduler
-  // (5s delay) so MediaInfo results can land first. If MediaInfo fails the
-  // scheduled path will proceed and act as the fallback.
-  if (
-    source === 'immediate' &&
-    settings.metadataToggles.mediaSpecs &&
-    isMediaFileType(historyItem.fileType)
-  ) {
-    return false;
-  }
-
-  // Check behavior setting
+  // Check behavior setting.
   if (settings.perType[historyItem.fileType]?.behavior === 'off') {
     return false;
   }
 
-  // Check perfect confidence
+  // Check perfect confidence.
   if (
     historyItem.decision?.outcome === 'rename' &&
     historyItem.decision.confidence === 100
@@ -58,7 +53,7 @@ export function shouldAnalyzeUpgrade(
     return false;
   }
 
-  // Check recent upgrade window
+  // Check recent upgrade window.
   if (historyItem.upgrade) {
     const age = now - historyItem.upgrade.generatedAt;
     if (age < UPGRADE_RECENT_WINDOW_MS) {

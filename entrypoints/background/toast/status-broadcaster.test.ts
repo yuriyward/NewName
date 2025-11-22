@@ -100,4 +100,70 @@ describe('emitStatus', () => {
 
     expect(sendConfirmToastStatus).toHaveBeenCalledTimes(2);
   });
+
+  it('falls back to target when visibleOnTabs is empty', async () => {
+    await emitStatus(
+      {
+        proposal,
+        visibleOnTabs: new Set(),
+        target: 42,
+      },
+      'applied',
+      'Fallback test',
+    );
+
+    expect(sendConfirmToastStatus).toHaveBeenCalledTimes(1);
+    expect(sendConfirmToastStatus).toHaveBeenCalledWith(
+      { toastId: 'toast-1', state: 'applied', message: 'Fallback test' },
+      42,
+    );
+  });
+
+  it('handles both tab ID and SendMessageOptions as target', async () => {
+    const sendMessageOptions = { tabId: 99, frameId: 0 };
+
+    await emitStatus(
+      {
+        proposal,
+        visibleOnTabs: new Set(),
+        target: sendMessageOptions,
+      },
+      'applied',
+    );
+
+    expect(sendConfirmToastStatus).toHaveBeenCalledTimes(1);
+    expect(sendConfirmToastStatus).toHaveBeenCalledWith(
+      { toastId: 'toast-1', state: 'applied', message: undefined },
+      sendMessageOptions,
+    );
+  });
+
+  it('handles fallback target send failure gracefully', async () => {
+    sendConfirmToastStatus.mockRejectedValueOnce(
+      new Error('target unreachable'),
+    );
+
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+
+    try {
+      await emitStatus(
+        {
+          proposal,
+          visibleOnTabs: new Set(),
+          target: 42,
+        },
+        'applied',
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    }
+
+    expect(sendConfirmToastStatus).toHaveBeenCalledTimes(1);
+  });
 });

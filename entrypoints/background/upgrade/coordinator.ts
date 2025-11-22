@@ -102,7 +102,7 @@ export function createUpgradeCoordinator(
         return;
       }
 
-      if (!shouldAnalyzeUpgrade(historyItem, settings, now, 'immediate')) {
+      if (!shouldAnalyzeUpgrade(historyItem, settings, now)) {
         debugLogger.log(
           '[UpgradeCoordinator] Upgrade analysis skipped (ineligible)',
           {

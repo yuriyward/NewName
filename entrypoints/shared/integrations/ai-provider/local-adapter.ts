@@ -17,6 +17,10 @@ import type {
   ImageUpgradeAnalysisRequest,
   ImageUpgradeAnalysisResponse,
 } from '@/entrypoints/shared/integrations/image-analysis/types';
+import {
+  OFFSCREEN_DYNAMIC_IMPORT_MAX_RETRIES,
+  OFFSCREEN_DYNAMIC_IMPORT_RETRY_DELAYS,
+} from '@/entrypoints/shared/integrations/mediainfo/constants';
 import type {
   TextUpgradeAnalysisRequest,
   TextUpgradeAnalysisResponse,
@@ -24,6 +28,60 @@ import type {
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import { ensureAiModelsReadyRemote } from '@/entrypoints/shared/messaging/text-messages';
 import type { IAiProvider } from './types';
+
+/**
+ * Retry helper for dynamic imports with exponential backoff
+ *
+ * Handles race conditions where offscreen document is initialized
+ * but dynamic import system isn't fully ready yet.
+ * Common on fast sites like x-kom.pl.
+ */
+async function retryDynamicImport<T>(
+  importFn: () => Promise<T>,
+  context = 'unknown',
+  maxAttempts = OFFSCREEN_DYNAMIC_IMPORT_MAX_RETRIES,
+): Promise<T> {
+  const delays = OFFSCREEN_DYNAMIC_IMPORT_RETRY_DELAYS;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const startTime = performance.now();
+      const result = await importFn();
+      const duration = performance.now() - startTime;
+
+      if (attempt > 0) {
+        debugLogger.log(
+          `[LocalAiAdapter] Dynamic import succeeded on retry ${attempt + 1}`,
+          { context, duration },
+        );
+      }
+
+      return result;
+    } catch (error) {
+      const isLastAttempt = attempt === maxAttempts - 1;
+
+      if (isLastAttempt) {
+        debugLogger.error(
+          '[LocalAiAdapter] Dynamic import failed after all retries',
+          { context, attempt: attempt + 1, maxAttempts, error },
+        );
+        throw error;
+      }
+
+      const delay = delays[attempt] || 400;
+      debugLogger.warn('[LocalAiAdapter] Dynamic import failed, retrying...', {
+        context,
+        attempt: attempt + 1,
+        delay,
+        error,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw new Error('Retry loop should not reach here');
+}
 
 /**
  * Local AI provider using Chrome's built-in AI (Gemini Nano)
@@ -76,9 +134,11 @@ export class LocalAiAdapter implements IAiProvider {
     request: TextUpgradeAnalysisRequest,
     ingestion: TextUpgradeIngestionResult,
   ): Promise<TextUpgradeAnalysisResponse | null> {
-    // Import dynamically to avoid circular dependencies and ensure offscreen context
-    const { runTextUpgradePipeline } = await import(
-      '@/entrypoints/offscreen/text-analysis/pipeline-orchestrator'
+    // Import dynamically with retry logic to handle race conditions
+    const { runTextUpgradePipeline } = await retryDynamicImport(
+      () =>
+        import('@/entrypoints/offscreen/text-analysis/pipeline-orchestrator'),
+      'text-analysis',
     );
 
     return runTextUpgradePipeline(request, ingestion);
@@ -93,9 +153,11 @@ export class LocalAiAdapter implements IAiProvider {
     request: ImageUpgradeAnalysisRequest,
     ingestion: ImageIngestionResult,
   ): Promise<ImageUpgradeAnalysisResponse | null> {
-    // Import dynamically to avoid circular dependencies and ensure offscreen context
-    const { runImageUpgradePipeline } = await import(
-      '@/entrypoints/offscreen/image-analysis/pipeline-orchestrator'
+    // Import dynamically with retry logic to handle race conditions
+    const { runImageUpgradePipeline } = await retryDynamicImport(
+      () =>
+        import('@/entrypoints/offscreen/image-analysis/pipeline-orchestrator'),
+      'image-analysis',
     );
 
     return runImageUpgradePipeline(request, ingestion);
@@ -111,9 +173,11 @@ export class LocalAiAdapter implements IAiProvider {
     request: PdfUpgradeAnalysisRequest,
     pages: RenderedPdfPage[],
   ): Promise<ImageUpgradeAnalysisResponse | null> {
-    // Import dynamically to avoid circular dependencies and ensure offscreen context
-    const { runPdfUpgradePipeline } = await import(
-      '@/entrypoints/offscreen/pdf-analysis/pdf-analysis-pipeline'
+    // Import dynamically with retry logic to handle race conditions
+    const { runPdfUpgradePipeline } = await retryDynamicImport(
+      () =>
+        import('@/entrypoints/offscreen/pdf-analysis/pdf-analysis-pipeline'),
+      'pdf-analysis',
     );
 
     // Convert RenderedPdfPage to ExtractedPageForAnalysis format
