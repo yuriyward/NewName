@@ -5,11 +5,13 @@
 ## Tree Overview
 
 ai-model-setup/ # 5 files, 1 directories
-  ├─ components/ # 4 files
+  ├─ components/ # 6 files
   │ ├─ alerts.tsx # 4 exports
   │ ├─ CopyableUrl.tsx # 1 export
   │ ├─ DiagnosticsSection.tsx # 1 export
-  │ └─ ModelStatusCard.tsx # 1 export
+  │ ├─ ModelStatusCard.tsx # 1 export
+  │ ├─ SectionErrorBoundary.tsx # 1 export
+  │ └─ SetupChecklistSection.tsx # 1 export
   ├─ AIModelSetupPage.tsx # 1 export
   ├─ constants.ts # 6 exports
   ├─ main.tsx # React app entry point for AI model onboarding flow
@@ -314,6 +316,18 @@ content.ts # Content script for page context extraction and messaging
 **Exports**:
 - `export ModelStatusCard` - item implementation
 
+### ai-model-setup/components/SectionErrorBoundary.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export SectionErrorBoundary` - Error boundary for section-level components in AI model s...
+
+### ai-model-setup/components/SetupChecklistSection.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export SetupChecklistSection` - item implementation
+
 ### ai-model-setup/components/alerts.tsx
 **Purpose**: 4 exports
 
@@ -521,7 +535,7 @@ Used ...
 
 **Exports**:
 - `export UPGRADE_RECENT_WINDOW_MS` - Cooldown used to avoid re-running contextual upgrades imm...
-- `export shouldAnalyzeUpgrade` - Cooldown used to avoid re-running contextual upgrades imm...
+- `export shouldAnalyzeUpgrade` - Determine whether a history item is eligible for contextu...
 
 ### background/upgrade/handleUpgradeProposal.ts
 **Purpose**: Handles upgrade proposal processing and application Orchestrates the complete upgrade workflow by delegating to specialized handlers
@@ -1714,9 +1728,13 @@ Each provider (local or cl...
 
 **Exports**:
 - `export ANALYSIS_TIMEOUT_MS` - Maximum time to wait for media analysis to complete in th...
+- `export MAX_FULL_DOWNLOAD_SIZE` - Maximum size in bytes for full file downloads when range ...
 - `export MEDIA_ANALYSIS_MAX_WAIT_MS` - Maximum time to wait for media analysis before suggesting...
+- `export OFFSCREEN_DYNAMIC_IMPORT_MAX_RETRIES` - Maximum number of retry attempts for dynamic imports in o...
+- `export OFFSCREEN_DYNAMIC_IMPORT_RETRY_DELAYS` - Retry delays in milliseconds for dynamic import attempts ...
 - `export OFFSCREEN_HANDSHAKE_BACKOFF_MS` - Base backoff delay in milliseconds for offscreen handshak...
 - `export OFFSCREEN_HANDSHAKE_MAX_RETRIES` - Maximum number of retry attempts for offscreen document h...
+- `export OFFSCREEN_INIT_DELAY_MS` - Delay in milliseconds after DOMContentLoaded before annou...
 - `export SANDBOX_READY_TIMEOUT_MS` - Maximum time to wait for sandbox iframe to send ready signal
 - `export SUGGEST_TIMEOUT_MS` - Total timeout for filename suggestion in download interce...
 
@@ -1733,7 +1751,7 @@ Each provider (local or cl...
 **Exports**:
 - `export MediaAnalysisError` - item implementation
 - `export AnalyzeMediaFromBlobResult` - item implementation
-- `export AnalyzeMediaFromUrlOptions` - Generic HTTP range fetch utilities shared across integrat...
+- `export AnalyzeMediaFromUrlOptions` - item implementation
 - `export AnalyzeMediaFromUrlResult` - item implementation
 - `export analyzeMediaFromBlob` - item implementation
 - `export analyzeMediaFromUrl` - item implementation
