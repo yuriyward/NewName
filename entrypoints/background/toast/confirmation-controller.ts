@@ -143,7 +143,23 @@ export function createConfirmToastController(
     entry: ConfirmToastEntry,
   ): ConfirmToastControllerHelpers {
     return {
-      emitStatus: (state, message) => emitStatus(entry, state, message),
+      emitStatus: (state, message) => {
+        // Defensive check: ensure we can route the status update
+        if (
+          (!entry.visibleOnTabs || entry.visibleOnTabs.size === 0) &&
+          entry.target === undefined
+        ) {
+          debugLogger.warn(
+            '[ConfirmToast] Cannot emit status - no routing info',
+            {
+              toastId: entry.proposal.toastId,
+              state,
+              metric: 'toast_status_no_routing',
+            },
+          );
+        }
+        return emitStatus(entry, state, message);
+      },
     };
   }
 

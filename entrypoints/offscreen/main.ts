@@ -3,6 +3,7 @@
  */
 import { attachConsoleHelpers } from '@/entrypoints/shared/debug/console-helpers';
 import { offscreenLogger } from '@/entrypoints/shared/debug/offscreen-logger';
+import { OFFSCREEN_INIT_DELAY_MS } from '@/entrypoints/shared/integrations/mediainfo/constants';
 import { sendExtensionMessage } from '@/entrypoints/shared/messaging/extension-messaging';
 import { initializeImageAnalysisHandler } from './image-analysis-handler';
 import { initializeMediaAnalysisHandler } from './media-analysis-handler';
@@ -63,8 +64,7 @@ import { initializeTextAnalysisHandler } from './text-analysis-handler';
   }
 
   // Additional delay to ensure message system and dynamic import infrastructure is ready
-  // Increased from 50ms to 200ms to prevent race conditions on fast sites (e.g., x-kom.pl)
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  await new Promise((resolve) => setTimeout(resolve, OFFSCREEN_INIT_DELAY_MS));
 
   // Announce readiness to background after listeners are registered
   try {

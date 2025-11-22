@@ -17,6 +17,10 @@ import type {
   ImageUpgradeAnalysisRequest,
   ImageUpgradeAnalysisResponse,
 } from '@/entrypoints/shared/integrations/image-analysis/types';
+import {
+  OFFSCREEN_DYNAMIC_IMPORT_MAX_RETRIES,
+  OFFSCREEN_DYNAMIC_IMPORT_RETRY_DELAYS,
+} from '@/entrypoints/shared/integrations/mediainfo/constants';
 import type {
   TextUpgradeAnalysisRequest,
   TextUpgradeAnalysisResponse,
@@ -34,10 +38,10 @@ import type { IAiProvider } from './types';
  */
 async function retryDynamicImport<T>(
   importFn: () => Promise<T>,
-  maxAttempts = 3,
   context = 'unknown',
+  maxAttempts = OFFSCREEN_DYNAMIC_IMPORT_MAX_RETRIES,
 ): Promise<T> {
-  const delays = [100, 200, 400]; // Exponential backoff in ms
+  const delays = OFFSCREEN_DYNAMIC_IMPORT_RETRY_DELAYS;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -134,7 +138,6 @@ export class LocalAiAdapter implements IAiProvider {
     const { runTextUpgradePipeline } = await retryDynamicImport(
       () =>
         import('@/entrypoints/offscreen/text-analysis/pipeline-orchestrator'),
-      3,
       'text-analysis',
     );
 
@@ -154,7 +157,6 @@ export class LocalAiAdapter implements IAiProvider {
     const { runImageUpgradePipeline } = await retryDynamicImport(
       () =>
         import('@/entrypoints/offscreen/image-analysis/pipeline-orchestrator'),
-      3,
       'image-analysis',
     );
 
@@ -175,7 +177,6 @@ export class LocalAiAdapter implements IAiProvider {
     const { runPdfUpgradePipeline } = await retryDynamicImport(
       () =>
         import('@/entrypoints/offscreen/pdf-analysis/pdf-analysis-pipeline'),
-      3,
       'pdf-analysis',
     );
 

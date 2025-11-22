@@ -43,6 +43,7 @@ export async function emitStatus(
       {
         toastId: entry.proposal.toastId,
         target: entry.target,
+        metric: 'toast_status_fallback_used',
       },
     );
     try {

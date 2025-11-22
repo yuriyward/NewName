@@ -5,6 +5,8 @@
  * full files when the remote server advertises byte range support.
  */
 
+import { MAX_FULL_DOWNLOAD_SIZE } from './mediainfo/constants';
+
 export interface RangeFetchOptions {
   readonly signal?: AbortSignal;
   readonly headers?: Record<string, string>;
@@ -217,9 +219,6 @@ export class RangeFetchReader {
       const fileSize = contentLengthHeader
         ? Number.parseInt(contentLengthHeader, 10)
         : undefined;
-
-      // Size limit: 100MB - safe for audio files, prevents accidental large downloads
-      const MAX_FULL_DOWNLOAD_SIZE = 100 * 1024 * 1024; // 100MB in bytes
 
       if (
         fileSize !== undefined &&

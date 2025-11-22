@@ -40,12 +40,12 @@ export function shouldAnalyzeUpgrade(
     return false;
   }
 
-  // Check behavior setting
+  // Check behavior setting.
   if (settings.perType[historyItem.fileType]?.behavior === 'off') {
     return false;
   }
 
-  // Check perfect confidence
+  // Check perfect confidence.
   if (
     historyItem.decision?.outcome === 'rename' &&
     historyItem.decision.confidence === 100
@@ -53,7 +53,7 @@ export function shouldAnalyzeUpgrade(
     return false;
   }
 
-  // Check recent upgrade window
+  // Check recent upgrade window.
   if (historyItem.upgrade) {
     const age = now - historyItem.upgrade.generatedAt;
     if (age < UPGRADE_RECENT_WINDOW_MS) {

@@ -33,6 +33,7 @@ import {
 } from './components/alerts';
 import { DiagnosticsSection } from './components/DiagnosticsSection';
 import { ModelStatusCard } from './components/ModelStatusCard';
+import { SectionErrorBoundary } from './components/SectionErrorBoundary';
 import { SetupChecklistSection } from './components/SetupChecklistSection';
 import {
   createInitialProgressMap,
@@ -389,7 +390,12 @@ export function AIModelSetupPage(): JSX.Element {
           </p>
         </header>
 
-        <SetupChecklistSection statuses={snapshot.statuses} loading={loading} />
+        <SectionErrorBoundary>
+          <SetupChecklistSection
+            statuses={snapshot.statuses}
+            loading={loading}
+          />
+        </SectionErrorBoundary>
 
         {isWxtDevMode && allUnavailable ? <WxtDevModeAlert /> : null}
 
