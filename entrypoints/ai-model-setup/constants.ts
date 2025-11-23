@@ -53,6 +53,13 @@ export const INITIAL_STATUS_MAP: AiModelStatusMap = AI_MODEL_IDS.reduce(
 
 export const SUPPORTED_PROMPT_OUTPUT_LANGUAGES = new Set(['en', 'es', 'ja']);
 
+/**
+ * Auto-retry configuration for language-detector initialization.
+ * Chrome sometimes needs time to initialize the model after downloads complete.
+ */
+export const AUTO_RETRY_INTERVAL_MS = 4_000; // Poll every 4 seconds
+export const AUTO_RETRY_BUDGET_MS = 60_000; // Maximum 60 seconds of retries
+
 export function createInitialProgressMap(): Record<AiModelId, ModelProgress> {
   return AI_MODEL_IDS.reduce(
     (acc, id) => {

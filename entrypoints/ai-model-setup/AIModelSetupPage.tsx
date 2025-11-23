@@ -1,7 +1,7 @@
 import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
 import ExclamationTriangleIcon from '@heroicons/react/24/outline/ExclamationTriangleIcon';
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
-import { type JSX, useEffect, useMemo, useRef, useState } from 'react';
+import { type JSX, useEffect, useMemo, useState } from 'react';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
   detectFreshOrDevProfile,
@@ -41,13 +41,13 @@ import {
   MODEL_ETA,
   MODEL_LABELS,
 } from './constants';
+import { useLanguageDetectorAutoRetry } from './hooks/useLanguageDetectorAutoRetry';
 import type { ModelProgress, StatusSnapshot } from './types';
 import {
   describeError,
   detectPreferredLanguage,
   formatRefreshSummary,
   isAbortError,
-  isInitializationPending,
   isUserActivationIssue,
   resolveSetupErrorMessage,
   resolveSupportedPromptLanguage,
@@ -78,23 +78,18 @@ export function AIModelSetupPage(): JSX.Element {
   const [isWxtDevMode, setIsWxtDevMode] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [showSuccessPrompt, setShowSuccessPrompt] = useState(false);
-  const [autoRetryCount, setAutoRetryCount] = useState(0);
-  const autoRetryTimer = useRef<number | null>(null);
-  const autoRetryStart = useRef<number | null>(null);
-  const AUTO_RETRY_INTERVAL_MS = 4_000;
-  const AUTO_RETRY_BUDGET_MS = 60_000;
+
+  // Auto-retry language-detector when Chrome is still initializing it
+  const languageDetectorStatus = snapshot.statuses['language-detector'];
+  useLanguageDetectorAutoRetry({
+    status: languageDetectorStatus,
+    isDownloading: activeModelId === 'language-detector',
+    onStatusRefresh: setSnapshot,
+  });
 
   useEffect(() => {
     const profileInfo = detectFreshOrDevProfile();
     setIsWxtDevMode(profileInfo.isLikelyWxt);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (autoRetryTimer.current) {
-        window.clearTimeout(autoRetryTimer.current);
-      }
-    };
   }, []);
 
   useEffect(() => {
@@ -144,55 +139,6 @@ export function AIModelSetupPage(): JSX.Element {
       window.clearInterval(interval);
     };
   }, []);
-
-  // Automatically retry language-detector probing when Chrome is still initializing it.
-  useEffect(() => {
-    const status = snapshot.statuses['language-detector'];
-    const pending = isInitializationPending(status);
-    const alreadyReady =
-      status.state === 'available' || status.state === 'unsupported';
-    const downloading = activeModelId === 'language-detector';
-
-    // Reset counters when leaving the pending state.
-    if (!pending || alreadyReady || downloading) {
-      if (autoRetryTimer.current) {
-        window.clearTimeout(autoRetryTimer.current);
-        autoRetryTimer.current = null;
-      }
-      if (autoRetryCount !== 0) {
-        setAutoRetryCount(0);
-      }
-      autoRetryStart.current = null;
-      return;
-    }
-
-    if (!autoRetryStart.current) {
-      autoRetryStart.current = Date.now();
-    }
-    const elapsed = Date.now() - autoRetryStart.current;
-    if (elapsed >= AUTO_RETRY_BUDGET_MS) {
-      return;
-    }
-
-    if (autoRetryTimer.current) return;
-
-    autoRetryTimer.current = window.setTimeout(async () => {
-      autoRetryTimer.current = null;
-      try {
-        const refreshed = await refreshAiModelStatuses(['language-detector']);
-        setSnapshot({ statuses: refreshed, lastUpdated: Date.now() });
-      } catch (error) {
-        debugLogger.warn(
-          '[AISetupPage] Auto-refresh language detector failed',
-          {
-            error,
-          },
-        );
-      } finally {
-        setAutoRetryCount((count) => count + 1);
-      }
-    }, AUTO_RETRY_INTERVAL_MS);
-  }, [snapshot.statuses, activeModelId, autoRetryCount]);
 
   useEffect(() => {
     let active = true;
@@ -491,7 +437,7 @@ export function AIModelSetupPage(): JSX.Element {
                     onClick={handleCloseSetup}
                     className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1"
                   >
-                    Okey, close setup
+                    Okay, close setup
                   </button>
                   <button
                     type="button"

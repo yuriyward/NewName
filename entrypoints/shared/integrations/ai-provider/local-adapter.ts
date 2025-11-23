@@ -17,16 +17,14 @@ import type {
   ImageUpgradeAnalysisRequest,
   ImageUpgradeAnalysisResponse,
 } from '@/entrypoints/shared/integrations/image-analysis/types';
-import {
-  OFFSCREEN_DYNAMIC_IMPORT_MAX_RETRIES,
-  OFFSCREEN_DYNAMIC_IMPORT_RETRY_DELAYS,
-} from '@/entrypoints/shared/integrations/mediainfo/constants';
+import { OFFSCREEN_DYNAMIC_IMPORT_RETRY_DELAYS } from '@/entrypoints/shared/integrations/mediainfo/constants';
 import type {
   TextUpgradeAnalysisRequest,
   TextUpgradeAnalysisResponse,
   TextUpgradeIngestionResult,
 } from '@/entrypoints/shared/integrations/text-analysis/types';
 import { ensureAiModelsReadyRemote } from '@/entrypoints/shared/messaging/text-messages';
+import { retryWithExponentialBackoff } from '@/entrypoints/shared/utils/retry';
 import type { IAiProvider } from './types';
 
 /**
@@ -39,48 +37,27 @@ import type { IAiProvider } from './types';
 async function retryDynamicImport<T>(
   importFn: () => Promise<T>,
   context = 'unknown',
-  maxAttempts = OFFSCREEN_DYNAMIC_IMPORT_MAX_RETRIES,
 ): Promise<T> {
-  const delays = OFFSCREEN_DYNAMIC_IMPORT_RETRY_DELAYS;
-
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
+  return retryWithExponentialBackoff(
+    async () => {
       const startTime = performance.now();
       const result = await importFn();
       const duration = performance.now() - startTime;
 
-      if (attempt > 0) {
-        debugLogger.log(
-          `[LocalAiAdapter] Dynamic import succeeded on retry ${attempt + 1}`,
-          { context, duration },
-        );
-      }
+      debugLogger.log(
+        `[LocalAiAdapter] Dynamic import duration: ${duration}ms`,
+        {
+          context,
+        },
+      );
 
       return result;
-    } catch (error) {
-      const isLastAttempt = attempt === maxAttempts - 1;
-
-      if (isLastAttempt) {
-        debugLogger.error(
-          '[LocalAiAdapter] Dynamic import failed after all retries',
-          { context, attempt: attempt + 1, maxAttempts, error },
-        );
-        throw error;
-      }
-
-      const delay = delays[attempt] || 400;
-      debugLogger.warn('[LocalAiAdapter] Dynamic import failed, retrying...', {
-        context,
-        attempt: attempt + 1,
-        delay,
-        error,
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-
-  throw new Error('Retry loop should not reach here');
+    },
+    {
+      delays: OFFSCREEN_DYNAMIC_IMPORT_RETRY_DELAYS,
+      context: `LocalAiAdapter: ${context}`,
+    },
+  );
 }
 
 /**

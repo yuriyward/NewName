@@ -1,4 +1,5 @@
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { retryWithLinearBackoff } from '@/entrypoints/shared/utils/retry';
 import { ensureCacheLoaded, persistStatusForId } from './status-cache';
 import type {
   AiModelId,
@@ -173,100 +174,55 @@ async function probeLanguageDetector(): Promise<AiModelStatus> {
     });
   }
 
-  // Retry logic to handle API initialization race condition
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY_MS = 100;
-
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      // Defensive type checking to ensure API is ready
-      if (typeof ctor.availability !== 'function') {
-        if (attempt < MAX_RETRIES - 1) {
-          debugLogger.log(
-            '[AIModels] Language detector availability not ready, retrying...',
-            {
-              attempt: attempt + 1,
-              availabilityType: typeof ctor.availability,
-            },
-          );
-          await new Promise((resolve) =>
-            setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)),
-          );
-          continue;
+  try {
+    return await retryWithLinearBackoff(
+      async () => {
+        // Defensive type checking to ensure API is ready
+        if (typeof ctor.availability !== 'function') {
+          throw new Error('LanguageDetector.availability() not ready');
         }
-        return buildStatus('language-detector', 'unknown', {
-          detail: 'LanguageDetector.availability() not ready',
-          errorCode: 'NotReady',
-        });
-      }
 
-      const availability = await ctor.availability();
-      const normalised = normaliseAvailability(availability);
-      return normalised.state === 'unknown'
-        ? buildStatus('language-detector', 'available', {
-            availability,
-            requiresUserActivation: false,
-          })
-        : buildStatus('language-detector', normalised.state, {
-            availability,
-            requiresUserActivation: normalised.requiresUserActivation ?? false,
-          });
-    } catch (error) {
-      const isTransient = error == null;
-      if (attempt < MAX_RETRIES - 1) {
-        debugLogger.log(
-          '[AIModels] Language detector check failed, retrying...',
-          {
-            attempt: attempt + 1,
-            error,
-          },
-        );
-        await new Promise((resolve) =>
-          setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)),
-        );
-        continue;
-      }
+        const availability = await ctor.availability();
+        const normalised = normaliseAvailability(availability);
+        return normalised.state === 'unknown'
+          ? buildStatus('language-detector', 'available', {
+              availability,
+              requiresUserActivation: false,
+            })
+          : buildStatus('language-detector', normalised.state, {
+              availability,
+              requiresUserActivation:
+                normalised.requiresUserActivation ?? false,
+            });
+      },
+      {
+        maxAttempts: 3,
+        baseDelay: 100,
+        context: 'Language detector availability check',
+      },
+    );
+  } catch (error) {
+    const isTransient = error == null;
 
-      if (isTransient) {
-        debugLogger.log(
-          '[AIModels] Language detector availability returned no error payload; treating as transient',
-          { attempts: MAX_RETRIES },
-        );
-        return buildStatus('language-detector', 'unknown', {
-          detail:
-            'Chrome is still starting the Language Detector. Retry in a few seconds.',
-          errorCode: 'InitializationPending',
-        });
-      }
-
-      debugLogger.warn(
-        '[AIModels] Language detector availability failed after retries',
-        {
-          error,
-          errorType: typeof error,
-          errorConstructor: error?.constructor?.name,
-          attempts: MAX_RETRIES,
-        },
-      );
-
-      // Better error handling for non-Error rejections
-      const errorMessage =
-        error instanceof Error
-          ? deriveErrorMessage(error)
-          : `Availability check failed: ${String(error)}`;
-      const errorCode =
-        error instanceof Error ? deriveErrorCode(error) : 'InitializationError';
-
-      return buildStatus('language-detector', 'error', {
-        detail: errorMessage,
-        errorCode: errorCode || 'UnknownError',
+    if (isTransient) {
+      return buildStatus('language-detector', 'unknown', {
+        detail:
+          'Chrome is still starting the Language Detector. Retry in a few seconds.',
+        errorCode: 'InitializationPending',
       });
     }
-  }
 
-  // Fallback (should never reach here due to loop logic)
-  return buildStatus('language-detector', 'unknown', {
-    detail: 'Unexpected state after retry loop',
-    errorCode: 'UnexpectedState',
-  });
+    // Better error handling for non-Error rejections
+    const errorMessage =
+      error instanceof Error
+        ? deriveErrorMessage(error)
+        : `Availability check failed: ${String(error)}`;
+    const errorCode =
+      error instanceof Error ? deriveErrorCode(error) : 'InitializationError';
+
+    return buildStatus('language-detector', 'error', {
+      detail: errorMessage,
+      errorCode: errorCode || 'UnknownError',
+    });
+  }
 }

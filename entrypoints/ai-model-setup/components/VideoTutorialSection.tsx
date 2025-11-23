@@ -18,7 +18,7 @@ export function VideoTutorialSection(): JSX.Element {
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex w-full items-center gap-2 rounded-lg border border-default-200 bg-white/60 px-4 py-3 text-left shadow-sm transition hover:border-default-300 hover:bg-white"
       >
-        <PlayCircleIcon className="h-5 w-5 flex-shrink-0 text-default-500" />
+        <PlayCircleIcon className="h-5 w-5 shrink-0 text-default-500" />
         <span className="flex-1 text-sm font-semibold text-default-700">
           Check out the tutorial
         </span>

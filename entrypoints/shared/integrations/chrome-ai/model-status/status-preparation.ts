@@ -36,9 +36,14 @@ import {
 } from './status-utils';
 
 const inFlightPreparations = new Map<string, Promise<AiModelStatusMap>>();
-const DOWNLOAD_STALL_TIMEOUT_MS = 60_000; // 1 minute inactivity watchdog for Chrome model downloads
-const DOWNLOAD_OVERALL_TIMEOUT_MS = 10 * 60_000; // 10 minute hard cap for download phase
-const PROCESSING_TIMEOUT_MS = 5 * 60_000; // 5 minute timeout for post-download processing phase
+
+/**
+ * Timeout configuration for AI model downloads and processing.
+ * These are exported to allow testing and configuration overrides.
+ */
+export const DOWNLOAD_STALL_TIMEOUT_MS = 60_000; // 1 minute inactivity watchdog for Chrome model downloads
+export const DOWNLOAD_OVERALL_TIMEOUT_MS = 10 * 60_000; // 10 minute hard cap for download phase
+export const PROCESSING_TIMEOUT_MS = 5 * 60_000; // 5 minute timeout for post-download processing phase
 
 export async function ensureModelsReady(
   ids: readonly AiModelId[],
