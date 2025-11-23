@@ -9,7 +9,7 @@ export function ArcadeEmbed(): JSX.Element {
     <div
       style={{
         position: 'relative',
-        paddingBottom: 'calc(62.367724867724874% + 41px)',
+        paddingBottom: 'calc(62.367724867724874%)',
         height: '0',
         width: '100%',
       }}
