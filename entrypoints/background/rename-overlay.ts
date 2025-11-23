@@ -61,6 +61,12 @@ export async function maybeShowRenameOverlay(
   } = options;
 
   const kind = options.kind ?? 'instant-baseline';
+  if (
+    originalFilename.trim().toLowerCase() === finalFilename.trim().toLowerCase()
+  ) {
+    debugLogger.log('[NewName] Skipping rename overlay, filename unchanged');
+    return;
+  }
   const renameDurationSeconds =
     settings.confirmToast?.renameToastDurationSeconds ??
     DEFAULT_SETTINGS.confirmToast.renameToastDurationSeconds;

@@ -173,25 +173,100 @@ async function probeLanguageDetector(): Promise<AiModelStatus> {
     });
   }
 
-  try {
-    const availability = await ctor.availability?.();
-    const normalised = normaliseAvailability(availability);
-    return normalised.state === 'unknown'
-      ? buildStatus('language-detector', 'available', {
-          availability,
-          requiresUserActivation: false,
-        })
-      : buildStatus('language-detector', normalised.state, {
-          availability,
-          requiresUserActivation: normalised.requiresUserActivation ?? false,
+  // Retry logic to handle API initialization race condition
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 100;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      // Defensive type checking to ensure API is ready
+      if (typeof ctor.availability !== 'function') {
+        if (attempt < MAX_RETRIES - 1) {
+          debugLogger.log(
+            '[AIModels] Language detector availability not ready, retrying...',
+            {
+              attempt: attempt + 1,
+              availabilityType: typeof ctor.availability,
+            },
+          );
+          await new Promise((resolve) =>
+            setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)),
+          );
+          continue;
+        }
+        return buildStatus('language-detector', 'unknown', {
+          detail: 'LanguageDetector.availability() not ready',
+          errorCode: 'NotReady',
         });
-  } catch (error) {
-    debugLogger.warn('[AIModels] Language detector availability failed', {
-      error,
-    });
-    return buildStatus('language-detector', 'error', {
-      detail: deriveErrorMessage(error),
-      errorCode: deriveErrorCode(error),
-    });
+      }
+
+      const availability = await ctor.availability();
+      const normalised = normaliseAvailability(availability);
+      return normalised.state === 'unknown'
+        ? buildStatus('language-detector', 'available', {
+            availability,
+            requiresUserActivation: false,
+          })
+        : buildStatus('language-detector', normalised.state, {
+            availability,
+            requiresUserActivation: normalised.requiresUserActivation ?? false,
+          });
+    } catch (error) {
+      const isTransient = error == null;
+      if (attempt < MAX_RETRIES - 1) {
+        debugLogger.log(
+          '[AIModels] Language detector check failed, retrying...',
+          {
+            attempt: attempt + 1,
+            error,
+          },
+        );
+        await new Promise((resolve) =>
+          setTimeout(resolve, RETRY_DELAY_MS * (attempt + 1)),
+        );
+        continue;
+      }
+
+      if (isTransient) {
+        debugLogger.log(
+          '[AIModels] Language detector availability returned no error payload; treating as transient',
+          { attempts: MAX_RETRIES },
+        );
+        return buildStatus('language-detector', 'unknown', {
+          detail:
+            'Chrome is still starting the Language Detector. Retry in a few seconds.',
+          errorCode: 'InitializationPending',
+        });
+      }
+
+      debugLogger.warn(
+        '[AIModels] Language detector availability failed after retries',
+        {
+          error,
+          errorType: typeof error,
+          errorConstructor: error?.constructor?.name,
+          attempts: MAX_RETRIES,
+        },
+      );
+
+      // Better error handling for non-Error rejections
+      const errorMessage =
+        error instanceof Error
+          ? deriveErrorMessage(error)
+          : `Availability check failed: ${String(error)}`;
+      const errorCode =
+        error instanceof Error ? deriveErrorCode(error) : 'InitializationError';
+
+      return buildStatus('language-detector', 'error', {
+        detail: errorMessage,
+        errorCode: errorCode || 'UnknownError',
+      });
+    }
   }
+
+  // Fallback (should never reach here due to loop logic)
+  return buildStatus('language-detector', 'unknown', {
+    detail: 'Unexpected state after retry loop',
+    errorCode: 'UnexpectedState',
+  });
 }

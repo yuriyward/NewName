@@ -1,8 +1,7 @@
-import ArrowPathIcon from '@heroicons/react/24/outline/ArrowPathIcon';
 import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
 import ExclamationTriangleIcon from '@heroicons/react/24/outline/ExclamationTriangleIcon';
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
-import { type JSX, useEffect, useMemo, useState } from 'react';
+import { type JSX, useEffect, useMemo, useRef, useState } from 'react';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
   detectFreshOrDevProfile,
@@ -31,10 +30,10 @@ import {
   PrerequisitesSection,
   WxtDevModeAlert,
 } from './components/alerts';
-import { DiagnosticsSection } from './components/DiagnosticsSection';
 import { ModelStatusCard } from './components/ModelStatusCard';
 import { SectionErrorBoundary } from './components/SectionErrorBoundary';
 import { SetupChecklistSection } from './components/SetupChecklistSection';
+import { TroubleshootingSection } from './components/TroubleshootingSection';
 import {
   createInitialProgressMap,
   INITIAL_STATUS_MAP,
@@ -46,6 +45,7 @@ import {
   detectPreferredLanguage,
   formatRefreshSummary,
   isAbortError,
+  isInitializationPending,
   isUserActivationIssue,
   resolveSetupErrorMessage,
   resolveSupportedPromptLanguage,
@@ -75,10 +75,24 @@ export function AIModelSetupPage(): JSX.Element {
   const [runningDiagnostics, setRunningDiagnostics] = useState(false);
   const [isWxtDevMode, setIsWxtDevMode] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [showSuccessPrompt, setShowSuccessPrompt] = useState(false);
+  const [autoRetryCount, setAutoRetryCount] = useState(0);
+  const autoRetryTimer = useRef<number | null>(null);
+  const autoRetryStart = useRef<number | null>(null);
+  const AUTO_RETRY_INTERVAL_MS = 4_000;
+  const AUTO_RETRY_BUDGET_MS = 60_000;
 
   useEffect(() => {
     const profileInfo = detectFreshOrDevProfile();
     setIsWxtDevMode(profileInfo.isLikelyWxt);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (autoRetryTimer.current) {
+        window.clearTimeout(autoRetryTimer.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -129,6 +143,55 @@ export function AIModelSetupPage(): JSX.Element {
     };
   }, []);
 
+  // Automatically retry language-detector probing when Chrome is still initializing it.
+  useEffect(() => {
+    const status = snapshot.statuses['language-detector'];
+    const pending = isInitializationPending(status);
+    const alreadyReady =
+      status.state === 'available' || status.state === 'unsupported';
+    const downloading = activeModelId === 'language-detector';
+
+    // Reset counters when leaving the pending state.
+    if (!pending || alreadyReady || downloading) {
+      if (autoRetryTimer.current) {
+        window.clearTimeout(autoRetryTimer.current);
+        autoRetryTimer.current = null;
+      }
+      if (autoRetryCount !== 0) {
+        setAutoRetryCount(0);
+      }
+      autoRetryStart.current = null;
+      return;
+    }
+
+    if (!autoRetryStart.current) {
+      autoRetryStart.current = Date.now();
+    }
+    const elapsed = Date.now() - autoRetryStart.current;
+    if (elapsed >= AUTO_RETRY_BUDGET_MS) {
+      return;
+    }
+
+    if (autoRetryTimer.current) return;
+
+    autoRetryTimer.current = window.setTimeout(async () => {
+      autoRetryTimer.current = null;
+      try {
+        const refreshed = await refreshAiModelStatuses(['language-detector']);
+        setSnapshot({ statuses: refreshed, lastUpdated: Date.now() });
+      } catch (error) {
+        debugLogger.warn(
+          '[AISetupPage] Auto-refresh language detector failed',
+          {
+            error,
+          },
+        );
+      } finally {
+        setAutoRetryCount((count) => count + 1);
+      }
+    }, AUTO_RETRY_INTERVAL_MS);
+  }, [snapshot.statuses, activeModelId, autoRetryCount]);
+
   useEffect(() => {
     let active = true;
     let unsubscribe: (() => void) | null = null;
@@ -169,16 +232,9 @@ export function AIModelSetupPage(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    if (!completedAt || cancelled || setupError) return;
-    const timeout = window.setTimeout(() => {
-      try {
-        window.close();
-      } catch (error) {
-        console.warn('Unable to close window after success', error);
-      }
-    }, 2500);
-    return () => window.clearTimeout(timeout);
-  }, [completedAt, cancelled, setupError]);
+    if (!completedAt || cancelled || setupError || storedLastError) return;
+    setShowSuccessPrompt(true);
+  }, [completedAt, cancelled, setupError, storedLastError]);
 
   const allUnavailable = useMemo(() => {
     return AI_MODEL_IDS.every((id) => {
@@ -192,6 +248,7 @@ export function AIModelSetupPage(): JSX.Element {
 
     setSetupError(null);
     setCancelled(false);
+    setShowSuccessPrompt(false);
     setCompletedAt(null);
     setProgress((previous) => {
       const next = { ...previous };
@@ -269,7 +326,7 @@ export function AIModelSetupPage(): JSX.Element {
           setCompletedAt(Date.now());
         }
       }
-      await refreshAfterRun();
+      await refreshAfterRun(modelId);
     } catch (error) {
       if (isAbortError(error)) {
         setCancelled(true);
@@ -298,10 +355,28 @@ export function AIModelSetupPage(): JSX.Element {
     }
   }
 
-  async function refreshAfterRun(): Promise<void> {
+  async function refreshAfterRun(modelId: AiModelId): Promise<void> {
     try {
-      const refreshed = await refreshAiModelStatuses();
+      // Only refresh the model we just downloaded to avoid race conditions
+      // with other models while Chrome is still processing
+      const refreshed = await refreshAiModelStatuses([modelId]);
       setSnapshot({ statuses: refreshed, lastUpdated: Date.now() });
+
+      // Merge refreshed status with existing snapshot to get complete state
+      const currentStatuses = { ...snapshot.statuses, ...refreshed };
+
+      // Reload when Prompt API + Summarizer are ready (ignore language-detector)
+      // This ensures we work with fresh state for all models
+      const mainModelsReady =
+        (currentStatuses['language-model']?.state === 'available' ||
+          currentStatuses['language-model']?.state === 'unsupported') &&
+        (currentStatuses.summarizer?.state === 'available' ||
+          currentStatuses.summarizer?.state === 'unsupported');
+
+      // Auto-reload to get fresh state for all models
+      if (mainModelsReady) {
+        window.location.reload();
+      }
     } catch (error) {
       setLoadError(describeError(error));
     }
@@ -373,8 +448,67 @@ export function AIModelSetupPage(): JSX.Element {
     abortController.abort();
   }
 
+  function handleCloseSetup(): void {
+    try {
+      window.close();
+    } catch (error) {
+      console.warn('Unable to close window after success', error);
+    }
+  }
+
+  function handleKeepDebugging(): void {
+    setShowSuccessPrompt(false);
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {showSuccessPrompt ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-[min(520px,92vw)] rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-default-200"
+          >
+            <div className="flex items-start gap-4">
+              <span className="mt-1 inline-flex rounded-full bg-emerald-50 p-2 text-emerald-600 ring-1 ring-emerald-100">
+                <CheckCircleIcon className="h-6 w-6" />
+              </span>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-lg font-semibold text-default-900">
+                    Congrats! local ai model setup finished
+                  </p>
+                  <p className="mt-1 text-sm text-default-600">
+                    You can close this setup tab now or keep it open to continue
+                    debugging.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCloseSetup}
+                    className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1"
+                  >
+                    Okey, close setup
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleKeepDebugging}
+                    className="inline-flex items-center justify-center rounded-full border border-default-200 px-4 py-2 text-sm font-semibold text-default-700 transition hover:border-default-300 hover:text-default-900 focus:outline-none focus:ring-2 focus:ring-default-200 focus:ring-offset-1"
+                  >
+                    Keep debugging
+                  </button>
+                </div>
+                <p className="text-xs text-default-400">
+                  If the window does not close automatically, you can close the
+                  tab manually.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-6 py-10">
         <header className="space-y-3">
           <p className="text-xs uppercase tracking-wide text-default-400">
@@ -399,21 +533,10 @@ export function AIModelSetupPage(): JSX.Element {
 
         {isWxtDevMode && allUnavailable ? <WxtDevModeAlert /> : null}
 
-        <PrerequisitesSection />
-
         {loading ? (
           <LoadingCard />
         ) : (
           <>
-            {allUnavailable && !loading ? (
-              <DiagnosticsSection
-                diagnostics={diagnostics}
-                onRunDiagnostics={handleRunDiagnostics}
-                onRefresh={handleRefreshStatus}
-                isRunning={runningDiagnostics}
-              />
-            ) : null}
-
             {loadError ? (
               <InlineAlert
                 tone="danger"
@@ -457,7 +580,7 @@ export function AIModelSetupPage(): JSX.Element {
 
             <section className="space-y-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-default-500">
-                Model status
+                Download AI Models
               </h2>
               <div className="space-y-3">
                 {AI_MODEL_IDS.map((id) => (
@@ -475,32 +598,31 @@ export function AIModelSetupPage(): JSX.Element {
                 ))}
               </div>
             </section>
+
+            <TroubleshootingSection
+              diagnostics={diagnostics}
+              onRunDiagnostics={handleRunDiagnostics}
+              onRefresh={handleRefreshStatus}
+              isRunningDiagnostics={runningDiagnostics}
+              loading={loading}
+              activeModelId={activeModelId}
+              allUnavailable={allUnavailable}
+            />
+
+            <PrerequisitesSection />
           </>
         )}
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleRefreshStatus}
-            disabled={loading || Boolean(activeModelId)}
-            className="inline-flex items-center justify-center rounded-full border border-default-200 px-4 py-2 text-sm font-medium text-default-600 transition hover:border-default-300 hover:text-default-700 disabled:cursor-not-allowed disabled:border-default-200 disabled:text-default-400"
-          >
-            <ArrowPathIcon
-              className={`mr-1.5 h-4 w-4 ${loading ? 'animate-spin text-default-400' : ''}`}
-            />
-            Re-check models
-          </button>
-
-          {activeModelId ? (
+        {activeModelId ? (
+          <div className="flex flex-wrap items-center gap-3">
             <p className="text-xs font-medium text-default-500">
               Downloading {MODEL_LABELS[activeModelId]}…
             </p>
-          ) : null}
-
-          <p className="text-xs text-default-400">
-            {formatRefreshSummary(snapshot.lastUpdated, now)}
-          </p>
-        </div>
+            <p className="text-xs text-default-400">
+              {formatRefreshSummary(snapshot.lastUpdated, now)}
+            </p>
+          </div>
+        ) : null}
       </main>
     </div>
   );

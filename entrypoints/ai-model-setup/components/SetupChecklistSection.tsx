@@ -26,7 +26,7 @@ export function SetupChecklistSection({
   const steps = deriveSteps(statuses, loading);
 
   return (
-    <section className="rounded-2xl border-2 border-primary-200 bg-gradient-to-br from-primary-50 to-white p-6 shadow-sm">
+    <section className="rounded-2xl border-2 border-primary-200 bg-linear-to-br from-primary-50 to-white p-6 shadow-sm">
       <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-primary-900">
         Setup Checklist
       </h2>
@@ -53,7 +53,7 @@ function ChecklistStepCard({
   return (
     <div className="rounded-xl border border-default-200 bg-white p-4 shadow-sm">
       <div className="flex items-start gap-3">
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <StepStatusIcon status={step.status} />
         </div>
         <div className="flex-1 space-y-2">
@@ -131,8 +131,8 @@ function deriveSteps(
     instructions: (
       <div className="space-y-3">
         <p>
-          Enable the required Chrome flags and verify they show{' '}
-          <strong>Enabled</strong> status:
+          Copy each link below and paste into Chrome's address bar to enable the
+          required Chrome flags{' '}
         </p>
         <div className="space-y-2">
           <CopyableUrl
@@ -151,7 +151,7 @@ function deriveSteps(
         <p className="pt-1 text-default-500">
           <strong>How to verify:</strong> Paste each URL above into Chrome's
           address bar, set the dropdown to "Enabled", and confirm a blue
-          "Enabled" badge appears next to the flag name.
+          "Enabled" badge (dot) appears next to the flag name.
         </p>
       </div>
     ),
@@ -178,36 +178,8 @@ function deriveSteps(
     ),
   };
 
-  // Step 3: Verify Component Download
+  // Step 3: Download Models
   const step3Status: StepStatus = loading
-    ? 'pending'
-    : hasAnyAvailable
-      ? 'completed'
-      : step1Status === 'completed'
-        ? 'warning'
-        : 'pending';
-
-  const step3: ChecklistStep = {
-    title: 'Verify Component Download',
-    status: step3Status,
-    instructions: (
-      <div className="space-y-3">
-        <p>
-          Check if the Optimization Guide component is downloading or installed:
-        </p>
-        <CopyableUrl url="chrome://components/" label="Components Page" />
-        <p className="pt-1 text-default-500">
-          <strong>How to verify:</strong> Open chrome://components, find
-          "Optimization Guide On Device Model", and verify it shows a version
-          number. If it shows "0.0.0.0", click "Check for update". Note: The
-          download may take 1-2 days to start automatically.
-        </p>
-      </div>
-    ),
-  };
-
-  // Step 4: Download Models
-  const step4Status: StepStatus = loading
     ? 'pending'
     : allAvailable
       ? 'completed'
@@ -217,9 +189,9 @@ function deriveSteps(
           ? 'error'
           : 'pending';
 
-  const step4: ChecklistStep = {
+  const step3: ChecklistStep = {
     title: 'Download AI Models',
-    status: step4Status,
+    status: step3Status,
     instructions: (
       <div className="space-y-2">
         <p>
@@ -234,5 +206,5 @@ function deriveSteps(
     ),
   };
 
-  return [step1, step2, step3, step4];
+  return [step1, step2, step3];
 }

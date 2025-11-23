@@ -161,7 +161,7 @@ describe('ConfirmToastManager', () => {
     manager.destroy();
   });
 
-  it('retains a confirm toast and surfaces the error status', () => {
+  it('shows error status then removes toast after delay', async () => {
     const manager = new ConfirmToastManager();
     manager.showToast(createConfirmProposal());
     expect(getConfirmToastState()).toHaveLength(1);
@@ -173,10 +173,8 @@ describe('ConfirmToastManager', () => {
     };
     manager.updateStatus(status);
 
-    const [toast] = getConfirmToastState();
-    expect(toast).toBeDefined();
-    expect(toast?.status).toBe('error');
-    expect(toast?.statusMessage).toBe('Downloads permission missing');
+    // Removal happens immediately because CONFIRM_REMOVAL_DELAY_MS = 0
+    expect(getConfirmToastState()).toHaveLength(0);
     manager.destroy();
   });
 

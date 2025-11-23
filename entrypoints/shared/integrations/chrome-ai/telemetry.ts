@@ -15,6 +15,7 @@ export interface AiModelTelemetryState {
   statusTransitions: Record<AiModelId, StatusTransitionCounters>;
   downloadStarts: Record<AiModelId, number>;
   downloadCompletes: Record<AiModelId, number>;
+  processingPhaseStarts: Record<AiModelId, number>;
   errors: Record<AiModelId, ErrorCounters>;
   pipelineBlocked: Record<string, number>;
   pipelineRouted: Record<TextUpgradeModelSource, number>;
@@ -32,6 +33,11 @@ const DEFAULT_STATE: AiModelTelemetryState = {
     'language-detector': 0,
   },
   downloadCompletes: {
+    'language-model': 0,
+    summarizer: 0,
+    'language-detector': 0,
+  },
+  processingPhaseStarts: {
     'language-model': 0,
     summarizer: 0,
     'language-detector': 0,
@@ -74,6 +80,13 @@ export function recordAiModelDownloadComplete(id: AiModelId): void {
   queueUpdate(({ downloadCompletes }) => {
     downloadCompletes[id] += 1;
     debugLogger.log('[AiTelemetry] download-complete', { id });
+  });
+}
+
+export function recordAiModelProcessingPhaseStart(id: AiModelId): void {
+  queueUpdate(({ processingPhaseStarts }) => {
+    processingPhaseStarts[id] += 1;
+    debugLogger.log('[AiTelemetry] processing-phase-start', { id });
   });
 }
 
@@ -207,6 +220,13 @@ function mergeWithDefaults(
   for (const id of Object.keys(snapshot.downloadCompletes) as AiModelId[]) {
     merged.downloadCompletes[id] = snapshot.downloadCompletes[id];
   }
+  if (snapshot.processingPhaseStarts) {
+    for (const id of Object.keys(
+      snapshot.processingPhaseStarts,
+    ) as AiModelId[]) {
+      merged.processingPhaseStarts[id] = snapshot.processingPhaseStarts[id];
+    }
+  }
   for (const id of Object.keys(snapshot.errors) as AiModelId[]) {
     merged.errors[id] = { ...merged.errors[id], ...snapshot.errors[id] };
   }
@@ -233,6 +253,7 @@ function cloneDefaultState(): AiModelTelemetryState {
     },
     downloadStarts: { ...DEFAULT_STATE.downloadStarts },
     downloadCompletes: { ...DEFAULT_STATE.downloadCompletes },
+    processingPhaseStarts: { ...DEFAULT_STATE.processingPhaseStarts },
     errors: {
       'language-model': { ...DEFAULT_STATE.errors['language-model'] },
       summarizer: { ...DEFAULT_STATE.errors.summarizer },
@@ -254,6 +275,7 @@ function cloneTelemetryState(
     },
     downloadStarts: { ...state.downloadStarts },
     downloadCompletes: { ...state.downloadCompletes },
+    processingPhaseStarts: { ...state.processingPhaseStarts },
     errors: {
       'language-model': { ...state.errors['language-model'] },
       summarizer: { ...state.errors.summarizer },
