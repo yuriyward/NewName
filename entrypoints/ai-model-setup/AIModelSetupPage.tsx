@@ -34,9 +34,11 @@ import { ModelStatusCard } from './components/ModelStatusCard';
 import { SectionErrorBoundary } from './components/SectionErrorBoundary';
 import { SetupChecklistSection } from './components/SetupChecklistSection';
 import { TroubleshootingSection } from './components/TroubleshootingSection';
+import { VideoTutorialSection } from './components/VideoTutorialSection';
 import {
   createInitialProgressMap,
   INITIAL_STATUS_MAP,
+  MODEL_ETA,
   MODEL_LABELS,
 } from './constants';
 import type { ModelProgress, StatusSnapshot } from './types';
@@ -517,12 +519,9 @@ export function AIModelSetupPage(): JSX.Element {
           <h1 className="text-2xl font-semibold">
             Enable on-device AI models for smarter file names
           </h1>
-          <p className="text-sm leading-relaxed text-default-500">
-            Chrome downloads Gemini Nano on demand. Click the button below while
-            this tab is focused to start the download, monitor progress, and
-            unlock Phase 2 renaming.
-          </p>
         </header>
+
+        <VideoTutorialSection />
 
         <SectionErrorBoundary>
           <SetupChecklistSection
@@ -616,7 +615,8 @@ export function AIModelSetupPage(): JSX.Element {
         {activeModelId ? (
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-xs font-medium text-default-500">
-              Downloading {MODEL_LABELS[activeModelId]}…
+              Downloading {MODEL_LABELS[activeModelId]}… (
+              {MODEL_ETA[activeModelId]})
             </p>
             <p className="text-xs text-default-400">
               {formatRefreshSummary(snapshot.lastUpdated, now)}

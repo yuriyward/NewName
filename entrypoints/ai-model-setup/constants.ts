@@ -12,6 +12,12 @@ export const MODEL_LABELS: Record<AiModelId, string> = {
   'language-detector': 'Language Detector API',
 };
 
+export const MODEL_ETA: Record<AiModelId, string> = {
+  'language-model': '~6-7 min',
+  summarizer: '~1 min',
+  'language-detector': '~1 min',
+};
+
 export const STATE_DESCRIPTIONS: Record<AiModelState, string> = {
   unknown: 'Not checked yet',
   available: 'Ready to use',
