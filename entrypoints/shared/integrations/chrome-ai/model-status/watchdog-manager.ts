@@ -11,7 +11,7 @@ import type {
  * These are exported to allow testing and configuration overrides.
  */
 export const DOWNLOAD_STALL_TIMEOUT_MS = 60_000; // 1 minute inactivity watchdog for Chrome model downloads
-export const DOWNLOAD_OVERALL_TIMEOUT_MS = 10 * 60_000; // 10 minute hard cap for download phase
+export const DOWNLOAD_OVERALL_TIMEOUT_MS = 30 * 60_000; // 30 minute hard cap for download phase (increased for slow networks)
 export const PROCESSING_TIMEOUT_MS = 5 * 60_000; // 5 minute timeout for post-download processing phase
 
 type AvailabilityProbeOptions = Pick<
