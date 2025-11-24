@@ -5,6 +5,7 @@ import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import type { JSX } from 'react';
 import type { AiModelStatus } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import { MODEL_LABELS, STATE_DESCRIPTIONS, STATE_TONES } from '../constants';
+import { useDownloadETA } from '../hooks/useDownloadETA';
 import type { ModelProgress } from '../types';
 import {
   computeProgressPercent,
@@ -63,6 +64,12 @@ export function ModelStatusCard({
       : 'inline-flex items-center justify-center rounded-full border border-default-200 px-3 py-1.5 text-xs font-medium text-default-600 transition hover:border-default-300 hover:text-default-700 disabled:cursor-not-allowed disabled:border-default-200 disabled:text-default-400';
   const showActions = showStartButton || isActive;
   const staleLabel = resolveStaleBadge(status, lastUpdated, now);
+  const eta = useDownloadETA(
+    progress.loaded,
+    progress.total,
+    status.id,
+    showGauge,
+  );
 
   return (
     <div className={`rounded-xl border bg-white/90 p-4 shadow-sm ${tone}`}>
@@ -95,7 +102,11 @@ export function ModelStatusCard({
       </div>
 
       {showGauge ? (
-        <ProgressBar percent={percent} availability={status.availability} />
+        <ProgressBar
+          percent={percent}
+          availability={status.availability}
+          eta={eta}
+        />
       ) : status.state === 'available' || progress.completed ? (
         <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-success-100 px-3 py-1 text-xs font-medium text-success-700">
           <CheckCircleIcon className="h-4 w-4" />
@@ -139,9 +150,11 @@ export function ModelStatusCard({
 function ProgressBar({
   percent,
   availability,
+  eta,
 }: {
   percent: number | null;
   availability?: string;
+  eta: string | null;
 }): JSX.Element {
   // Check if Chrome is in post-download processing phase
   const isProcessing =
@@ -161,8 +174,14 @@ function ProgressBar({
         <p className="mt-1 text-xs text-default-500">
           Download complete. Chrome is extracting and loading the model…
         </p>
+      ) : percent != null && eta != null ? (
+        <p className="mt-1 text-xs text-default-500">
+          {percent}% ({eta})
+        </p>
       ) : percent != null ? (
         <p className="mt-1 text-xs text-default-500">{percent}%</p>
+      ) : eta != null ? (
+        <p className="mt-1 text-xs text-default-500">Downloading… {eta}</p>
       ) : (
         <p className="mt-1 text-xs text-default-500">
           Downloading… keep this tab focused.
