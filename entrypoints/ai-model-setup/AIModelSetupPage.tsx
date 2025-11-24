@@ -111,18 +111,12 @@ export function AIModelSetupPage(): JSX.Element {
     setCancelled(false);
     setShowSuccessPrompt(false);
     setCompletedAt(null);
-    // Preserve progress state if download was already in progress (resume scenario)
-    // Only reset to false for fresh downloads
-    setProgress((previous) => {
-      const existing = previous[modelId];
-      const isResume = existing?.started && !existing?.completed;
-      return {
-        ...previous,
-        [modelId]: isResume
-          ? { ...existing, error: undefined, errorCode: undefined }
-          : { started: false, completed: false },
-      };
-    });
+    // Always reset progress to 0% when retrying
+    // Chrome AI doesn't support resuming - it always restarts from beginning
+    setProgress((previous) => ({
+      ...previous,
+      [modelId]: { started: false, completed: false },
+    }));
     setStoredLastError(null);
     void clearAiModelSetupError();
 

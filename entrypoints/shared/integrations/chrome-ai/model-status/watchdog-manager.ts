@@ -42,11 +42,11 @@ export async function runWithAvailabilityWatchdog(
 
   const armWatchdog = (isProgressUpdate = false): void => {
     if (timer) clearTimeout(timer);
-    // Reset last update time on each arm - this is called on progress updates
-    lastUpdateTime = Date.now();
 
-    // Track if we've seen progress updates (indicates active download)
+    // Only reset last update time when there's actual progress (external kickWatchdog calls)
+    // Do NOT reset during internal status polling, otherwise inactivity timeout never fires
     if (isProgressUpdate) {
+      lastUpdateTime = Date.now();
       hasSeenProgress = true;
     }
 
@@ -120,7 +120,7 @@ export async function runWithAvailabilityWatchdog(
               ? `Model processing for ${id} timed out. Chrome may still be extracting the model. Try refreshing the page or restarting Chrome.`
               : isNearComplete
                 ? `Download for ${id} appears complete but Chrome hasn't started processing. Try clicking the button again or refresh the page.`
-                : `Download for ${id} stalled. Please click the button again to resume.`,
+                : `Download for ${id} stalled. Retry will restart the download from the beginning.`,
             'TimeoutError',
           ),
         );

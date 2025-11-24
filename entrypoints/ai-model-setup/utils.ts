@@ -21,7 +21,7 @@ export function resolveModelAction(
 
   // If download started but status slipped back to "downloadable", keep CTA primary.
   if (state === 'downloadable' && progress?.started && !progress.completed) {
-    return { label: 'Resume download', tone: 'primary' };
+    return { label: 'Retry download', tone: 'primary' };
   }
 
   switch (state) {
@@ -31,7 +31,7 @@ export function resolveModelAction(
     case 'downloadable':
       return { label: 'Grab this model', tone: 'primary' };
     case 'downloading':
-      return { label: 'Resume download', tone: 'primary' };
+      return { label: 'Retry download', tone: 'primary' };
     case 'error':
       return { label: 'Try again', tone: 'primary' };
     case 'unknown':
