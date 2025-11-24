@@ -160,6 +160,11 @@ function ProgressBar({
   const isProcessing =
     availability === 'processing' || availability === 'after-download';
 
+  // Check if download appears complete but not yet marked as processing
+  // This happens when progress stops at high percentage (e.g., 92%) before Chrome reports processing status
+  const isWaitingForProcessing =
+    !isProcessing && percent != null && percent >= 90 && etaInfo.eta === null;
+
   const { eta, elapsedTime, isSlowNetwork } = etaInfo;
 
   // Format ETA message with slow network context
@@ -208,7 +213,7 @@ function ProgressBar({
       <div className="h-2 w-full overflow-hidden rounded-full bg-default-200">
         <div
           className={`h-full rounded-full bg-primary transition-all ${
-            isProcessing ? 'animate-pulse' : ''
+            isProcessing || isWaitingForProcessing ? 'animate-pulse' : ''
           }`}
           style={{ width: `${percent ?? 15}%` }}
         />
@@ -216,6 +221,11 @@ function ProgressBar({
       {isProcessing ? (
         <p className="mt-1 text-xs text-default-500">
           Download complete. Chrome is extracting and loading the model…
+        </p>
+      ) : isWaitingForProcessing ? (
+        <p className="mt-1 text-xs text-default-500">
+          {percent}% - Download complete, preparing installation…
+          {elapsedTime ? ` (${elapsedTime} elapsed)` : ''}
         </p>
       ) : percent != null && eta != null && elapsedTime != null ? (
         <p
@@ -230,7 +240,7 @@ function ProgressBar({
           {buildProgressMessage(String(percent), eta, null)}
         </p>
       ) : percent != null ? (
-        <p className="mt-1 text-xs text-default-500">{percent}%</p>
+        <p className="mt-1 text-xs text-default-500">Downloading… {percent}%</p>
       ) : eta != null && elapsedTime != null ? (
         <p
           className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}

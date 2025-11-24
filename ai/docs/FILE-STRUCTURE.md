@@ -17,7 +17,8 @@ ai-model-setup/ # 7 files, 2 directories
   │ ├─ SuccessModal.tsx # 2 exports
   │ ├─ TroubleshootingSection.tsx # 1 export
   │ └─ VideoTutorialSection.tsx # 1 export
-  ├─ hooks/ # 3 files
+  ├─ hooks/ # 4 files
+  │ ├─ useDownloadETA.ts # 2 exports
   │ ├─ useLanguageDetectorAutoRetry.ts # 1 export
   │ ├─ useModelStatusSubscription.ts # 1 export
   │ └─ useSetupStateSubscription.ts # 1 export
@@ -208,7 +209,7 @@ shared/ # 18 directories
   │ │ │ ├─ status-probe.ts # 2 exports
   │ │ │ ├─ status-types.ts # 9 exports
   │ │ │ ├─ status-utils.ts # 21 exports
-  │ │ │ └─ watchdog-manager.ts # 4 exports
+  │ │ │ └─ watchdog-manager.ts # 5 exports
   │ │ ├─ adapter.ts # 9 exports
   │ │ ├─ diagnostics.ts # Diagnostic utilities for Chrome built-in AI troubleshooting. Identifies specific failure modes and provides targeted fix instructions.
   │ │ ├─ ensure-local-ai-setup.ts # Utilities for checking and ensuring local AI setup is complete. Used across Settings and Downloads Permission screens to guide users through AI setup.
@@ -408,6 +409,13 @@ content.ts # Content script for page context extraction and messaging
 - `export createProgressHandler` - item implementation
 - `export createRefreshAfterRun` - item implementation
 - `export handleRunDiagnostics` - item implementation
+
+### ai-model-setup/hooks/useDownloadETA.ts
+**Purpose**: 2 exports
+
+**Exports**:
+- `export DownloadETAInfo` - item implementation
+- `export useDownloadETA` - Custom hook for calculating dynamic download ETA with fal...
 
 ### ai-model-setup/hooks/useLanguageDetectorAutoRetry.ts
 **Purpose**: 1 export
@@ -1737,9 +1745,10 @@ Each provider (local or cl...
 - `export wrapMonitor` - item implementation
 
 ### shared/integrations/chrome-ai/model-status/watchdog-manager.ts
-**Purpose**: 4 exports
+**Purpose**: 5 exports
 
 **Exports**:
+- `export DOWNLOAD_NEAR_COMPLETE_TIMEOUT_MS` - Timeout configuration for AI model downloads and processing.
 - `export DOWNLOAD_OVERALL_TIMEOUT_MS` - Timeout configuration for AI model downloads and processing.
 - `export DOWNLOAD_STALL_TIMEOUT_MS` - Timeout configuration for AI model downloads and processing
 - `export PROCESSING_TIMEOUT_MS` - Timeout configuration for AI model downloads and processing.
