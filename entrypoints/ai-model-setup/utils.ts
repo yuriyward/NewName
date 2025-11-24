@@ -2,11 +2,28 @@ import type {
   AiModelState,
   AiModelStatus,
 } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
-import type { ModelActionConfig, SetupErrorDisplay } from './types';
+import type {
+  ModelActionConfig,
+  ModelProgress,
+  SetupErrorDisplay,
+} from './types';
 
 export function resolveModelAction(
   state: AiModelState,
+  progress?: ModelProgress,
 ): ModelActionConfig | null {
+  // If Chrome reports "downloading" but the user never started it,
+  // treat it as downloadable. This handles Chrome API incorrectly
+  // reporting models as "downloading" when other models complete.
+  if (state === 'downloading' && progress && !progress.started) {
+    return { label: 'Grab this model', tone: 'primary' };
+  }
+
+  // If download started but status slipped back to "downloadable", keep CTA primary.
+  if (state === 'downloadable' && progress?.started && !progress.completed) {
+    return { label: 'Resume download', tone: 'primary' };
+  }
+
   switch (state) {
     case 'available':
     case 'unsupported':
@@ -163,6 +180,21 @@ export function describeError(error: unknown): string {
 
 export function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
+}
+
+export function isReady(status: AiModelStatus | undefined): boolean {
+  if (!status) return false;
+  return status.state === 'available' || status.state === 'unsupported';
+}
+
+export function isInitializationPending(status: AiModelStatus): boolean {
+  if (status.errorCode === 'InitializationPending') return true;
+  const detail = status.detail?.toLowerCase?.() ?? '';
+  return (
+    detail.includes('still starting') ||
+    detail.includes('initializationpending') ||
+    detail.includes('try again in a few seconds')
+  );
 }
 
 export function detectPreferredLanguage(): string {

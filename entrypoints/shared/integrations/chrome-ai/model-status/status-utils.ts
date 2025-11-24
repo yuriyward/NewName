@@ -87,8 +87,11 @@ export function normaliseAvailability(availability?: string | null): {
     case 'processing':
     case 'downloading':
       return { state: 'downloading' };
-    case 'downloadable':
     case 'after-download':
+      // Chrome is extracting/loading the model after download completes
+      // Don't require user activation as the user already initiated the download
+      return { state: 'downloading', requiresUserActivation: false };
+    case 'downloadable':
       return { state: 'downloadable', requiresUserActivation: true };
     case 'unavailable':
     case 'no':
@@ -140,6 +143,10 @@ export function resolveSummarizerInputLanguages(
 }
 
 export function deriveErrorMessage(error: unknown): string {
+  if (error == null) {
+    return 'Chrome did not provide an error message. Try again while keeping this tab focused.';
+  }
+
   if (error instanceof Error) {
     const original = error.message;
     let message = original;
@@ -167,6 +174,7 @@ export function deriveErrorMessage(error: unknown): string {
 }
 
 export function deriveErrorCode(error: unknown): string | undefined {
+  if (error == null) return 'UnknownError';
   if (error instanceof DOMException) {
     return error.name;
   }
@@ -245,12 +253,14 @@ export function safeEmit(
 export function wrapMonitor(
   id: AiModelId,
   listener?: (event: AiModelProgressEvent) => void,
+  onActivity?: () => void,
 ): ((monitor: ChromeAIMonitor) => void) | undefined {
   if (!listener) return undefined;
 
   return (monitor) => {
     try {
       monitor.addEventListener?.('downloadprogress', (event) => {
+        onActivity?.();
         safeEmit(listener, {
           id,
           type: 'download-progress',

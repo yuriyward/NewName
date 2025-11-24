@@ -84,6 +84,9 @@ export interface EnsureAiModelsOptions extends RefreshAiModelOptions {
   ids?: readonly AiModelId[];
   signal?: AbortSignal;
   onProgress?: (event: AiModelProgressEvent) => void;
+  downloadTimeoutMs?: number;
+  /** Hard cap for total download duration (ms). Defaults to 10 minutes. */
+  downloadOverallTimeoutMs?: number;
 }
 
 export interface PreparationCacheKey {

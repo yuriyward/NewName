@@ -55,17 +55,15 @@ export class ConfirmToastManager {
     const toast = this.state.updateConfirmToastStatus(message);
     if (!toast) return;
 
-    if (message.state !== 'error' && message.state !== 'permission-denied') {
-      this.lifecycle.scheduleRemoval(
-        message.toastId,
-        TOAST_TIMING.CONFIRM_REMOVAL_DELAY_MS,
-        () => {
-          this.state.removeConfirmToast(message.toastId);
-          this.render();
-          this.keyboard.ensureKeyListener();
-        },
-      );
-    }
+    this.lifecycle.scheduleRemoval(
+      message.toastId,
+      TOAST_TIMING.CONFIRM_REMOVAL_DELAY_MS,
+      () => {
+        this.state.removeConfirmToast(message.toastId);
+        this.render();
+        this.keyboard.ensureKeyListener();
+      },
+    );
     this.render();
   }
 

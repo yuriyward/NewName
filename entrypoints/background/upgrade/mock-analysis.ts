@@ -35,7 +35,7 @@ export async function requestMockUpgradeAnalysis(
     return null;
   }
 
-  let enrichedBase = `${baseSanitized} summary`;
+  let enrichedBase: string | null = null;
   try {
     const summarizer = aiAdapter.summarizer;
     if (await summarizer.isSupported()) {
@@ -46,12 +46,13 @@ export async function requestMockUpgradeAnalysis(
           settings.language === 'auto' ? undefined : settings.language,
         maxOutputChars: Math.min(settings.maxLen, 80),
       });
-      const summaryText = summary.summary.trim();
-      if (
+      const summaryText = sanitizeBaseName(summary.summary);
+      const differsFromOriginal =
         summaryText.length > 0 &&
-        summaryText.toLowerCase() !== baseSanitized.toLowerCase()
-      ) {
-        enrichedBase = sanitizeBaseName(summaryText);
+        summaryText.toLowerCase() !== baseSanitized.toLowerCase();
+
+      if (differsFromOriginal) {
+        enrichedBase = summaryText;
       }
     }
   } catch (error) {
@@ -59,6 +60,10 @@ export async function requestMockUpgradeAnalysis(
       historyId: historyItem.id,
       error,
     });
+  }
+
+  if (!enrichedBase) {
+    return null;
   }
 
   const appliedBase =

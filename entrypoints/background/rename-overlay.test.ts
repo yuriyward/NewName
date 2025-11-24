@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockedFunction,
+  vi,
+} from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { DEFAULT_SETTINGS } from '@/entrypoints/shared/settings/types';
 
@@ -10,7 +17,9 @@ vi.mock('@/entrypoints/shared/messaging/core-messages', () => ({
 const { sendShowRenameToast } = await import(
   '@/entrypoints/shared/messaging/core-messages'
 );
-const sendShowRenameToastMock = vi.mocked(sendShowRenameToast);
+const sendShowRenameToastMock = sendShowRenameToast as MockedFunction<
+  typeof sendShowRenameToast
+>;
 const { maybeShowRenameOverlay } = await import('./rename-overlay');
 
 describe('maybeShowRenameOverlay', () => {
@@ -94,5 +103,29 @@ describe('maybeShowRenameOverlay', () => {
     expect(sendShowRenameToastMock).toHaveBeenCalledTimes(1);
     const payload = sendShowRenameToastMock.mock.calls[0]?.[0];
     expect(payload.toast.durationMs).toBe(3_000);
+  });
+
+  it('does not emit overlay when filename is unchanged', async () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      confirmToast: {
+        ...DEFAULT_SETTINGS.confirmToast,
+        renameNotifications: {
+          instantBaseline: true,
+          contextualUpgrade: true,
+        },
+      },
+    };
+
+    fakeBrowser.tabs.query = vi.fn().mockResolvedValue([{ id: 7 }]);
+
+    await maybeShowRenameOverlay({
+      settings,
+      originalFilename: 'same.txt',
+      finalFilename: 'Same.txt',
+      kind: 'instant-baseline',
+    });
+
+    expect(sendShowRenameToastMock).not.toHaveBeenCalled();
   });
 });

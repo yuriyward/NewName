@@ -1,7 +1,6 @@
-import type {
-  ChromeLanguageModelCreateOptions,
-  ChromeSummarizerOptions,
-} from '../types';
+import { ensureLanguageDetectorReady } from './download-handlers/language-detector';
+import { ensureLanguageModelReady } from './download-handlers/language-model';
+import { ensureSummarizerReady } from './download-handlers/summarizer';
 import {
   ensureCacheLoaded,
   persistStatusForId,
@@ -18,19 +17,10 @@ import {
   cloneStatusMap,
   deriveErrorCode,
   deriveErrorMessage,
-  ensureUserActivation,
   isAbortError,
-  resolveExpectedInputs,
-  resolveExpectedOutputs,
-  resolveLanguageDetectorCtor,
-  resolveLanguageModelCtor,
-  resolveOutputLanguage,
-  resolveSummarizerCtor,
-  resolveSummarizerInputLanguages,
   safeEmit,
   serializeIoDescriptor,
   throwIfAborted,
-  wrapMonitor,
 } from './status-utils';
 
 const inFlightPreparations = new Map<string, Promise<AiModelStatusMap>>();
@@ -95,6 +85,12 @@ async function prepareModels(
   if (languageDetectorToDownload) {
     try {
       throwIfAborted(options.signal);
+      const starting = buildStatus('language-detector', 'downloading', {
+        availability: 'downloading',
+        requiresUserActivation: false,
+      });
+      working['language-detector'] = starting;
+      await persistStatusForId(starting);
       safeEmit(options.onProgress, {
         id: 'language-detector',
         type: 'download-start',
@@ -112,6 +108,32 @@ async function prepareModels(
     } catch (error) {
       const errorMessage = deriveErrorMessage(error);
       const errorCode = deriveErrorCode(error);
+
+      const isTransient =
+        error == null ||
+        errorCode === 'UnknownError' ||
+        (error instanceof DOMException &&
+          (error.name === 'InvalidStateError' ||
+            error.name === 'NotFoundError'));
+
+      if (isTransient) {
+        // Treat empty / transient failures as "not ready yet" instead of hard error.
+        const pending = buildStatus('language-detector', 'unknown', {
+          detail:
+            'Chrome is still starting the Language Detector. Try again in a few seconds with this tab focused.',
+          errorCode: 'InitializationPending',
+        });
+        working['language-detector'] = pending;
+        await persistStatusForId(pending);
+        safeEmit(options.onProgress, {
+          id: 'language-detector',
+          type: 'status',
+          status: pending.state,
+          availability: pending.availability,
+        });
+        return cloneStatusMap(working);
+      }
+
       safeEmit(options.onProgress, {
         id: 'language-detector',
         type: 'error',
@@ -140,6 +162,12 @@ async function prepareModels(
   const downloadPromises = remainingModels.map(async ({ id }) => {
     try {
       throwIfAborted(options.signal);
+      const starting = buildStatus(id, 'downloading', {
+        availability: 'downloading',
+        requiresUserActivation: false,
+      });
+      working[id] = starting;
+      await persistStatusForId(starting);
       safeEmit(options.onProgress, { id, type: 'download-start' });
       await triggerModelDownload(id, options);
 
@@ -200,104 +228,6 @@ async function triggerModelDownload(
       break;
     default:
       break;
-  }
-}
-
-async function ensureLanguageModelReady(
-  options: EnsureAiModelsOptions,
-): Promise<void> {
-  const ctor = resolveLanguageModelCtor();
-  if (!ctor?.create) {
-    throw new Error('LanguageModel API unavailable');
-  }
-
-  throwIfAborted(options.signal);
-  ensureUserActivation('language-model');
-
-  const outputLanguage = resolveOutputLanguage(options.languageModel);
-
-  const expectedInputs = resolveExpectedInputs(
-    options.languageModel?.expectedInputs,
-    outputLanguage,
-  );
-  const expectedOutputs = resolveExpectedOutputs(
-    options.languageModel?.expectedOutputs,
-    outputLanguage,
-  );
-
-  const createOptions: ChromeLanguageModelCreateOptions = {
-    signal: options.signal,
-    monitor: wrapMonitor('language-model', options.onProgress),
-    systemPrompt: options.languageModel?.systemPrompt,
-    initialPrompts: options.languageModel?.initialPrompts,
-    expectedInputs,
-    expectedOutputs,
-    outputLanguage,
-  };
-
-  const session = await ctor.create(createOptions);
-  try {
-    session.destroy?.();
-  } catch (_error) {
-    // Best effort cleanup; ignore errors.
-  }
-}
-
-async function ensureSummarizerReady(
-  options: EnsureAiModelsOptions,
-): Promise<void> {
-  const ctor = resolveSummarizerCtor();
-  if (!ctor?.create) {
-    throw new Error('Summarizer API unavailable');
-  }
-
-  throwIfAborted(options.signal);
-  ensureUserActivation('summarizer');
-
-  const outputLanguage =
-    options.summarizer?.outputLanguage ??
-    options.languageModel?.outputLanguage ??
-    'en';
-  const expectedInputLanguages = resolveSummarizerInputLanguages(
-    options.summarizer?.expectedInputLanguages,
-    outputLanguage,
-  );
-
-  const createOptions: ChromeSummarizerOptions = {
-    type: options.summarizer?.type ?? 'key-points',
-    format: options.summarizer?.format ?? 'markdown',
-    length: options.summarizer?.length ?? 'short',
-    expectedInputLanguages,
-    outputLanguage,
-    monitor: wrapMonitor('summarizer', options.onProgress),
-  };
-
-  const summarizer = await ctor.create(createOptions);
-  try {
-    summarizer.destroy?.();
-  } catch (_error) {
-    // Ignore cleanup errors.
-  }
-}
-
-async function ensureLanguageDetectorReady(
-  options: EnsureAiModelsOptions,
-): Promise<void> {
-  const ctor = resolveLanguageDetectorCtor();
-  if (!ctor?.create) {
-    throw new Error('LanguageDetector API unavailable');
-  }
-
-  throwIfAborted(options.signal);
-  ensureUserActivation('language-detector');
-
-  const detector = await ctor.create({
-    monitor: wrapMonitor('language-detector', options.onProgress),
-  });
-  try {
-    detector.destroy?.();
-  } catch (_error) {
-    // Ignore cleanup errors.
   }
 }
 

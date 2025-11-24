@@ -19,6 +19,7 @@ import {
 import type { Settings } from '@/entrypoints/shared/settings/types';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import { CloudAiSection } from './components/CloudAiSection';
+import { LocalAiModelSection } from './components/LocalAiModelSection';
 import { ProcessingPreferencesSection } from './components/ProcessingPreferences';
 
 export function SettingsPage() {
@@ -167,6 +168,8 @@ export function SettingsPage() {
           preferences={settings.processingPreferences}
           onUpdate={handlePreferencesUpdate}
         />
+
+        <LocalAiModelSection preferences={settings.processingPreferences} />
 
         <Card className="p-2.5">
           <h3 className="text-sm font-semibold mb-2">About Cloud Processing</h3>

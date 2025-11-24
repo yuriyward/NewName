@@ -33,8 +33,17 @@ export function ModelStatusCard({
   isActive,
   disabled,
 }: ModelStatusCardProps): JSX.Element {
-  const tone = STATE_TONES[status.state];
-  const stateDescription = STATE_DESCRIPTIONS[status.state];
+  const isChromeQueuedDownload =
+    status.state === 'downloading' && !progress.started;
+  const activeDownloadOverride =
+    progress.started && !progress.completed && status.state !== 'available';
+  const displayState = isChromeQueuedDownload
+    ? 'downloadable'
+    : activeDownloadOverride
+      ? 'downloading'
+      : status.state;
+  const tone = STATE_TONES[displayState];
+  const stateDescription = STATE_DESCRIPTIONS[displayState];
   const percent = computeProgressPercent(progress.loaded, progress.total);
   const showGauge =
     progress.started &&
@@ -42,7 +51,7 @@ export function ModelStatusCard({
     status.state !== 'available' &&
     status.state !== 'unsupported' &&
     status.state !== 'unavailable';
-  const action = resolveModelAction(status.state);
+  const action = resolveModelAction(status.state, progress);
   const showStartButton = Boolean(action) && !isActive;
   const activationTitle = status.requiresUserActivation
     ? 'Chrome needs a user gesture to start downloads. Keep this tab focused.'
@@ -86,7 +95,7 @@ export function ModelStatusCard({
       </div>
 
       {showGauge ? (
-        <ProgressBar percent={percent} />
+        <ProgressBar percent={percent} availability={status.availability} />
       ) : status.state === 'available' || progress.completed ? (
         <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-success-100 px-3 py-1 text-xs font-medium text-success-700">
           <CheckCircleIcon className="h-4 w-4" />
@@ -127,16 +136,32 @@ export function ModelStatusCard({
   );
 }
 
-function ProgressBar({ percent }: { percent: number | null }): JSX.Element {
+function ProgressBar({
+  percent,
+  availability,
+}: {
+  percent: number | null;
+  availability?: string;
+}): JSX.Element {
+  // Check if Chrome is in post-download processing phase
+  const isProcessing =
+    availability === 'processing' || availability === 'after-download';
+
   return (
     <div className="mt-3">
       <div className="h-2 w-full overflow-hidden rounded-full bg-default-200">
         <div
-          className="h-full rounded-full bg-primary transition-all"
+          className={`h-full rounded-full bg-primary transition-all ${
+            isProcessing ? 'animate-pulse' : ''
+          }`}
           style={{ width: `${percent ?? 15}%` }}
         />
       </div>
-      {percent != null ? (
+      {isProcessing ? (
+        <p className="mt-1 text-xs text-default-500">
+          Download complete. Chrome is extracting and loading the model…
+        </p>
+      ) : percent != null ? (
         <p className="mt-1 text-xs text-default-500">{percent}%</p>
       ) : (
         <p className="mt-1 text-xs text-default-500">

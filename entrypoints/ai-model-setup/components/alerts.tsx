@@ -8,6 +8,7 @@ interface InlineAlertProps {
   icon: JSX.Element;
   title: string;
   description: string;
+  children?: JSX.Element;
 }
 
 export function InlineAlert({
@@ -15,6 +16,7 @@ export function InlineAlert({
   icon,
   title,
   description,
+  children,
 }: InlineAlertProps): JSX.Element {
   const toneStyles: Record<typeof tone, string> = {
     success: 'border-success-200 bg-success-50 text-success-700',
@@ -31,6 +33,7 @@ export function InlineAlert({
         <div className="space-y-1">
           <p className="font-semibold">{title}</p>
           <p className="text-xs leading-relaxed">{description}</p>
+          {children}
         </div>
       </div>
     </div>
@@ -112,7 +115,7 @@ export function PrerequisitesSection(): JSX.Element {
       </h2>
       <ul className="mt-3 space-y-2 text-sm text-default-500">
         <li>Chrome 140+ on Windows, macOS, Linux, or Chromebook Plus.</li>
-        <li>At least 16 GB RAM and ~2 GB free storage for Gemini Nano.</li>
+        <li>Best to have ~16 GB RAM and ~2 GB free storage for Gemini Nano.</li>
         <li>Keep this tab open until the progress indicator completes.</li>
         <li>
           If prompted, stay on this page so Chrome maintains user activation.

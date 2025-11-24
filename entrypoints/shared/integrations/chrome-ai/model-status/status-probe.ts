@@ -1,4 +1,5 @@
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { retryWithLinearBackoff } from '@/entrypoints/shared/utils/retry';
 import { ensureCacheLoaded, persistStatusForId } from './status-cache';
 import type {
   AiModelId,
@@ -174,24 +175,54 @@ async function probeLanguageDetector(): Promise<AiModelStatus> {
   }
 
   try {
-    const availability = await ctor.availability?.();
-    const normalised = normaliseAvailability(availability);
-    return normalised.state === 'unknown'
-      ? buildStatus('language-detector', 'available', {
-          availability,
-          requiresUserActivation: false,
-        })
-      : buildStatus('language-detector', normalised.state, {
-          availability,
-          requiresUserActivation: normalised.requiresUserActivation ?? false,
-        });
+    return await retryWithLinearBackoff(
+      async () => {
+        // Defensive type checking to ensure API is ready
+        if (typeof ctor.availability !== 'function') {
+          throw new Error('LanguageDetector.availability() not ready');
+        }
+
+        const availability = await ctor.availability();
+        const normalised = normaliseAvailability(availability);
+        return normalised.state === 'unknown'
+          ? buildStatus('language-detector', 'available', {
+              availability,
+              requiresUserActivation: false,
+            })
+          : buildStatus('language-detector', normalised.state, {
+              availability,
+              requiresUserActivation:
+                normalised.requiresUserActivation ?? false,
+            });
+      },
+      {
+        maxAttempts: 3,
+        baseDelay: 100,
+        context: 'Language detector availability check',
+      },
+    );
   } catch (error) {
-    debugLogger.warn('[AIModels] Language detector availability failed', {
-      error,
-    });
+    const isTransient = error == null;
+
+    if (isTransient) {
+      return buildStatus('language-detector', 'unknown', {
+        detail:
+          'Chrome is still starting the Language Detector. Retry in a few seconds.',
+        errorCode: 'InitializationPending',
+      });
+    }
+
+    // Better error handling for non-Error rejections
+    const errorMessage =
+      error instanceof Error
+        ? deriveErrorMessage(error)
+        : `Availability check failed: ${String(error)}`;
+    const errorCode =
+      error instanceof Error ? deriveErrorCode(error) : 'InitializationError';
+
     return buildStatus('language-detector', 'error', {
-      detail: deriveErrorMessage(error),
-      errorCode: deriveErrorCode(error),
+      detail: errorMessage,
+      errorCode: errorCode || 'UnknownError',
     });
   }
 }
