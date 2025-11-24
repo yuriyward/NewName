@@ -4,19 +4,30 @@
 
 ## Tree Overview
 
-ai-model-setup/ # 5 files, 1 directories
-  ├─ components/ # 6 files
+ai-model-setup/ # 7 files, 2 directories
+  ├─ components/ # 11 files
   │ ├─ alerts.tsx # 4 exports
+  │ ├─ ArcadeEmbed.tsx # 1 export
   │ ├─ CopyableUrl.tsx # 1 export
   │ ├─ DiagnosticsSection.tsx # 1 export
   │ ├─ ModelStatusCard.tsx # 1 export
   │ ├─ SectionErrorBoundary.tsx # 1 export
-  │ └─ SetupChecklistSection.tsx # 1 export
+  │ ├─ SetupChecklistSection.tsx # 1 export
+  │ ├─ StatusAlertsSection.tsx # 2 exports
+  │ ├─ SuccessModal.tsx # 2 exports
+  │ ├─ TroubleshootingSection.tsx # 1 export
+  │ └─ VideoTutorialSection.tsx # 1 export
+  ├─ hooks/ # 3 files
+  │ ├─ useLanguageDetectorAutoRetry.ts # 1 export
+  │ ├─ useModelStatusSubscription.ts # 1 export
+  │ └─ useSetupStateSubscription.ts # 1 export
   ├─ AIModelSetupPage.tsx # 1 export
-  ├─ constants.ts # 6 exports
+  ├─ constants.ts # 9 exports
+  ├─ event-handlers.ts # 3 exports
   ├─ main.tsx # React app entry point for AI model onboarding flow
+  ├─ setup-handlers.ts # 4 exports
   ├─ types.ts # 4 exports
-  └─ utils.ts # 11 exports
+  └─ utils.ts # 13 exports
 background/ # 11 files, 2 directories
   ├─ toast/ # 4 files
   │ ├─ confirmation-controller.ts # Confirm toast controller manages pending confirmation requests and routing.
@@ -133,8 +144,9 @@ popup/ # 2 files, 3 directories
 sandbox/ # 1 file
   └─ main.ts # Sandboxed iframe for MediaInfo.js WASM execution. Runs in a sandbox context with unsafe-eval allowed for Emscripten glue code.
 settings/ # 2 files, 1 directories
-  ├─ components/ # 2 files
+  ├─ components/ # 3 files
   │ ├─ CloudAiSection.tsx # Cloud AI configuration section
+  │ ├─ LocalAiModelSection.tsx # Local AI Models section Displays AI model status and provides access to model setup page Only visible when local AI processing is enabled (auto or local mode)
   │ └─ ProcessingPreferences.tsx # Per-file-type processing preferences
   ├─ main.tsx # Settings page entry point
   └─ SettingsPage.tsx # Settings page for cloud AI and processing preferences
@@ -186,12 +198,17 @@ shared/ # 18 directories
   │ │ │ ├─ optimization-guide-rule.ts # 2 exports
   │ │ │ ├─ os-support-rule.ts # 2 exports
   │ │ │ └─ wxt-dev-mode-rule.ts # 2 exports
-  │ │ ├─ model-status/ # 5 files
+  │ │ ├─ model-status/ # 6 files, 1 directories
+  │ │ │ ├─ download-handlers/ # 3 files
+  │ │ │ │ ├─ language-detector.ts # 1 export
+  │ │ │ │ ├─ language-model.ts # 1 export
+  │ │ │ │ └─ summarizer.ts # 1 export
   │ │ │ ├─ status-cache.ts # 5 exports
   │ │ │ ├─ status-preparation.ts # 2 exports
   │ │ │ ├─ status-probe.ts # 2 exports
   │ │ │ ├─ status-types.ts # 9 exports
-  │ │ │ └─ status-utils.ts # 21 exports
+  │ │ │ ├─ status-utils.ts # 21 exports
+  │ │ │ └─ watchdog-manager.ts # 4 exports
   │ │ ├─ adapter.ts # 9 exports
   │ │ ├─ diagnostics.ts # Diagnostic utilities for Chrome built-in AI troubleshooting. Identifies specific failure modes and provides targeted fix instructions.
   │ │ ├─ ensure-local-ai-setup.ts # Utilities for checking and ensuring local AI setup is complete. Used across Settings and Downloads Permission screens to guide users through AI setup.
@@ -199,7 +216,7 @@ shared/ # 18 directories
   │ │ ├─ model-status-service.ts # Proxy service for AI model status management. Ensures model availability checks and downloads run in the background context where storage access is guaranteed.
   │ │ ├─ model-status.ts # 12 exports
   │ │ ├─ setup-state.ts # 8 exports
-  │ │ ├─ telemetry.ts # 9 exports
+  │ │ ├─ telemetry.ts # 10 exports
   │ │ ├─ test-mocks.ts # Test utilities for mocking Chrome AI model status functions. Provides reusable mocks for ensureAiModelsReady with happy path and error scenarios.
   │ │ └─ types.ts # 27 exports
   │ ├─ image-analysis/ # 2 files
@@ -281,11 +298,12 @@ shared/ # 18 directories
   │ ├─ theme-service.ts # Theme management application service Handles automatic theme detection and daily reset logic
   │ ├─ useToastCountdown.ts # Countdown timer hooks for auto-apply toast
   │ └─ useToastEditor.ts # Editor hooks for toast filename editing Simplified for hover-based edit mode
-  └─ utils/ # 5 files
+  └─ utils/ # 6 files
     ├─ encoding.ts # Lightweight text encoding helpers used during file ingestion.
     ├─ filename.ts # Utility helpers for working with file names.
     ├─ id.ts # Utility helpers for generating identifiers.
     ├─ prompt-sanitization.ts # Prompt sanitization utilities to prevent prompt injection attacks. All untrusted inputs (filenames, URLs, page content, extracted text) must be sanitized before being inserted into AI prompts.
+    ├─ retry.ts # 5 exports
     └─ tab-eligibility.ts # Utility helpers for checking tab eligibility for content script injection.
 background.ts # Background service worker for download interception and renaming
 content.ts # Content script for page context extraction and messaging
@@ -297,6 +315,12 @@ content.ts # Content script for page context extraction and messaging
 
 **Exports**:
 - `export AIModelSetupPage` - item implementation
+
+### ai-model-setup/components/ArcadeEmbed.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export ArcadeEmbed` - Arcade demo embed showing how to enable Chrome's built-in...
 
 ### ai-model-setup/components/CopyableUrl.tsx
 **Purpose**: 1 export
@@ -328,6 +352,32 @@ content.ts # Content script for page context extraction and messaging
 **Exports**:
 - `export SetupChecklistSection` - item implementation
 
+### ai-model-setup/components/StatusAlertsSection.tsx
+**Purpose**: 2 exports
+
+**Exports**:
+- `export StatusAlertsSectionProps` - item implementation
+- `export StatusAlertsSection` - item implementation
+
+### ai-model-setup/components/SuccessModal.tsx
+**Purpose**: 2 exports
+
+**Exports**:
+- `export SuccessModalProps` - item implementation
+- `export SuccessModal` - item implementation
+
+### ai-model-setup/components/TroubleshootingSection.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export TroubleshootingSection` - item implementation
+
+### ai-model-setup/components/VideoTutorialSection.tsx
+**Purpose**: 1 export
+
+**Exports**:
+- `export VideoTutorialSection` - Expandable video tutorial section showing how to enable C...
+
 ### ai-model-setup/components/alerts.tsx
 **Purpose**: 4 exports
 
@@ -338,20 +388,58 @@ content.ts # Content script for page context extraction and messaging
 - `export WxtDevModeAlert` - item implementation
 
 ### ai-model-setup/constants.ts
-**Purpose**: 6 exports
+**Purpose**: 9 exports
 
 **Exports**:
+- `export AUTO_RETRY_BUDGET_MS` - Auto-retry configuration for language-detector initializa...
+- `export AUTO_RETRY_INTERVAL_MS` - Auto-retry configuration for language-detector initializa...
 - `export INITIAL_STATUS_MAP` - item implementation
+- `export MODEL_ETA` - item implementation
 - `export MODEL_LABELS` - item implementation
 - `export STATE_DESCRIPTIONS` - item implementation
 - `export STATE_TONES` - item implementation
 - `export SUPPORTED_PROMPT_OUTPUT_LANGUAGES` - item implementation
-- `export createInitialProgressMap` - item implementation
+- `export createInitialProgressMap` - Auto-retry configuration for language-detector initializa...
+
+### ai-model-setup/event-handlers.ts
+**Purpose**: 3 exports
+
+**Exports**:
+- `export createProgressHandler` - item implementation
+- `export createRefreshAfterRun` - item implementation
+- `export handleRunDiagnostics` - item implementation
+
+### ai-model-setup/hooks/useLanguageDetectorAutoRetry.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export useLanguageDetectorAutoRetry` - Auto-retry hook for language-detector model initialization
+
+### ai-model-setup/hooks/useModelStatusSubscription.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export useModelStatusSubscription` - item implementation
+
+### ai-model-setup/hooks/useSetupStateSubscription.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export useSetupStateSubscription` - item implementation
 
 ### ai-model-setup/main.tsx
 **Purpose**: React app entry point for AI model onboarding flow
 
 *No exports found*
+
+### ai-model-setup/setup-handlers.ts
+**Purpose**: 4 exports
+
+**Exports**:
+- `export handleSetupError` - item implementation
+- `export recordSetupCompletion` - item implementation
+- `export startModelSetup` - item implementation
+- `export isAbortError` - item implementation
 
 ### ai-model-setup/types.ts
 **Purpose**: 4 exports
@@ -363,7 +451,7 @@ content.ts # Content script for page context extraction and messaging
 - `export StatusSnapshot` - item implementation
 
 ### ai-model-setup/utils.ts
-**Purpose**: 11 exports
+**Purpose**: 13 exports
 
 **Exports**:
 - `export computeProgressPercent` - item implementation
@@ -372,6 +460,8 @@ content.ts # Content script for page context extraction and messaging
 - `export formatRefreshSummary` - item implementation
 - `export formatRelativeTime` - item implementation
 - `export isAbortError` - item implementation
+- `export isInitializationPending` - item implementation
+- `export isReady` - item implementation
 - `export isUserActivationIssue` - item implementation
 - `export resolveModelAction` - item implementation
 - `export resolveSetupErrorMessage` - item implementation
@@ -1150,6 +1240,12 @@ Renders pages ...
 **Exports**:
 - `export CloudAiSection` - item implementation
 
+### settings/components/LocalAiModelSection.tsx
+**Purpose**: Local AI Models section Displays AI model status and provides access to model setup page Only visible when local AI processing is enabled (auto or local mode)
+
+**Exports**:
+- `export LocalAiModelSection` - item implementation
+
 ### settings/components/ProcessingPreferences.tsx
 **Purpose**: Per-file-type processing preferences
 
@@ -1558,6 +1654,24 @@ Each provider (local or cl...
 - `export refreshAiModelStatuses` - item implementation
 - `export subscribeAiModelStatuses` - item implementation
 
+### shared/integrations/chrome-ai/model-status/download-handlers/language-detector.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export ensureLanguageDetectorReady` - item implementation
+
+### shared/integrations/chrome-ai/model-status/download-handlers/language-model.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export ensureLanguageModelReady` - item implementation
+
+### shared/integrations/chrome-ai/model-status/download-handlers/summarizer.ts
+**Purpose**: 1 export
+
+**Exports**:
+- `export ensureSummarizerReady` - item implementation
+
 ### shared/integrations/chrome-ai/model-status/status-cache.ts
 **Purpose**: 5 exports
 
@@ -1622,6 +1736,15 @@ Each provider (local or cl...
 - `export throwIfAborted` - item implementation
 - `export wrapMonitor` - item implementation
 
+### shared/integrations/chrome-ai/model-status/watchdog-manager.ts
+**Purpose**: 4 exports
+
+**Exports**:
+- `export DOWNLOAD_OVERALL_TIMEOUT_MS` - Timeout configuration for AI model downloads and processing.
+- `export DOWNLOAD_STALL_TIMEOUT_MS` - Timeout configuration for AI model downloads and processing
+- `export PROCESSING_TIMEOUT_MS` - Timeout configuration for AI model downloads and processing.
+- `export runWithAvailabilityWatchdog` - item implementation
+
 ### shared/integrations/chrome-ai/setup-state.ts
 **Purpose**: 8 exports
 
@@ -1636,7 +1759,7 @@ Each provider (local or cl...
 - `export subscribeAiModelSetupState` - item implementation
 
 ### shared/integrations/chrome-ai/telemetry.ts
-**Purpose**: 9 exports
+**Purpose**: 10 exports
 
 **Exports**:
 - `export AiModelTelemetryState` - item implementation
@@ -1644,6 +1767,7 @@ Each provider (local or cl...
 - `export recordAiModelDownloadComplete` - item implementation
 - `export recordAiModelDownloadStart` - item implementation
 - `export recordAiModelError` - item implementation
+- `export recordAiModelProcessingPhaseStart` - item implementation
 - `export recordAiModelStatusTransition` - item implementation
 - `export recordAiPipelineBlocked` - item implementation
 - `export recordAiPipelineRouted` - item implementation
@@ -2369,6 +2493,16 @@ W...
 - `export sanitizeAndQuote` - Sanitizes and wraps text in quotes for structured prompt ...
 - `export sanitizeForPrompt` - Sanitizes text for safe inclusion in AI prompts
 - `export sanitizeUrl` - Sanitizes URL for prompt inclusion with additional URL-sp...
+
+### shared/utils/retry.ts
+**Purpose**: 5 exports
+
+**Exports**:
+- `export RetryWithBackoffOptions` - Options for retry with backoff
+- `export BackoffStrategy` - Backoff strategy types for retry logic
+- `export retryWithBackoff` - Retries an async operation with configurable backoff stra...
+- `export retryWithExponentialBackoff` - Retries an operation with exponential backoff using prede...
+- `export retryWithLinearBackoff` - Retries an operation with simple linear backoff
 
 ### shared/utils/tab-eligibility.ts
 **Purpose**: Utility helpers for checking tab eligibility for content script injection.
