@@ -2,7 +2,7 @@ import ArrowPathIcon from '@heroicons/react/24/outline/ArrowPathIcon';
 import BoltIcon from '@heroicons/react/24/outline/BoltIcon';
 import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
-import type { JSX } from 'react';
+import { type JSX, useEffect, useState } from 'react';
 import type { AiModelStatus } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import { MODEL_LABELS, STATE_DESCRIPTIONS, STATE_TONES } from '../constants';
 import { type DownloadETAInfo, useDownloadETA } from '../hooks/useDownloadETA';
@@ -12,6 +12,11 @@ import {
   resolveModelAction,
   resolveStaleBadge,
 } from '../utils';
+import { PROCESSING_THRESHOLD_PERCENT } from '../utils/download-constants';
+import { buildProgressMessage } from '../utils/progress-message-formatter';
+
+// Threshold for detecting stalled downloads: Chrome reports "downloading" but no progress events for 1 minute
+const STALLED_DETECTION_THRESHOLD_MS = 60_000;
 
 interface ModelStatusCardProps {
   status: AiModelStatus;
@@ -71,6 +76,31 @@ export function ModelStatusCard({
     showGauge,
   );
 
+  // Detect stalled downloads: Chrome reports "downloading" but no progress events
+  const [isStalled, setIsStalled] = useState(false);
+  const isCurrentlyStalled =
+    status.state === 'downloading' && !progress.started;
+
+  useEffect(() => {
+    if (!isCurrentlyStalled) {
+      setIsStalled(false);
+      return;
+    }
+
+    // Set a timer to mark as stalled after threshold
+    const timer = setTimeout(() => {
+      setIsStalled(true);
+    }, STALLED_DETECTION_THRESHOLD_MS);
+
+    return () => clearTimeout(timer);
+  }, [isCurrentlyStalled]);
+
+  // Show stalled warning instead of stale label when detected
+  const displayLabel =
+    isStalled && isCurrentlyStalled
+      ? 'Download may be stuck - try canceling and retrying'
+      : staleLabel;
+
   return (
     <div className={`rounded-xl border bg-white/90 p-4 shadow-sm ${tone}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -94,9 +124,15 @@ export function ModelStatusCard({
             </p>
           ) : null}
         </div>
-        {staleLabel ? (
-          <span className="inline-flex items-center rounded-full bg-default-100 px-2.5 py-1 text-[11px] font-medium text-default-500">
-            {staleLabel}
+        {displayLabel ? (
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ${
+              isStalled && isCurrentlyStalled
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-default-100 text-default-500'
+            }`}
+          >
+            {displayLabel}
           </span>
         ) : null}
       </div>
@@ -160,55 +196,22 @@ function ProgressBar({
   const isProcessing =
     availability === 'processing' || availability === 'after-download';
 
+  // Check if download appears complete but not yet marked as processing
+  // This happens when progress stops at high percentage (e.g., 92%) before Chrome reports processing status
+  const isWaitingForProcessing =
+    !isProcessing &&
+    percent != null &&
+    percent >= PROCESSING_THRESHOLD_PERCENT &&
+    etaInfo.eta === null;
+
   const { eta, elapsedTime, isSlowNetwork } = etaInfo;
-
-  // Format ETA message with slow network context
-  const formatEtaMessage = (etaText: string): string => {
-    if (!isSlowNetwork) return etaText;
-
-    // Convert "~X min left" to "At least X min"
-    const match = etaText.match(/~(\d+)\s+(min|sec)\s+left/);
-    if (match) {
-      const [, amount, unit] = match;
-      return `At least ${amount} ${unit}`;
-    }
-    return etaText;
-  };
-
-  // Build progress message with slow network warning inline
-  const buildProgressMessage = (
-    percentText: string | null,
-    etaText: string | null,
-    elapsedText: string | null,
-  ): string => {
-    const parts: string[] = [];
-
-    if (percentText != null) parts.push(`${percentText}%`);
-
-    const formattedEta = etaText ? formatEtaMessage(etaText) : null;
-    if (formattedEta) {
-      if (isSlowNetwork) {
-        parts.push(`(${formattedEta}, but with slow network can be longer`);
-        if (elapsedText) parts.push(`, ${elapsedText} elapsed)`);
-        else parts.push(')');
-      } else {
-        if (elapsedText)
-          parts.push(`(${formattedEta}, ${elapsedText} elapsed)`);
-        else parts.push(`(${formattedEta})`);
-      }
-    } else if (elapsedText) {
-      parts.push(`(${elapsedText} elapsed)`);
-    }
-
-    return parts.join(' ');
-  };
 
   return (
     <div className="mt-3">
       <div className="h-2 w-full overflow-hidden rounded-full bg-default-200">
         <div
           className={`h-full rounded-full bg-primary transition-all ${
-            isProcessing ? 'animate-pulse' : ''
+            isProcessing || isWaitingForProcessing ? 'animate-pulse' : ''
           }`}
           style={{ width: `${percent ?? 15}%` }}
         />
@@ -217,31 +220,42 @@ function ProgressBar({
         <p className="mt-1 text-xs text-default-500">
           Download complete. Chrome is extracting and loading the model…
         </p>
+      ) : isWaitingForProcessing ? (
+        <p className="mt-1 text-xs text-default-500">
+          {percent}% - Download complete, preparing installation…
+          {elapsedTime ? ` (${elapsedTime} elapsed)` : ''}
+        </p>
       ) : percent != null && eta != null && elapsedTime != null ? (
         <p
           className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}
         >
-          {buildProgressMessage(String(percent), eta, elapsedTime)}
+          {buildProgressMessage(
+            String(percent),
+            eta,
+            elapsedTime,
+            isSlowNetwork,
+          )}
         </p>
       ) : percent != null && eta != null ? (
         <p
           className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}
         >
-          {buildProgressMessage(String(percent), eta, null)}
+          {buildProgressMessage(String(percent), eta, null, isSlowNetwork)}
         </p>
       ) : percent != null ? (
-        <p className="mt-1 text-xs text-default-500">{percent}%</p>
+        <p className="mt-1 text-xs text-default-500">Downloading… {percent}%</p>
       ) : eta != null && elapsedTime != null ? (
         <p
           className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}
         >
-          Downloading… {buildProgressMessage(null, eta, elapsedTime)}
+          Downloading…{' '}
+          {buildProgressMessage(null, eta, elapsedTime, isSlowNetwork)}
         </p>
       ) : eta != null ? (
         <p
           className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}
         >
-          Downloading… {buildProgressMessage(null, eta, null)}
+          Downloading… {buildProgressMessage(null, eta, null, isSlowNetwork)}
         </p>
       ) : (
         <p className="mt-1 text-xs text-default-500">

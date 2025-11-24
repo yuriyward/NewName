@@ -20,9 +20,9 @@ describe('resolveModelAction', () => {
       expect(result).toEqual({ label: 'Grab this model', tone: 'primary' });
     });
 
-    it('returns "Resume download" for downloading state', () => {
+    it('returns "Retry download" for downloading state', () => {
       const result = resolveModelAction('downloading');
-      expect(result).toEqual({ label: 'Resume download', tone: 'primary' });
+      expect(result).toEqual({ label: 'Retry download', tone: 'primary' });
     });
 
     it('returns "Try again" for error state', () => {
@@ -61,13 +61,13 @@ describe('resolveModelAction', () => {
 
       const result = resolveModelAction('downloading', progress);
 
-      expect(result).toEqual({ label: 'Resume download', tone: 'primary' });
+      expect(result).toEqual({ label: 'Retry download', tone: 'primary' });
     });
 
     it('follows normal downloading flow when progress is undefined', () => {
       const result = resolveModelAction('downloading', undefined);
 
-      expect(result).toEqual({ label: 'Resume download', tone: 'primary' });
+      expect(result).toEqual({ label: 'Retry download', tone: 'primary' });
     });
 
     it('handles race condition when other models complete causing false "downloading" state', () => {
@@ -87,7 +87,7 @@ describe('resolveModelAction', () => {
   });
 
   describe('race condition handling: Download started but status slipped back to downloadable', () => {
-    it('returns "Resume download" when downloadable but user already started', () => {
+    it('returns "Retry download" when downloadable but user already started', () => {
       const progress: ModelProgress = {
         started: true,
         completed: false,
@@ -95,7 +95,7 @@ describe('resolveModelAction', () => {
 
       const result = resolveModelAction('downloadable', progress);
 
-      expect(result).toEqual({ label: 'Resume download', tone: 'primary' });
+      expect(result).toEqual({ label: 'Retry download', tone: 'primary' });
     });
 
     it('returns "Grab this model" when downloadable and not started', () => {
@@ -126,8 +126,8 @@ describe('resolveModelAction', () => {
 
       const result = resolveModelAction('downloadable', progress);
 
-      // Should keep CTA as "Resume download" to maintain user experience
-      expect(result).toEqual({ label: 'Resume download', tone: 'primary' });
+      // Should keep CTA as "Retry download" to maintain user experience
+      expect(result).toEqual({ label: 'Retry download', tone: 'primary' });
     });
 
     it('returns normal downloadable action when download already completed', () => {
@@ -138,7 +138,7 @@ describe('resolveModelAction', () => {
 
       const result = resolveModelAction('downloadable', progress);
 
-      // Completed downloads shouldn't show "Resume" - fall through to normal downloadable
+      // Completed downloads shouldn't show "Retry" - fall through to normal downloadable
       expect(result).toEqual({ label: 'Grab this model', tone: 'primary' });
     });
   });
@@ -152,7 +152,7 @@ describe('resolveModelAction', () => {
 
       const result = resolveModelAction('downloading', progress);
 
-      expect(result).toEqual({ label: 'Resume download', tone: 'primary' });
+      expect(result).toEqual({ label: 'Retry download', tone: 'primary' });
     });
 
     it('handles progress with loaded/total bytes', () => {
@@ -165,7 +165,7 @@ describe('resolveModelAction', () => {
 
       const result = resolveModelAction('downloading', progress);
 
-      expect(result).toEqual({ label: 'Resume download', tone: 'primary' });
+      expect(result).toEqual({ label: 'Retry download', tone: 'primary' });
     });
 
     it('handles progress with error', () => {
@@ -205,7 +205,7 @@ describe('resolveModelAction', () => {
 
       const result = resolveModelAction('downloading', progressModelB);
 
-      // Should show "Grab this model" not "Resume download"
+      // Should show "Grab this model" not "Retry download"
       expect(result).toEqual({ label: 'Grab this model', tone: 'primary' });
     });
 
@@ -221,8 +221,8 @@ describe('resolveModelAction', () => {
 
       const result = resolveModelAction('downloadable', progress);
 
-      // Should keep showing "Resume download" to maintain continuity
-      expect(result).toEqual({ label: 'Resume download', tone: 'primary' });
+      // Should keep showing "Retry download" to maintain continuity
+      expect(result).toEqual({ label: 'Retry download', tone: 'primary' });
     });
 
     it('handles rapid state transitions during simultaneous model downloads', () => {
@@ -240,12 +240,12 @@ describe('resolveModelAction', () => {
         {
           state: 'downloadable',
           progress: { started: true, completed: false },
-          expected: 'Resume download',
+          expected: 'Retry download',
         },
         {
           state: 'downloading',
           progress: { started: true, completed: false },
-          expected: 'Resume download',
+          expected: 'Retry download',
         },
       ];
 

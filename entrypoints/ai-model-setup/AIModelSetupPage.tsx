@@ -111,20 +111,23 @@ export function AIModelSetupPage(): JSX.Element {
     setCancelled(false);
     setShowSuccessPrompt(false);
     setCompletedAt(null);
-    // Preserve progress state if download was already in progress (resume scenario)
-    // Only reset to false for fresh downloads
-    setProgress((previous) => {
-      const existing = previous[modelId];
-      const isResume = existing?.started && !existing?.completed;
-      return {
-        ...previous,
-        [modelId]: isResume
-          ? { ...existing, error: undefined, errorCode: undefined }
-          : { started: false, completed: false },
-      };
-    });
+    // Always reset progress to 0% when retrying
+    // Chrome AI doesn't support resuming - it always restarts from beginning
+    setProgress((previous) => ({
+      ...previous,
+      [modelId]: { started: false, completed: false },
+    }));
     setStoredLastError(null);
     void clearAiModelSetupError();
+
+    // Clear any stale in-flight download cache to ensure fresh progress monitoring
+    // This fixes the stuck-download bug after page refresh where old promises
+    // were reused without attaching new progress monitors
+    // Clear ALL cache entries for this model ID, regardless of options configuration
+    const { clearInFlightPreparation } = await import(
+      '@/entrypoints/shared/integrations/chrome-ai/model-status/status-preparation'
+    );
+    clearInFlightPreparation([modelId]);
 
     const controller = new AbortController();
     setAbortController(controller);
