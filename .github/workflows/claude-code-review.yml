@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write  # Required to post PR comments
       issues: read
       id-token: write
       actions: read
@@ -110,7 +110,7 @@ jobs:
             5) How to operate
             - Use `gh pr diff/view` for diffs/context.
             - If present, read .claude/ci/verify.log and note failures with likely fixes.
-            - Post a single PR comment with your full review using `gh pr comment`.
+            - **IMPORTANT: You MUST post your complete review as a PR comment using `gh pr comment` with your Bash tool. This is required.**
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://docs.claude.com/en/docs/claude-code/sdk#command-line for available options

@@ -10,6 +10,7 @@ const MIN_SAMPLES_FOR_DYNAMIC_ETA = 3;
 const MAX_SAMPLES = 5;
 const BYTES_PER_MB = 1024 * 1024;
 const MIN_RATE_THRESHOLD = 0.01 * BYTES_PER_MB; // 10 KB/s minimum rate
+const MAX_REASONABLE_ETA_SECONDS = 3600; // 1 hour - fall back to static if ETA exceeds this
 
 /**
  * Custom hook for calculating dynamic download ETA with fallback to static estimates.
@@ -19,6 +20,8 @@ const MIN_RATE_THRESHOLD = 0.01 * BYTES_PER_MB; // 10 KB/s minimum rate
  * - Calculates download rate using moving average
  * - Computes remaining time based on rate and bytes remaining
  * - Falls back to static MODEL_ETA when calculation is unreliable
+ * - Validates loaded < total to prevent negative ETA from API inconsistencies
+ * - Validates ETA is reasonable (< 1 hour) to avoid displaying unrealistic values
  *
  * @param loaded - Bytes downloaded so far
  * @param total - Total bytes to download
@@ -46,6 +49,14 @@ export function useDownloadETA(
     // Need both loaded and total for calculation
     if (loaded === undefined || total === undefined || total === 0) {
       // Fall back to static ETA
+      const staticEta = MODEL_ETA[modelId as keyof typeof MODEL_ETA];
+      setEta(staticEta || null);
+      return;
+    }
+
+    // Prevent negative ETA if loaded >= total (API inconsistencies or bugs)
+    if (loaded >= total) {
+      // Fall back to static ETA when download appears complete or inconsistent
       const staticEta = MODEL_ETA[modelId as keyof typeof MODEL_ETA];
       setEta(staticEta || null);
       return;
@@ -94,6 +105,13 @@ export function useDownloadETA(
     // Calculate remaining time
     const remaining = total - loaded;
     const secondsRemaining = remaining / rate;
+
+    // Fall back to static if ETA is unrealistically large (very slow download)
+    if (secondsRemaining > MAX_REASONABLE_ETA_SECONDS) {
+      const staticEta = MODEL_ETA[modelId as keyof typeof MODEL_ETA];
+      setEta(staticEta || null);
+      return;
+    }
 
     // Format as minutes or seconds
     let formattedEta: string;
