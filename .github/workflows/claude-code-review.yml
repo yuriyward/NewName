@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write  # Required to post PR comments
       issues: read
       id-token: write
       actions: read
@@ -83,6 +83,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}  # Required when workflow file differs from default branch
           prompt: |
             Objective: Deliver a high-signal code review that captures intent and business value.
 
@@ -110,7 +111,7 @@ jobs:
             5) How to operate
             - Use `gh pr diff/view` for diffs/context.
             - If present, read .claude/ci/verify.log and note failures with likely fixes.
-            - Post a single PR comment with your full review using `gh pr comment`.
+            - **IMPORTANT: You MUST post your complete review as a PR comment using `gh pr comment` with your Bash tool. This is required.**
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://docs.claude.com/en/docs/claude-code/sdk#command-line for available options

@@ -5,6 +5,7 @@ import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import type { JSX } from 'react';
 import type { AiModelStatus } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import { MODEL_LABELS, STATE_DESCRIPTIONS, STATE_TONES } from '../constants';
+import { type DownloadETAInfo, useDownloadETA } from '../hooks/useDownloadETA';
 import type { ModelProgress } from '../types';
 import {
   computeProgressPercent,
@@ -63,6 +64,12 @@ export function ModelStatusCard({
       : 'inline-flex items-center justify-center rounded-full border border-default-200 px-3 py-1.5 text-xs font-medium text-default-600 transition hover:border-default-300 hover:text-default-700 disabled:cursor-not-allowed disabled:border-default-200 disabled:text-default-400';
   const showActions = showStartButton || isActive;
   const staleLabel = resolveStaleBadge(status, lastUpdated, now);
+  const etaInfo = useDownloadETA(
+    progress.loaded,
+    progress.total,
+    status.id,
+    showGauge,
+  );
 
   return (
     <div className={`rounded-xl border bg-white/90 p-4 shadow-sm ${tone}`}>
@@ -95,7 +102,11 @@ export function ModelStatusCard({
       </div>
 
       {showGauge ? (
-        <ProgressBar percent={percent} availability={status.availability} />
+        <ProgressBar
+          percent={percent}
+          availability={status.availability}
+          etaInfo={etaInfo}
+        />
       ) : status.state === 'available' || progress.completed ? (
         <div className="mt-3 inline-flex items-center gap-1 rounded-full bg-success-100 px-3 py-1 text-xs font-medium text-success-700">
           <CheckCircleIcon className="h-4 w-4" />
@@ -139,13 +150,58 @@ export function ModelStatusCard({
 function ProgressBar({
   percent,
   availability,
+  etaInfo,
 }: {
   percent: number | null;
   availability?: string;
+  etaInfo: DownloadETAInfo;
 }): JSX.Element {
   // Check if Chrome is in post-download processing phase
   const isProcessing =
     availability === 'processing' || availability === 'after-download';
+
+  const { eta, elapsedTime, isSlowNetwork } = etaInfo;
+
+  // Format ETA message with slow network context
+  const formatEtaMessage = (etaText: string): string => {
+    if (!isSlowNetwork) return etaText;
+
+    // Convert "~X min left" to "At least X min"
+    const match = etaText.match(/~(\d+)\s+(min|sec)\s+left/);
+    if (match) {
+      const [, amount, unit] = match;
+      return `At least ${amount} ${unit}`;
+    }
+    return etaText;
+  };
+
+  // Build progress message with slow network warning inline
+  const buildProgressMessage = (
+    percentText: string | null,
+    etaText: string | null,
+    elapsedText: string | null,
+  ): string => {
+    const parts: string[] = [];
+
+    if (percentText != null) parts.push(`${percentText}%`);
+
+    const formattedEta = etaText ? formatEtaMessage(etaText) : null;
+    if (formattedEta) {
+      if (isSlowNetwork) {
+        parts.push(`(${formattedEta}, but with slow network can be longer`);
+        if (elapsedText) parts.push(`, ${elapsedText} elapsed)`);
+        else parts.push(')');
+      } else {
+        if (elapsedText)
+          parts.push(`(${formattedEta}, ${elapsedText} elapsed)`);
+        else parts.push(`(${formattedEta})`);
+      }
+    } else if (elapsedText) {
+      parts.push(`(${elapsedText} elapsed)`);
+    }
+
+    return parts.join(' ');
+  };
 
   return (
     <div className="mt-3">
@@ -161,8 +217,32 @@ function ProgressBar({
         <p className="mt-1 text-xs text-default-500">
           Download complete. Chrome is extracting and loading the model…
         </p>
+      ) : percent != null && eta != null && elapsedTime != null ? (
+        <p
+          className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}
+        >
+          {buildProgressMessage(String(percent), eta, elapsedTime)}
+        </p>
+      ) : percent != null && eta != null ? (
+        <p
+          className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}
+        >
+          {buildProgressMessage(String(percent), eta, null)}
+        </p>
       ) : percent != null ? (
         <p className="mt-1 text-xs text-default-500">{percent}%</p>
+      ) : eta != null && elapsedTime != null ? (
+        <p
+          className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}
+        >
+          Downloading… {buildProgressMessage(null, eta, elapsedTime)}
+        </p>
+      ) : eta != null ? (
+        <p
+          className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}
+        >
+          Downloading… {buildProgressMessage(null, eta, null)}
+        </p>
       ) : (
         <p className="mt-1 text-xs text-default-500">
           Downloading… keep this tab focused.

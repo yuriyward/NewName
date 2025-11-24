@@ -62,16 +62,24 @@ describe('emitStatus', () => {
   });
 
   it('ignores entries without any visible tabs', async () => {
-    await emitStatus(
-      {
-        proposal,
-        visibleOnTabs: new Set(),
-      },
-      'dismissed',
-      'No tabs',
-    );
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
 
-    expect(sendConfirmToastStatus).not.toHaveBeenCalled();
+    try {
+      await emitStatus(
+        {
+          proposal,
+          visibleOnTabs: new Set(),
+        },
+        'dismissed',
+        'No tabs',
+      );
+
+      expect(sendConfirmToastStatus).not.toHaveBeenCalled();
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
   });
 
   it('continues broadcasting when a tab send fails', async () => {
