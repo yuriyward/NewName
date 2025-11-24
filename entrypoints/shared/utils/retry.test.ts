@@ -1,4 +1,12 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import {
   retryWithBackoff,
   retryWithExponentialBackoff,
@@ -6,7 +14,29 @@ import {
 } from './retry';
 
 describe('retryWithBackoff', () => {
-  afterEach(() => {});
+  let mockConsoleLog: ReturnType<typeof vi.spyOn> | undefined;
+  let mockConsoleWarn: ReturnType<typeof vi.spyOn> | undefined;
+  let mockConsoleError: ReturnType<typeof vi.spyOn> | undefined;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockConsoleLog?.mockRestore();
+    mockConsoleWarn?.mockRestore();
+    mockConsoleError?.mockRestore();
+    mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockConsoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterAll(() => {
+    mockConsoleLog?.mockRestore();
+    mockConsoleWarn?.mockRestore();
+    mockConsoleError?.mockRestore();
+  });
 
   describe('success cases', () => {
     it('returns result immediately on first success', async () => {
@@ -271,6 +301,30 @@ describe('retryWithBackoff', () => {
 });
 
 describe('retryWithLinearBackoff', () => {
+  let mockConsoleLog: ReturnType<typeof vi.spyOn> | undefined;
+  let mockConsoleWarn: ReturnType<typeof vi.spyOn> | undefined;
+  let mockConsoleError: ReturnType<typeof vi.spyOn> | undefined;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockConsoleLog?.mockRestore();
+    mockConsoleWarn?.mockRestore();
+    mockConsoleError?.mockRestore();
+    mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockConsoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterAll(() => {
+    mockConsoleLog?.mockRestore();
+    mockConsoleWarn?.mockRestore();
+    mockConsoleError?.mockRestore();
+  });
+
   it('applies linear backoff correctly', async () => {
     const delays: number[] = [];
     const operation = vi.fn().mockImplementation(async () => {
@@ -299,6 +353,30 @@ describe('retryWithLinearBackoff', () => {
 });
 
 describe('retryWithExponentialBackoff', () => {
+  let mockConsoleLog: ReturnType<typeof vi.spyOn> | undefined;
+  let mockConsoleWarn: ReturnType<typeof vi.spyOn> | undefined;
+  let mockConsoleError: ReturnType<typeof vi.spyOn> | undefined;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockConsoleLog?.mockRestore();
+    mockConsoleWarn?.mockRestore();
+    mockConsoleError?.mockRestore();
+    mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
+    mockConsoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterAll(() => {
+    mockConsoleLog?.mockRestore();
+    mockConsoleWarn?.mockRestore();
+    mockConsoleError?.mockRestore();
+  });
+
   it('applies exponential backoff correctly', async () => {
     const delays: number[] = [];
     const operation = vi.fn().mockImplementation(async () => {

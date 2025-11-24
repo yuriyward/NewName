@@ -1,8 +1,6 @@
-import { recordAiModelProcessingPhaseStart } from '../telemetry';
-import type {
-  ChromeLanguageModelCreateOptions,
-  ChromeSummarizerOptions,
-} from '../types';
+import { ensureLanguageDetectorReady } from './download-handlers/language-detector';
+import { ensureLanguageModelReady } from './download-handlers/language-model';
+import { ensureSummarizerReady } from './download-handlers/summarizer';
 import {
   ensureCacheLoaded,
   persistStatusForId,
@@ -13,37 +11,19 @@ import type {
   AiModelId,
   AiModelStatusMap,
   EnsureAiModelsOptions,
-  RefreshAiModelOptions,
 } from './status-types';
 import {
   buildStatus,
   cloneStatusMap,
   deriveErrorCode,
   deriveErrorMessage,
-  ensureUserActivation,
   isAbortError,
-  resolveExpectedInputs,
-  resolveExpectedOutputs,
-  resolveLanguageDetectorCtor,
-  resolveLanguageModelCtor,
-  resolveOutputLanguage,
-  resolveSummarizerCtor,
-  resolveSummarizerInputLanguages,
   safeEmit,
   serializeIoDescriptor,
   throwIfAborted,
-  wrapMonitor,
 } from './status-utils';
 
 const inFlightPreparations = new Map<string, Promise<AiModelStatusMap>>();
-
-/**
- * Timeout configuration for AI model downloads and processing.
- * These are exported to allow testing and configuration overrides.
- */
-export const DOWNLOAD_STALL_TIMEOUT_MS = 60_000; // 1 minute inactivity watchdog for Chrome model downloads
-export const DOWNLOAD_OVERALL_TIMEOUT_MS = 10 * 60_000; // 10 minute hard cap for download phase
-export const PROCESSING_TIMEOUT_MS = 5 * 60_000; // 5 minute timeout for post-download processing phase
 
 export async function ensureModelsReady(
   ids: readonly AiModelId[],
@@ -251,134 +231,6 @@ async function triggerModelDownload(
   }
 }
 
-async function ensureLanguageModelReady(
-  options: EnsureAiModelsOptions,
-): Promise<void> {
-  const ctor = resolveLanguageModelCtor();
-  if (!ctor?.create) {
-    throw new Error('LanguageModel API unavailable');
-  }
-
-  throwIfAborted(options.signal);
-  ensureUserActivation('language-model');
-
-  const outputLanguage = resolveOutputLanguage(options.languageModel);
-
-  const expectedInputs = resolveExpectedInputs(
-    options.languageModel?.expectedInputs,
-    outputLanguage,
-  );
-  const expectedOutputs = resolveExpectedOutputs(
-    options.languageModel?.expectedOutputs,
-    outputLanguage,
-  );
-
-  await runWithAvailabilityWatchdog(
-    'language-model',
-    options,
-    async (kickWatchdog) => {
-      const createOptions: ChromeLanguageModelCreateOptions = {
-        signal: options.signal,
-        monitor: wrapMonitor(
-          'language-model',
-          options.onProgress,
-          kickWatchdog,
-        ),
-        systemPrompt: options.languageModel?.systemPrompt,
-        initialPrompts: options.languageModel?.initialPrompts,
-        expectedInputs,
-        expectedOutputs,
-        outputLanguage,
-      };
-
-      const session = await ctor.create(createOptions);
-      try {
-        session.destroy?.();
-      } catch (_error) {
-        // Best effort cleanup; ignore errors.
-      }
-    },
-    { languageModel: options.languageModel, summarizer: options.summarizer },
-  );
-}
-
-async function ensureSummarizerReady(
-  options: EnsureAiModelsOptions,
-): Promise<void> {
-  const ctor = resolveSummarizerCtor();
-  if (!ctor?.create) {
-    throw new Error('Summarizer API unavailable');
-  }
-
-  throwIfAborted(options.signal);
-  ensureUserActivation('summarizer');
-
-  const outputLanguage =
-    options.summarizer?.outputLanguage ??
-    options.languageModel?.outputLanguage ??
-    'en';
-  const expectedInputLanguages = resolveSummarizerInputLanguages(
-    options.summarizer?.expectedInputLanguages,
-    outputLanguage,
-  );
-
-  await runWithAvailabilityWatchdog(
-    'summarizer',
-    options,
-    async (kickWatchdog) => {
-      const createOptions: ChromeSummarizerOptions = {
-        ...options.summarizer,
-        type: options.summarizer?.type ?? 'key-points',
-        format: options.summarizer?.format ?? 'markdown',
-        length: options.summarizer?.length ?? 'short',
-        expectedInputLanguages,
-        outputLanguage,
-        monitor: wrapMonitor('summarizer', options.onProgress, kickWatchdog),
-      };
-
-      const summarizer = await ctor.create(createOptions);
-      try {
-        summarizer.destroy?.();
-      } catch (_error) {
-        // Ignore cleanup errors.
-      }
-    },
-    { summarizer: options.summarizer },
-  );
-}
-
-async function ensureLanguageDetectorReady(
-  options: EnsureAiModelsOptions,
-): Promise<void> {
-  const ctor = resolveLanguageDetectorCtor();
-  if (!ctor?.create) {
-    throw new Error('LanguageDetector API unavailable');
-  }
-
-  throwIfAborted(options.signal);
-  ensureUserActivation('language-detector');
-
-  await runWithAvailabilityWatchdog(
-    'language-detector',
-    options,
-    async (kickWatchdog) => {
-      const detector = await ctor.create({
-        monitor: wrapMonitor(
-          'language-detector',
-          options.onProgress,
-          kickWatchdog,
-        ),
-      });
-      try {
-        detector.destroy?.();
-      } catch (_error) {
-        // Ignore cleanup errors.
-      }
-    },
-    {},
-  );
-}
-
 export function createPreparationKey(
   ids: readonly AiModelId[],
   options: EnsureAiModelsOptions,
@@ -404,114 +256,4 @@ export function createPreparationKey(
       ),
     },
   });
-}
-
-type AvailabilityProbeOptions = Pick<
-  RefreshAiModelOptions,
-  'languageModel' | 'summarizer'
->;
-
-async function runWithAvailabilityWatchdog(
-  id: AiModelId,
-  options: EnsureAiModelsOptions,
-  action: (kickWatchdog: () => void) => Promise<void>,
-  probeOptions: AvailabilityProbeOptions,
-): Promise<void> {
-  const timeoutMs = options.downloadTimeoutMs ?? DOWNLOAD_STALL_TIMEOUT_MS;
-  const overallTimeoutMs =
-    options.downloadOverallTimeoutMs ?? DOWNLOAD_OVERALL_TIMEOUT_MS;
-  const startTime = Date.now();
-
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const { signal } = options;
-
-  let watchdogResolve: (() => void) | null = null;
-  let watchdogReject: ((reason?: unknown) => void) | null = null;
-  let downloadCompletedAt: number | null = null; // Track when download phase completes
-
-  const armWatchdog = (): void => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(async () => {
-      try {
-        const refreshed = await refreshAiModelStatus(id, {
-          ...probeOptions,
-          force: true,
-        });
-        if (refreshed.state === 'available') {
-          watchdogResolve?.();
-          return;
-        }
-
-        const elapsed = Date.now() - startTime;
-
-        // Check if Chrome is in post-download processing phase
-        // Chrome reports 'processing' or 'after-download' when extracting/loading the model
-        const isProcessing =
-          refreshed.availability === 'processing' ||
-          refreshed.availability === 'after-download';
-
-        // Track when we transition from downloading to processing
-        if (isProcessing && !downloadCompletedAt) {
-          downloadCompletedAt = Date.now();
-          recordAiModelProcessingPhaseStart(id);
-        }
-
-        const stillDownloading = refreshed.state === 'downloading';
-        const stillPending = stillDownloading || isProcessing;
-
-        // Use different timeouts for download vs processing phase
-        const effectiveTimeout = downloadCompletedAt
-          ? PROCESSING_TIMEOUT_MS // 5 minutes for processing
-          : overallTimeoutMs; // 10 minutes for download
-
-        if (stillPending && elapsed < effectiveTimeout) {
-          armWatchdog();
-          return;
-        }
-
-        // Provide phase-specific error messages
-        watchdogReject?.(
-          new DOMException(
-            downloadCompletedAt
-              ? `Model processing for ${id} timed out. Chrome may still be extracting the model. Try refreshing the page or restarting Chrome.`
-              : `Download for ${id} stalled. Please click the button again to resume.`,
-            'TimeoutError',
-          ),
-        );
-      } catch (error) {
-        watchdogReject?.(error);
-      }
-    }, timeoutMs);
-  };
-
-  const abortPromise = new Promise<never>((_, reject) => {
-    if (!signal) return;
-    if (signal.aborted) {
-      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
-      return;
-    }
-    const abortHandler = (): void => {
-      reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
-    };
-    signal.addEventListener('abort', abortHandler, { once: true });
-    // Cleanup happens in the finally block below.
-  });
-
-  const watchdogPromise = new Promise<void>((resolve, reject) => {
-    watchdogResolve = resolve;
-    watchdogReject = reject;
-  });
-
-  // Start the watchdog immediately so totally-stuck downloads still time out.
-  armWatchdog();
-
-  const kickWatchdog = (): void => {
-    armWatchdog();
-  };
-
-  try {
-    await Promise.race([action(kickWatchdog), abortPromise, watchdogPromise]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
 }
