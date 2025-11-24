@@ -257,3 +257,19 @@ export function createPreparationKey(
     },
   });
 }
+
+/**
+ * Clears in-flight preparation cache for the specified models.
+ * This forces a fresh download attempt with new progress monitoring,
+ * useful when retrying after a failed or stalled download.
+ *
+ * @param ids - Model IDs to clear from cache
+ * @param options - Options used to build the preparation key
+ */
+export function clearInFlightPreparation(
+  ids: readonly AiModelId[],
+  options: EnsureAiModelsOptions,
+): void {
+  const key = createPreparationKey(ids, options);
+  inFlightPreparations.delete(key);
+}

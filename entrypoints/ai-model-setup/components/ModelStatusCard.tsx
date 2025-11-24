@@ -2,7 +2,7 @@ import ArrowPathIcon from '@heroicons/react/24/outline/ArrowPathIcon';
 import BoltIcon from '@heroicons/react/24/outline/BoltIcon';
 import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
-import type { JSX } from 'react';
+import { type JSX, useEffect, useState } from 'react';
 import type { AiModelStatus } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import { MODEL_LABELS, STATE_DESCRIPTIONS, STATE_TONES } from '../constants';
 import { type DownloadETAInfo, useDownloadETA } from '../hooks/useDownloadETA';
@@ -14,6 +14,9 @@ import {
 } from '../utils';
 import { PROCESSING_THRESHOLD_PERCENT } from '../utils/download-constants';
 import { buildProgressMessage } from '../utils/progress-message-formatter';
+
+// Threshold for detecting stalled downloads: Chrome reports "downloading" but no progress events for 1 minute
+const STALLED_DETECTION_THRESHOLD_MS = 60_000;
 
 interface ModelStatusCardProps {
   status: AiModelStatus;
@@ -73,6 +76,31 @@ export function ModelStatusCard({
     showGauge,
   );
 
+  // Detect stalled downloads: Chrome reports "downloading" but no progress events
+  const [isStalled, setIsStalled] = useState(false);
+  const isCurrentlyStalled =
+    status.state === 'downloading' && !progress.started;
+
+  useEffect(() => {
+    if (!isCurrentlyStalled) {
+      setIsStalled(false);
+      return;
+    }
+
+    // Set a timer to mark as stalled after threshold
+    const timer = setTimeout(() => {
+      setIsStalled(true);
+    }, STALLED_DETECTION_THRESHOLD_MS);
+
+    return () => clearTimeout(timer);
+  }, [isCurrentlyStalled]);
+
+  // Show stalled warning instead of stale label when detected
+  const displayLabel =
+    isStalled && isCurrentlyStalled
+      ? 'Download may be stuck - try canceling and retrying'
+      : staleLabel;
+
   return (
     <div className={`rounded-xl border bg-white/90 p-4 shadow-sm ${tone}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -96,9 +124,15 @@ export function ModelStatusCard({
             </p>
           ) : null}
         </div>
-        {staleLabel ? (
-          <span className="inline-flex items-center rounded-full bg-default-100 px-2.5 py-1 text-[11px] font-medium text-default-500">
-            {staleLabel}
+        {displayLabel ? (
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ${
+              isStalled && isCurrentlyStalled
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-default-100 text-default-500'
+            }`}
+          >
+            {displayLabel}
           </span>
         ) : null}
       </div>

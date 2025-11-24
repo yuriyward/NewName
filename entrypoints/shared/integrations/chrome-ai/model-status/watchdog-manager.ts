@@ -13,7 +13,8 @@ import type {
 export const DOWNLOAD_STALL_TIMEOUT_MS = 60_000; // 1 minute inactivity watchdog for active Chrome model downloads
 export const DOWNLOAD_NEAR_COMPLETE_TIMEOUT_MS = 10 * 60_000; // 10 minute timeout for download completion transition (90%+ to processing)
 export const DOWNLOAD_OVERALL_TIMEOUT_MS = 30 * 60_000; // 30 minute inactivity timeout for download phase (resets on each progress update)
-export const PROCESSING_TIMEOUT_MS = 5 * 60_000; // 5 minute timeout for post-download processing phase
+export const DOWNLOAD_ZERO_PROGRESS_TIMEOUT_MS = 5 * 60_000; // 5 minute timeout when download never sends any progress events (stuck state)
+export const PROCESSING_TIMEOUT_MS = 10 * 60_000; // 10 minute timeout for post-download processing phase (installation can be slow)
 
 type AvailabilityProbeOptions = Pick<
   RefreshAiModelOptions,
@@ -99,14 +100,17 @@ export async function runWithAvailabilityWatchdog(
           hasSeenProgress; // Have seen progress (not stuck from the start)
 
         // Use different timeouts based on phase:
-        // 1. Processing phase: 5 min absolute timeout
-        // 2. Near-complete phase (90%+ download waiting for Chrome): 10 min inactivity
-        // 3. Active download phase: 30 min inactivity timeout
+        // 1. Processing phase: 10 min absolute timeout (installation can be slow)
+        // 2. Zero-progress stuck downloads: 5 min timeout (never started sending progress)
+        // 3. Near-complete phase (90%+ download waiting for Chrome): 10 min inactivity
+        // 4. Active download phase: 30 min inactivity timeout
         const effectiveTimeout = downloadCompletedAt
-          ? PROCESSING_TIMEOUT_MS // 5 minutes for processing
-          : isNearComplete
-            ? DOWNLOAD_NEAR_COMPLETE_TIMEOUT_MS // 10 minutes for near-complete transition
-            : overallTimeoutMs; // 30 minutes inactivity for active download
+          ? PROCESSING_TIMEOUT_MS // 10 minutes for processing
+          : stillDownloading && !hasSeenProgress
+            ? DOWNLOAD_ZERO_PROGRESS_TIMEOUT_MS // 5 minutes for stuck downloads
+            : isNearComplete
+              ? DOWNLOAD_NEAR_COMPLETE_TIMEOUT_MS // 10 minutes for near-complete transition
+              : overallTimeoutMs; // 30 minutes inactivity for active download
 
         if (stillPending && inactivityTime < effectiveTimeout) {
           armWatchdog();
@@ -118,9 +122,11 @@ export async function runWithAvailabilityWatchdog(
           new DOMException(
             downloadCompletedAt
               ? `Model processing for ${id} timed out. Chrome may still be extracting the model. Try refreshing the page or restarting Chrome.`
-              : isNearComplete
-                ? `Download for ${id} appears complete but Chrome hasn't started processing. Try clicking the button again or refresh the page.`
-                : `Download for ${id} stalled. Retry will restart the download from the beginning.`,
+              : stillDownloading && !hasSeenProgress
+                ? `Download for ${id} failed to start sending progress updates. Try canceling and clicking the button again, or refresh the page.`
+                : isNearComplete
+                  ? `Download for ${id} appears complete but Chrome hasn't started processing. Try clicking the button again or refresh the page.`
+                  : `Download for ${id} stalled. Retry will restart the download from the beginning.`,
             'TimeoutError',
           ),
         );
