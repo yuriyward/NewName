@@ -11,22 +11,22 @@ describe('clearInFlightPreparation', () => {
   });
 
   it('can be called without throwing', () => {
-    const options: EnsureAiModelsOptions = {
-      signal: new AbortController().signal,
-    };
     expect(() => {
-      clearInFlightPreparation(['language-model'], options);
+      clearInFlightPreparation(['language-model']);
     }).not.toThrow();
   });
 
   it('can be called multiple times safely', () => {
-    const options: EnsureAiModelsOptions = {
-      signal: new AbortController().signal,
-    };
     expect(() => {
-      clearInFlightPreparation(['language-model'], options);
-      clearInFlightPreparation(['language-model'], options);
-      clearInFlightPreparation(['summarizer'], options);
+      clearInFlightPreparation(['language-model']);
+      clearInFlightPreparation(['language-model']);
+      clearInFlightPreparation(['summarizer']);
+    }).not.toThrow();
+  });
+
+  it('can clear multiple model IDs at once', () => {
+    expect(() => {
+      clearInFlightPreparation(['language-model', 'summarizer']);
     }).not.toThrow();
   });
 

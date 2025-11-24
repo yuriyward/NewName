@@ -259,17 +259,33 @@ export function createPreparationKey(
 }
 
 /**
- * Clears in-flight preparation cache for the specified models.
+ * Clears all in-flight preparation cache entries for the specified models.
  * This forces a fresh download attempt with new progress monitoring,
  * useful when retrying after a failed or stalled download.
  *
+ * Unlike the previous implementation, this clears ALL cache entries that include
+ * the specified model IDs, regardless of the options configuration. This is necessary
+ * because cache keys include complex options (summarizer, languageModel config) that
+ * vary between calls, and we need to ensure the cache is fully cleared for retry.
+ *
  * @param ids - Model IDs to clear from cache
- * @param options - Options used to build the preparation key
  */
-export function clearInFlightPreparation(
-  ids: readonly AiModelId[],
-  options: EnsureAiModelsOptions,
-): void {
-  const key = createPreparationKey(ids, options);
-  inFlightPreparations.delete(key);
+export function clearInFlightPreparation(ids: readonly AiModelId[]): void {
+  // Collect all keys that include any of the specified model IDs
+  const keysToDelete: string[] = [];
+
+  for (const [key] of inFlightPreparations) {
+    try {
+      const keyData = JSON.parse(key);
+      // Check if any of the target IDs are in this cache entry's ID list
+      if (ids.some((id) => keyData.ids?.includes(id))) {
+        keysToDelete.push(key);
+      }
+    } catch {}
+  }
+
+  // Delete all matching entries
+  for (const key of keysToDelete) {
+    inFlightPreparations.delete(key);
+  }
 }

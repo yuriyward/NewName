@@ -123,12 +123,13 @@ export function AIModelSetupPage(): JSX.Element {
     // Clear any stale in-flight download cache to ensure fresh progress monitoring
     // This fixes the stuck-download bug after page refresh where old promises
     // were reused without attaching new progress monitors
+    // Clear ALL cache entries for this model ID, regardless of options configuration
     const { clearInFlightPreparation } = await import(
       '@/entrypoints/shared/integrations/chrome-ai/model-status/status-preparation'
     );
-    const controller = new AbortController();
-    clearInFlightPreparation([modelId], { signal: controller.signal });
+    clearInFlightPreparation([modelId]);
 
+    const controller = new AbortController();
     setAbortController(controller);
     setActiveModelId(modelId);
 
