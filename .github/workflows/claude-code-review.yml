@@ -83,6 +83,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}  # Required when workflow file differs from default branch
           prompt: |
             Objective: Deliver a high-signal code review that captures intent and business value.
 
