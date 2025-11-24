@@ -162,6 +162,47 @@ function ProgressBar({
 
   const { eta, elapsedTime, isSlowNetwork } = etaInfo;
 
+  // Format ETA message with slow network context
+  const formatEtaMessage = (etaText: string): string => {
+    if (!isSlowNetwork) return etaText;
+
+    // Convert "~X min left" to "At least X min"
+    const match = etaText.match(/~(\d+)\s+(min|sec)\s+left/);
+    if (match) {
+      const [, amount, unit] = match;
+      return `At least ${amount} ${unit}`;
+    }
+    return etaText;
+  };
+
+  // Build progress message with slow network warning inline
+  const buildProgressMessage = (
+    percentText: string | null,
+    etaText: string | null,
+    elapsedText: string | null,
+  ): string => {
+    const parts: string[] = [];
+
+    if (percentText != null) parts.push(`${percentText}%`);
+
+    const formattedEta = etaText ? formatEtaMessage(etaText) : null;
+    if (formattedEta) {
+      if (isSlowNetwork) {
+        parts.push(`(${formattedEta}, but with slow network can be longer`);
+        if (elapsedText) parts.push(`, ${elapsedText} elapsed)`);
+        else parts.push(')');
+      } else {
+        if (elapsedText)
+          parts.push(`(${formattedEta}, ${elapsedText} elapsed)`);
+        else parts.push(`(${formattedEta})`);
+      }
+    } else if (elapsedText) {
+      parts.push(`(${elapsedText} elapsed)`);
+    }
+
+    return parts.join(' ');
+  };
+
   return (
     <div className="mt-3">
       <div className="h-2 w-full overflow-hidden rounded-full bg-default-200">
@@ -177,49 +218,31 @@ function ProgressBar({
           Download complete. Chrome is extracting and loading the model…
         </p>
       ) : percent != null && eta != null && elapsedTime != null ? (
-        <div className="mt-1 space-y-0.5">
-          <p className="text-xs text-default-500">
-            {percent}% ({eta}, {elapsedTime} elapsed)
-          </p>
-          {isSlowNetwork ? (
-            <p className="text-xs text-amber-600">
-              Slow network detected - download continuing
-            </p>
-          ) : null}
-        </div>
+        <p
+          className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}
+        >
+          {buildProgressMessage(String(percent), eta, elapsedTime)}
+        </p>
       ) : percent != null && eta != null ? (
-        <div className="mt-1 space-y-0.5">
-          <p className="text-xs text-default-500">
-            {percent}% ({eta})
-          </p>
-          {isSlowNetwork ? (
-            <p className="text-xs text-amber-600">
-              Slow network detected - download continuing
-            </p>
-          ) : null}
-        </div>
+        <p
+          className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}
+        >
+          {buildProgressMessage(String(percent), eta, null)}
+        </p>
       ) : percent != null ? (
         <p className="mt-1 text-xs text-default-500">{percent}%</p>
       ) : eta != null && elapsedTime != null ? (
-        <div className="mt-1 space-y-0.5">
-          <p className="text-xs text-default-500">
-            Downloading… {eta} ({elapsedTime} elapsed)
-          </p>
-          {isSlowNetwork ? (
-            <p className="text-xs text-amber-600">
-              Slow network detected - download continuing
-            </p>
-          ) : null}
-        </div>
+        <p
+          className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}
+        >
+          Downloading… {buildProgressMessage(null, eta, elapsedTime)}
+        </p>
       ) : eta != null ? (
-        <div className="mt-1 space-y-0.5">
-          <p className="text-xs text-default-500">Downloading… {eta}</p>
-          {isSlowNetwork ? (
-            <p className="text-xs text-amber-600">
-              Slow network detected - download continuing
-            </p>
-          ) : null}
-        </div>
+        <p
+          className={`mt-1 text-xs ${isSlowNetwork ? 'text-amber-600' : 'text-default-500'}`}
+        >
+          Downloading… {buildProgressMessage(null, eta, null)}
+        </p>
       ) : (
         <p className="mt-1 text-xs text-default-500">
           Downloading… keep this tab focused.
