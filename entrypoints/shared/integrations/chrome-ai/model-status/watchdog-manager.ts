@@ -11,7 +11,7 @@ import type {
  * These are exported to allow testing and configuration overrides.
  */
 export const DOWNLOAD_STALL_TIMEOUT_MS = 60_000; // 1 minute inactivity watchdog for Chrome model downloads
-export const DOWNLOAD_OVERALL_TIMEOUT_MS = 30 * 60_000; // 30 minute hard cap for download phase (increased for slow networks)
+export const DOWNLOAD_OVERALL_TIMEOUT_MS = 30 * 60_000; // 30 minute inactivity timeout for download phase (resets on each progress update)
 export const PROCESSING_TIMEOUT_MS = 5 * 60_000; // 5 minute timeout for post-download processing phase
 
 type AvailabilityProbeOptions = Pick<
@@ -28,7 +28,6 @@ export async function runWithAvailabilityWatchdog(
   const timeoutMs = options.downloadTimeoutMs ?? DOWNLOAD_STALL_TIMEOUT_MS;
   const overallTimeoutMs =
     options.downloadOverallTimeoutMs ?? DOWNLOAD_OVERALL_TIMEOUT_MS;
-  const startTime = Date.now();
 
   let timer: ReturnType<typeof setTimeout> | null = null;
   const { signal } = options;
@@ -36,9 +35,13 @@ export async function runWithAvailabilityWatchdog(
   let watchdogResolve: (() => void) | null = null;
   let watchdogReject: ((reason?: unknown) => void) | null = null;
   let downloadCompletedAt: number | null = null; // Track when download phase completes
+  let lastUpdateTime = Date.now(); // Track last activity time for inactivity-based timeout
 
   const armWatchdog = (): void => {
     if (timer) clearTimeout(timer);
+    // Reset last update time on each arm - this is called on progress updates
+    lastUpdateTime = Date.now();
+
     timer = setTimeout(async () => {
       try {
         const refreshed = await refreshAiModelStatus(id, {
@@ -50,7 +53,8 @@ export async function runWithAvailabilityWatchdog(
           return;
         }
 
-        const elapsed = Date.now() - startTime;
+        // Calculate inactivity time (time since last update)
+        const inactivityTime = Date.now() - lastUpdateTime;
 
         // Check if Chrome is in post-download processing phase
         // Chrome reports 'processing' or 'after-download' when extracting/loading the model
@@ -68,11 +72,13 @@ export async function runWithAvailabilityWatchdog(
         const stillPending = stillDownloading || isProcessing;
 
         // Use different timeouts for download vs processing phase
+        // For download phase, use inactivity-based timeout (30 min from last update)
+        // For processing phase, use a shorter absolute timeout (5 min)
         const effectiveTimeout = downloadCompletedAt
           ? PROCESSING_TIMEOUT_MS // 5 minutes for processing
-          : overallTimeoutMs; // 10 minutes for download
+          : overallTimeoutMs; // 30 minutes inactivity for download
 
-        if (stillPending && elapsed < effectiveTimeout) {
+        if (stillPending && inactivityTime < effectiveTimeout) {
           armWatchdog();
           return;
         }
