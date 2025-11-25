@@ -101,7 +101,9 @@ function App(): JSX.Element {
     aiStatusChecked &&
     !!aiStatuses &&
     aiBlockingModels.length > 0 &&
-    !aiSetupCompletedAt;
+    !aiSetupCompletedAt &&
+    // Only show if user needs local models (auto or local mode, not cloud-only)
+    processingMode !== 'cloud';
 
   const handleOpenAiSetup = useCallback(async () => {
     try {

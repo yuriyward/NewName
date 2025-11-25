@@ -5,6 +5,7 @@ import { EyeIcon, EyeSlashIcon } from '@heroicons/react/16/solid';
 import { Button } from '@heroui/button';
 import { Card } from '@heroui/card';
 import { Checkbox } from '@heroui/checkbox';
+import { Chip } from '@heroui/chip';
 import { Input } from '@heroui/input';
 import { Link } from '@heroui/link';
 import {
@@ -15,7 +16,8 @@ import {
   ModalHeader,
 } from '@heroui/modal';
 import { Select, SelectItem } from '@heroui/select';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { testCloudConnection } from '@/entrypoints/shared/integrations/ai-provider/cloud-connection-test';
 import type {
   CloudModel,
   CloudSettings,
@@ -32,6 +34,11 @@ export function CloudAiSection({
 }: CloudAiSectionProps) {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showConsent, setShowConsent] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    status: 'success' | 'error' | null;
+    message?: string;
+  }>({ status: null });
 
   const handleEnableToggle = (enabled: boolean) => {
     if (enabled && !cloudSettings.consentGiven) {
@@ -48,6 +55,66 @@ export function CloudAiSection({
       consentTimestamp: Date.now(),
     });
     setShowConsent(false);
+  };
+
+  // Clear test result when API key or model changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: We intentionally want to re-run when these values change
+  useEffect(() => {
+    setTestResult({ status: null });
+  }, [cloudSettings.apiKey, cloudSettings.model]);
+
+  const handleTestConnection = async () => {
+    if (!cloudSettings.apiKey) {
+      setTestResult({
+        status: 'error',
+        message: 'Please enter an API key first',
+      });
+      return;
+    }
+
+    // Check format before making API call with specific error messages
+    const trimmedKey = cloudSettings.apiKey.trim();
+    if (!trimmedKey.startsWith('AIza')) {
+      setTestResult({
+        status: 'error',
+        message: 'API key should start with "AIza"',
+      });
+      return;
+    }
+
+    if (trimmedKey.length < 35 || trimmedKey.length > 45) {
+      setTestResult({
+        status: 'error',
+        message: `API key length should be 35-45 characters (got ${trimmedKey.length})`,
+      });
+      return;
+    }
+
+    setTesting(true);
+    setTestResult({ status: null });
+
+    const result = await testCloudConnection(
+      cloudSettings.apiKey,
+      cloudSettings.model,
+    );
+
+    setTesting(false);
+    setTestResult({
+      status: result.success ? 'success' : 'error',
+      message: result.success ? 'Connection successful!' : result.error,
+    });
+
+    // Store test result in settings
+    if (result.success) {
+      onUpdate({
+        lastTestTimestamp: Date.now(),
+        lastTestSuccess: true,
+      });
+    } else {
+      onUpdate({
+        lastTestSuccess: false,
+      });
+    }
   };
 
   return (
@@ -128,6 +195,28 @@ export function CloudAiSection({
               </SelectItem>
               <SelectItem key="gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
             </Select>
+
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="flat"
+                onPress={handleTestConnection}
+                isDisabled={!cloudSettings.apiKey || testing}
+                isLoading={testing}
+              >
+                Test Connection
+              </Button>
+
+              {testResult.status && (
+                <Chip
+                  color={testResult.status === 'success' ? 'success' : 'danger'}
+                  variant="flat"
+                  size="sm"
+                >
+                  {testResult.message}
+                </Chip>
+              )}
+            </div>
           </>
         )}
       </Card>

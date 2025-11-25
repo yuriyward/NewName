@@ -70,6 +70,10 @@ export interface CloudSettings {
   consentGiven: boolean;
   /** Timestamp when consent was given (null if never consented) */
   consentTimestamp: number | null;
+  /** Timestamp of last successful connection test (milliseconds since epoch) */
+  lastTestTimestamp?: number;
+  /** Result of last connection test (true = success, false = failure, undefined = never tested) */
+  lastTestSuccess?: boolean;
 }
 
 export interface ProcessingPreferences {

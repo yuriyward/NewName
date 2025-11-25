@@ -17,7 +17,7 @@ import {
   storeDirectoryHandle,
   updateLastVerified,
 } from '@/entrypoints/shared/filesystem/handle-storage';
-import { ensureLocalAiSetup } from '@/entrypoints/shared/integrations/chrome-ai/ensure-local-ai-setup';
+import { navigateAfterDownloadsSetup } from '@/entrypoints/shared/onboarding/onboarding-navigation';
 import {
   markOnboardingAwaitingPersistent,
   markOnboardingCompleted,
@@ -258,8 +258,8 @@ export function DownloadsPermissionPage(): JSX.Element {
         parentDirectoryName: handle.name,
       });
 
-      // Check if local AI setup is needed and open setup page if necessary
-      void ensureLocalAiSetup();
+      // Navigate to AI mode selection (new users) or AI setup (existing users)
+      void navigateAfterDownloadsSetup();
     } catch (err) {
       debugLogger.error(
         '[DownloadsPermissionPage] Restoring saved access failed',

@@ -88,6 +88,41 @@ export function isTheme(value: unknown): value is Theme {
   return value === 'light' || value === 'dark';
 }
 
+/**
+ * Validates Gemini API key format.
+ *
+ * Gemini API keys follow a specific pattern:
+ * - Start with "AIza"
+ * - Typically 39 characters long
+ *
+ * This is a format check only - it does not verify that the key is valid
+ * or has appropriate permissions. Use testCloudConnection() for that.
+ *
+ * @param apiKey - API key to validate
+ * @returns true if format appears valid, false otherwise
+ *
+ * @example
+ * ```ts
+ * if (!validateGeminiApiKeyFormat(apiKey)) {
+ *   return { error: 'API key format is invalid' };
+ * }
+ * ```
+ */
+export function validateGeminiApiKeyFormat(apiKey: string | null): boolean {
+  if (!apiKey || typeof apiKey !== 'string') {
+    return false;
+  }
+
+  // Trim whitespace
+  const trimmed = apiKey.trim();
+
+  // Check format: starts with "AIza" and has reasonable length
+  const startsCorrectly = trimmed.startsWith('AIza');
+  const hasReasonableLength = trimmed.length >= 35 && trimmed.length <= 45;
+
+  return startsCorrectly && hasReasonableLength;
+}
+
 export function sanitizePerType(
   input: PartialPerType | undefined,
 ): Settings['perType'] {
@@ -154,6 +189,14 @@ export function sanitizeCloudSettings(
       input?.consentTimestamp === null
         ? input.consentTimestamp
         : defaults.consentTimestamp,
+    lastTestTimestamp:
+      typeof input?.lastTestTimestamp === 'number'
+        ? input.lastTestTimestamp
+        : undefined,
+    lastTestSuccess:
+      typeof input?.lastTestSuccess === 'boolean'
+        ? input.lastTestSuccess
+        : undefined,
   };
 }
 

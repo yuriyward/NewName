@@ -6,6 +6,12 @@ import { getStorageAdapter } from '@/entrypoints/shared/settings/storage-state';
 const ONBOARDING_STORAGE_KEY = 'local:onboarding-state.v1';
 
 /**
+ * Only new installs after this date see AI mode selection screen.
+ * Existing users (installed before this date) skip the selection screen.
+ */
+export const AI_MODE_SELECTION_FEATURE_DATE = new Date('2025-11-25').getTime();
+
+/**
  * Two-step onboarding flow for Downloads access:
  * 1. pending → awaiting-persistent once the user picks a directory and Chrome needs a new tab
  *    to request persistent permission.
@@ -26,6 +32,7 @@ export interface OnboardingState {
   completedAt?: number;
   skippedAt?: number;
   awaitingPersistentAt?: number;
+  aiModeSelected?: boolean;
 }
 
 const DEFAULT_STATE: OnboardingState = {
@@ -56,26 +63,35 @@ async function readState(): Promise<OnboardingState> {
       (await getStorageAdapter().getItem<OnboardingState>(
         ONBOARDING_STORAGE_KEY,
       )) ?? DEFAULT_STATE;
-    const { status, completedAt, skippedAt, awaitingPersistentAt } = stored;
+    const {
+      status,
+      completedAt,
+      skippedAt,
+      awaitingPersistentAt,
+      aiModeSelected,
+    } = stored;
     if (status === 'completed') {
       return {
         status: 'completed',
         completedAt: completedAt ?? Date.now(),
+        aiModeSelected,
       };
     }
     if (status === 'skipped') {
       return {
         status: 'skipped',
         skippedAt: skippedAt ?? Date.now(),
+        aiModeSelected,
       };
     }
     if (status === 'awaiting-persistent') {
       return {
         status: 'awaiting-persistent',
         awaitingPersistentAt: awaitingPersistentAt ?? Date.now(),
+        aiModeSelected,
       };
     }
-    return DEFAULT_STATE;
+    return { ...DEFAULT_STATE, aiModeSelected };
   } catch {
     return DEFAULT_STATE;
   }
@@ -128,4 +144,21 @@ export async function markOnboardingSkipped(): Promise<void> {
 
 export async function resetOnboardingState(): Promise<void> {
   await writeState(DEFAULT_STATE);
+}
+
+/**
+ * Mark that the user has selected an AI processing mode (local or cloud).
+ * This prevents showing the AI mode selection screen again.
+ */
+export async function markAiModeSelected(): Promise<void> {
+  const current = await readState();
+  await writeState({ ...current, aiModeSelected: true });
+}
+
+/**
+ * Check if the user has already selected an AI processing mode.
+ */
+export async function hasSelectedAiMode(): Promise<boolean> {
+  const state = await readState();
+  return state.aiModeSelected === true;
 }

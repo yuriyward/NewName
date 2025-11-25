@@ -76,6 +76,12 @@ export interface CoreProtocol {
    * Show a non-blocking rename-complete toast in the active tab.
    */
   showRenameToast(payload: ShowRenameToastMessage): { ok: true };
+
+  /**
+   * Get system memory information for AI mode recommendations.
+   * Returns total system RAM in gigabytes.
+   */
+  getSystemMemoryInfo(): Promise<{ totalCapacityGB: number }>;
 }
 
 export async function offscreenHandshake(): Promise<{ ready: true }> {
@@ -155,5 +161,12 @@ export async function requestPendingConfirmToasts(): Promise<{
   proposals: ConfirmToastProposal[];
 }> {
   const result = await sendExtensionMessage('syncConfirmToasts');
+  return await result;
+}
+
+export async function getSystemMemoryInfo(): Promise<{
+  totalCapacityGB: number;
+}> {
+  const result = await sendExtensionMessage('getSystemMemoryInfo');
   return await result;
 }
