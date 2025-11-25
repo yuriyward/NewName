@@ -217,6 +217,34 @@ export async function updateSettings(
   await getStorageAdapter().setItem(SETTINGS_KEY, encrypted);
 }
 
+/**
+ * Atomically disable cloud AI and reset all processing modes to 'local'.
+ * This ensures both updates happen in a single storage write, preventing
+ * race conditions or inconsistent state.
+ */
+export async function disableCloudAndResetProcessingModes(): Promise<void> {
+  const current = await getSettings();
+  const next = sanitizeSettings({
+    ...current,
+    cloud: {
+      ...current.cloud,
+      enabled: false,
+    },
+    processingPreferences: {
+      ...current.processingPreferences,
+      global: 'local',
+      text: 'local',
+      pdf: 'local',
+      image: 'local',
+    },
+  });
+  cache = next;
+
+  // Encrypt API key before storing
+  const encrypted = await encryptSettingsApiKey(next);
+  await getStorageAdapter().setItem(SETTINGS_KEY, encrypted);
+}
+
 export function subscribeSettings(
   listener: (settings: Settings) => void,
 ): () => void {

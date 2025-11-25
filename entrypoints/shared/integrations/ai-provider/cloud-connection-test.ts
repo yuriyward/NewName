@@ -56,8 +56,8 @@ export async function testCloudConnection(
 
     const response = result.text.trim().toUpperCase();
 
-    // Accept any response containing "OK" - model might add punctuation
-    if (response === 'OK' || response.includes('OK')) {
+    // Accept "OK" with optional trailing punctuation (e.g., "OK.", "OK!")
+    if (/^OK[.!?]?$/.test(response)) {
       return { success: true };
     }
 
@@ -66,59 +66,63 @@ export async function testCloudConnection(
       error: 'Unexpected response from API',
     };
   } catch (error) {
-    // Parse common error types for user-friendly messages
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
-    // API key errors
-    if (
-      errorMessage.includes('API_KEY_INVALID') ||
-      errorMessage.includes('API key not valid')
-    ) {
-      return { success: false, error: 'Invalid API key' };
-    }
-
-    // Permission errors
-    if (
-      errorMessage.includes('PERMISSION_DENIED') ||
-      errorMessage.includes('permission')
-    ) {
-      return {
-        success: false,
-        error: 'API key lacks required permissions',
-      };
-    }
-
-    // Quota/rate limit errors
-    if (
-      errorMessage.includes('QUOTA') ||
-      errorMessage.includes('quota') ||
-      errorMessage.includes('RATE_LIMIT') ||
-      errorMessage.includes('rate limit')
-    ) {
-      return { success: false, error: 'API quota exceeded or rate limited' };
-    }
-
-    // Model not found
-    if (
-      errorMessage.includes('MODEL_NOT_FOUND') ||
-      errorMessage.includes('not found')
-    ) {
-      return { success: false, error: 'Model not available for this API key' };
-    }
-
-    // Network errors
-    if (
-      errorMessage.includes('fetch') ||
-      errorMessage.includes('network') ||
-      errorMessage.includes('ECONNREFUSED')
-    ) {
-      return { success: false, error: 'Network connection failed' };
-    }
-
-    // Generic error fallback
-    return {
-      success: false,
-      error: errorMessage || 'Connection test failed',
-    };
+    return { success: false, error: parseCloudApiError(error) };
   }
+}
+
+/**
+ * Error pattern definitions for cloud API error parsing.
+ * Each entry maps known error patterns to user-friendly messages.
+ * Patterns are checked case-insensitively against the error message.
+ */
+const ERROR_PATTERNS: ReadonlyArray<{
+  patterns: readonly string[];
+  message: string;
+}> = [
+  // API key errors
+  {
+    patterns: ['API_KEY_INVALID', 'API key not valid'],
+    message: 'Invalid API key',
+  },
+  // Permission errors
+  {
+    patterns: ['PERMISSION_DENIED', 'permission'],
+    message: 'API key lacks required permissions',
+  },
+  // Quota/rate limit errors
+  {
+    patterns: ['QUOTA', 'quota', 'RATE_LIMIT', 'rate limit'],
+    message: 'API quota exceeded or rate limited',
+  },
+  // Model not found
+  {
+    patterns: ['MODEL_NOT_FOUND', 'not found'],
+    message: 'Model not available for this API key',
+  },
+  // Network errors
+  {
+    patterns: ['fetch', 'network', 'ECONNREFUSED'],
+    message: 'Network connection failed',
+  },
+];
+
+/**
+ * Parses cloud API errors into user-friendly messages.
+ *
+ * Maps known error patterns from the Google AI SDK to descriptive messages.
+ * Falls back to the original error message if no pattern matches.
+ *
+ * @param error - The caught error from the API call
+ * @returns User-friendly error message
+ */
+function parseCloudApiError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+
+  for (const { patterns, message: errorMessage } of ERROR_PATTERNS) {
+    if (patterns.some((p) => message.includes(p))) {
+      return errorMessage;
+    }
+  }
+
+  return message || 'Connection test failed';
 }

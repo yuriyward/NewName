@@ -163,7 +163,6 @@ export function SettingsPage() {
           cloudSettings={settings.cloud}
           processingPreferences={settings.processingPreferences}
           onUpdate={handleCloudUpdate}
-          onProcessingUpdate={handlePreferencesUpdate}
         />
 
         <ProcessingPreferencesSection

@@ -86,16 +86,12 @@ export function AiModeSelectionPage(): JSX.Element {
           ? browser.runtime.getURL('/ai-model-setup.html')
           : browser.runtime.getURL('/settings.html');
 
-      await browser.tabs.create({ url });
+      const newTab = await browser.tabs.create({ url });
 
-      // Close current tab after brief delay
-      setTimeout(() => {
-        try {
-          window.close();
-        } catch {
-          // Tab can't be closed programmatically in some contexts
-        }
-      }, 500);
+      // Close current tab once new tab is successfully created
+      if (newTab.id) {
+        window.close();
+      }
     } catch (error) {
       debugLogger.error('[AiModeSelection] Failed to save choice', { error });
       setState({
@@ -136,14 +132,14 @@ export function AiModeSelectionPage(): JSX.Element {
             meetsRamRequirement={ramGB >= RAM_THRESHOLD_GB}
             onSelect={() => handleChoice('local')}
             disabled={isNavigating || state.status === 'loading'}
-            loading={isNavigating && state.choice === 'local'}
+            loading={state.status === 'navigating' && state.choice === 'local'}
           />
 
           <CloudAiOption
             recommended={recommendation === 'cloud'}
             onSelect={() => handleChoice('cloud')}
             disabled={isNavigating || state.status === 'loading'}
-            loading={isNavigating && state.choice === 'cloud'}
+            loading={state.status === 'navigating' && state.choice === 'cloud'}
           />
         </div>
 

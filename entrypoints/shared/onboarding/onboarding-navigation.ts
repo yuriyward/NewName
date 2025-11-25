@@ -40,7 +40,9 @@ export async function needsAiModeSelection(): Promise<boolean> {
 export async function navigateAfterDownloadsSetup(): Promise<void> {
   if (await needsAiModeSelection()) {
     const url = browser.runtime.getURL(
-      '/ai-mode-selection.html' as '/ai-model-setup.html',
+      '/ai-mode-selection.html' satisfies Parameters<
+        typeof browser.runtime.getURL
+      >[0],
     );
     await browser.tabs.create({ url });
   } else {

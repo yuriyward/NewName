@@ -2,288 +2,228 @@ import { describe, expect, it } from 'vitest';
 import {
   autoCorrectProcessingPreferences,
   canDisableCloud,
+  correctProcessingMode,
   getDisabledReason,
   getValidProcessingModes,
   validateModeChange,
 } from './processing-mode-validator';
 import type { Settings } from './types';
 
-describe('processing-mode-validator', () => {
-  describe('getValidProcessingModes', () => {
-    it('should allow all modes when both cloud and local are ready', () => {
-      const result = getValidProcessingModes(true, true);
-
-      expect(result.auto.isValid).toBe(true);
-      expect(result.auto.disabledReason).toBeUndefined();
-
-      expect(result.local.isValid).toBe(true);
-      expect(result.local.disabledReason).toBeUndefined();
-
-      expect(result.cloud.isValid).toBe(true);
-      expect(result.cloud.disabledReason).toBeUndefined();
+describe('correctProcessingMode', () => {
+  describe('cloud mode corrections', () => {
+    it('returns auto when cloud mode selected but cloud disabled', () => {
+      expect(correctProcessingMode('cloud', false, true)).toBe('auto');
+      expect(correctProcessingMode('cloud', false, false)).toBe('auto');
     });
 
-    it('should disable cloud when cloud is not enabled', () => {
-      const result = getValidProcessingModes(false, true);
-
-      expect(result.cloud.isValid).toBe(false);
-      expect(result.cloud.disabledReason).toContain('disabled');
-    });
-
-    it('should disable auto when neither cloud nor local is ready', () => {
-      const result = getValidProcessingModes(false, false);
-
-      expect(result.auto.isValid).toBe(false);
-      expect(result.auto.disabledReason).toBeDefined();
-    });
-
-    it('should allow local mode even when not ready (requires setup)', () => {
-      const result = getValidProcessingModes(true, false);
-
-      expect(result.local.isValid).toBe(true);
-      expect(result.local.requiresSetup).toBe(true);
-    });
-
-    it('should allow auto when only cloud is ready', () => {
-      const result = getValidProcessingModes(true, false);
-
-      expect(result.auto.isValid).toBe(true);
-    });
-
-    it('should allow auto when only local is ready', () => {
-      const result = getValidProcessingModes(false, true);
-
-      expect(result.auto.isValid).toBe(true);
+    it('keeps cloud mode when cloud is enabled', () => {
+      expect(correctProcessingMode('cloud', true, true)).toBe('cloud');
+      expect(correctProcessingMode('cloud', true, false)).toBe('cloud');
     });
   });
 
-  describe('getDisabledReason', () => {
-    it('should return reason for cloud when disabled', () => {
-      const reason = getDisabledReason('cloud', false, true);
-      expect(reason).toContain('disabled');
+  describe('local mode corrections', () => {
+    it('returns auto when local mode selected but local not ready and cloud available', () => {
+      expect(correctProcessingMode('local', true, false)).toBe('auto');
     });
 
-    it('should return undefined for valid modes', () => {
-      const reason = getDisabledReason('local', true, true);
-      expect(reason).toBeUndefined();
-    });
-  });
-
-  describe('validateModeChange', () => {
-    it('should allow local mode change when local is ready', () => {
-      const result = validateModeChange('local', true, true);
-      expect(result.canProceed).toBe(true);
-      expect(result.requiresSetupModal).toBeUndefined();
+    it('keeps local mode when local is ready', () => {
+      expect(correctProcessingMode('local', true, true)).toBe('local');
+      expect(correctProcessingMode('local', false, true)).toBe('local');
     });
 
-    it('should require setup modal for local when not ready', () => {
-      const result = validateModeChange('local', true, false);
-      expect(result.canProceed).toBe(false);
-      expect(result.requiresSetupModal).toBe(true);
-    });
-
-    it('should require setup modal for auto when local not ready', () => {
-      const result = validateModeChange('auto', true, false);
-      expect(result.canProceed).toBe(false);
-      expect(result.requiresSetupModal).toBe(true);
-    });
-
-    it('should block cloud mode when cloud is disabled', () => {
-      const result = validateModeChange('cloud', false, true);
-      expect(result.canProceed).toBe(false);
-      expect(result.reason).toBeDefined();
-    });
-
-    it('should block auto mode when nothing is available', () => {
-      const result = validateModeChange('auto', false, false);
-      expect(result.canProceed).toBe(false);
-      expect(result.reason).toBeDefined();
-    });
-
-    it('should allow cloud mode when cloud is enabled', () => {
-      const result = validateModeChange('cloud', true, true);
-      expect(result.canProceed).toBe(true);
-    });
-
-    it('should allow auto mode when cloud is enabled even if local not ready', () => {
-      const result = validateModeChange('auto', true, false);
-      // This should show setup modal, not block
-      expect(result.canProceed).toBe(false);
-      expect(result.requiresSetupModal).toBe(true);
+    it('keeps local mode when local not ready but cloud also unavailable', () => {
+      // No fallback available, keep local (will show setup later)
+      expect(correctProcessingMode('local', false, false)).toBe('local');
     });
   });
 
-  describe('canDisableCloud', () => {
-    it('should not require confirmation when no cloud modes are active', () => {
-      const prefs: Settings['processingPreferences'] = {
-        global: 'local',
-        usePerTypeOverrides: false,
-        text: 'local',
-        pdf: 'local',
-        image: 'local',
-      };
-
-      const result = canDisableCloud(prefs);
-      expect(result.canDisable).toBe(true);
-      expect(result.requiresConfirmation).toBe(false);
-      expect(result.affectedModes).toHaveLength(0);
+  describe('auto mode corrections', () => {
+    it('returns local when auto mode selected but nothing available', () => {
+      expect(correctProcessingMode('auto', false, false)).toBe('local');
     });
 
-    it('should require confirmation when global mode is cloud', () => {
-      const prefs: Settings['processingPreferences'] = {
-        global: 'cloud',
-        usePerTypeOverrides: false,
-        text: 'cloud',
-        pdf: 'cloud',
-        image: 'cloud',
-      };
-
-      const result = canDisableCloud(prefs);
-      expect(result.canDisable).toBe(true);
-      expect(result.requiresConfirmation).toBe(true);
-      expect(result.affectedModes).toHaveLength(1);
-      expect(result.affectedModes[0].type).toBe('global');
-      expect(result.affectedModes[0].mode).toBe('cloud');
+    it('keeps auto mode when cloud is available', () => {
+      expect(correctProcessingMode('auto', true, false)).toBe('auto');
+      expect(correctProcessingMode('auto', true, true)).toBe('auto');
     });
 
-    it('should require confirmation when global mode is auto', () => {
-      const prefs: Settings['processingPreferences'] = {
-        global: 'auto',
-        usePerTypeOverrides: false,
-        text: 'auto',
-        pdf: 'auto',
-        image: 'auto',
-      };
-
-      const result = canDisableCloud(prefs);
-      expect(result.canDisable).toBe(true);
-      expect(result.requiresConfirmation).toBe(true);
-      expect(result.affectedModes).toHaveLength(1);
-      expect(result.affectedModes[0].mode).toBe('auto');
+    it('keeps auto mode when local is available', () => {
+      expect(correctProcessingMode('auto', false, true)).toBe('auto');
     });
+  });
+});
 
-    it('should require confirmation when per-type overrides have cloud modes', () => {
-      const prefs: Settings['processingPreferences'] = {
-        global: 'local',
-        usePerTypeOverrides: true,
-        text: 'cloud',
-        pdf: 'auto',
-        image: 'local',
-      };
+describe('getValidProcessingModes', () => {
+  it('marks all modes valid when both cloud and local are available', () => {
+    const result = getValidProcessingModes(true, true);
+    expect(result.auto.isValid).toBe(true);
+    expect(result.local.isValid).toBe(true);
+    expect(result.cloud.isValid).toBe(true);
+  });
 
-      const result = canDisableCloud(prefs);
-      expect(result.canDisable).toBe(true);
-      expect(result.requiresConfirmation).toBe(true);
-      expect(result.affectedModes).toHaveLength(2);
-      expect(result.affectedModes.some((m) => m.type === 'text')).toBe(true);
-      expect(result.affectedModes.some((m) => m.type === 'pdf')).toBe(true);
-    });
+  it('marks cloud invalid when cloud is disabled', () => {
+    const result = getValidProcessingModes(false, true);
+    expect(result.cloud.isValid).toBe(false);
+    expect(result.cloud.disabledReason).toContain('Cloud AI is disabled');
+  });
 
-    it('should not check per-type when overrides are disabled', () => {
-      const prefs: Settings['processingPreferences'] = {
-        global: 'local',
-        usePerTypeOverrides: false,
-        text: 'cloud', // This should be ignored since overrides are disabled
-        pdf: 'auto',
-        image: 'local',
-      };
+  it('marks auto invalid when nothing is available', () => {
+    const result = getValidProcessingModes(false, false);
+    expect(result.auto.isValid).toBe(false);
+    expect(result.auto.disabledReason).toContain(
+      'Requires either cloud AI or local models',
+    );
+  });
 
-      const result = canDisableCloud(prefs);
-      expect(result.requiresConfirmation).toBe(false);
+  it('marks local as requiring setup when local not ready', () => {
+    const result = getValidProcessingModes(true, false);
+    expect(result.local.isValid).toBe(true);
+    expect(result.local.requiresSetup).toBe(true);
+  });
+});
+
+describe('getDisabledReason', () => {
+  it('returns undefined for valid modes', () => {
+    expect(getDisabledReason('auto', true, true)).toBeUndefined();
+    expect(getDisabledReason('local', true, true)).toBeUndefined();
+    expect(getDisabledReason('cloud', true, true)).toBeUndefined();
+  });
+
+  it('returns reason for disabled cloud mode', () => {
+    expect(getDisabledReason('cloud', false, true)).toContain(
+      'Cloud AI is disabled',
+    );
+  });
+});
+
+describe('validateModeChange', () => {
+  it('blocks cloud selection when cloud is disabled', () => {
+    const result = validateModeChange('cloud', false, true);
+    expect(result.canProceed).toBe(false);
+    expect(result.reason).toContain('Cloud AI is disabled');
+  });
+
+  it('blocks auto selection when nothing is available', () => {
+    const result = validateModeChange('auto', false, false);
+    expect(result.canProceed).toBe(false);
+    expect(result.reason).toContain('Auto mode requires');
+  });
+
+  it('requires setup modal for local when local not ready', () => {
+    const result = validateModeChange('local', true, false);
+    expect(result.canProceed).toBe(false);
+    expect(result.requiresSetupModal).toBe(true);
+  });
+
+  it('allows valid mode changes', () => {
+    expect(validateModeChange('cloud', true, true).canProceed).toBe(true);
+    expect(validateModeChange('local', true, true).canProceed).toBe(true);
+    expect(validateModeChange('auto', true, true).canProceed).toBe(true);
+  });
+});
+
+describe('canDisableCloud', () => {
+  const basePreferences: Settings['processingPreferences'] = {
+    global: 'local',
+    text: 'local',
+    pdf: 'local',
+    image: 'local',
+    usePerTypeOverrides: false,
+  };
+
+  it('requires no confirmation when no cloud modes are used', () => {
+    const result = canDisableCloud(basePreferences);
+    expect(result.canDisable).toBe(true);
+    expect(result.requiresConfirmation).toBe(false);
+    expect(result.affectedModes).toHaveLength(0);
+  });
+
+  it('requires confirmation when global mode is cloud', () => {
+    const result = canDisableCloud({ ...basePreferences, global: 'cloud' });
+    expect(result.requiresConfirmation).toBe(true);
+    expect(result.affectedModes).toContainEqual({
+      type: 'global',
+      mode: 'cloud',
     });
   });
 
-  describe('autoCorrectProcessingPreferences', () => {
-    it('should not change preferences when all modes are valid', () => {
-      const prefs: Settings['processingPreferences'] = {
-        global: 'auto',
-        usePerTypeOverrides: false,
-        text: 'auto',
-        pdf: 'auto',
-        image: 'auto',
-      };
-
-      const result = autoCorrectProcessingPreferences(prefs, true, true);
-      expect(result).toEqual(prefs);
+  it('requires confirmation when global mode is auto', () => {
+    const result = canDisableCloud({ ...basePreferences, global: 'auto' });
+    expect(result.requiresConfirmation).toBe(true);
+    expect(result.affectedModes).toContainEqual({
+      type: 'global',
+      mode: 'auto',
     });
+  });
 
-    it('should change cloud to auto when cloud is disabled', () => {
-      const prefs: Settings['processingPreferences'] = {
-        global: 'cloud',
-        usePerTypeOverrides: false,
-        text: 'cloud',
-        pdf: 'cloud',
-        image: 'cloud',
-      };
-
-      const result = autoCorrectProcessingPreferences(prefs, false, true);
-      expect(result.global).toBe('auto');
-      expect(result.text).toBe('auto');
-      expect(result.pdf).toBe('auto');
-      expect(result.image).toBe('auto');
+  it('checks per-type overrides when enabled', () => {
+    const result = canDisableCloud({
+      ...basePreferences,
+      usePerTypeOverrides: true,
+      text: 'cloud',
+      pdf: 'auto',
     });
-
-    it('should change local to auto when local not ready and cloud available', () => {
-      const prefs: Settings['processingPreferences'] = {
-        global: 'local',
-        usePerTypeOverrides: false,
-        text: 'local',
-        pdf: 'local',
-        image: 'local',
-      };
-
-      const result = autoCorrectProcessingPreferences(prefs, true, false);
-      expect(result.global).toBe('auto');
-      expect(result.text).toBe('auto');
-      expect(result.pdf).toBe('auto');
-      expect(result.image).toBe('auto');
+    expect(result.requiresConfirmation).toBe(true);
+    expect(result.affectedModes).toContainEqual({
+      type: 'text',
+      mode: 'cloud',
     });
+    expect(result.affectedModes).toContainEqual({ type: 'pdf', mode: 'auto' });
+  });
+});
 
-    it('should keep local when local not ready but cloud disabled', () => {
-      const prefs: Settings['processingPreferences'] = {
-        global: 'local',
-        usePerTypeOverrides: false,
-        text: 'local',
-        pdf: 'local',
-        image: 'local',
-      };
+describe('autoCorrectProcessingPreferences', () => {
+  const basePreferences: Settings['processingPreferences'] = {
+    global: 'auto',
+    text: 'auto',
+    pdf: 'auto',
+    image: 'auto',
+    usePerTypeOverrides: false,
+  };
 
-      const result = autoCorrectProcessingPreferences(prefs, false, false);
-      // Keep local even if not ready (user will need to set up)
-      expect(result.global).toBe('local');
-    });
+  it('returns unchanged preferences when all constraints satisfied', () => {
+    const result = autoCorrectProcessingPreferences(
+      basePreferences,
+      true,
+      true,
+    );
+    expect(result).toEqual(basePreferences);
+  });
 
-    it('should correct per-type modes when overrides enabled', () => {
-      const prefs: Settings['processingPreferences'] = {
-        global: 'local',
-        usePerTypeOverrides: true,
-        text: 'cloud',
-        pdf: 'local',
-        image: 'auto',
-      };
+  it('corrects global mode and syncs to per-type when overrides disabled', () => {
+    const prefs = { ...basePreferences, global: 'cloud' as const };
+    const result = autoCorrectProcessingPreferences(prefs, false, true);
+    expect(result.global).toBe('auto');
+    expect(result.text).toBe('auto');
+    expect(result.pdf).toBe('auto');
+    expect(result.image).toBe('auto');
+  });
 
-      const result = autoCorrectProcessingPreferences(prefs, false, false);
-      expect(result.global).toBe('local');
-      expect(result.text).toBe('auto'); // cloud → auto when cloud disabled
-      expect(result.pdf).toBe('local'); // stays local
-      expect(result.image).toBe('local'); // auto → local when nothing available
-    });
+  it('corrects per-type modes independently when overrides enabled', () => {
+    const prefs: Settings['processingPreferences'] = {
+      global: 'local',
+      text: 'cloud',
+      pdf: 'local',
+      image: 'auto',
+      usePerTypeOverrides: true,
+    };
+    const result = autoCorrectProcessingPreferences(prefs, false, true);
+    expect(result.global).toBe('local');
+    expect(result.text).toBe('auto'); // cloud → auto (cloud disabled)
+    expect(result.pdf).toBe('local');
+    expect(result.image).toBe('auto');
+  });
 
-    it('should sync all types to global when overrides disabled', () => {
-      const prefs: Settings['processingPreferences'] = {
-        global: 'cloud',
-        usePerTypeOverrides: false,
-        text: 'local',
-        pdf: 'auto',
-        image: 'cloud',
-      };
-
-      const result = autoCorrectProcessingPreferences(prefs, false, true);
-      const correctedGlobal = 'auto'; // cloud → auto when cloud disabled
-      expect(result.global).toBe(correctedGlobal);
-      expect(result.text).toBe(correctedGlobal);
-      expect(result.pdf).toBe(correctedGlobal);
-      expect(result.image).toBe(correctedGlobal);
-    });
+  it('handles nothing available scenario', () => {
+    const result = autoCorrectProcessingPreferences(
+      basePreferences,
+      false,
+      false,
+    );
+    expect(result.global).toBe('local'); // auto → local (nothing available)
+    expect(result.text).toBe('local');
+    expect(result.pdf).toBe('local');
+    expect(result.image).toBe('local');
   });
 });

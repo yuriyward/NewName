@@ -149,6 +149,10 @@ export async function resetOnboardingState(): Promise<void> {
 /**
  * Mark that the user has selected an AI processing mode (local or cloud).
  * This prevents showing the AI mode selection screen again.
+ *
+ * Note: This flag is orthogonal to the permission flow (pending → completed/skipped).
+ * It can be set in any state since it tracks a separate onboarding step
+ * (AI mode selection vs. downloads folder permission).
  */
 export async function markAiModeSelected(): Promise<void> {
   const current = await readState();

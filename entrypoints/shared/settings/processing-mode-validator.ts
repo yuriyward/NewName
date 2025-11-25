@@ -1,6 +1,40 @@
 import type { ProcessingMode, Settings } from './types';
 
 /**
+ * Auto-correct a single processing mode based on current constraints.
+ * Extracted for explicit test coverage and reduced complexity.
+ *
+ * Correction rules:
+ * - Cloud mode with cloud disabled → auto (will degrade to local at runtime)
+ * - Local mode with local not ready but cloud available → auto
+ * - Auto mode with nothing available → local (will show setup later)
+ *
+ * @param mode - The processing mode to correct
+ * @param cloudEnabled - Whether cloud AI is enabled
+ * @param localAiReady - Whether local AI models are ready
+ * @returns The corrected processing mode
+ */
+export function correctProcessingMode(
+  mode: ProcessingMode,
+  cloudEnabled: boolean,
+  localAiReady: boolean,
+): ProcessingMode {
+  if (mode === 'cloud' && !cloudEnabled) {
+    // Cloud mode but cloud disabled → switch to auto (will degrade to local at runtime)
+    return 'auto';
+  }
+  if (mode === 'local' && !localAiReady && cloudEnabled) {
+    // Local mode but local not ready and cloud available → switch to auto
+    return 'auto';
+  }
+  if (mode === 'auto' && !cloudEnabled && !localAiReady) {
+    // Auto mode but nothing available → default to local (will show setup later)
+    return 'local';
+  }
+  return mode;
+}
+
+/**
  * Validation result for a single processing mode option
  */
 export interface ProcessingModeValidation {
@@ -167,8 +201,13 @@ export function canDisableCloud(
 }
 
 /**
- * Auto-correct invalid processing preferences based on current constraints
- * Used during settings sanitization to ensure stored preferences are valid
+ * Auto-correct invalid processing preferences based on current constraints.
+ * Used during settings sanitization to ensure stored preferences are valid.
+ *
+ * @param preferences - The processing preferences to correct
+ * @param cloudEnabled - Whether cloud AI is enabled
+ * @param localAiReady - Whether local AI models are ready
+ * @returns Corrected processing preferences
  */
 export function autoCorrectProcessingPreferences(
   preferences: Settings['processingPreferences'],
@@ -177,31 +216,30 @@ export function autoCorrectProcessingPreferences(
 ): Settings['processingPreferences'] {
   const corrected = { ...preferences };
 
-  // Helper to auto-correct a single mode
-  const correctMode = (mode: ProcessingMode): ProcessingMode => {
-    if (mode === 'cloud' && !cloudEnabled) {
-      // Cloud mode but cloud disabled → switch to auto (will degrade to local at runtime)
-      return 'auto';
-    }
-    if (mode === 'local' && !localAiReady && cloudEnabled) {
-      // Local mode but local not ready and cloud available → switch to auto
-      return 'auto';
-    }
-    if (mode === 'auto' && !cloudEnabled && !localAiReady) {
-      // Auto mode but nothing available → default to local (will show setup later)
-      return 'local';
-    }
-    return mode;
-  };
-
-  // Correct global mode
-  corrected.global = correctMode(preferences.global);
+  // Correct global mode using extracted helper
+  corrected.global = correctProcessingMode(
+    preferences.global,
+    cloudEnabled,
+    localAiReady,
+  );
 
   // Correct per-type modes if overrides enabled
   if (corrected.usePerTypeOverrides) {
-    corrected.text = correctMode(preferences.text);
-    corrected.pdf = correctMode(preferences.pdf);
-    corrected.image = correctMode(preferences.image);
+    corrected.text = correctProcessingMode(
+      preferences.text,
+      cloudEnabled,
+      localAiReady,
+    );
+    corrected.pdf = correctProcessingMode(
+      preferences.pdf,
+      cloudEnabled,
+      localAiReady,
+    );
+    corrected.image = correctProcessingMode(
+      preferences.image,
+      cloudEnabled,
+      localAiReady,
+    );
   } else {
     // Sync all types to global when overrides disabled
     corrected.text = corrected.global;

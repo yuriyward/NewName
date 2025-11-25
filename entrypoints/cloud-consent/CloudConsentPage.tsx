@@ -89,13 +89,11 @@ export function CloudConsentPage(): JSX.Element {
           error,
         });
       } finally {
-        // Give the background a moment to handle the decision, then close tab if possible
+        // Give the background a moment to handle the decision, then close tab
+        // The 600ms delay ensures the background has time to process the decision
+        // before the tab closes, providing a smoother user experience
         setTimeout(() => {
-          try {
-            window.close();
-          } catch {
-            // Ignore failures; user can close tab manually.
-          }
+          window.close();
         }, 600);
       }
     },

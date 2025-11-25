@@ -19,6 +19,7 @@ import { Select, SelectItem } from '@heroui/select';
 import { useEffect, useState } from 'react';
 import { testCloudConnection } from '@/entrypoints/shared/integrations/ai-provider/cloud-connection-test';
 import { canDisableCloud } from '@/entrypoints/shared/settings/processing-mode-validator';
+import { disableCloudAndResetProcessingModes } from '@/entrypoints/shared/settings/settings';
 import type {
   CloudModel,
   CloudSettings,
@@ -29,14 +30,12 @@ interface CloudAiSectionProps {
   cloudSettings: CloudSettings;
   processingPreferences: ProcessingPreferences;
   onUpdate: (settings: Partial<CloudSettings>) => void;
-  onProcessingUpdate: (preferences: Partial<ProcessingPreferences>) => void;
 }
 
 export function CloudAiSection({
   cloudSettings,
   processingPreferences,
   onUpdate,
-  onProcessingUpdate,
 }: CloudAiSectionProps) {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showConsent, setShowConsent] = useState(false);
@@ -75,15 +74,10 @@ export function CloudAiSection({
     setShowConsent(false);
   };
 
-  const handleConfirmDisable = () => {
-    // Disable cloud and switch all modes to 'local'
-    onUpdate({ enabled: false });
-    onProcessingUpdate({
-      global: 'local',
-      text: 'local',
-      pdf: 'local',
-      image: 'local',
-    });
+  const handleConfirmDisable = async () => {
+    // Atomically disable cloud and switch all modes to 'local'
+    // This ensures both updates happen in a single storage write
+    await disableCloudAndResetProcessingModes();
     setShowDisableConfirm(false);
   };
 
