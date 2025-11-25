@@ -9,7 +9,6 @@ import {
 } from '@/entrypoints/shared/settings/settings';
 import { CloudAiOption } from './components/CloudAiOption';
 import { LocalAiOption } from './components/LocalAiOption';
-import { RamRecommendationBadge } from './components/RamRecommendationBadge';
 
 const RAM_THRESHOLD_GB = 16;
 
@@ -115,22 +114,12 @@ export function AiModeSelectionPage(): JSX.Element {
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-primary-50/40 via-transparent to-transparent" />
 
       <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 px-6 py-10">
-        <header className="space-y-3">
+        <header className="space-y-2">
           <p className="text-xs uppercase tracking-wide text-default-400">
             NewName Setup · Step 2 of 3
           </p>
           <h1 className="text-2xl font-semibold">Choose AI processing mode</h1>
-          <p className="text-sm text-default-500">
-            How should NewName analyze your files?
-          </p>
         </header>
-
-        {state.status === 'ready' && (
-          <RamRecommendationBadge
-            ramGB={ramGB}
-            recommendation={recommendation}
-          />
-        )}
 
         {state.status === 'error' && (
           <div className="rounded-2xl border border-danger-200 bg-danger-50/80 p-4">
@@ -143,6 +132,8 @@ export function AiModeSelectionPage(): JSX.Element {
         <div className="grid gap-6 md:grid-cols-2">
           <LocalAiOption
             recommended={recommendation === 'local'}
+            ramGB={ramGB}
+            meetsRamRequirement={ramGB >= RAM_THRESHOLD_GB}
             onSelect={() => handleChoice('local')}
             disabled={isNavigating || state.status === 'loading'}
             loading={isNavigating && state.choice === 'local'}
