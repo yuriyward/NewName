@@ -5,9 +5,22 @@
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import { Button } from '@heroui/button';
 import { Card } from '@heroui/card';
+import {
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+} from '@heroui/modal';
 import { Select, SelectItem } from '@heroui/select';
-import { useState } from 'react';
-import { ensureLocalAiSetup } from '@/entrypoints/shared/integrations/chrome-ai/ensure-local-ai-setup';
+import { Tooltip } from '@heroui/tooltip';
+import { useEffect, useState } from 'react';
+import { browser } from 'wxt/browser';
+import { isLocalAiSetupNeeded } from '@/entrypoints/shared/integrations/chrome-ai/ensure-local-ai-setup';
+import {
+  getDisabledReason,
+  validateModeChange,
+} from '@/entrypoints/shared/settings/processing-mode-validator';
 import type {
   ProcessingMode,
   ProcessingPreferences,
@@ -15,6 +28,7 @@ import type {
 
 interface ProcessingPreferencesProps {
   preferences: ProcessingPreferences;
+  cloudEnabled: boolean;
   onUpdate: (preferences: Partial<ProcessingPreferences>) => void;
 }
 
@@ -42,15 +56,47 @@ const modeOptions: Array<{
 
 export function ProcessingPreferencesSection({
   preferences,
+  cloudEnabled,
   onUpdate,
 }: ProcessingPreferencesProps) {
   const [showPerType, setShowPerType] = useState(
     preferences.usePerTypeOverrides,
   );
+  const [localAiReady, setLocalAiReady] = useState(true); // Optimistic default
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [pendingMode, setPendingMode] = useState<ProcessingMode | null>(null);
+
+  // Check local AI readiness on mount
+  useEffect(() => {
+    void (async () => {
+      try {
+        const needsSetup = await isLocalAiSetupNeeded();
+        setLocalAiReady(!needsSetup);
+      } catch {
+        // If check fails, assume ready to avoid blocking user
+        setLocalAiReady(true);
+      }
+    })();
+  }, []);
 
   const handleGlobalChange = (keys: 'all' | Set<React.Key>) => {
     if (keys === 'all') return;
     const mode = Array.from(keys)[0] as ProcessingMode;
+
+    // Validate the mode change
+    const validation = validateModeChange(mode, cloudEnabled, localAiReady);
+
+    if (!validation.canProceed) {
+      if (validation.requiresSetupModal) {
+        // Show setup modal, save pending mode
+        setPendingMode(mode);
+        setShowSetupModal(true);
+      }
+      // Mode change blocked, don't update
+      return;
+    }
+
+    // Mode change allowed
     onUpdate({
       global: mode,
       // Always sync all types to global when global changes
@@ -58,11 +104,6 @@ export function ProcessingPreferencesSection({
       pdf: mode,
       image: mode,
     });
-
-    // Check if local AI setup is needed when selecting 'local' or 'auto'
-    if (mode === 'local' || mode === 'auto') {
-      void ensureLocalAiSetup();
-    }
   };
 
   const handleTogglePerType = () => {
@@ -84,12 +125,35 @@ export function ProcessingPreferencesSection({
   ) => {
     if (keys === 'all') return;
     const mode = Array.from(keys)[0] as ProcessingMode;
-    onUpdate({ [type]: mode });
 
-    // Check if local AI setup is needed when selecting 'local' or 'auto'
-    if (mode === 'local' || mode === 'auto') {
-      void ensureLocalAiSetup();
+    // Validate the mode change
+    const validation = validateModeChange(mode, cloudEnabled, localAiReady);
+
+    if (!validation.canProceed) {
+      if (validation.requiresSetupModal) {
+        // Show setup modal, save pending mode
+        setPendingMode(mode);
+        setShowSetupModal(true);
+      }
+      // Mode change blocked, don't update
+      return;
     }
+
+    // Mode change allowed
+    onUpdate({ [type]: mode });
+  };
+
+  const handleOpenSetup = async () => {
+    setShowSetupModal(false);
+    // Open setup page
+    await browser.tabs.create({
+      url: browser.runtime.getURL('/ai-model-setup.html'),
+    });
+  };
+
+  const handleCancelSetup = () => {
+    setShowSetupModal(false);
+    setPendingMode(null);
   };
 
   return (
@@ -115,9 +179,31 @@ export function ProcessingPreferencesSection({
             size="sm"
             disallowEmptySelection
           >
-            {modeOptions.map((option) => (
-              <SelectItem key={option.value}>{option.label}</SelectItem>
-            ))}
+            {modeOptions.map((option) => {
+              const disabledReason = getDisabledReason(
+                option.value,
+                cloudEnabled,
+                localAiReady,
+              );
+              const isDisabled = !!disabledReason;
+
+              return (
+                <SelectItem
+                  key={option.value}
+                  isDisabled={isDisabled}
+                  title={isDisabled ? disabledReason : undefined}
+                  textValue={option.label}
+                >
+                  <Tooltip
+                    content={disabledReason}
+                    isDisabled={!isDisabled}
+                    placement="right"
+                  >
+                    <div>{option.label}</div>
+                  </Tooltip>
+                </SelectItem>
+              );
+            })}
           </Select>
         </Card>
 
@@ -162,9 +248,31 @@ export function ProcessingPreferencesSection({
                 disallowEmptySelection
                 isDisabled={!preferences.usePerTypeOverrides}
               >
-                {modeOptions.map((option) => (
-                  <SelectItem key={option.value}>{option.label}</SelectItem>
-                ))}
+                {modeOptions.map((option) => {
+                  const disabledReason = getDisabledReason(
+                    option.value,
+                    cloudEnabled,
+                    localAiReady,
+                  );
+                  const isDisabled = !!disabledReason;
+
+                  return (
+                    <SelectItem
+                      key={option.value}
+                      isDisabled={isDisabled}
+                      title={isDisabled ? disabledReason : undefined}
+                      textValue={option.label}
+                    >
+                      <Tooltip
+                        content={disabledReason}
+                        isDisabled={!isDisabled}
+                        placement="right"
+                      >
+                        <div>{option.label}</div>
+                      </Tooltip>
+                    </SelectItem>
+                  );
+                })}
               </Select>
             </Card>
 
@@ -191,9 +299,31 @@ export function ProcessingPreferencesSection({
                 disallowEmptySelection
                 isDisabled={!preferences.usePerTypeOverrides}
               >
-                {modeOptions.map((option) => (
-                  <SelectItem key={option.value}>{option.label}</SelectItem>
-                ))}
+                {modeOptions.map((option) => {
+                  const disabledReason = getDisabledReason(
+                    option.value,
+                    cloudEnabled,
+                    localAiReady,
+                  );
+                  const isDisabled = !!disabledReason;
+
+                  return (
+                    <SelectItem
+                      key={option.value}
+                      isDisabled={isDisabled}
+                      title={isDisabled ? disabledReason : undefined}
+                      textValue={option.label}
+                    >
+                      <Tooltip
+                        content={disabledReason}
+                        isDisabled={!isDisabled}
+                        placement="right"
+                      >
+                        <div>{option.label}</div>
+                      </Tooltip>
+                    </SelectItem>
+                  );
+                })}
               </Select>
             </Card>
 
@@ -220,14 +350,69 @@ export function ProcessingPreferencesSection({
                 disallowEmptySelection
                 isDisabled={!preferences.usePerTypeOverrides}
               >
-                {modeOptions.map((option) => (
-                  <SelectItem key={option.value}>{option.label}</SelectItem>
-                ))}
+                {modeOptions.map((option) => {
+                  const disabledReason = getDisabledReason(
+                    option.value,
+                    cloudEnabled,
+                    localAiReady,
+                  );
+                  const isDisabled = !!disabledReason;
+
+                  return (
+                    <SelectItem
+                      key={option.value}
+                      isDisabled={isDisabled}
+                      title={isDisabled ? disabledReason : undefined}
+                      textValue={option.label}
+                    >
+                      <Tooltip
+                        content={disabledReason}
+                        isDisabled={!isDisabled}
+                        placement="right"
+                      >
+                        <div>{option.label}</div>
+                      </Tooltip>
+                    </SelectItem>
+                  );
+                })}
               </Select>
             </Card>
           </div>
         )}
       </div>
+
+      {/* Local AI Setup Required Modal */}
+      <Modal isOpen={showSetupModal} onClose={handleCancelSetup} size="md">
+        <ModalContent>
+          <ModalHeader className="text-base">
+            Local AI Setup Required
+          </ModalHeader>
+          <ModalBody>
+            <p className="text-sm text-default-600">
+              {pendingMode === 'local' ? 'Local Only' : 'Auto'} mode requires
+              Chrome's built-in AI models to be downloaded and ready. Would you
+              like to open the setup page now?
+            </p>
+            <p className="text-xs text-default-500 mt-2">
+              You can complete the setup and return to this page to change the
+              processing mode.
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="default"
+              variant="light"
+              onPress={handleCancelSetup}
+              size="sm"
+            >
+              Cancel
+            </Button>
+            <Button color="primary" onPress={handleOpenSetup} size="sm">
+              Open Setup Page
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

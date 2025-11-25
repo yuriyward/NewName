@@ -15,9 +15,9 @@ describe('resolveModelAction', () => {
       expect(result).toBeNull();
     });
 
-    it('returns "Grab this model" for downloadable state', () => {
+    it('returns "Download" for downloadable state', () => {
       const result = resolveModelAction('downloadable');
-      expect(result).toEqual({ label: 'Grab this model', tone: 'primary' });
+      expect(result).toEqual({ label: 'Download', tone: 'primary' });
     });
 
     it('returns "Retry download" for downloading state', () => {
@@ -42,7 +42,7 @@ describe('resolveModelAction', () => {
   });
 
   describe('race condition handling: Chrome reports "downloading" but user never started', () => {
-    it('returns "Grab this model" when state is downloading but progress shows not started', () => {
+    it('returns "Download" when state is downloading but progress shows not started', () => {
       const progress: ModelProgress = {
         started: false,
         completed: false,
@@ -50,7 +50,7 @@ describe('resolveModelAction', () => {
 
       const result = resolveModelAction('downloading', progress);
 
-      expect(result).toEqual({ label: 'Grab this model', tone: 'primary' });
+      expect(result).toEqual({ label: 'Download', tone: 'primary' });
     });
 
     it('follows normal downloading flow when progress shows started', () => {
@@ -82,7 +82,7 @@ describe('resolveModelAction', () => {
       const result = resolveModelAction('downloading', progress);
 
       // Should treat as downloadable, not downloading
-      expect(result).toEqual({ label: 'Grab this model', tone: 'primary' });
+      expect(result).toEqual({ label: 'Download', tone: 'primary' });
     });
   });
 
@@ -98,7 +98,7 @@ describe('resolveModelAction', () => {
       expect(result).toEqual({ label: 'Retry download', tone: 'primary' });
     });
 
-    it('returns "Grab this model" when downloadable and not started', () => {
+    it('returns "Download" when downloadable and not started', () => {
       const progress: ModelProgress = {
         started: false,
         completed: false,
@@ -106,13 +106,13 @@ describe('resolveModelAction', () => {
 
       const result = resolveModelAction('downloadable', progress);
 
-      expect(result).toEqual({ label: 'Grab this model', tone: 'primary' });
+      expect(result).toEqual({ label: 'Download', tone: 'primary' });
     });
 
-    it('returns "Grab this model" when downloadable and progress is undefined', () => {
+    it('returns "Download" when downloadable and progress is undefined', () => {
       const result = resolveModelAction('downloadable', undefined);
 
-      expect(result).toEqual({ label: 'Grab this model', tone: 'primary' });
+      expect(result).toEqual({ label: 'Download', tone: 'primary' });
     });
 
     it('handles case where download started but Chrome state reverted to downloadable', () => {
@@ -139,7 +139,7 @@ describe('resolveModelAction', () => {
       const result = resolveModelAction('downloadable', progress);
 
       // Completed downloads shouldn't show "Retry" - fall through to normal downloadable
-      expect(result).toEqual({ label: 'Grab this model', tone: 'primary' });
+      expect(result).toEqual({ label: 'Download', tone: 'primary' });
     });
   });
 
@@ -205,8 +205,8 @@ describe('resolveModelAction', () => {
 
       const result = resolveModelAction('downloading', progressModelB);
 
-      // Should show "Grab this model" not "Retry download"
-      expect(result).toEqual({ label: 'Grab this model', tone: 'primary' });
+      // Should show "Download" not "Retry download"
+      expect(result).toEqual({ label: 'Download', tone: 'primary' });
     });
 
     it('maintains user experience when download state degrades during network issues', () => {
@@ -235,7 +235,7 @@ describe('resolveModelAction', () => {
         {
           state: 'downloading',
           progress: { started: false, completed: false },
-          expected: 'Grab this model',
+          expected: 'Download',
         },
         {
           state: 'downloadable',

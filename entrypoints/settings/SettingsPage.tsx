@@ -161,11 +161,14 @@ export function SettingsPage() {
       <main className="max-w-4xl mx-auto px-3 py-3 space-y-3">
         <CloudAiSection
           cloudSettings={settings.cloud}
+          processingPreferences={settings.processingPreferences}
           onUpdate={handleCloudUpdate}
+          onProcessingUpdate={handlePreferencesUpdate}
         />
 
         <ProcessingPreferencesSection
           preferences={settings.processingPreferences}
+          cloudEnabled={settings.cloud.enabled}
           onUpdate={handlePreferencesUpdate}
         />
 

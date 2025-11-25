@@ -18,22 +18,29 @@ import {
 import { Select, SelectItem } from '@heroui/select';
 import { useEffect, useState } from 'react';
 import { testCloudConnection } from '@/entrypoints/shared/integrations/ai-provider/cloud-connection-test';
+import { canDisableCloud } from '@/entrypoints/shared/settings/processing-mode-validator';
 import type {
   CloudModel,
   CloudSettings,
+  ProcessingPreferences,
 } from '@/entrypoints/shared/settings/types';
 
 interface CloudAiSectionProps {
   cloudSettings: CloudSettings;
+  processingPreferences: ProcessingPreferences;
   onUpdate: (settings: Partial<CloudSettings>) => void;
+  onProcessingUpdate: (preferences: Partial<ProcessingPreferences>) => void;
 }
 
 export function CloudAiSection({
   cloudSettings,
+  processingPreferences,
   onUpdate,
+  onProcessingUpdate,
 }: CloudAiSectionProps) {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showConsent, setShowConsent] = useState(false);
+  const [showDisableConfirm, setShowDisableConfirm] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{
     status: 'success' | 'error' | null;
@@ -42,9 +49,20 @@ export function CloudAiSection({
 
   const handleEnableToggle = (enabled: boolean) => {
     if (enabled && !cloudSettings.consentGiven) {
+      // Enabling: show consent modal
       setShowConsent(true);
+    } else if (!enabled) {
+      // Disabling: check if confirmation needed
+      const validation = canDisableCloud(processingPreferences);
+      if (validation.requiresConfirmation) {
+        setShowDisableConfirm(true);
+      } else {
+        // Can disable without confirmation
+        onUpdate({ enabled: false });
+      }
     } else {
-      onUpdate({ enabled });
+      // Re-enabling with existing consent
+      onUpdate({ enabled: true });
     }
   };
 
@@ -55,6 +73,22 @@ export function CloudAiSection({
       consentTimestamp: Date.now(),
     });
     setShowConsent(false);
+  };
+
+  const handleConfirmDisable = () => {
+    // Disable cloud and switch all modes to 'local'
+    onUpdate({ enabled: false });
+    onProcessingUpdate({
+      global: 'local',
+      text: 'local',
+      pdf: 'local',
+      image: 'local',
+    });
+    setShowDisableConfirm(false);
+  };
+
+  const handleCancelDisable = () => {
+    setShowDisableConfirm(false);
   };
 
   // Clear test result when API key or model changes
@@ -252,6 +286,40 @@ export function CloudAiSection({
             </Button>
             <Button color="primary" onPress={handleConsentGiven} size="sm">
               I Understand
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <Modal
+        isOpen={showDisableConfirm}
+        onClose={handleCancelDisable}
+        size="md"
+      >
+        <ModalContent>
+          <ModalHeader className="text-base">
+            Confirm Cloud AI Disable
+          </ModalHeader>
+          <ModalBody>
+            <p className="text-sm text-default-600">
+              You have processing modes set to 'Cloud' or 'Auto'. Disabling
+              cloud AI will switch all processing modes to 'Local Only'.
+            </p>
+            <p className="text-xs text-default-500 mt-2">
+              Make sure local AI models are set up, or files won't be processed.
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              color="default"
+              variant="light"
+              onPress={handleCancelDisable}
+              size="sm"
+            >
+              Cancel
+            </Button>
+            <Button color="primary" onPress={handleConfirmDisable} size="sm">
+              Switch to Local & Disable
             </Button>
           </ModalFooter>
         </ModalContent>

@@ -131,28 +131,26 @@ function deriveSteps(
     instructions: (
       <div className="space-y-3">
         <p>
-          Copy each link below and paste into Chrome's address bar to enable the
-          required Chrome flags{' '}
+          Copy and paste each link into Chrome's address bar. For the
+          highlighted (yellow) option, choose the value shown on the right:
         </p>
         <div className="space-y-2">
           <CopyableUrl
             url="chrome://flags/#prompt-api-for-gemini-nano"
             label="Prompt API Flag"
+            setting="Enabled Multilingual"
           />
           <CopyableUrl
             url="chrome://flags/#prompt-api-for-gemini-nano-multimodal-input"
             label="Multimodal Prompt Flag"
+            setting="Enabled"
           />
           <CopyableUrl
             url="chrome://flags/#optimization-guide-on-device-model"
             label="Optimization Guide Flag"
+            setting="Enabled"
           />
         </div>
-        <p className="pt-1 text-default-500">
-          <strong>How to verify:</strong> Paste each URL above into Chrome's
-          address bar, set the dropdown to "Enabled", and confirm a blue
-          "Enabled" badge (dot) appears next to the flag name.
-        </p>
       </div>
     ),
   };
@@ -165,16 +163,11 @@ function deriveSteps(
     title: 'Restart Chrome',
     status: step2Status,
     instructions: (
-      <div className="space-y-2">
-        <p>
-          After enabling all flags, click the <strong>Relaunch</strong> button
-          that appears at the bottom of the chrome://flags page.
-        </p>
-        <p className="text-default-500">
-          <strong>Why needed:</strong> Chrome only activates flags after a
-          restart. The AI APIs won't be available until you relaunch.
-        </p>
-      </div>
+      <p>
+        After setting all three flags, click the{' '}
+        <strong>Relaunch button</strong> at the bottom-right corner of the
+        chrome://flags page to restart Chrome.
+      </p>
     ),
   };
 
@@ -193,16 +186,10 @@ function deriveSteps(
     title: 'Download AI Models',
     status: step3Status,
     instructions: (
-      <div className="space-y-2">
-        <p>
-          Once flags are enabled and Chrome is restarted, you can download the
-          AI models using the buttons in the "Model status" section below.
-        </p>
-        <p className="text-default-500">
-          <strong>Note:</strong> Model downloads require this tab to stay
-          focused. Keep it open until the progress indicator completes.
-        </p>
-      </div>
+      <p>
+        Click the <strong>Download</strong> buttons in the section below. Keep
+        this tab focused until each download completes.
+      </p>
     ),
   };
 

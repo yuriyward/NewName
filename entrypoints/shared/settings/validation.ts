@@ -288,8 +288,19 @@ export function sanitizeLocalization(
   };
 }
 
+/**
+ * Sanitize processing preferences with cross-field validation against cloud settings.
+ *
+ * Note: This performs basic synchronous validation only. Additional async validation
+ * (e.g., local AI readiness checks) happens at the UI layer before mode changes.
+ *
+ * @param input - Raw processing preferences to sanitize
+ * @param cloudEnabled - Whether cloud AI is enabled (for cross-field validation)
+ * @returns Sanitized and validated processing preferences
+ */
 export function sanitizeProcessingPreferences(
   input: Partial<ProcessingPreferences> | undefined,
+  cloudEnabled = true, // Default to true for backwards compatibility
 ): Settings['processingPreferences'] {
   const defaults = DEFAULT_SETTINGS.processingPreferences;
   const global = isProcessingMode(input?.global)
@@ -300,24 +311,40 @@ export function sanitizeProcessingPreferences(
       ? input.usePerTypeOverrides
       : defaults.usePerTypeOverrides;
 
+  // Helper to auto-correct modes based on cloud availability
+  const correctMode = (mode: ProcessingMode): ProcessingMode => {
+    // If cloud mode selected but cloud is disabled, fall back to auto
+    // (auto will degrade to local-only at runtime)
+    if (mode === 'cloud' && !cloudEnabled) {
+      return 'auto';
+    }
+    return mode;
+  };
+
+  const correctedGlobal = correctMode(global);
+
   // When overrides are disabled, all per-type modes should match global
   if (!usePerTypeOverrides) {
     return {
-      global,
+      global: correctedGlobal,
       usePerTypeOverrides,
-      text: global,
-      pdf: global,
-      image: global,
+      text: correctedGlobal,
+      pdf: correctedGlobal,
+      image: correctedGlobal,
     };
   }
 
-  // When overrides are enabled, validate each per-type mode independently
+  // When overrides are enabled, validate and correct each per-type mode independently
+  const text = isProcessingMode(input?.text) ? input.text : defaults.text;
+  const pdf = isProcessingMode(input?.pdf) ? input.pdf : defaults.pdf;
+  const image = isProcessingMode(input?.image) ? input.image : defaults.image;
+
   return {
-    global,
+    global: correctedGlobal,
     usePerTypeOverrides,
-    text: isProcessingMode(input?.text) ? input.text : defaults.text,
-    pdf: isProcessingMode(input?.pdf) ? input.pdf : defaults.pdf,
-    image: isProcessingMode(input?.image) ? input.image : defaults.image,
+    text: correctMode(text),
+    pdf: correctMode(pdf),
+    image: correctMode(image),
   };
 }
 
@@ -353,6 +380,9 @@ export function sanitizeSettings(data: unknown): Settings {
       ? raw.notifyOnKeep
       : DEFAULT_SETTINGS.notifyOnKeep;
 
+  // Sanitize cloud settings first to get cloudEnabled for cross-field validation
+  const cloud = sanitizeCloudSettings(raw.cloud);
+
   return {
     version: 2,
     mode,
@@ -364,9 +394,10 @@ export function sanitizeSettings(data: unknown): Settings {
     instantBaselineStrategy,
     perType: sanitizePerType(raw.perType),
     metadataToggles: sanitizeMetadataToggles(raw.metadataToggles),
-    cloud: sanitizeCloudSettings(raw.cloud),
+    cloud,
     processingPreferences: sanitizeProcessingPreferences(
       raw.processingPreferences,
+      cloud.enabled, // Pass cloudEnabled for cross-field validation
     ),
     debug: sanitizeDebugSettings(raw.debug),
     notifyOnKeep,

@@ -16,7 +16,7 @@ export function resolveModelAction(
   // treat it as downloadable. This handles Chrome API incorrectly
   // reporting models as "downloading" when other models complete.
   if (state === 'downloading' && progress && !progress.started) {
-    return { label: 'Grab this model', tone: 'primary' };
+    return { label: 'Download', tone: 'primary' };
   }
 
   // If download started but status slipped back to "downloadable", keep CTA primary.
@@ -29,7 +29,7 @@ export function resolveModelAction(
     case 'unsupported':
       return null;
     case 'downloadable':
-      return { label: 'Grab this model', tone: 'primary' };
+      return { label: 'Download', tone: 'primary' };
     case 'downloading':
       return { label: 'Retry download', tone: 'primary' };
     case 'error':
