@@ -25,6 +25,7 @@ import type {
   CloudSettings,
   ProcessingPreferences,
 } from '@/entrypoints/shared/settings/types';
+import { validateGeminiApiKeyFormat } from '@/entrypoints/shared/settings/validation';
 
 interface CloudAiSectionProps {
   cloudSettings: CloudSettings;
@@ -100,20 +101,12 @@ export function CloudAiSection({
       return;
     }
 
-    // Check format before making API call with specific error messages
-    const trimmedKey = cloudSettings.apiKey.trim();
-    if (!trimmedKey.startsWith('AIza')) {
+    // Check format before making API call
+    if (!validateGeminiApiKeyFormat(cloudSettings.apiKey)) {
       setTestResult({
         status: 'error',
-        message: 'API key should start with "AIza"',
-      });
-      return;
-    }
-
-    if (trimmedKey.length < 35 || trimmedKey.length > 45) {
-      setTestResult({
-        status: 'error',
-        message: `API key length should be 35-45 characters (got ${trimmedKey.length})`,
+        message:
+          'Invalid API key format. Key should start with "AIza" and be 35-45 characters.',
       });
       return;
     }

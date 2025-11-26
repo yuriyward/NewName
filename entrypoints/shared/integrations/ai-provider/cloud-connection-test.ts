@@ -73,7 +73,8 @@ export async function testCloudConnection(
 /**
  * Error pattern definitions for cloud API error parsing.
  * Each entry maps known error patterns to user-friendly messages.
- * Patterns are checked case-insensitively against the error message.
+ * Patterns are checked case-sensitively against the error message.
+ * Include both uppercase and lowercase variants when needed.
  */
 const ERROR_PATTERNS: ReadonlyArray<{
   patterns: readonly string[];
