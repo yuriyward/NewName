@@ -12,9 +12,11 @@ import type {
   LocalizationSettings,
   MetadataToggles,
   Mode,
+  PageContextConsent,
   PerTypeBehavior,
   ProcessingMode,
   ProcessingPreferences,
+  ReminderState,
   Separator,
   Settings,
   Theme,
@@ -288,6 +290,39 @@ export function sanitizeLocalization(
   };
 }
 
+export function sanitizePageContextConsent(
+  input: Partial<PageContextConsent> | undefined,
+): Settings['pageContextConsent'] {
+  const defaults = DEFAULT_SETTINGS.pageContextConsent;
+  return {
+    consentGranted:
+      typeof input?.consentGranted === 'boolean'
+        ? input.consentGranted
+        : defaults.consentGranted,
+    consentTimestamp:
+      typeof input?.consentTimestamp === 'number'
+        ? input.consentTimestamp
+        : defaults.consentTimestamp,
+  };
+}
+
+export function sanitizeAiFeatureReminder(
+  input: Partial<ReminderState> | undefined,
+): Settings['aiFeatureReminder'] {
+  const defaults = DEFAULT_SETTINGS.aiFeatureReminder;
+  return {
+    count: typeof input?.count === 'number' ? input.count : defaults.count,
+    lastShownTimestamp:
+      typeof input?.lastShownTimestamp === 'number'
+        ? input.lastShownTimestamp
+        : defaults.lastShownTimestamp,
+    dismissed:
+      typeof input?.dismissed === 'boolean'
+        ? input.dismissed
+        : defaults.dismissed,
+  };
+}
+
 /**
  * Sanitize processing preferences with cross-field validation against cloud settings.
  *
@@ -399,6 +434,8 @@ export function sanitizeSettings(data: unknown): Settings {
       raw.processingPreferences,
       cloud.enabled, // Pass cloudEnabled for cross-field validation
     ),
+    pageContextConsent: sanitizePageContextConsent(raw.pageContextConsent),
+    aiFeatureReminder: sanitizeAiFeatureReminder(raw.aiFeatureReminder),
     debug: sanitizeDebugSettings(raw.debug),
     notifyOnKeep,
     confirmModal: sanitizeConfirmModal(raw.confirmModal),

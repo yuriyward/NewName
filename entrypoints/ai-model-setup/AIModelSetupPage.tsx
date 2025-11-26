@@ -1,4 +1,7 @@
+import ArrowLeftIcon from '@heroicons/react/24/outline/ArrowLeftIcon';
+import CloudIcon from '@heroicons/react/24/outline/CloudIcon';
 import { type JSX, useEffect, useMemo, useState } from 'react';
+import { browser } from 'wxt/browser';
 import {
   detectFreshOrDevProfile,
   type SystemDiagnostics,
@@ -215,11 +218,9 @@ export function AIModelSetupPage(): JSX.Element {
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-6 pb-32 pt-10">
         <header className="space-y-3">
           <p className="text-xs uppercase tracking-wide text-default-400">
-            NewName Setup
+            NewName Setup · Step 3 of 3
           </p>
-          <h1 className="text-2xl font-semibold">
-            Enable on-device AI models for smarter file names
-          </h1>
+          <h1 className="text-2xl font-semibold">Download Local AI Models</h1>
         </header>
 
         <VideoTutorialSection />
@@ -289,6 +290,27 @@ export function AIModelSetupPage(): JSX.Element {
             </p>
           </div>
         ) : null}
+
+        {/* Cloud AI alternative - at bottom of page */}
+        <div className="mt-auto pt-6 border-t border-default-200">
+          <p className="flex items-center justify-center gap-2 text-sm text-default-600">
+            <CloudIcon className="h-4 w-4 text-default-400" />
+            Prefer cloud processing?{' '}
+            <button
+              type="button"
+              onClick={() => {
+                const url = browser.runtime.getURL('/ai-mode-selection.html');
+                void browser.tabs.create({ url }).then(() => {
+                  window.close();
+                });
+              }}
+              className="inline-flex items-center gap-1 font-medium text-primary-600 hover:text-primary-700 transition-colors"
+            >
+              <ArrowLeftIcon className="h-3.5 w-3.5" />
+              Switch to Cloud AI
+            </button>
+          </p>
+        </div>
       </main>
     </div>
   );

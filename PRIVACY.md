@@ -16,11 +16,30 @@ NewName is designed with privacy as a core principle:
 - **No tracking or analytics**: We don't monitor your behavior or usage patterns
 - **Open source**: Our entire codebase is publicly available for audit
 
+---
+
+**🎯 SINGLE PURPOSE STATEMENT**
+
+NewName's sole purpose is: **Intelligent, context-aware file renaming for Chrome downloads.**
+
+All data collection directly supports this purpose. We do NOT:
+- ❌ Sell or share your data with third parties
+- ❌ Use data for advertising, profiling, or tracking
+- ❌ Collect data for unrelated purposes
+
+---
+
 ## Data We Collect
 
 ### 1. Page Context (Optional, for AI Features)
 
-To provide intelligent filename suggestions, NewName captures limited page information when you visit websites:
+To provide intelligent filename suggestions, NewName captures limited page information when you visit websites.
+
+**User Consent Required:**
+- You must explicitly consent during setup before any page context is captured
+- A detailed disclosure explains what data is collected and why
+- You can decline consent and use manual renaming mode instead
+- Consent can be revoked anytime in Settings
 
 **What we collect:**
 - Page title (`document.title`)
@@ -228,6 +247,23 @@ Downloads can start from any website, and there's often a delay between clicking
 - Memory info used locally only for compatibility checks
 - Never transmitted or stored persistently
 
+## How Data Collection Works (Quick Summary)
+
+NewName works in two stages:
+
+**Stage 1 - Automatic (with Consent):**
+- When you visit any webpage, NewName's content script captures the page title and first heading
+- **Important:** This only happens AFTER you grant explicit consent during setup
+- Context is stored temporarily (5 minutes max) in browser memory
+- Used to provide better filename suggestions when you download files from that page
+
+**Stage 2 - On Download:**
+- When you download a file, NewName uses the cached page context + file content to suggest a better filename
+- For local AI: All processing happens on your device
+- For cloud AI: Requires explicit consent before sending data
+
+**To disable automatic context capture:** During setup, decline consent for page context capture, or later revoke consent in Settings → Processing Mode → Manual
+
 ## Data Sharing
 
 We do **NOT** share, sell, or transmit your data to any third parties, with these exceptions:
@@ -268,6 +304,15 @@ We do NOT use data for advertising, profiling, tracking, or analytics.
 NewName has no involvement with credit scoring, lending decisions, or financial services. This is a file renaming utility with no connection to financial evaluation.
 
 ## Your Rights & Controls
+
+### Disable Page Context Capture
+
+To completely stop page context collection:
+1. Open Settings → Processing Mode
+2. Select "Manual (no AI)" mode
+3. This disables all AI features and stops page context capture
+
+Alternative: Uninstall the extension to immediately stop all data collection.
 
 ### Disable Data Collection
 

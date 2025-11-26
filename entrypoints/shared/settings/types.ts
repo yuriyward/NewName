@@ -121,6 +121,30 @@ export interface LocalizationSettings {
   uiLocale: UiLocale;
 }
 
+/**
+ * Page context consent settings
+ * Tracks user's explicit consent for capturing page titles and headings
+ */
+export interface PageContextConsent {
+  /** Whether user has explicitly consented to page context capture */
+  consentGranted: boolean;
+  /** Timestamp when consent was given (null if never consented) */
+  consentTimestamp: number | null;
+}
+
+/**
+ * Reminder state for periodic prompts to enable AI features
+ * Used when user has denied page context consent
+ */
+export interface ReminderState {
+  /** Number of times the reminder has been shown */
+  count: number;
+  /** Timestamp of the last reminder shown */
+  lastShownTimestamp: number | null;
+  /** Whether user has permanently dismissed reminders */
+  dismissed: boolean;
+}
+
 export interface Settings {
   version: 2;
   mode: Mode;
@@ -135,6 +159,10 @@ export interface Settings {
   cloud: CloudSettings;
   /** Per-file-type AI processing preferences (local/cloud/auto) */
   processingPreferences: ProcessingPreferences;
+  /** Page context capture consent tracking */
+  pageContextConsent: PageContextConsent;
+  /** Reminder state for AI feature prompts */
+  aiFeatureReminder: ReminderState;
   debug: DebugSettings;
   notifyOnKeep: boolean;
   confirmModal: ConfirmModalDefaults;
@@ -192,6 +220,15 @@ export const DEFAULT_SETTINGS: Settings = {
     text: 'auto',
     pdf: 'auto',
     image: 'auto',
+  },
+  pageContextConsent: {
+    consentGranted: false,
+    consentTimestamp: null,
+  },
+  aiFeatureReminder: {
+    count: 0,
+    lastShownTimestamp: null,
+    dismissed: false,
   },
   debug: {
     enabled: false,

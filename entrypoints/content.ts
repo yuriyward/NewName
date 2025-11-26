@@ -13,6 +13,7 @@ import {
   onExtensionMessage,
   sendExtensionMessage,
 } from '@/entrypoints/shared/messaging/extension-messaging';
+import { getSettings } from '@/entrypoints/shared/settings/settings';
 import {
   type ConfirmToastManager,
   getConfirmToastManager,
@@ -106,7 +107,22 @@ let lastPublishedContext: PageContextSnapshot = {
   heading: undefined,
 };
 
-function publishPageContext(force = false): void {
+async function publishPageContext(force = false): Promise<void> {
+  // Check if user has consented to page context capture
+  try {
+    const settings = await getSettings();
+    if (!settings.pageContextConsent.consentGranted) {
+      debugLogger.log(
+        '[PageContext] Skipping context capture - consent not granted',
+      );
+      return;
+    }
+  } catch (error) {
+    debugLogger.error('[PageContext] Failed to check consent', { error });
+    // Fail closed - don't capture if we can't check consent
+    return;
+  }
+
   const snapshot: PageContextSnapshot = {
     title: truncate(document.title),
     heading: firstHeading(),

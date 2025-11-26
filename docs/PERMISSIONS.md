@@ -148,6 +148,17 @@ Downloads can originate from any website. To provide intelligent filename sugges
 - Automatically deleted after expiration
 - Never sent to external servers (except optional cloud AI with explicit consent)
 - No persistent storage of page data
+- **User consent required** - context capture only happens after explicit consent during setup
+
+**Data Flow Timeline:**
+
+1. **Setup** → User grants explicit consent for page context capture during AI mode selection
+2. **Page Load** → Content script captures title + heading (only if consent granted)
+3. **Cache** → Stored in memory for 5 minutes
+4. **Download Start** → Context retrieved from cache
+5. **AI Analysis** → Local AI (no network) or Cloud AI (with separate consent)
+6. **Suggestion** → Filename displayed to user
+7. **Expiration** → Context automatically deleted after 5 minutes
 
 **Code references:**
 - [`entrypoints/content.ts`](../entrypoints/content.ts) - Content script (lines 111-112, 214-242)
@@ -155,6 +166,16 @@ Downloads can originate from any website. To provide intelligent filename sugges
 - [`entrypoints/shared/context/page-analyzer.ts`](../entrypoints/shared/context/page-analyzer.ts) - Context extraction
 
 ---
+
+## User Consent & Disclosure
+
+NewName provides in-app disclosure and obtains explicit consent for:
+
+1. **Page Context Capture**: During AI mode selection setup, users see a detailed disclosure explaining what page data is captured and why, with an explicit consent checkbox that must be checked before AI features are enabled
+2. **Downloads Folder Access**: Two-step permission flow with clear explanation of why folder access is needed
+3. **Cloud AI Processing**: Separate consent required before sending data to Google Gemini (only when cloud mode is enabled)
+
+Users can revoke any consent at any time via Settings.
 
 ## Summary Table
 
