@@ -75,6 +75,42 @@ The core innovation of NewName lies in its intelligent AI processing:
 
 ---
 
+## 🔒 Privacy & Security
+
+NewName is built with privacy as a core principle:
+
+- **Local-first processing**: AI analysis runs on your device by default
+- **Minimal data collection**: Only page titles and headings for context
+- **No tracking or analytics**: We don't monitor your usage or behavior
+- **Temporary storage**: Page context cached for 5 minutes max, then deleted
+- **No external servers**: Everything stays on your device
+- **Full transparency**: Complete open source code for verification
+
+### How Page Context Works
+
+To provide intelligent suggestions, NewName captures page titles when you download files. This helps AI understand context and generate better names.
+
+**Example:**
+- Page title: "Q4 2023 Financial Report - Acme Corp"
+- Download: `report.pdf`
+- Suggested name: `2023-Q4-Acme-Financial-Report.pdf`
+
+**What we access:** Page title + first heading only
+**What we don't access:** Page content, forms, passwords, or sensitive data
+**Storage:** In-memory cache, auto-deleted after 5 minutes
+
+### Cloud AI (Optional)
+
+When using cloud AI features (requires your API key):
+- Explicit user consent required
+- You provide your own Google Gemini API key
+- Can be disabled anytime in settings
+- Local AI always preferred when available
+
+See [PRIVACY.md](./PRIVACY.md) for complete privacy policy and [FAQ.md](./docs/FAQ.md) for technical details.
+
+---
+
 ## 📸 Screenshots
 
 <!-- Screenshot placeholder 1: Extension popup -->

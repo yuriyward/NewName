@@ -37,6 +37,10 @@ export default defineConfig({
       'offscreen',
       'system.memory',
     ],
+    // PRIVACY NOTE: host_permissions required for proactive page context capture.
+    // We ONLY access document.title and first heading to improve AI rename quality.
+    // Context is cached in-memory for 5 minutes max, never sent to external servers.
+    // See PRIVACY.md for details. Technical FAQ: docs/FAQ.md
     host_permissions: ['<all_urls>'],
     content_security_policy: {
       extension_pages:
@@ -47,9 +51,6 @@ export default defineConfig({
     },
     web_accessible_resources: [],
     key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2W58+sJZ57nVLTHzCUO6W67xB3Pd9saN2pPmqPhu+QC4UfXw8WsnN8s6Z2TgvnhMO068dHPVkGqgldQIenPTaE+DQ2EmivvgjIbQlfKQPvhcwsCSsy0QZeEszDIwb7mx2NlF+As5KpH2Esv7Z3efnjuzRgr2VTMvgD6hZQMrlSRVIx6Fi1u8kLKK6o8QXR8bPU/tugjet8yP8iX/pZ59vZ5+v+DbNUTe+IQ7lgyRsrQ3YGSFLgZqUyq8Lm94X8LOf8QMbNzooJSpy+MAYwTZgfKT9PCNyubXKf9Fh++BMsWDfsBhtzMG8yehd6syl2YAYyvIyHKJoSSr5M80pIzDJwIDAQAB',
-    trial_tokens: [
-      'AuhYmnInYAtVRQxe2yGkyB6wDylOj8TjMSyxwPLX6v42BAbXkO9ZKLThHOlIAklu04/OOylkyZ5txCDvCCw9uQUAAAB4eyJvcmlnaW4iOiJjaHJvbWUtZXh0ZW5zaW9uOi8vZnBvaWRwcGVlbW1jZGpubmpma29nbWNkZGdoaWdsb2EiLCJmZWF0dXJlIjoiQUlQcm9tcHRBUElGb3JFeHRlbnNpb24iLCJleHBpcnkiOjE3NjA0ODYzOTl9',
-    ],
   },
   vite: () => ({
     server: {
