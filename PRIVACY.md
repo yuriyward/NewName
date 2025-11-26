@@ -1,8 +1,12 @@
-# Privacy Policy
+# Privacy Policy for NewName
 
-**Last Updated:** 2025-01-25
+**Last Updated:** 2025-01-26
 
-NewName is committed to protecting your privacy. This document explains what data we collect, how we use it, and your rights regarding your information.
+**Extension Name:** NewName
+**Developer:** [Your Name/Organization]
+**Contact:** [GitHub Issues](https://github.com/yuriyward/NewName/issues)
+
+This Privacy Policy describes how NewName ("we", "our", or "the extension") collects, uses, and protects information when you use our Chrome browser extension. By installing and using NewName, you agree to the practices described in this policy.
 
 ## Overview
 
@@ -116,34 +120,113 @@ When using Chrome's built-in AI (Gemini Nano):
 
 ## Browser Permissions
 
-### "Read and change all your data on websites you visit"
+NewName requests specific permissions to provide intelligent file renaming. Each permission is essential for the extension's core functionality.
 
-**Required for:** Page context capture (title and headings)
-**Actual access:** Only document.title and first heading element
-**Cannot access:** Page content, passwords, forms, or sensitive data
-**Implementation:** Content script runs on all pages to capture context proactively
+### Host Permission (`<all_urls>`) - "Read and change all your data on websites you visit"
 
-**Why needed:** Downloads can happen from any website, and context improves AI suggestions by 80%. User may switch tabs before download completes, so proactive capture is required.
+**What it's for:** Capturing page titles and headings to improve AI rename suggestions.
 
-**Alternative:** You can disable AI features to avoid this permission (manual renaming still works)
+**What we actually access:**
+- ✅ `document.title` - The page title
+- ✅ First heading element (H1-H6)
+- ✅ Link text when you click download links
 
-### "Downloads" Permission
+**What we DO NOT access:**
+- ❌ Page content or body text
+- ❌ Form data or user inputs
+- ❌ Passwords or credentials
+- ❌ Cookies or session data
 
-**Required for:** Accessing Chrome's downloads API
-**Purpose:** Intercept downloads and suggest renamed filenames
-**Access:** Download metadata only (URLs, names, MIME types)
+**Why `<all_urls>` instead of `activeTab`:**
+Downloads can start from any website, and there's often a delay between clicking a link and the download beginning. During this time, you might switch tabs. The `activeTab` permission only grants access at the moment of interaction, not ongoing access. We need proactive capture to ensure context is available when the download starts.
 
-### "Storage" Permission
+**Example of why this matters:**
+- You're on "Q4 2023 Financial Report - Acme Corp"
+- You click download, then switch to another tab
+- 3 seconds later, Chrome starts downloading `report.pdf`
+- Without proactive capture, we'd have no context for the AI
 
-**Required for:** Saving preferences and history locally
-**Purpose:** Store settings, API keys, and rename history
-**Scope:** Local browser storage only, never synced
+**Privacy safeguards:**
+- Context stored in-memory only (5-minute TTL)
+- Automatically deleted after expiration
+- Never sent to external servers (except optional cloud AI)
+- No persistent storage of page data
 
-### Other Permissions
+**Alternative:** Disable AI features in Settings → Processing Mode → Manual (deterministic renaming still works without page context)
 
-- **Offscreen**: For isolated AI and WASM processing contexts
-- **Alarms**: For scheduled background tasks (cache cleanup)
-- **System memory**: For checking available RAM before downloading AI models
+### Downloads Permission
+
+**What it's for:** Core functionality - intercepting and renaming downloaded files.
+
+**What we access:**
+- Download ID, filename, URL, referrer
+- MIME type and file size
+- Download state (in progress, complete, etc.)
+
+**What we DO NOT access:**
+- File contents (requires separate File System Access permission with user consent)
+
+**How we use it:**
+- Listen to `chrome.downloads.onDeterminingFilename` to suggest renamed filenames
+- Monitor `chrome.downloads.onChanged` to trigger post-download AI analysis
+
+### Storage Permission
+
+**What it's for:** Saving your preferences and extension state locally.
+
+**What we store:**
+- Enabled/disabled rename strategies
+- AI processing mode (local, cloud, auto)
+- Encrypted cloud API keys (if you provide them)
+- Rename history for undo functionality
+- Onboarding progress
+
+**Privacy guarantee:**
+- All data stored locally in your browser
+- Never synced to cloud or shared externally
+- Cleared completely when you remove the extension
+
+### Offscreen Permission
+
+**What it's for:** Running AI and WASM processing in isolated contexts.
+
+**Why needed:**
+- Chrome's built-in AI (Gemini Nano) requires a document context
+- MediaInfo.js and MuPDF (WASM libraries) need document contexts
+- Service workers in Manifest V3 cannot run these APIs directly
+
+**What it does:**
+- Creates invisible document for AI processing
+- Hosts sandboxed iframe for MediaInfo.js (requires `unsafe-eval`)
+- Enables heavy processing without blocking the extension
+
+### Alarms Permission
+
+**What it's for:** Scheduling background maintenance tasks.
+
+**What we schedule:**
+- Cache cleanup (purge expired page context data)
+- AI model status polling (check availability)
+- Upgrade analysis queue (process completed downloads)
+
+**Why needed:**
+- `setTimeout`/`setInterval` don't persist across service worker restarts
+- Alarms API is the only reliable scheduling mechanism in Manifest V3
+
+### System Memory Permission
+
+**What it's for:** Checking available RAM before downloading AI models.
+
+**What we access:**
+- `chrome.system.memory.getInfo()` - total and available memory
+
+**When we use it:**
+- Once during AI model setup flow
+- To warn if your system may not support local AI (~2GB required)
+
+**Privacy guarantee:**
+- Memory info used locally only for compatibility checks
+- Never transmitted or stored persistently
 
 ## Data Sharing
 
@@ -156,6 +239,33 @@ We do **NOT** share, sell, or transmit your data to any third parties, with thes
 2. **Open source contributions**
    - If you submit bug reports or feature requests on GitHub
    - Only information you explicitly provide in issues/PRs
+
+## Chrome Web Store Compliance Certifications
+
+NewName certifies compliance with Chrome Web Store Developer Program Policies:
+
+### ✅ We do not sell or transfer user data to third parties
+
+- **No data sales**: We have no business model involving user data
+- **No third-party transfers**: User data is never sent to third parties
+- **No backend servers**: We operate no servers that could receive user data
+- **Exception**: Cloud AI (Google Gemini) only when user explicitly enables it with their own API key
+
+### ✅ We do not use or transfer user data for purposes unrelated to the extension's single purpose
+
+NewName's single purpose: **Intelligent, context-aware file renaming for Chrome downloads.**
+
+All data collection directly supports this purpose:
+- Page titles → Context for AI filename suggestions
+- File content → Analyzed to understand file for naming
+- User settings → Stores renaming preferences
+- Rename history → Enables undo functionality
+
+We do NOT use data for advertising, profiling, tracking, or analytics.
+
+### ✅ We do not use or transfer user data to determine creditworthiness or for lending purposes
+
+NewName has no involvement with credit scoring, lending decisions, or financial services. This is a file renaming utility with no connection to financial evaluation.
 
 ## Your Rights & Controls
 
@@ -240,11 +350,48 @@ NewName may interact with:
 ## Open Source
 
 NewName is open source under MIT license:
-- Source code: [GitHub repository](https://github.com/your-repo/NewName)
+- Source code: [GitHub repository](https://github.com/yuriyward/NewName/)
 - Review implementation: All code publicly auditable
 - Contribute: Pull requests welcome
 - Build yourself: Verify no hidden behavior
 
+## Policy Updates
+
+We may update this Privacy Policy from time to time. We will notify you of any changes by:
+- Updating the "Last Updated" date at the top of this policy
+- Posting the new Privacy Policy on our GitHub repository
+- Including update notes in Chrome Web Store listing for significant changes
+
+Your continued use of the extension after any changes indicates your acceptance of the updated Privacy Policy.
+
+## Consent
+
+By using NewName, you consent to:
+- Collection of page titles and headings for AI-powered filename suggestions
+- Local storage of your preferences and rename history
+- Optional cloud AI processing if you explicitly enable it
+
+You can withdraw consent at any time by:
+- Disabling AI features in Settings
+- Clearing your history
+- Uninstalling the extension
+
+## Legal Basis for Processing (GDPR)
+
+For users in the European Economic Area, our legal basis for processing data is:
+- **Legitimate interest**: Providing the core file renaming functionality you installed the extension for
+- **Consent**: For optional features like cloud AI processing
+
+## Contact Us
+
+If you have questions about this Privacy Policy or our data practices:
+- **GitHub Issues:** [https://github.com/yuriyward/NewName/issues](https://github.com/yuriyward/NewName/issues)
+- **Security Reports:** Use GitHub Security Advisories
+
 ---
 
 **Summary:** NewName collects minimal data (page titles, file metadata) solely for providing intelligent rename suggestions. All processing is local by default. No tracking, no analytics, no external servers. You maintain full control over your data.
+
+---
+
+*This Privacy Policy is effective as of January 26, 2025.*
