@@ -88,6 +88,30 @@ export function TroubleshootingSection({
               Re-check Models
             </button>
           </div>
+
+          <div className="space-y-3 border-t border-default-200 pt-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-default-500">
+              Requirements
+            </h3>
+            <ul className="space-y-2 text-sm text-default-500">
+              <li>Chrome 140+ on Windows, macOS, Linux, or Chromebook Plus.</li>
+              <li>
+                Best to have ~16 GB RAM and ~2 GB free storage for Gemini Nano.
+              </li>
+              <li>
+                Keep this tab open until the progress indicator completes.
+              </li>
+              <li>
+                If prompted, stay on this page so Chrome maintains user
+                activation.
+              </li>
+              <li>
+                Enable both Prompt API flags (standard and{' '}
+                <em>multimodal input</em>) in chrome://flags, set each to
+                "Enabled", then relaunch Chrome.
+              </li>
+            </ul>
+          </div>
         </div>
       ) : null}
     </section>

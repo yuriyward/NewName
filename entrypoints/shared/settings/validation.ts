@@ -88,6 +88,41 @@ export function isTheme(value: unknown): value is Theme {
   return value === 'light' || value === 'dark';
 }
 
+/**
+ * Validates Gemini API key format.
+ *
+ * Gemini API keys follow a specific pattern:
+ * - Start with "AIza"
+ * - Typically 39 characters long
+ *
+ * This is a format check only - it does not verify that the key is valid
+ * or has appropriate permissions. Use testCloudConnection() for that.
+ *
+ * @param apiKey - API key to validate
+ * @returns true if format appears valid, false otherwise
+ *
+ * @example
+ * ```ts
+ * if (!validateGeminiApiKeyFormat(apiKey)) {
+ *   return { error: 'API key format is invalid' };
+ * }
+ * ```
+ */
+export function validateGeminiApiKeyFormat(apiKey: string | null): boolean {
+  if (!apiKey || typeof apiKey !== 'string') {
+    return false;
+  }
+
+  // Trim whitespace
+  const trimmed = apiKey.trim();
+
+  // Check format: starts with "AIza" and has reasonable length
+  const startsCorrectly = trimmed.startsWith('AIza');
+  const hasReasonableLength = trimmed.length >= 35 && trimmed.length <= 45;
+
+  return startsCorrectly && hasReasonableLength;
+}
+
 export function sanitizePerType(
   input: PartialPerType | undefined,
 ): Settings['perType'] {
@@ -154,6 +189,14 @@ export function sanitizeCloudSettings(
       input?.consentTimestamp === null
         ? input.consentTimestamp
         : defaults.consentTimestamp,
+    lastTestTimestamp:
+      typeof input?.lastTestTimestamp === 'number'
+        ? input.lastTestTimestamp
+        : undefined,
+    lastTestSuccess:
+      typeof input?.lastTestSuccess === 'boolean'
+        ? input.lastTestSuccess
+        : undefined,
   };
 }
 
@@ -245,8 +288,19 @@ export function sanitizeLocalization(
   };
 }
 
+/**
+ * Sanitize processing preferences with cross-field validation against cloud settings.
+ *
+ * Note: This performs basic synchronous validation only. Additional async validation
+ * (e.g., local AI readiness checks) happens at the UI layer before mode changes.
+ *
+ * @param input - Raw processing preferences to sanitize
+ * @param cloudEnabled - Whether cloud AI is enabled (for cross-field validation)
+ * @returns Sanitized and validated processing preferences
+ */
 export function sanitizeProcessingPreferences(
   input: Partial<ProcessingPreferences> | undefined,
+  cloudEnabled = true, // Default to true for backwards compatibility
 ): Settings['processingPreferences'] {
   const defaults = DEFAULT_SETTINGS.processingPreferences;
   const global = isProcessingMode(input?.global)
@@ -257,24 +311,40 @@ export function sanitizeProcessingPreferences(
       ? input.usePerTypeOverrides
       : defaults.usePerTypeOverrides;
 
+  // Helper to auto-correct modes based on cloud availability
+  const correctMode = (mode: ProcessingMode): ProcessingMode => {
+    // If cloud mode selected but cloud is disabled, fall back to auto
+    // (auto will degrade to local-only at runtime)
+    if (mode === 'cloud' && !cloudEnabled) {
+      return 'auto';
+    }
+    return mode;
+  };
+
+  const correctedGlobal = correctMode(global);
+
   // When overrides are disabled, all per-type modes should match global
   if (!usePerTypeOverrides) {
     return {
-      global,
+      global: correctedGlobal,
       usePerTypeOverrides,
-      text: global,
-      pdf: global,
-      image: global,
+      text: correctedGlobal,
+      pdf: correctedGlobal,
+      image: correctedGlobal,
     };
   }
 
-  // When overrides are enabled, validate each per-type mode independently
+  // When overrides are enabled, validate and correct each per-type mode independently
+  const text = isProcessingMode(input?.text) ? input.text : defaults.text;
+  const pdf = isProcessingMode(input?.pdf) ? input.pdf : defaults.pdf;
+  const image = isProcessingMode(input?.image) ? input.image : defaults.image;
+
   return {
-    global,
+    global: correctedGlobal,
     usePerTypeOverrides,
-    text: isProcessingMode(input?.text) ? input.text : defaults.text,
-    pdf: isProcessingMode(input?.pdf) ? input.pdf : defaults.pdf,
-    image: isProcessingMode(input?.image) ? input.image : defaults.image,
+    text: correctMode(text),
+    pdf: correctMode(pdf),
+    image: correctMode(image),
   };
 }
 
@@ -310,6 +380,9 @@ export function sanitizeSettings(data: unknown): Settings {
       ? raw.notifyOnKeep
       : DEFAULT_SETTINGS.notifyOnKeep;
 
+  // Sanitize cloud settings first to get cloudEnabled for cross-field validation
+  const cloud = sanitizeCloudSettings(raw.cloud);
+
   return {
     version: 2,
     mode,
@@ -321,9 +394,10 @@ export function sanitizeSettings(data: unknown): Settings {
     instantBaselineStrategy,
     perType: sanitizePerType(raw.perType),
     metadataToggles: sanitizeMetadataToggles(raw.metadataToggles),
-    cloud: sanitizeCloudSettings(raw.cloud),
+    cloud,
     processingPreferences: sanitizeProcessingPreferences(
       raw.processingPreferences,
+      cloud.enabled, // Pass cloudEnabled for cross-field validation
     ),
     debug: sanitizeDebugSettings(raw.debug),
     notifyOnKeep,

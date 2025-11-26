@@ -17,7 +17,7 @@ import {
   storeDirectoryHandle,
   updateLastVerified,
 } from '@/entrypoints/shared/filesystem/handle-storage';
-import { ensureLocalAiSetup } from '@/entrypoints/shared/integrations/chrome-ai/ensure-local-ai-setup';
+import { navigateAfterDownloadsSetup } from '@/entrypoints/shared/onboarding/onboarding-navigation';
 import {
   markOnboardingAwaitingPersistent,
   markOnboardingCompleted,
@@ -135,14 +135,12 @@ export function DownloadsPermissionPage(): JSX.Element {
     };
   }, []);
 
+  // Auto-close tab after successful setup
+  // The 2500ms delay allows users to see the success message before the tab closes
   useEffect(() => {
     if (state.status !== 'success') return;
     const timeout = window.setTimeout(() => {
-      try {
-        window.close();
-      } catch {
-        // Ignored — window.close may throw if the tab wasn't opened programmatically.
-      }
+      window.close();
     }, 2500);
     return () => window.clearTimeout(timeout);
   }, [state]);
@@ -177,18 +175,14 @@ export function DownloadsPermissionPage(): JSX.Element {
 
       // Open new setup page before closing current one
       const setupUrl = browser.runtime.getURL('/downloads-permission.html');
-      await browser.tabs.create({ url: setupUrl });
+      const newTab = await browser.tabs.create({ url: setupUrl });
 
-      // Close current setup page
+      // Close current setup page once new tab is successfully created
       // The new page will detect 'awaiting-persistent' status and auto-trigger requestPermission()
-      try {
+      if (newTab.id) {
         window.close();
-      } catch (closeErr) {
-        debugLogger.warn(
-          '[DownloadsPermissionPage] Could not close setup page after reopening',
-          { error: closeErr },
-        );
-        // If close fails, show success state
+      } else {
+        // If tab creation didn't return an ID, show step1-complete state
         setState({
           status: 'step1-complete',
           managedRelativePath,
@@ -258,8 +252,8 @@ export function DownloadsPermissionPage(): JSX.Element {
         parentDirectoryName: handle.name,
       });
 
-      // Check if local AI setup is needed and open setup page if necessary
-      void ensureLocalAiSetup();
+      // Navigate to AI mode selection (new users) or AI setup (existing users)
+      void navigateAfterDownloadsSetup();
     } catch (err) {
       debugLogger.error(
         '[DownloadsPermissionPage] Restoring saved access failed',

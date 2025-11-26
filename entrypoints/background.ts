@@ -260,6 +260,28 @@ function initializeBackground(): void {
     return { ok: true };
   });
 
+  onExtensionMessage('getSystemMemoryInfo', async () => {
+    try {
+      // Chrome-specific API not in standard WebExtension API
+      // biome-ignore lint/suspicious/noExplicitAny: Chrome system API not in WXT types
+      const chromeGlobal = (globalThis as any).chrome;
+
+      if (!chromeGlobal?.system?.memory) {
+        debugLogger.warn('[SystemMemory] API not available');
+        return { totalCapacityGB: 0 }; // Graceful fallback
+      }
+
+      const info = await chromeGlobal.system.memory.getInfo();
+      const totalGB = Math.round(info.capacity / (1024 * 1024 * 1024));
+
+      debugLogger.log('[SystemMemory] Retrieved memory info', { totalGB });
+      return { totalCapacityGB: totalGB };
+    } catch (error) {
+      debugLogger.error('[SystemMemory] Failed to get memory info', { error });
+      return { totalCapacityGB: 0 }; // Graceful fallback
+    }
+  });
+
   onExtensionMessage('syncConfirmToasts', ({ sender }) => {
     const tabId = sender.tab?.id;
     if (typeof tabId !== 'number') {

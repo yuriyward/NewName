@@ -8,11 +8,7 @@ import {
   type AiModelId,
 } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import { clearAiModelSetupError } from '@/entrypoints/shared/integrations/chrome-ai/setup-state';
-import {
-  LoadingCard,
-  PrerequisitesSection,
-  WxtDevModeAlert,
-} from './components/alerts';
+import { LoadingCard, WxtDevModeAlert } from './components/alerts';
 import { ModelStatusCard } from './components/ModelStatusCard';
 import { SectionErrorBoundary } from './components/SectionErrorBoundary';
 import { SetupChecklistSection } from './components/SetupChecklistSection';
@@ -216,7 +212,7 @@ export function AIModelSetupPage(): JSX.Element {
         />
       ) : null}
 
-      <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-6 py-10">
+      <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-6 pb-32 pt-10">
         <header className="space-y-3">
           <p className="text-xs uppercase tracking-wide text-default-400">
             NewName Setup
@@ -279,8 +275,6 @@ export function AIModelSetupPage(): JSX.Element {
               activeModelId={activeModelId}
               allUnavailable={allUnavailable}
             />
-
-            <PrerequisitesSection />
           </>
         )}
 

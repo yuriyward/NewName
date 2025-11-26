@@ -5,9 +5,14 @@ import { type JSX, useState } from 'react';
 interface CopyableUrlProps {
   url: string;
   label?: string;
+  setting?: string;
 }
 
-export function CopyableUrl({ url, label }: CopyableUrlProps): JSX.Element {
+export function CopyableUrl({
+  url,
+  label,
+  setting,
+}: CopyableUrlProps): JSX.Element {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy(): Promise<void> {
@@ -22,9 +27,18 @@ export function CopyableUrl({ url, label }: CopyableUrlProps): JSX.Element {
 
   return (
     <div className="space-y-1">
-      {label && <p className="text-xs font-medium text-primary-700">{label}</p>}
+      <div className="flex items-center justify-between gap-2">
+        {label && (
+          <p className="text-xs font-medium text-primary-700">{label}</p>
+        )}
+        {setting && (
+          <p className="text-xs font-semibold text-success-700">
+            Set to: {setting}
+          </p>
+        )}
+      </div>
       <div className="flex items-center gap-2">
-        <code className="flex-1 rounded bg-primary-100 px-2 py-1 text-xs font-mono text-primary-900 break-all">
+        <code className="flex-1 break-all rounded bg-primary-100 px-2 py-1 font-mono text-xs text-primary-900">
           {url}
         </code>
         <button
