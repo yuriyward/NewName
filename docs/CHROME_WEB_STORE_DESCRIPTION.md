@@ -213,27 +213,47 @@ Unlike other rename extensions that use simple pattern matching:
 
 ---
 
-## Privacy-Only Section
+## Privacy & Permissions Section
 
-If you just want to add a privacy section to existing description:
+Add this section to explain permissions clearly:
 
 ```markdown
 ## 🔒 Privacy & Permissions
 
-**Why "Read all your data"?**
+### Why "Read all your data on websites"?
 
-We capture page titles when you download files for AI-powered filename suggestions. This permission is required because downloads can happen from any website.
+We capture page titles when you download files for AI-powered filename suggestions. Downloads can happen from any website, and there's often a delay between clicking and downloading - you might switch tabs. We need proactive capture to ensure context is available.
+
+**Example:**
+- Page: "Q4 2023 Financial Report - Acme Corp"
+- Download: `report.pdf`
+- AI Result: `2023-Q4-Acme-Financial-Report.pdf`
 
 **What we access:**
-- ✅ Page titles and headings only
-- ❌ NOT page content, passwords, or forms
+- ✅ Page title and first heading only
+- ❌ NOT page content, passwords, forms, or cookies
 
-**Privacy guarantee:**
-- In-memory storage only (5-min expiration)
-- No external servers or tracking
-- Open source code - verify yourself!
+### Permission Summary
+
+| Permission | Why We Need It |
+|------------|----------------|
+| **Downloads** | Intercept downloads to suggest renamed filenames |
+| **Storage** | Save your settings and rename history locally |
+| **Offscreen** | Run AI and WASM processing in isolated contexts |
+| **Alarms** | Schedule background tasks (cache cleanup, AI checks) |
+| **System Memory** | Check RAM before downloading AI models (~2GB) |
+| **Host (`<all_urls>`)** | Capture page titles for AI context |
+
+### Privacy Guarantees
+
+- **Local-first**: AI runs on your device by default
+- **Temporary storage**: Page context cached 5 minutes max
+- **No tracking**: We don't collect usage analytics
+- **No servers**: We have no backend - everything stays local
+- **Open source**: Verify our code on GitHub
 
 [Complete Privacy Policy](https://github.com/your-repo/NewName/blob/main/PRIVACY.md)
+[Permission Details](https://github.com/your-repo/NewName/blob/main/docs/PERMISSIONS.md)
 ```
 
 ---
