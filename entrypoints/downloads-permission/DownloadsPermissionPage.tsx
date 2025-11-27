@@ -11,6 +11,7 @@ import { type JSX, useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
+  queryDirectoryPermission,
   requestDownloadsAccess,
   verifyDirectoryPermission,
 } from '@/entrypoints/shared/filesystem/directory-picker';
@@ -23,6 +24,7 @@ import {
 import { classifyPermissionError } from '@/entrypoints/shared/filesystem/permission-errors';
 import { navigateAfterDownloadsSetup } from '@/entrypoints/shared/onboarding/onboarding-navigation';
 import {
+  getOnboardingState,
   markOnboardingAwaitingPersistent,
   markOnboardingCompleted,
 } from '@/entrypoints/shared/onboarding/onboarding-state';
@@ -33,23 +35,23 @@ import { VideoDemo } from './VideoDemo';
 // Keep video external to avoid bloating extension size
 // Using 4:3 cropped version for larger display in the UI
 const FOLDER_SELECTION_VIDEO_URL =
-  'https://raw.githubusercontent.com/yuriyward/github-public-media/main/videos/folder_access_setup_step_1_cropped_4x3.mp4';
+  'https://cdn.jsdelivr.net/gh/yuriyward/github-public-media@main/videos/folder_access_setup_step_1_cropped_4x3.mp4';
 
 type RequestState =
   | { status: 'idle' }
   | { status: 'pending' }
   | {
-    status: 'success';
-    grantedAt: number;
-    managedRelativePath: string;
-    createdManagedFolder: boolean;
-    parentDirectoryName: string;
-  }
+      status: 'success';
+      grantedAt: number;
+      managedRelativePath: string;
+      createdManagedFolder: boolean;
+      parentDirectoryName: string;
+    }
   | {
-    status: 'step1-complete';
-    managedRelativePath: string;
-    parentDirectoryName: string;
-  }
+      status: 'step1-complete';
+      managedRelativePath: string;
+      parentDirectoryName: string;
+    }
   | { status: 'error'; message: string; hint?: string };
 
 export function DownloadsPermissionPage(): JSX.Element {
@@ -97,6 +99,88 @@ export function DownloadsPermissionPage(): JSX.Element {
     }, 2500);
     return () => window.clearTimeout(timeout);
   }, [state]);
+
+  // Auto-check permission state when reopening after step 1
+  // IMPORTANT: Only QUERIES permission without REQUESTING (no user gesture required)
+  useEffect(() => {
+    if (!hasStoredHandle) return;
+    if (state.status !== 'idle') return;
+
+    let active = true;
+    void (async () => {
+      try {
+        const onboardingState = await getOnboardingState();
+        if (!active) return;
+
+        // If we're waiting for persistent permission, check current state
+        if (onboardingState.status === 'awaiting-persistent') {
+          debugLogger.log(
+            '[DownloadsPermissionPage] Checking permission state for awaiting-persistent',
+          );
+
+          const handle = storedHandleRef.current;
+          if (!handle) {
+            setState({
+              status: 'error',
+              message: "We couldn't find your folder",
+              hint: "Let's start fresh — click 'Start over' to pick a folder again.",
+            });
+            return;
+          }
+
+          // SAFE: Only query permission, don't request (no user gesture needed)
+          const permission = await queryDirectoryPermission(handle);
+
+          if (permission === 'granted') {
+            // Case A: Permission already granted (rare) - auto-complete
+            debugLogger.log(
+              '[DownloadsPermissionPage] Permission already granted, completing setup',
+            );
+
+            const managedRelativePath =
+              (await getManagedRelativePath()) ?? handle.name ?? 'downloads';
+
+            await updateLastVerified();
+            await markOnboardingCompleted();
+            await clearBadge();
+
+            setHasStoredHandle(true);
+            setState({
+              status: 'success',
+              grantedAt: Date.now(),
+              managedRelativePath,
+              createdManagedFolder: false,
+              parentDirectoryName: handle.name,
+            });
+
+            // Navigate to next onboarding step
+            void navigateAfterDownloadsSetup();
+          } else {
+            // Case B: Permission not granted (common) - let user click button
+            // The UI will render step 2 naturally with "Select folder & finish" button
+            debugLogger.log(
+              '[DownloadsPermissionPage] Permission not yet granted, waiting for user click',
+              { permission },
+            );
+            // No state change needed - page shows step 2 UI
+          }
+        }
+      } catch (err) {
+        if (!active) return;
+        debugLogger.warn(
+          '[DownloadsPermissionPage] Failed to check permission state',
+          {
+            error: err,
+          },
+        );
+        // Don't block the user - let them try clicking the button
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [hasStoredHandle, state.status]);
 
   async function handleGrantAccess(): Promise<void> {
     if (state.status === 'pending') {
@@ -265,12 +349,13 @@ export function DownloadsPermissionPage(): JSX.Element {
               return (
                 <div
                   key={stepNum}
-                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-all ${isCompleted
-                    ? 'bg-success-500 text-white'
-                    : isCurrent
-                      ? 'bg-primary text-white ring-2 ring-primary/20'
-                      : 'bg-default-200 text-default-500'
-                    }`}
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-all ${
+                    isCompleted
+                      ? 'bg-success-500 text-white'
+                      : isCurrent
+                        ? 'bg-primary text-white ring-2 ring-primary/20'
+                        : 'bg-default-200 text-default-500'
+                  }`}
                 >
                   {isCompleted ? (
                     <CheckCircleIcon className="h-4 w-4" />
@@ -365,10 +450,11 @@ export function DownloadsPermissionPage(): JSX.Element {
               {/* Simple instruction */}
               <div className="rounded-xl bg-primary-50/60 p-3 text-center">
                 <p className="text-sm text-primary-800">
-                  Pick the same folder and click{' '}
+                  Click below, select the same folder, and choose{' '}
                   <span className="whitespace-nowrap rounded bg-primary-100 px-1.5 py-0.5 font-medium text-primary-700">
                     Allow on every visit
-                  </span>
+                  </span>{' '}
+                  to finish
                 </p>
               </div>
             </div>
@@ -384,10 +470,11 @@ export function DownloadsPermissionPage(): JSX.Element {
                     void handleRestoreExisting();
                   }}
                   disabled={state.status === 'pending'}
-                  className={`flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition ${state.status === 'pending'
-                    ? 'cursor-not-allowed opacity-60'
-                    : 'hover:bg-primary-600 hover:shadow-xl'
-                    }`}
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition ${
+                    state.status === 'pending'
+                      ? 'cursor-not-allowed opacity-60'
+                      : 'hover:bg-primary-600 hover:shadow-xl'
+                  }`}
                 >
                   <FolderIcon className="h-5 w-5" />
                   {state.status === 'pending' && pendingAction === 'restore'
@@ -400,10 +487,11 @@ export function DownloadsPermissionPage(): JSX.Element {
                     void handleGrantAccess();
                   }}
                   disabled={state.status === 'pending'}
-                  className={`flex w-full items-center justify-center gap-2 rounded-xl border border-default-300 bg-white px-6 py-3 text-sm font-medium text-default-600 transition ${state.status === 'pending'
-                    ? 'cursor-not-allowed opacity-60'
-                    : 'hover:bg-default-50'
-                    }`}
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl border border-default-300 bg-white px-6 py-3 text-sm font-medium text-default-600 transition ${
+                    state.status === 'pending'
+                      ? 'cursor-not-allowed opacity-60'
+                      : 'hover:bg-default-50'
+                  }`}
                 >
                   {state.status === 'pending' && pendingAction === 'grant'
                     ? 'Opening...'
@@ -417,10 +505,11 @@ export function DownloadsPermissionPage(): JSX.Element {
                   void handleGrantAccess();
                 }}
                 disabled={state.status === 'pending'}
-                className={`flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition ${state.status === 'pending'
-                  ? 'cursor-not-allowed opacity-60'
-                  : 'hover:bg-primary-600 hover:shadow-xl'
-                  }`}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition ${
+                  state.status === 'pending'
+                    ? 'cursor-not-allowed opacity-60'
+                    : 'hover:bg-primary-600 hover:shadow-xl'
+                }`}
               >
                 <FolderOpenIcon className="h-5 w-5" />
                 {state.status === 'pending' && pendingAction === 'grant'
@@ -448,7 +537,6 @@ export function DownloadsPermissionPage(): JSX.Element {
             </div>
           </details>
         )}
-
       </main>
 
       {/* Skip button - fixed to bottom-right of screen */}

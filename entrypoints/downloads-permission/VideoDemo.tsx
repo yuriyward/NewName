@@ -112,8 +112,9 @@ export function VideoDemo({
           loop
           muted
           playsInline
-          className={`absolute inset-0 h-full w-full object-contain ${isLoading || hasError ? 'invisible' : 'visible'
-            }`}
+          className={`absolute inset-0 h-full w-full object-contain ${
+            isLoading || hasError ? 'invisible' : 'visible'
+          }`}
           aria-label={ariaLabel}
         />
       </div>

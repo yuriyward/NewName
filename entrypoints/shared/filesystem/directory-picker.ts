@@ -188,6 +188,33 @@ export async function verifyDirectoryPermission(
 }
 
 /**
+ * Check permission state WITHOUT requesting.
+ * Safe to call without user gesture (e.g., from useEffect).
+ *
+ * Unlike verifyDirectoryPermission(), this ONLY queries the current
+ * permission state and never calls requestPermission().
+ *
+ * @param handle - Directory handle to check permission for
+ * @returns Current permission state: 'granted', 'denied', or 'prompt'
+ */
+export async function queryDirectoryPermission(
+  handle: FileSystemDirectoryHandle,
+): Promise<PermissionState> {
+  const { query } = getPermissionFns(handle);
+
+  if (!query) {
+    return 'denied';
+  }
+
+  try {
+    return await query({ mode: 'readwrite' });
+  } catch (error) {
+    debugLogger.warn('[DirectoryPicker] queryPermission failed', { error });
+    return 'denied';
+  }
+}
+
+/**
  * Determine whether the provided handle is still valid and has permission.
  */
 export async function isHandleValid(
