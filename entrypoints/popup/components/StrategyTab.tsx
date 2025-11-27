@@ -17,7 +17,14 @@ interface StrategyTabProps {
   strategy: InstantBaselineStrategy | null;
   options: ReadonlyArray<StrategyOption>;
   onChange: (strategy: InstantBaselineStrategy) => void;
+  aiEnabled: boolean;
 }
+
+/** Strategies that require AI to be enabled */
+const AI_STRATEGIES: ReadonlyArray<InstantBaselineStrategy> = [
+  'ai-rename',
+  'original-with-date',
+];
 
 const StrategyTab = ({
   loading,
@@ -26,6 +33,7 @@ const StrategyTab = ({
   strategy,
   options,
   onChange,
+  aiEnabled,
 }: StrategyTabProps) => {
   if (loading) {
     return (
@@ -50,27 +58,41 @@ const StrategyTab = ({
       </p>
 
       <RadioGroup
-        value={strategy || ''}
+        value={aiEnabled ? strategy || '' : 'keep-original'}
         onValueChange={(value) => onChange(value as InstantBaselineStrategy)}
         isDisabled={saving}
         className="mb-3"
       >
-        {options.map((option) => (
-          <Radio
-            key={option.value}
-            value={option.value}
-            description={option.description}
-            classNames={{
-              base: 'max-w-full m-0 bg-content1 hover:bg-content2 items-start cursor-pointer rounded-lg gap-3 p-2 border border-transparent data-[selected=true]:border-primary data-[selected=true]:bg-primary-50',
-              wrapper: 'mt-0.5',
-              labelWrapper: 'ml-0',
-              label: 'text-sm font-medium',
-              description: 'text-xs text-default-500 mt-0.5',
-            }}
-          >
-            {option.title}
-          </Radio>
-        ))}
+        {options.map((option) => {
+          const requiresAi = AI_STRATEGIES.includes(option.value);
+          const isDisabled = requiresAi && !aiEnabled;
+
+          return (
+            <Radio
+              key={option.value}
+              value={option.value}
+              description={
+                isDisabled
+                  ? 'Set up AI to enable this option'
+                  : option.description
+              }
+              isDisabled={isDisabled}
+              classNames={{
+                base: `max-w-full m-0 bg-content1 items-start rounded-lg gap-3 p-2 border border-transparent ${
+                  isDisabled
+                    ? 'opacity-50 cursor-not-allowed'
+                    : 'hover:bg-content2 cursor-pointer data-[selected=true]:border-primary data-[selected=true]:bg-primary-50'
+                }`,
+                wrapper: 'mt-0.5',
+                labelWrapper: 'ml-0',
+                label: 'text-sm font-medium',
+                description: 'text-xs text-default-500 mt-0.5',
+              }}
+            >
+              {option.title}
+            </Radio>
+          );
+        })}
       </RadioGroup>
 
       <Divider className="mb-2" />
