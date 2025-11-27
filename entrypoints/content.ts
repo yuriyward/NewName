@@ -26,6 +26,11 @@ let contextRefreshTimer: ReturnType<typeof setInterval> | undefined;
 let lastContextPublishTimestamp = 0;
 let isContextInvalidated = false;
 
+// Cached consent status to avoid frequent storage reads
+let cachedConsentGranted: boolean | null = null;
+let consentCacheTimestamp = 0;
+const CONSENT_CACHE_TTL_MS = 30_000; // 30 seconds
+
 interface RuntimeContext {
   tabId?: number;
   frameId?: number;
@@ -107,19 +112,47 @@ let lastPublishedContext: PageContextSnapshot = {
   heading: undefined,
 };
 
-async function publishPageContext(force = false): Promise<void> {
-  // Check if user has consented to page context capture
+/**
+ * Check consent status with caching to reduce storage reads.
+ * Cache is invalidated after CONSENT_CACHE_TTL_MS or when explicitly refreshed.
+ */
+async function checkConsentWithCache(): Promise<boolean> {
+  const now = Date.now();
+  if (
+    cachedConsentGranted !== null &&
+    now - consentCacheTimestamp < CONSENT_CACHE_TTL_MS
+  ) {
+    return cachedConsentGranted;
+  }
+
   try {
     const settings = await getSettings();
-    if (!settings.pageContextConsent.consentGranted) {
-      debugLogger.log(
-        '[PageContext] Skipping context capture - consent not granted',
-      );
-      return;
-    }
+    cachedConsentGranted = settings.pageContextConsent.consentGranted;
+    consentCacheTimestamp = now;
+    return cachedConsentGranted;
   } catch (error) {
     debugLogger.error('[PageContext] Failed to check consent', { error });
     // Fail closed - don't capture if we can't check consent
+    return false;
+  }
+}
+
+/**
+ * Invalidate consent cache to force a fresh check on next call.
+ * Call this when consent settings may have changed.
+ */
+function invalidateConsentCache(): void {
+  cachedConsentGranted = null;
+  consentCacheTimestamp = 0;
+}
+
+async function publishPageContext(force = false): Promise<void> {
+  // Check if user has consented to page context capture (with caching)
+  const consentGranted = await checkConsentWithCache();
+  if (!consentGranted) {
+    debugLogger.log(
+      '[PageContext] Skipping context capture - consent not granted',
+    );
     return;
   }
 

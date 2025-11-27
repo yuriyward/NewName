@@ -11,7 +11,6 @@ import { type JSX, useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import {
-  ManagedSubfolderRequiredError,
   requestDownloadsAccess,
   verifyDirectoryPermission,
 } from '@/entrypoints/shared/filesystem/directory-picker';
@@ -21,6 +20,7 @@ import {
   storeDirectoryHandle,
   updateLastVerified,
 } from '@/entrypoints/shared/filesystem/handle-storage';
+import { classifyPermissionError } from '@/entrypoints/shared/filesystem/permission-errors';
 import { navigateAfterDownloadsSetup } from '@/entrypoints/shared/onboarding/onboarding-navigation';
 import {
   markOnboardingAwaitingPersistent,
@@ -29,86 +29,28 @@ import {
 import { clearBadge } from '@/entrypoints/shared/ui/badge-manager';
 import { VideoDemo } from './VideoDemo';
 
-// TODO: Replace with your published video URL (GitHub Releases, CDN, etc.)
+// Video hosted on GitHub for step 1 of folder selection process
 // Keep video external to avoid bloating extension size
+// Using 4:3 cropped version for larger display in the UI
 const FOLDER_SELECTION_VIDEO_URL =
-  'https://your-cdn.com/folder-selection-demo.mp4';
+  'https://raw.githubusercontent.com/yuriyward/github-public-media/main/videos/folder_access_setup_step_1_cropped_4x3.mp4';
 
 type RequestState =
   | { status: 'idle' }
   | { status: 'pending' }
   | {
-      status: 'success';
-      grantedAt: number;
-      managedRelativePath: string;
-      createdManagedFolder: boolean;
-      parentDirectoryName: string;
-    }
+    status: 'success';
+    grantedAt: number;
+    managedRelativePath: string;
+    createdManagedFolder: boolean;
+    parentDirectoryName: string;
+  }
   | {
-      status: 'step1-complete';
-      managedRelativePath: string;
-      parentDirectoryName: string;
-    }
+    status: 'step1-complete';
+    managedRelativePath: string;
+    parentDirectoryName: string;
+  }
   | { status: 'error'; message: string; hint?: string };
-
-/**
- * Converts technical error messages into friendly, actionable guidance
- */
-function classifyPermissionError(
-  err: unknown,
-  lastPickerError: unknown,
-): { message: string; hint?: string } {
-  if (err instanceof ManagedSubfolderRequiredError) {
-    return {
-      message: "Can't use that folder",
-      hint: 'Try creating a new folder inside Downloads and pick that instead.',
-    };
-  }
-
-  const message = err instanceof Error ? err.message : 'Something went wrong';
-
-  if (message === 'User cancelled directory picker') {
-    if (lastPickerError && typeof lastPickerError === 'object') {
-      const { name, message: detailMessage } = lastPickerError as {
-        name?: string;
-        message?: string;
-      };
-
-      if (
-        name === 'AbortError' ||
-        (detailMessage &&
-          /Failed to execute 'showDirectoryPicker'/.test(detailMessage))
-      ) {
-        return {
-          message: "Can't select that folder",
-          hint: 'Try a different folder or create a new one.',
-        };
-      }
-
-      return {
-        message: 'No folder selected',
-        hint: 'Click below to try again.',
-      };
-    }
-
-    return {
-      message: 'No folder selected',
-      hint: 'Click below to try again.',
-    };
-  }
-
-  if (message === 'Permission not granted') {
-    return {
-      message: 'Permission needed',
-      hint: 'Click "Allow" when Chrome asks for permission.',
-    };
-  }
-
-  return {
-    message: "Let's try again",
-    hint: 'Click below to retry.',
-  };
-}
 
 export function DownloadsPermissionPage(): JSX.Element {
   const [state, setState] = useState<RequestState>({ status: 'idle' });
@@ -310,9 +252,9 @@ export function DownloadsPermissionPage(): JSX.Element {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary-50/40 via-background to-background text-foreground">
-      <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center px-6 py-6">
+      <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-6 py-6">
         {/* Main content card */}
-        <div className="relative rounded-3xl border border-default-200 bg-white/80 p-6 shadow-xl backdrop-blur sm:p-8">
+        <div className="relative rounded-3xl border border-default-200 bg-white/80 p-6 shadow-xl backdrop-blur sm:p-8 lg:p-10">
           {/* Compact step indicator in top-right corner */}
           <div className="absolute right-4 top-4 flex items-center gap-1.5 sm:right-6 sm:top-6">
             {Array.from({ length: 2 }, (_, i) => {
@@ -323,13 +265,12 @@ export function DownloadsPermissionPage(): JSX.Element {
               return (
                 <div
                   key={stepNum}
-                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-all ${
-                    isCompleted
-                      ? 'bg-success-500 text-white'
-                      : isCurrent
-                        ? 'bg-primary text-white ring-2 ring-primary/20'
-                        : 'bg-default-200 text-default-500'
-                  }`}
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-all ${isCompleted
+                    ? 'bg-success-500 text-white'
+                    : isCurrent
+                      ? 'bg-primary text-white ring-2 ring-primary/20'
+                      : 'bg-default-200 text-default-500'
+                    }`}
                 >
                   {isCompleted ? (
                     <CheckCircleIcon className="h-4 w-4" />
@@ -399,7 +340,7 @@ export function DownloadsPermissionPage(): JSX.Element {
             <div className="mb-5 space-y-3">
               <VideoDemo
                 src={FOLDER_SELECTION_VIDEO_URL}
-                aspectRatio={16 / 9}
+                aspectRatio={4 / 3}
                 ariaLabel="Video demonstration of folder selection process"
               />
               {/* Important tip about creating subfolder */}
@@ -418,7 +359,7 @@ export function DownloadsPermissionPage(): JSX.Element {
             <div className="mb-5 space-y-3">
               <VideoDemo
                 src={FOLDER_SELECTION_VIDEO_URL}
-                aspectRatio={16 / 9}
+                aspectRatio={4 / 3}
                 ariaLabel="Video demonstration of folder selection process"
               />
               {/* Simple instruction */}
@@ -443,11 +384,10 @@ export function DownloadsPermissionPage(): JSX.Element {
                     void handleRestoreExisting();
                   }}
                   disabled={state.status === 'pending'}
-                  className={`flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition ${
-                    state.status === 'pending'
-                      ? 'cursor-not-allowed opacity-60'
-                      : 'hover:bg-primary-600 hover:shadow-xl'
-                  }`}
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition ${state.status === 'pending'
+                    ? 'cursor-not-allowed opacity-60'
+                    : 'hover:bg-primary-600 hover:shadow-xl'
+                    }`}
                 >
                   <FolderIcon className="h-5 w-5" />
                   {state.status === 'pending' && pendingAction === 'restore'
@@ -460,11 +400,10 @@ export function DownloadsPermissionPage(): JSX.Element {
                     void handleGrantAccess();
                   }}
                   disabled={state.status === 'pending'}
-                  className={`flex w-full items-center justify-center gap-2 rounded-xl border border-default-300 bg-white px-6 py-3 text-sm font-medium text-default-600 transition ${
-                    state.status === 'pending'
-                      ? 'cursor-not-allowed opacity-60'
-                      : 'hover:bg-default-50'
-                  }`}
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl border border-default-300 bg-white px-6 py-3 text-sm font-medium text-default-600 transition ${state.status === 'pending'
+                    ? 'cursor-not-allowed opacity-60'
+                    : 'hover:bg-default-50'
+                    }`}
                 >
                   {state.status === 'pending' && pendingAction === 'grant'
                     ? 'Opening...'
@@ -478,11 +417,10 @@ export function DownloadsPermissionPage(): JSX.Element {
                   void handleGrantAccess();
                 }}
                 disabled={state.status === 'pending'}
-                className={`flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition ${
-                  state.status === 'pending'
-                    ? 'cursor-not-allowed opacity-60'
-                    : 'hover:bg-primary-600 hover:shadow-xl'
-                }`}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition ${state.status === 'pending'
+                  ? 'cursor-not-allowed opacity-60'
+                  : 'hover:bg-primary-600 hover:shadow-xl'
+                  }`}
               >
                 <FolderOpenIcon className="h-5 w-5" />
                 {state.status === 'pending' && pendingAction === 'grant'
@@ -511,23 +449,22 @@ export function DownloadsPermissionPage(): JSX.Element {
           </details>
         )}
 
-        {/* Footer */}
-        <footer className="mt-auto flex justify-end text-xs">
-          <button
-            type="button"
-            onClick={() => {
-              try {
-                window.close();
-              } catch {
-                // Ignore close failures when tab is opened manually.
-              }
-            }}
-            className="text-default-500 underline hover:text-default-700"
-          >
-            Skip for now
-          </button>
-        </footer>
       </main>
+
+      {/* Skip button - fixed to bottom-right of screen */}
+      <button
+        type="button"
+        onClick={() => {
+          try {
+            window.close();
+          } catch {
+            // Ignore close failures when tab is opened manually.
+          }
+        }}
+        className="fixed bottom-4 right-4 text-xs text-default-500 underline hover:text-default-700"
+      >
+        Skip for now
+      </button>
     </div>
   );
 }

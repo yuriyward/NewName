@@ -10,7 +10,6 @@ interface VideoDemoProps {
    * Video source URL
    * - For videos in public folder: use browser.runtime.getURL('/videos/filename.mp4')
    * - For external hosting: use direct URL (e.g., GitHub releases, CDN)
-   * - For YouTube: use youtu.be or youtube.com URLs
    */
   src: string;
   /**
@@ -27,21 +26,6 @@ interface VideoDemoProps {
   ariaLabel?: string;
 }
 
-/**
- * Converts YouTube URL to embed URL with autoplay and loop
- */
-function getYouTubeEmbedUrl(url: string): string | null {
-  const youtubeRegex =
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/;
-  const match = url.match(youtubeRegex);
-
-  if (!match) return null;
-
-  const videoId = match[1];
-  // autoplay=1, muted=1 (required for autoplay), loop=1, playlist=videoId (required for loop)
-  return `https://www.youtube.com/embed/${videoId}?autoplay=1&muted=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1`;
-}
-
 export function VideoDemo({
   src,
   poster,
@@ -52,16 +36,10 @@ export function VideoDemo({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
-  const youtubeEmbedUrl = getYouTubeEmbedUrl(src);
-  const isYouTube = Boolean(youtubeEmbedUrl);
+  // Validate aspectRatio to prevent division by zero or negative values
+  const safeAspectRatio = aspectRatio > 0 ? aspectRatio : 16 / 9;
 
   useEffect(() => {
-    // YouTube iframes don't need event listeners
-    if (isYouTube) {
-      setIsLoading(false);
-      return;
-    }
-
     const video = videoRef.current;
     if (!video) return;
 
@@ -94,17 +72,17 @@ export function VideoDemo({
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('error', handleError);
     };
-  }, [isYouTube]);
+  }, []);
 
   return (
     <div className="relative w-full overflow-hidden rounded-2xl bg-default-100 shadow-lg">
       {/* Aspect ratio container */}
       <div
         className="relative w-full"
-        style={{ paddingBottom: `${(1 / aspectRatio) * 100}%` }}
+        style={{ paddingBottom: `${(1 / safeAspectRatio) * 100}%` }}
       >
         {/* Loading state */}
-        {isLoading && !hasError && !isYouTube && (
+        {isLoading && !hasError && (
           <div className="absolute inset-0 flex items-center justify-center bg-default-50">
             <div className="flex flex-col items-center gap-3">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-default-300 border-t-primary" />
@@ -125,31 +103,19 @@ export function VideoDemo({
           </div>
         )}
 
-        {/* YouTube iframe */}
-        {isYouTube && youtubeEmbedUrl ? (
-          <iframe
-            src={youtubeEmbedUrl}
-            className="absolute inset-0 h-full w-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            title={ariaLabel}
-          />
-        ) : (
-          /* Direct video element */
-          <video
-            ref={videoRef}
-            src={src}
-            poster={poster}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className={`absolute inset-0 h-full w-full object-cover ${
-              isLoading || hasError ? 'invisible' : 'visible'
+        {/* Direct video element */}
+        <video
+          ref={videoRef}
+          src={src}
+          poster={poster}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className={`absolute inset-0 h-full w-full object-contain ${isLoading || hasError ? 'invisible' : 'visible'
             }`}
-            aria-label={ariaLabel}
-          />
-        )}
+          aria-label={ariaLabel}
+        />
       </div>
 
       {/* Subtle indicator that it's a looping demo */}

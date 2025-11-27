@@ -133,6 +133,25 @@ export interface PageContextConsent {
 }
 
 /**
+ * Checks if page context consent was granted within a specified time window.
+ * Useful for determining if consent needs to be re-confirmed after a period.
+ *
+ * @param consent - The PageContextConsent object to check
+ * @param maxAgeMs - Maximum age in milliseconds for consent to be considered recent
+ * @returns true if consent was granted and is within the specified time window
+ */
+export function isConsentRecent(
+  consent: PageContextConsent,
+  maxAgeMs: number,
+): boolean {
+  return (
+    consent.consentGranted &&
+    consent.consentTimestamp !== null &&
+    Date.now() - consent.consentTimestamp < maxAgeMs
+  );
+}
+
+/**
  * Reminder state for periodic prompts to enable AI features
  * Used when user has denied page context consent
  */
