@@ -10,10 +10,9 @@ import { Skeleton } from '@heroui/skeleton';
 import { Tab, Tabs } from '@heroui/tabs';
 import { useTheme } from '@heroui/use-theme';
 import type { JSX } from 'react';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect } from 'react';
 import { browser, type PublicPath } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
-import type { AiModelId } from '@/entrypoints/shared/integrations/chrome-ai/model-status';
 import { STRATEGY_OPTIONS } from '@/entrypoints/shared/pipeline/strategy-options';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import AiModelBanner from './components/AiModelBanner';
@@ -22,17 +21,11 @@ import { IconButton } from './components/IconButton';
 import { PrimaryButton } from './components/PrimaryButton';
 import { ProcessingModeIndicator } from './components/ProcessingModeIndicator';
 import StrategyTab from './components/StrategyTab';
-import { describeAiState, useAiModelStatus } from './hooks/useAiModelStatus';
+import { useAiModelStatus } from './hooks/useAiModelStatus';
 import { useDownloadsAccess } from './hooks/useDownloadsAccess';
 import { useHistory } from './hooks/useHistory';
 import { usePopupSettings } from './hooks/usePopupSettings';
 import { DownloadsAccessScreen } from './onboarding/DownloadsAccessScreen';
-
-const AI_MODEL_LABELS: Record<AiModelId, string> = {
-  'language-model': 'Prompt API (Gemini Nano)',
-  summarizer: 'Summarizer API',
-  'language-detector': 'Language Detector API',
-};
 
 function App(): JSX.Element {
   const { theme, setTheme } = useTheme();
@@ -46,7 +39,6 @@ function App(): JSX.Element {
     openOnboarding,
     openPersistentSetup,
     handleOnboardingComplete,
-    handleOnboardingSkip,
   } = useDownloadsAccess();
   const {
     historyLoaded,
@@ -86,16 +78,9 @@ function App(): JSX.Element {
 
   const options = STRATEGY_OPTIONS;
 
-  const aiBannerDetails = useMemo(() => {
-    if (!aiStatuses) return [];
-    return aiBlockingModels.map((id) => ({
-      id,
-      description: `${AI_MODEL_LABELS[id]} — ${describeAiState(
-        aiStatuses[id].state,
-      )}`,
-      requiresUserActivation: aiStatuses[id].requiresUserActivation,
-    }));
-  }, [aiBlockingModels, aiStatuses]);
+  // AI is enabled if setup is complete OR user is using cloud-only mode
+  const aiEnabled =
+    !!aiSetupCompletedAt || processingMode === 'cloud' || !aiStatusChecked;
 
   const shouldShowAiBanner =
     aiStatusChecked &&
@@ -107,10 +92,14 @@ function App(): JSX.Element {
 
   const handleOpenAiSetup = useCallback(async () => {
     try {
-      const url = browser.runtime.getURL('/ai-model-setup.html' as PublicPath);
+      const url = browser.runtime.getURL(
+        '/ai-mode-selection.html' as PublicPath,
+      );
       await browser.tabs.create({ url });
     } catch (err) {
-      debugLogger.error('Failed to open AI model setup page', { error: err });
+      debugLogger.error('Failed to open AI mode selection page', {
+        error: err,
+      });
     }
   }, []);
 
@@ -138,11 +127,8 @@ function App(): JSX.Element {
 
   if (showOnboarding) {
     return (
-      <div className="w-96 p-3 bg-background text-foreground">
-        <DownloadsAccessScreen
-          onComplete={handleOnboardingComplete}
-          onSkip={handleOnboardingSkip}
-        />
+      <div className="w-96 p-4 bg-background text-foreground">
+        <DownloadsAccessScreen onComplete={handleOnboardingComplete} />
       </div>
     );
   }
@@ -216,7 +202,6 @@ function App(): JSX.Element {
 
       <AiModelBanner
         visible={shouldShowAiBanner}
-        details={aiBannerDetails}
         lastError={aiLastSetupError}
         onEnableAi={handleOpenAiSetup}
       />
@@ -306,6 +291,7 @@ function App(): JSX.Element {
             strategy={strategy}
             options={options}
             onChange={handleStrategyChange}
+            aiEnabled={aiEnabled}
           />
         </Tab>
 

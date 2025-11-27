@@ -1,20 +1,19 @@
 /**
  * Compact downloads access onboarding screen for popup
+ * Designed to be friendly and encourage users to complete setup
  */
+import FolderOpenIcon from '@heroicons/react/24/outline/FolderOpenIcon';
 import { Alert } from '@heroui/alert';
 import { type JSX, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
-import { markOnboardingSkipped } from '@/entrypoints/shared/onboarding/onboarding-state';
 
 export interface DownloadsAccessScreenProps {
   onComplete: () => void;
-  onSkip: () => void;
 }
 
 export function DownloadsAccessScreen({
   onComplete,
-  onSkip,
 }: DownloadsAccessScreenProps): JSX.Element {
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,67 +42,45 @@ export function DownloadsAccessScreen({
     }
   }
 
-  async function handleSkip(): Promise<void> {
-    try {
-      await markOnboardingSkipped();
-      onSkip();
-    } catch (err) {
-      debugLogger.error('[DownloadsAccessScreen] Failed to skip onboarding', {
-        error: err,
-      });
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to skip onboarding right now.',
-      );
-    }
-  }
-
-  const disableActions = opening;
-
   return (
-    <div className="flex flex-col gap-4">
-      <header className="space-y-1">
-        <h1 className="text-lg font-semibold">Enable Downloads Access</h1>
-        <p className="text-xs leading-relaxed text-default-500">
-          Choose where NewName should save and rename files. Click below to open
-          the setup page, finish the quick prompt, and you&apos;re all set.
+    <div className="flex flex-col items-center gap-5 py-2 text-center">
+      {/* Icon */}
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-100 text-primary-600">
+        <FolderOpenIcon className="h-7 w-7" />
+      </div>
+
+      {/* Header */}
+      <header className="space-y-2">
+        <h1 className="text-lg font-semibold text-default-900">
+          Quick setup needed
+        </h1>
+        <p className="text-sm leading-relaxed text-default-500">
+          Pick a folder so NewName can organize your downloads automatically.
         </p>
       </header>
 
+      {/* Error */}
       {error ? (
         <Alert color="warning" variant="flat" className="text-xs">
           {error}
         </Alert>
       ) : null}
 
-      <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            void handleOpenSetupTab();
-          }}
-          disabled={disableActions}
-          className="inline-flex items-center justify-center rounded bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {opening ? 'Opening…' : 'Open setup tab'}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            void handleSkip();
-          }}
-          disabled={disableActions}
-          className="inline-flex items-center justify-center rounded border border-default-300 px-3 py-2 text-sm font-semibold text-default-600 transition hover:bg-default-100 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Skip for now
-        </button>
-      </div>
+      {/* Action */}
+      <button
+        type="button"
+        onClick={() => {
+          void handleOpenSetupTab();
+        }}
+        disabled={opening}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-primary-600 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <FolderOpenIcon className="h-4 w-4" />
+        {opening ? 'Opening setup...' : 'Choose folder'}
+      </button>
 
-      <footer className="text-[11px] leading-relaxed text-default-400">
-        Skipping keeps NewName from renaming files automatically. Grant access
-        later to enable post-download renames and undo.
-      </footer>
+      {/* Subtle info */}
+      <p className="text-[11px] text-default-400">Takes less than 30 seconds</p>
     </div>
   );
 }

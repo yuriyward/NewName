@@ -1,8 +1,12 @@
 /**
  * Full-page downloads folder permission onboarding interface
+ * Designed to be friendly and easy to follow for non-technical users
  */
-import CheckCircleIcon from '@heroicons/react/24/outline/CheckCircleIcon';
-import ShieldExclamationIcon from '@heroicons/react/24/outline/ShieldExclamationIcon';
+
+import FolderIcon from '@heroicons/react/24/outline/FolderIcon';
+import FolderOpenIcon from '@heroicons/react/24/outline/FolderOpenIcon';
+import HandRaisedIcon from '@heroicons/react/24/outline/HandRaisedIcon';
+import CheckCircleIcon from '@heroicons/react/24/solid/CheckCircleIcon';
 import { type JSX, useEffect, useRef, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
@@ -23,6 +27,12 @@ import {
   markOnboardingCompleted,
 } from '@/entrypoints/shared/onboarding/onboarding-state';
 import { clearBadge } from '@/entrypoints/shared/ui/badge-manager';
+import { VideoDemo } from './VideoDemo';
+
+// TODO: Replace with your published video URL (GitHub Releases, CDN, etc.)
+// Keep video external to avoid bloating extension size
+const FOLDER_SELECTION_VIDEO_URL =
+  'https://your-cdn.com/folder-selection-demo.mp4';
 
 type RequestState =
   | { status: 'idle' }
@@ -41,14 +51,17 @@ type RequestState =
     }
   | { status: 'error'; message: string; hint?: string };
 
+/**
+ * Converts technical error messages into friendly, actionable guidance
+ */
 function classifyPermissionError(
   err: unknown,
   lastPickerError: unknown,
 ): { message: string; hint?: string } {
   if (err instanceof ManagedSubfolderRequiredError) {
     return {
-      message: 'Pick a regular folder to continue.',
-      hint: 'Chrome keeps system folders read-only. Create or choose a folder inside it (for example “Organized”) and select that instead.',
+      message: "Can't use that folder",
+      hint: 'Try creating a new folder inside Downloads and pick that instead.',
     };
   }
 
@@ -67,38 +80,33 @@ function classifyPermissionError(
           /Failed to execute 'showDirectoryPicker'/.test(detailMessage))
       ) {
         return {
-          message: 'Chrome blocked that folder.',
-          hint: 'Create a subfolder inside it or choose a different folder, then try again.',
+          message: "Can't select that folder",
+          hint: 'Try a different folder or create a new one.',
         };
       }
 
       return {
-        message: 'No folder selected. Please choose one to continue.',
-        hint:
-          detailMessage && name
-            ? `Chrome said: “${detailMessage}” (code: ${name}).`
-            : undefined,
+        message: 'No folder selected',
+        hint: 'Click below to try again.',
       };
     }
 
     return {
-      message: 'No folder selected. Please choose one to continue.',
+      message: 'No folder selected',
+      hint: 'Click below to try again.',
     };
   }
 
   if (message === 'Permission not granted') {
     return {
-      message: 'Please allow access so NewName can manage your files.',
-      hint: 'When Chrome asks for permission, click “Allow”.',
+      message: 'Permission needed',
+      hint: 'Click "Allow" when Chrome asks for permission.',
     };
   }
 
   return {
-    message: 'Something went wrong. Try again.',
-    hint:
-      message && message !== 'Something went wrong'
-        ? `Chrome said: “${message}”.`
-        : undefined,
+    message: "Let's try again",
+    hint: 'Click below to retry.',
   };
 }
 
@@ -109,6 +117,9 @@ export function DownloadsPermissionPage(): JSX.Element {
     'grant' | 'restore' | null
   >(null);
   const storedHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
+
+  // Determine which step we're on (1 = pick folder, 2 = confirm permanent access)
+  const currentStep = hasStoredHandle ? 2 : 1;
 
   useEffect(() => {
     let active = true;
@@ -219,8 +230,8 @@ export function DownloadsPermissionPage(): JSX.Element {
     if (!handle) {
       setState({
         status: 'error',
-        message: 'No saved folder found. Pick a folder first.',
-        hint: 'Choose a folder with “Grant access” and then allow “Allow on every visit” in Chrome.',
+        message: "We couldn't find your folder",
+        hint: "Let's start fresh — click 'Start over' to pick a folder again.",
       });
       return;
     }
@@ -272,209 +283,236 @@ export function DownloadsPermissionPage(): JSX.Element {
     }
   }
 
+  // Success state - show celebration screen
+  if (state.status === 'success') {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-success-50 via-background to-background text-foreground">
+        <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col items-center justify-center gap-6 px-6 py-10 text-center">
+          <div className="relative">
+            <div className="absolute -inset-4 animate-pulse rounded-full bg-success-200/50" />
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-success-500 text-white shadow-lg">
+              <CheckCircleIcon className="h-12 w-12" />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-success-700">All set! 🎉</h1>
+            <p className="text-default-600">
+              NewName can now organize your downloads.
+            </p>
+          </div>
+
+          <p className="text-sm text-default-400">Closing...</p>
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 px-6 py-10">
-        <header className="space-y-3">
-          <p className="text-xs uppercase tracking-wide text-default-400">
-            NewName Setup
-          </p>
-          <h1 className="text-2xl font-semibold">
-            {hasStoredHandle
-              ? 'Step 2: Grant permanent access'
-              : 'Choose your folder'}
-          </h1>
-          <p className="text-sm leading-relaxed text-default-500">
+    <div className="min-h-screen bg-gradient-to-b from-primary-50/40 via-background to-background text-foreground">
+      <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center px-6 py-6">
+        {/* Main content card */}
+        <div className="relative rounded-3xl border border-default-200 bg-white/80 p-6 shadow-xl backdrop-blur sm:p-8">
+          {/* Compact step indicator in top-right corner */}
+          <div className="absolute right-4 top-4 flex items-center gap-1.5 sm:right-6 sm:top-6">
+            {Array.from({ length: 2 }, (_, i) => {
+              const stepNum = i + 1;
+              const isCompleted = stepNum < currentStep;
+              const isCurrent = stepNum === currentStep;
+
+              return (
+                <div
+                  key={stepNum}
+                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-all ${
+                    isCompleted
+                      ? 'bg-success-500 text-white'
+                      : isCurrent
+                        ? 'bg-primary text-white ring-2 ring-primary/20'
+                        : 'bg-default-200 text-default-500'
+                  }`}
+                >
+                  {isCompleted ? (
+                    <CheckCircleIcon className="h-4 w-4" />
+                  ) : (
+                    stepNum
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* Header with icon */}
+          <div className="mb-5 flex flex-col items-center gap-2.5 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-100 text-primary-600">
+              {hasStoredHandle ? (
+                <HandRaisedIcon className="h-6 w-6" />
+              ) : (
+                <FolderOpenIcon className="h-6 w-6" />
+              )}
+            </div>
+
+            <h1 className="text-xl font-bold text-default-900">
+              {hasStoredHandle
+                ? 'Grant permanent access'
+                : 'Where should downloads be organized?'}
+            </h1>
+          </div>
+
+          {/* Error message */}
+          {state.status === 'error' && (
+            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                  <span className="text-lg">💡</span>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-amber-900">
+                    {state.message}
+                  </p>
+                  {state.hint && (
+                    <p className="text-sm text-amber-700">{state.hint}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 1 complete message */}
+          {state.status === 'step1-complete' && (
+            <div className="mb-4 rounded-2xl border border-success-200 bg-success-50 p-3.5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success-100 text-success-600">
+                  <CheckCircleIcon className="h-5 w-5" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-success-900">Step 1 done!</p>
+                  <p className="text-sm text-success-700">
+                    A new tab will open for step 2. If not, close this and click
+                    the extension icon.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 1: Large video demo */}
+          {!hasStoredHandle && state.status !== 'step1-complete' && (
+            <div className="mb-5 space-y-3">
+              <VideoDemo
+                src={FOLDER_SELECTION_VIDEO_URL}
+                aspectRatio={16 / 9}
+                ariaLabel="Video demonstration of folder selection process"
+              />
+              {/* Important tip about creating subfolder */}
+              <div className="rounded-xl bg-primary-50/60 p-3 text-center">
+                <p className="text-sm text-primary-800">
+                  💡 Create a subfolder like{' '}
+                  <strong>Downloads/Organized</strong> — you can't select main
+                  system folders
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Video demo and instruction */}
+          {hasStoredHandle && (
+            <div className="mb-5 space-y-3">
+              <VideoDemo
+                src={FOLDER_SELECTION_VIDEO_URL}
+                aspectRatio={16 / 9}
+                ariaLabel="Video demonstration of folder selection process"
+              />
+              {/* Simple instruction */}
+              <div className="rounded-xl bg-primary-50/60 p-3 text-center">
+                <p className="text-sm text-primary-800">
+                  Pick the same folder and click{' '}
+                  <span className="whitespace-nowrap rounded bg-primary-100 px-1.5 py-0.5 font-medium text-primary-700">
+                    Allow on every visit
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Main action buttons */}
+          <div className="flex flex-col gap-3">
             {hasStoredHandle ? (
               <>
-                Click the button below and select the same folder again. This
-                time, choose <strong>&quot;Allow on every visit&quot;</strong>{' '}
-                so you never have to do this again.
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleRestoreExisting();
+                  }}
+                  disabled={state.status === 'pending'}
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition ${
+                    state.status === 'pending'
+                      ? 'cursor-not-allowed opacity-60'
+                      : 'hover:bg-primary-600 hover:shadow-xl'
+                  }`}
+                >
+                  <FolderIcon className="h-5 w-5" />
+                  {state.status === 'pending' && pendingAction === 'restore'
+                    ? 'Opening...'
+                    : 'Select folder & finish'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleGrantAccess();
+                  }}
+                  disabled={state.status === 'pending'}
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl border border-default-300 bg-white px-6 py-3 text-sm font-medium text-default-600 transition ${
+                    state.status === 'pending'
+                      ? 'cursor-not-allowed opacity-60'
+                      : 'hover:bg-default-50'
+                  }`}
+                >
+                  {state.status === 'pending' && pendingAction === 'grant'
+                    ? 'Opening...'
+                    : 'Use a different folder'}
+                </button>
               </>
             ) : (
-              <>
-                We&apos;ll ask you to select your folder twice — once for
-                initial access, then again for permanent access.
-              </>
-            )}
-          </p>
-          {!hasStoredHandle ? (
-            <div className="rounded-lg bg-primary-50/50 border border-primary-200 px-4 py-3 text-sm text-default-600">
-              <p className="font-medium text-primary-900 mb-1">
-                💡 Recommended: Create a subfolder in Downloads
-              </p>
-              <p className="text-xs text-default-600">
-                For easy organization, create a new folder like{' '}
-                <strong>Downloads/Organized</strong> or{' '}
-                <strong>Downloads/Web Downloads</strong>. You can create it
-                right in the picker!
-              </p>
-            </div>
-          ) : null}
-        </header>
-
-        {state.status === 'step1-complete' ? (
-          <div className="rounded-2xl border border-success-200 bg-success-50/80 p-5 shadow-sm">
-            <div className="flex flex-wrap items-start gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-success-100 text-success-700">
-                <CheckCircleIcon className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1 space-y-2 text-sm text-success-800">
-                <p className="font-semibold">Page should have reopened</p>
-                <p className="text-xs text-success-600">
-                  A new tab should open automatically for step 2. If not, close
-                  this tab and open the extension again.
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {state.status === 'success' ? (
-          <div className="rounded-2xl border border-success-200 bg-success-50/80 p-5 shadow-sm">
-            <div className="flex flex-wrap items-start gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-success-100 text-success-700">
-                <CheckCircleIcon className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1 space-y-2 text-sm text-success-800">
-                <p className="font-semibold">Setup complete!</p>
-                <p className="text-xs text-success-600">
-                  You&apos;re all set. This tab will close automatically.
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {state.status === 'error' ? (
-          <div className="rounded-2xl border border-warning-200 bg-warning-50/80 p-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-warning-100 text-warning-700">
-                <ShieldExclamationIcon className="h-5 w-5" />
-              </span>
-              <div className="space-y-1 text-sm text-warning-800">
-                <p className="font-semibold">{state.message}</p>
-                {state.hint ? (
-                  <p className="text-xs text-warning-700">{state.hint}</p>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {!hasStoredHandle ? (
-          <section className="space-y-3 rounded-lg border border-default-200 bg-default-50/40 p-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-default-500">
-              What to expect
-            </h2>
-            <ol className="space-y-2 text-sm leading-relaxed text-default-600">
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 text-primary">1.</span>
-                <span>Choose your folder from the picker</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 text-primary">2.</span>
-                <span>
-                  Page will reopen — choose the <strong>same folder</strong>{' '}
-                  again
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-0.5 text-primary">3.</span>
-                <span>
-                  Click <strong>&quot;Allow on every visit&quot;</strong> —
-                  Done!
-                </span>
-              </li>
-            </ol>
-          </section>
-        ) : null}
-
-        {state.status === 'error' ? (
-          <section className="space-y-3 rounded-lg border border-default-200 bg-default-50/80 p-4 text-xs text-default-600">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-default-500">
-              Blocked the prompt?
-            </h2>
-            <ol className="space-y-2 leading-relaxed">
-              <li>
-                Click the padlock icon in Chrome&apos;s address bar and choose
-                “Site settings”.
-              </li>
-              <li>
-                Set “File system access” (or “Additional permissions → Folder
-                access”) to “Allow”, then close the tab that opened.
-              </li>
-              <li>
-                Return here, reload the page, and press “Grant access” again.
-              </li>
-              <li>
-                If you still can&apos;t find the toggle, open
-                chrome://settings/content/fileSystemWrite and allow NewName.
-              </li>
-            </ol>
-          </section>
-        ) : null}
-
-        <div className="flex flex-wrap gap-3">
-          {hasStoredHandle ? (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  void handleRestoreExisting();
-                }}
-                disabled={
-                  state.status === 'pending' || state.status === 'success'
-                }
-                className={`inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition ${
-                  state.status === 'pending' || state.status === 'success'
-                    ? 'cursor-not-allowed opacity-60'
-                    : 'hover:opacity-90'
-                }`}
-              >
-                {state.status === 'pending' && pendingAction === 'restore'
-                  ? 'Opening…'
-                  : 'Choose folder again'}
-              </button>
               <button
                 type="button"
                 onClick={() => {
                   void handleGrantAccess();
                 }}
-                disabled={
-                  state.status === 'pending' || state.status === 'success'
-                }
-                className={`inline-flex items-center justify-center rounded-md border border-default-300 px-4 py-2 text-sm font-semibold text-default-600 transition ${
-                  state.status === 'pending' || state.status === 'success'
+                disabled={state.status === 'pending'}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition ${
+                  state.status === 'pending'
                     ? 'cursor-not-allowed opacity-60'
-                    : 'hover:bg-default-100'
+                    : 'hover:bg-primary-600 hover:shadow-xl'
                 }`}
               >
+                <FolderOpenIcon className="h-5 w-5" />
                 {state.status === 'pending' && pendingAction === 'grant'
-                  ? 'Opening…'
-                  : 'Start over'}
+                  ? 'Opening...'
+                  : 'Choose folder'}
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                void handleGrantAccess();
-              }}
-              disabled={
-                state.status === 'pending' || state.status === 'success'
-              }
-              className={`inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition ${
-                state.status === 'pending' || state.status === 'success'
-                  ? 'cursor-not-allowed opacity-60'
-                  : 'hover:opacity-90'
-              }`}
-            >
-              {state.status === 'pending' && pendingAction === 'grant'
-                ? 'Opening…'
-                : 'Choose folder'}
-            </button>
-          )}
+            )}
+          </div>
+        </div>
+
+        {/* Troubleshooting section - only show on error */}
+        {state.status === 'error' && (
+          <details className="rounded-2xl border border-default-200 bg-default-50/50">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-default-600 hover:text-default-900">
+              Need help?
+            </summary>
+            <div className="space-y-2 border-t border-default-200 px-4 py-3 text-sm text-default-600">
+              <p className="font-medium">If Chrome blocked access:</p>
+              <ol className="list-inside list-decimal space-y-1.5 text-default-500">
+                <li>Click the padlock icon in the address bar</li>
+                <li>Go to Site settings</li>
+                <li>Set File system access to Allow</li>
+                <li>Try again</li>
+              </ol>
+            </div>
+          </details>
+        )}
+
+        {/* Footer */}
+        <footer className="mt-auto flex justify-end text-xs">
           <button
             type="button"
             onClick={() => {
@@ -484,18 +522,10 @@ export function DownloadsPermissionPage(): JSX.Element {
                 // Ignore close failures when tab is opened manually.
               }
             }}
-            className="inline-flex items-center justify-center rounded-md border border-default-300 px-4 py-2 text-sm font-semibold text-default-600 transition hover:bg-default-100"
+            className="text-default-500 underline hover:text-default-700"
           >
-            Close tab
+            Skip for now
           </button>
-        </div>
-
-        <footer className="mt-auto space-y-1 text-xs text-default-400">
-          <p>Having trouble? Make sure you&apos;re on Chrome 122 or later.</p>
-          <p>
-            If the picker keeps failing, report the error code shown above so we
-            can investigate.
-          </p>
         </footer>
       </main>
     </div>
