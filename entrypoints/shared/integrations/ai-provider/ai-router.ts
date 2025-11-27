@@ -93,12 +93,17 @@ export class AiRouter {
   private async selectProvider(
     mode: ProcessingMode,
   ): Promise<{ provider: IAiProvider; wasFallback: boolean } | null> {
-    const localAvailable = await this.localProvider.isAvailable();
+    // Only check local availability when needed (not for cloud-only mode)
+    let localAvailable = false;
+    if (mode !== 'cloud') {
+      localAvailable = await this.localProvider.isAvailable();
+    }
 
-    // Check cloud availability (lazy-loads adapter if needed)
+    // Only check cloud availability when needed (not for local-only mode)
     let cloudAvailable = false;
     let cloudProvider: CloudAiAdapter | null = null;
     if (
+      mode !== 'local' &&
       this.config.cloudConfig.enabled &&
       this.config.cloudConfig.consentGiven
     ) {

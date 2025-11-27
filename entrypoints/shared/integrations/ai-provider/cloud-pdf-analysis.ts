@@ -22,9 +22,13 @@ import { formatPageContextForPrompt } from '@/entrypoints/shared/context/page-co
 import type { UpgradeProposal } from '@/entrypoints/shared/history/types';
 import type { ImageUpgradeAnalysisResponse } from '@/entrypoints/shared/integrations/image-analysis/types';
 import { applyFilenamePolicy } from '@/entrypoints/shared/naming/policy-engine';
+import {
+  applyDateTimePrefix,
+  extractDateTimePrefix,
+} from '@/entrypoints/shared/pipeline/datetime-prefix';
 import { arrayBufferToBase64 } from '@/entrypoints/shared/utils/encoding';
 import { sanitizeForPrompt } from '@/entrypoints/shared/utils/prompt-sanitization';
-import { DATE_FORMAT_RULE, parseJsonResponse } from './helpers';
+import { parseJsonResponse } from './helpers';
 
 /**
  * Content length limits for prompt engineering
@@ -194,6 +198,16 @@ Format your response as JSON with exactly this structure:
     // Merge PDF context for filename generation
     const mergedContext = mergePdfContext(titleDescriptionContext);
 
+    // Check if "AI rename + date" strategy was used (we'll preserve the date prefix)
+    const usesDateStrategy =
+      request.baseline.decision?.strategy === 'original-with-date';
+
+    // Extract datetime prefix from baseline if present
+    const baselineStem = currentFilename.includes('.')
+      ? currentFilename.slice(0, currentFilename.lastIndexOf('.'))
+      : currentFilename;
+    const datetimePrefix = extractDateTimePrefix(baselineStem);
+
     // PHASE 3: Generate filename using Gemini
     // Note: mergedContext.fullDescription is already sanitized in mergePdfContext
     // Note: mergedContext.documentTitle is already sanitized in mergePdfContext
@@ -214,8 +228,7 @@ ${
 
 Rules:
 - Use spaces to separate words (e.g., "Machine Learning Algorithms" not "Machine-Learning-Algorithms")
-- Subject first, then qualifiers
-- ${DATE_FORMAT_RULE} if present
+- Subject first, then qualifiers${usesDateStrategy ? '\n- Do NOT add a date prefix to the filename. Content-related dates (like invoice dates, event dates) are fine.' : ''}
 - No file extension (will be added automatically)
 - Be specific and descriptive
 - Length between 20-${request.settings.maxFilenameLength} chars
@@ -233,17 +246,37 @@ Respond with JSON:
       generationResult.text,
     );
 
+    // Get separator character based on settings
+    const separatorChar =
+      request.settings.separator === 'clean'
+        ? ' '
+        : request.settings.separator === 'kebab'
+          ? '-'
+          : '_';
+
+    // Calculate max length accounting for datetime prefix if present
+    const maxLength = datetimePrefix
+      ? request.settings.maxFilenameLength -
+        datetimePrefix.length -
+        separatorChar.length
+      : request.settings.maxFilenameLength;
+
     // Apply filename policy to normalize separators according to user settings
     const policyResult = applyFilenamePolicy({
       subject: generated.filename,
       qualifiers: [],
       extension: 'pdf',
-      maxLength: request.settings.maxFilenameLength,
+      maxLength,
       separator: request.settings.separator,
       transliterateAscii: request.settings.transliterateAscii,
     });
 
-    const proposedFilename = policyResult.filename;
+    // Re-apply datetime prefix if present in baseline
+    const finalBase = datetimePrefix
+      ? applyDateTimePrefix(policyResult.base, datetimePrefix, separatorChar)
+      : policyResult.base;
+
+    const proposedFilename = `${finalBase}.pdf`;
     const proposedPath = buildProposedPath(
       request.relativePath,
       proposedFilename,

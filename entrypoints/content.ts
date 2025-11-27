@@ -141,7 +141,7 @@ async function checkConsentWithCache(): Promise<boolean> {
  * Invalidate consent cache to force a fresh check on next call.
  * Call this when consent settings may have changed.
  */
-function invalidateConsentCache(): void {
+function _invalidateConsentCache(): void {
   cachedConsentGranted = null;
   consentCacheTimestamp = 0;
 }

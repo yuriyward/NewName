@@ -19,9 +19,13 @@ import type {
   ImageUpgradeAnalysisRequest,
   ImageUpgradeAnalysisResponse,
 } from '@/entrypoints/shared/integrations/image-analysis/types';
+import {
+  applyDateTimePrefix,
+  extractDateTimePrefix,
+} from '@/entrypoints/shared/pipeline/datetime-prefix';
 import { arrayBufferToBase64 } from '@/entrypoints/shared/utils/encoding';
 import { sanitizeForPrompt } from '@/entrypoints/shared/utils/prompt-sanitization';
-import { DATE_FORMAT_RULE, parseJsonResponse } from './helpers';
+import { parseJsonResponse } from './helpers';
 import { buildCloudImageAnalysisSummary } from './summary-builder';
 
 interface CloudDecisionResponse {
@@ -160,6 +164,16 @@ Respond with JSON:
       return null;
     }
 
+    // Check if "AI rename + date" strategy was used (we'll preserve the date prefix)
+    const usesDateStrategy =
+      request.baseline.decision?.strategy === 'original-with-date';
+
+    // Extract datetime prefix from baseline if present
+    const baselineStem = currentFilename.includes('.')
+      ? currentFilename.slice(0, currentFilename.lastIndexOf('.'))
+      : currentFilename;
+    const datetimePrefix = extractDateTimePrefix(baselineStem);
+
     // Step 3: Generate filename
     const generationPrompt = `Generate a descriptive filename for this image.
 
@@ -170,8 +184,7 @@ Separator: ${request.settings.separator}
 
 Rules:
 - Subject first, then qualifiers
-- Use ${request.settings.separator} as word separator
-- ${DATE_FORMAT_RULE}
+- Use ${request.settings.separator} as word separator${usesDateStrategy ? '\n- Do NOT add a date prefix to the filename. Content-related dates (like event dates) are fine.' : ''}
 - No file extension
 - Be specific
 - Length: 20-${request.settings.maxFilenameLength} chars
@@ -213,8 +226,20 @@ Respond with JSON:
       parsed: generated,
     });
 
-    // Build proposal
-    const proposedFilename = `${generated.filename}.${request.filename.split('.').pop()}`;
+    // Get separator character based on settings
+    const separatorChar =
+      request.settings.separator === 'clean'
+        ? ' '
+        : request.settings.separator === 'kebab'
+          ? '-'
+          : '_';
+
+    // Apply datetime prefix if present in baseline
+    const finalStem = datetimePrefix
+      ? applyDateTimePrefix(generated.filename, datetimePrefix, separatorChar)
+      : generated.filename;
+
+    const proposedFilename = `${finalStem}.${request.filename.split('.').pop()}`;
     const proposedPath = buildProposedPath(
       request.relativePath,
       proposedFilename,
