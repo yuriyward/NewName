@@ -51,7 +51,7 @@ export function ConsentDenialModal({
           </h2>
 
           {/* Message */}
-          <p className="text-sm text-default-600 text-center">
+          <p className="text-center text-sm text-default-600">
             Please check the consent box above to enable AI features.
           </p>
 

@@ -300,7 +300,8 @@ export function sanitizePageContextConsent(
         ? input.consentGranted
         : defaults.consentGranted,
     consentTimestamp:
-      typeof input?.consentTimestamp === 'number'
+      typeof input?.consentTimestamp === 'number' &&
+      input.consentTimestamp <= Date.now()
         ? input.consentTimestamp
         : defaults.consentTimestamp,
   };

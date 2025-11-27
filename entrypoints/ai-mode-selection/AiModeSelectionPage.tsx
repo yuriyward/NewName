@@ -68,6 +68,10 @@ export function AiModeSelectionPage(): JSX.Element {
 
     try {
       const settings = await getSettings();
+      const pageContextConsent = {
+        consentGranted: true,
+        consentTimestamp: Date.now(),
+      };
 
       if (choice === 'local') {
         // Set processing mode to local and save consent
@@ -76,10 +80,7 @@ export function AiModeSelectionPage(): JSX.Element {
             ...settings.processingPreferences,
             global: 'local',
           },
-          pageContextConsent: {
-            consentGranted: true,
-            consentTimestamp: Date.now(),
-          },
+          pageContextConsent,
         });
       } else {
         // Set processing mode to cloud, enable cloud, and save consent
@@ -94,10 +95,7 @@ export function AiModeSelectionPage(): JSX.Element {
             consentGiven: true,
             consentTimestamp: Date.now(),
           },
-          pageContextConsent: {
-            consentGranted: true,
-            consentTimestamp: Date.now(),
-          },
+          pageContextConsent,
         });
       }
 
