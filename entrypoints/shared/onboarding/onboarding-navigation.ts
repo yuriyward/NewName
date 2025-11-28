@@ -14,6 +14,9 @@ import {
 /** AI mode selection page path */
 const AI_MODE_SELECTION_PATH = '/ai-mode-selection.html' as PublicPath;
 
+/** AI model setup page path */
+const AI_MODEL_SETUP_PATH = '/ai-model-setup.html' as PublicPath;
+
 /**
  * Check if user needs to see AI mode selection screen.
  * Only new installs after feature launch who haven't chosen yet.
@@ -55,4 +58,28 @@ export async function navigateAfterDownloadsSetup(): Promise<void> {
     // Existing behavior for users who skip selection screen
     await ensureLocalAiSetup();
   }
+}
+
+/**
+ * Opens the AI model setup page in a new tab and closes the current window.
+ * Used for navigating from onboarding flows to the AI setup page.
+ *
+ * @remarks
+ * The window.close() call only executes after successful tab creation.
+ * If tab creation fails, the current window remains open.
+ */
+export async function navigateToAiModelSetup(): Promise<void> {
+  const url = browser.runtime.getURL(AI_MODEL_SETUP_PATH);
+  const newTab = await browser.tabs.create({ url });
+  if (newTab.id) {
+    window.close();
+  }
+}
+
+/**
+ * Closes the current onboarding window.
+ * Used when the user completes or dismisses an onboarding flow.
+ */
+export function closeOnboardingWindow(): void {
+  window.close();
 }
