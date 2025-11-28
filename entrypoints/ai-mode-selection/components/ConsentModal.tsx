@@ -2,6 +2,14 @@ import { Tooltip } from '@heroui/tooltip';
 import { type JSX, useId, useState } from 'react';
 import { LoadingSpinner } from '@/entrypoints/shared/ui/LoadingSpinner';
 
+/** Tooltip content constants to avoid duplication */
+const TOOLTIP_CONTENT = {
+  pageData:
+    'Page title, URL, and other context to understand where the file came from',
+  fileContent:
+    'Analyzes downloaded files to generate descriptive, meaningful names',
+} as const;
+
 export interface ConsentModalProps {
   open: boolean;
   choice: 'local' | 'cloud';
@@ -25,6 +33,7 @@ export function ConsentModal({
   loading = false,
 }: ConsentModalProps): JSX.Element | null {
   const checkboxId = useId();
+  const titleId = useId();
   const [consentChecked, setConsentChecked] = useState(false);
 
   if (!open) return null;
@@ -32,14 +41,19 @@ export function ConsentModal({
   const choiceLabel = choice === 'local' ? 'Local AI' : 'Cloud AI';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+    >
+      {/* Backdrop - clickable to dismiss */}
       <button
         type="button"
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-default border-none"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer border-none"
         onClick={onCancel}
         onKeyDown={(e) => e.key === 'Escape' && onCancel()}
-        aria-label="Close modal"
+        aria-label="Close modal by clicking outside"
       />
 
       {/* Modal - Compact design matching PageContextDisclosure style */}
@@ -62,7 +76,10 @@ export function ConsentModal({
                   d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
                 />
               </svg>
-              <h2 className="text-sm font-semibold text-foreground">
+              <h2
+                id={titleId}
+                className="text-sm font-semibold text-foreground"
+              >
                 Consent Required
               </h2>
             </div>
@@ -80,7 +97,7 @@ export function ConsentModal({
               <li className="flex items-center gap-2">
                 <span className="text-primary-400">✓</span>
                 <Tooltip
-                  content="Page title, URL, and other context to understand where the file came from"
+                  content={TOOLTIP_CONTENT.pageData}
                   placement="top"
                   delay={200}
                 >
@@ -92,7 +109,7 @@ export function ConsentModal({
               <li className="flex items-center gap-2">
                 <span className="text-primary-400">✓</span>
                 <Tooltip
-                  content="Analyzes downloaded files to generate descriptive, meaningful names"
+                  content={TOOLTIP_CONTENT.fileContent}
                   placement="top"
                   delay={200}
                 >
@@ -120,7 +137,11 @@ export function ConsentModal({
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-default-400">•</span>
-                <span>Not stored after processing</span>
+                <span>Not stored or logged after processing</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="text-default-400">•</span>
+                <span>We have no access to your data as maintainers</span>
               </li>
             </ul>
           </div>
@@ -154,27 +175,32 @@ export function ConsentModal({
             >
               Cancel
             </button>
-            <button
-              type="button"
-              onClick={consentChecked ? onConfirm : onDecline}
-              disabled={loading}
-              className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-offset-1 transition-colors disabled:opacity-50 ${
-                consentChecked
-                  ? 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500'
-                  : 'bg-default-100 text-default-400 hover:bg-default-200 focus:ring-default-300'
-              }`}
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-1.5">
-                  <LoadingSpinner size="xs" label="Saving" />
-                  <span>Saving...</span>
-                </span>
-              ) : consentChecked ? (
-                `Enable ${choiceLabel}`
-              ) : (
-                'Skip AI'
-              )}
-            </button>
+            {consentChecked ? (
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={loading}
+                className="flex-1 rounded-lg px-3 py-2 text-xs font-medium bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 transition-colors disabled:opacity-50"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <LoadingSpinner size="xs" label="Saving" />
+                    <span>Saving...</span>
+                  </span>
+                ) : (
+                  `Enable ${choiceLabel}`
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onDecline}
+                disabled={loading}
+                className="flex-1 rounded-lg px-3 py-2 text-xs font-medium bg-default-100 text-default-400 hover:bg-default-200 focus:outline-none focus:ring-2 focus:ring-default-300 focus:ring-offset-1 transition-colors disabled:opacity-50"
+              >
+                Skip AI
+              </button>
+            )}
           </div>
 
           {/* Footer note - Subtle */}
