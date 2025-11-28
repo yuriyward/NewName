@@ -1,8 +1,11 @@
 import { useTheme } from '@heroui/use-theme';
 import { type JSX, useEffect, useState } from 'react';
-import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { getSystemMemoryInfo } from '@/entrypoints/shared/messaging/core-messages';
+import {
+  closeOnboardingWindow,
+  navigateToAiModelSetup,
+} from '@/entrypoints/shared/onboarding/onboarding-navigation';
 import { markAiModeSelected } from '@/entrypoints/shared/onboarding/onboarding-state';
 import {
   getSettings,
@@ -14,24 +17,24 @@ import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import { CloudAiOption } from './components/CloudAiOption';
 import { ConsentModal } from './components/ConsentModal';
 import { LocalAiOption } from './components/LocalAiOption';
-
-const RAM_THRESHOLD_GB = 16;
-
-type PageState =
-  | { status: 'loading' }
-  | { status: 'ready'; ramGB: number }
-  | { status: 'navigating'; choice: 'local' | 'cloud' | 'manual' }
-  | { status: 'error'; message: string };
-
-type ConsentModalState =
-  | { open: false }
-  | { open: true; choice: 'local' | 'cloud' };
+import {
+  buildCloudModeSettings,
+  buildLocalModeSettings,
+  buildManualModeSettings,
+} from './consent-handlers';
+import {
+  ERROR_SAVE_CHOICE,
+  ERROR_SYSTEM_SPECS_DETECTION,
+  RAM_THRESHOLD_GB,
+} from './constants';
+import type { ConsentModalState, PageState } from './types';
 
 export function AiModeSelectionPage(): JSX.Element {
   const { setTheme } = useTheme();
   const [state, setState] = useState<PageState>({ status: 'loading' });
   const [consentModal, setConsentModal] = useState<ConsentModalState>({
-    open: false,
+    isOpen: false,
+    pendingChoice: null,
   });
 
   // Load theme from settings and subscribe to changes
@@ -82,7 +85,7 @@ export function AiModeSelectionPage(): JSX.Element {
         if (!active) return;
         setState({
           status: 'error',
-          message: 'Could not detect system specifications. Please try again.',
+          message: ERROR_SYSTEM_SPECS_DETECTION,
         });
       }
     })();
@@ -95,114 +98,76 @@ export function AiModeSelectionPage(): JSX.Element {
   function handleOptionSelect(choice: 'local' | 'cloud'): void {
     if (state.status !== 'ready') return;
     // Show consent modal instead of proceeding directly
-    setConsentModal({ open: true, choice });
+    setConsentModal({ isOpen: true, pendingChoice: choice });
   }
 
   // Called when user confirms consent in the modal
   async function handleConsentConfirm(): Promise<void> {
-    if (!consentModal.open) return;
-    const choice = consentModal.choice;
+    if (!consentModal.isOpen || !consentModal.pendingChoice) return;
+    const choice = consentModal.pendingChoice;
 
     setState({ status: 'navigating', choice });
-    setConsentModal({ open: false });
+    setConsentModal({ isOpen: false, pendingChoice: null });
 
     try {
       const settings = await getSettings();
-      const pageContextConsent = {
-        consentGranted: true,
-        consentTimestamp: Date.now(),
-      };
 
       if (choice === 'local') {
         // Set processing mode to local and save consent
-        await updateSettings({
-          processingPreferences: {
-            ...settings.processingPreferences,
-            global: 'local',
-          },
-          pageContextConsent,
-        });
+        await updateSettings(buildLocalModeSettings(settings));
       } else {
         // Set processing mode to cloud, enable cloud, and save consent
-        await updateSettings({
-          processingPreferences: {
-            ...settings.processingPreferences,
-            global: 'cloud',
-          },
-          cloud: {
-            ...settings.cloud,
-            enabled: true,
-            consentGiven: true,
-            consentTimestamp: Date.now(),
-          },
-          pageContextConsent,
-        });
+        await updateSettings(buildCloudModeSettings(settings));
       }
 
       // Mark AI mode as selected (prevents showing screen again)
       await markAiModeSelected();
 
       // Navigate to appropriate next screen
-      const url =
-        choice === 'local'
-          ? browser.runtime.getURL('/ai-model-setup.html')
-          : browser.runtime.getURL('/settings.html');
-
-      const newTab = await browser.tabs.create({ url });
-
-      // Close current tab once new tab is successfully created
-      if (newTab.id) {
-        window.close();
+      if (choice === 'local') {
+        await navigateToAiModelSetup();
+      } else {
+        closeOnboardingWindow();
       }
     } catch (error) {
       debugLogger.error('[AiModeSelection] Failed to save choice', { error });
       setState({
         status: 'error',
-        message: 'Failed to save your choice. Please try again.',
+        message: ERROR_SAVE_CHOICE,
       });
     }
   }
 
   // Called when user declines consent (clicks Continue without checking box)
   async function handleConsentDecline(): Promise<void> {
-    setConsentModal({ open: false });
+    setConsentModal({ isOpen: false, pendingChoice: null });
     setState({ status: 'navigating', choice: 'manual' });
 
     try {
       const settings = await getSettings();
 
       // Set processing mode to manual (keep-original strategy)
-      await updateSettings({
-        instantBaselineStrategy: 'keep-original',
-        processingPreferences: {
-          ...settings.processingPreferences,
-          global: 'auto', // Keep auto but with keep-original strategy
-        },
-        pageContextConsent: {
-          consentGranted: false,
-          consentTimestamp: null,
-        },
-      });
+      await updateSettings(buildManualModeSettings(settings));
 
       // Mark AI mode as selected (prevents showing screen again)
       await markAiModeSelected();
 
       // Close the tab
-      window.close();
+      closeOnboardingWindow();
     } catch (error) {
       debugLogger.error('[AiModeSelection] Failed to save manual choice', {
         error,
       });
       setState({
         status: 'error',
-        message: 'Failed to save your choice. Please try again.',
+        message: ERROR_SAVE_CHOICE,
       });
     }
   }
 
   // Called when user cancels the consent modal
   function handleConsentCancel(): void {
-    setConsentModal({ open: false });
+    setConsentModal({ isOpen: false, pendingChoice: null });
   }
 
   const ramGB = state.status === 'ready' ? state.ramGB : 0;
@@ -265,8 +230,8 @@ export function AiModeSelectionPage(): JSX.Element {
 
       {/* Consent Modal - shown when user selects an AI option */}
       <ConsentModal
-        open={consentModal.open}
-        choice={consentModal.open ? consentModal.choice : 'local'}
+        open={consentModal.isOpen}
+        choice={consentModal.pendingChoice ?? 'local'}
         onConfirm={handleConsentConfirm}
         onDecline={handleConsentDecline}
         onCancel={handleConsentCancel}
