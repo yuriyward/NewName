@@ -4,6 +4,7 @@
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { isHandleValid } from '@/entrypoints/shared/filesystem/directory-picker';
 import {
+  clearStoredHandle,
   getStoredDirectoryHandle,
   updateLastVerified,
 } from '@/entrypoints/shared/filesystem/handle-storage';
@@ -19,6 +20,7 @@ import type {
   ConfirmToastDecisionMessage,
   ConfirmToastStatusState,
 } from '@/entrypoints/shared/toast/types';
+import { showSetupRequiredBadge } from '@/entrypoints/shared/ui/badge-manager';
 import type { ConfirmToastEntry } from './toast/confirmation-controller';
 
 export interface RenameOrchestratorHelpers {
@@ -81,9 +83,27 @@ export async function executeApply(
     debugLogger.warn(
       '[RenameOrchestrator] Missing or invalid Downloads directory handle',
     );
+
+    // Clear stored handle since it's no longer valid
+    await clearStoredHandle().catch((error) => {
+      debugLogger.warn(
+        '[RenameOrchestrator] Failed to clear invalid handle',
+        error,
+      );
+    });
+
+    // Show badge to prompt re-onboarding
+    await showSetupRequiredBadge().catch((error) => {
+      debugLogger.warn(
+        '[RenameOrchestrator] Failed to show setup badge',
+        error,
+      );
+    });
+
+    // Show helpful message with action
     await helpers.emitStatus(
       'permission-denied',
-      'Downloads access required to rename files.',
+      'File access was reset. Click the extension icon to set up again.',
     );
     return;
   }
