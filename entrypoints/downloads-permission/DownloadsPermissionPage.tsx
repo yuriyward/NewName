@@ -6,55 +6,27 @@
 import FolderIcon from '@heroicons/react/24/outline/FolderIcon';
 import FolderOpenIcon from '@heroicons/react/24/outline/FolderOpenIcon';
 import HandRaisedIcon from '@heroicons/react/24/outline/HandRaisedIcon';
-import CheckCircleIcon from '@heroicons/react/24/solid/CheckCircleIcon';
 import { type JSX, useEffect, useRef, useState } from 'react';
-import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
+import { getOnboardingState } from '@/entrypoints/shared/onboarding/onboarding-state';
+import { ErrorMessage } from './components/ErrorMessage';
+import { Step1CompleteMessage } from './components/Step1CompleteMessage';
+import { StepIndicator } from './components/StepIndicator';
+import { SuccessScreen } from './components/SuccessScreen';
+import { TroubleshootingSection } from './components/TroubleshootingSection';
 import {
-  queryDirectoryPermission,
-  requestDownloadsAccess,
-  verifyDirectoryPermission,
-} from '@/entrypoints/shared/filesystem/directory-picker';
+  FOLDER_SELECTION_STEP1_VIDEO_URL,
+  FOLDER_SELECTION_STEP2_VIDEO_URL,
+  SUCCESS_AUTO_CLOSE_DELAY_MS,
+} from './constants';
 import {
-  getManagedRelativePath,
-  getStoredDirectoryHandle,
-  storeDirectoryHandle,
-  updateLastVerified,
-} from '@/entrypoints/shared/filesystem/handle-storage';
-import { classifyPermissionError } from '@/entrypoints/shared/filesystem/permission-errors';
-import { navigateAfterDownloadsSetup } from '@/entrypoints/shared/onboarding/onboarding-navigation';
-import {
-  getOnboardingState,
-  markOnboardingAwaitingPersistent,
-  markOnboardingCompleted,
-} from '@/entrypoints/shared/onboarding/onboarding-state';
-import { clearBadge } from '@/entrypoints/shared/ui/badge-manager';
+  checkExistingPermission,
+  grantDownloadsAccess,
+  restoreExistingAccess,
+} from './permission-handlers';
+import type { RequestState } from './types';
 import { VideoDemo } from './VideoDemo';
-
-// Videos hosted on GitHub for folder selection process
-// Keep videos external to avoid bloating extension size
-// Using 4:3 cropped versions for larger display in the UI
-const FOLDER_SELECTION_STEP1_VIDEO_URL =
-  'https://cdn.jsdelivr.net/gh/yuriyward/github-public-media@main/videos/folder_access_setup_step_1_cropped_4x3.mp4';
-const FOLDER_SELECTION_STEP2_VIDEO_URL =
-  'https://cdn.jsdelivr.net/gh/yuriyward/github-public-media@main/videos/folder_access_setup_step_2_cropped_4x3.mp4';
-
-type RequestState =
-  | { status: 'idle' }
-  | { status: 'pending' }
-  | {
-      status: 'success';
-      grantedAt: number;
-      managedRelativePath: string;
-      createdManagedFolder: boolean;
-      parentDirectoryName: string;
-    }
-  | {
-      status: 'step1-complete';
-      managedRelativePath: string;
-      parentDirectoryName: string;
-    }
-  | { status: 'error'; message: string; hint?: string };
 
 export function DownloadsPermissionPage(): JSX.Element {
   const [state, setState] = useState<RequestState>({ status: 'idle' });
@@ -67,6 +39,7 @@ export function DownloadsPermissionPage(): JSX.Element {
   // Determine which step we're on (1 = pick folder, 2 = confirm permanent access)
   const currentStep = hasStoredHandle ? 2 : 1;
 
+  // Load stored handle on mount
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -79,9 +52,7 @@ export function DownloadsPermissionPage(): JSX.Element {
         if (!active) return;
         debugLogger.warn(
           '[DownloadsPermissionPage] Failed to load saved handle',
-          {
-            error: err,
-          },
+          { error: err },
         );
         storedHandleRef.current = null;
         setHasStoredHandle(false);
@@ -93,17 +64,15 @@ export function DownloadsPermissionPage(): JSX.Element {
   }, []);
 
   // Auto-close tab after successful setup
-  // The 2500ms delay allows users to see the success message before the tab closes
   useEffect(() => {
     if (state.status !== 'success') return;
     const timeout = window.setTimeout(() => {
       window.close();
-    }, 2500);
+    }, SUCCESS_AUTO_CLOSE_DELAY_MS);
     return () => window.clearTimeout(timeout);
   }, [state]);
 
   // Auto-check permission state when reopening after step 1
-  // IMPORTANT: Only QUERIES permission without REQUESTING (no user gesture required)
   useEffect(() => {
     if (!hasStoredHandle) return;
     if (state.status !== 'idle') return;
@@ -114,7 +83,6 @@ export function DownloadsPermissionPage(): JSX.Element {
         const onboardingState = await getOnboardingState();
         if (!active) return;
 
-        // If we're waiting for persistent permission, check current state
         if (onboardingState.status === 'awaiting-persistent') {
           debugLogger.log(
             '[DownloadsPermissionPage] Checking permission state for awaiting-persistent',
@@ -130,52 +98,24 @@ export function DownloadsPermissionPage(): JSX.Element {
             return;
           }
 
-          // SAFE: Only query permission, don't request (no user gesture needed)
-          const permission = await queryDirectoryPermission(handle);
-
-          if (permission === 'granted') {
-            // Case A: Permission already granted (rare) - auto-complete
-            debugLogger.log(
-              '[DownloadsPermissionPage] Permission already granted, completing setup',
-            );
-
-            const managedRelativePath =
-              (await getManagedRelativePath()) ?? handle.name ?? 'downloads';
-
-            await updateLastVerified();
-            await markOnboardingCompleted();
-            await clearBadge();
-
+          const result = await checkExistingPermission(handle);
+          if (result.granted && result.managedRelativePath) {
             setHasStoredHandle(true);
             setState({
               status: 'success',
               grantedAt: Date.now(),
-              managedRelativePath,
+              managedRelativePath: result.managedRelativePath,
               createdManagedFolder: false,
               parentDirectoryName: handle.name,
             });
-
-            // Navigate to next onboarding step
-            void navigateAfterDownloadsSetup();
-          } else {
-            // Case B: Permission not granted (common) - let user click button
-            // The UI will render step 2 naturally with "Select folder & finish" button
-            debugLogger.log(
-              '[DownloadsPermissionPage] Permission not yet granted, waiting for user click',
-              { permission },
-            );
-            // No state change needed - page shows step 2 UI
           }
         }
       } catch (err) {
         if (!active) return;
         debugLogger.warn(
           '[DownloadsPermissionPage] Failed to check permission state',
-          {
-            error: err,
-          },
+          { error: err },
         );
-        // Don't block the user - let them try clicking the button
       }
     })();
 
@@ -185,100 +125,38 @@ export function DownloadsPermissionPage(): JSX.Element {
   }, [hasStoredHandle, state.status]);
 
   async function handleGrantAccess(): Promise<void> {
-    if (state.status === 'pending') {
-      return;
-    }
+    if (state.status === 'pending') return;
     setState({ status: 'pending' });
     setPendingAction('grant');
-    try {
-      const {
-        handle,
-        managedRelativePath,
-        createdManagedFolder: _createdManagedFolder,
-        parentDirectoryName,
-      } = await requestDownloadsAccess();
-      const permission = await verifyDirectoryPermission(handle);
-      if (permission !== 'granted') {
-        throw new Error('Permission not granted');
-      }
-      await storeDirectoryHandle(handle, { relativePath: managedRelativePath });
-      await updateLastVerified();
-      await markOnboardingAwaitingPersistent();
-      storedHandleRef.current = handle;
-      setHasStoredHandle(true);
 
-      // Experimental: Close current page and reopen to see if Chrome shows persistent permission modal
-      debugLogger.log(
-        '[DownloadsPermissionPage] Closing and reopening setup page to trigger persistent permission',
-      );
+    const outcome = await grantDownloadsAccess();
 
-      // Open new setup page before closing current one
-      const setupUrl = browser.runtime.getURL('/downloads-permission.html');
-      const newTab = await browser.tabs.create({ url: setupUrl });
-
-      // Close current setup page once new tab is visible and ready
-      // The new page will detect 'awaiting-persistent' status and auto-trigger requestPermission()
-      const newTabId = newTab.id;
-      if (newTabId !== undefined) {
-        // Wait for the new tab to be fully loaded/visible before closing current one
-        // This prevents the jarring experience of closing before the new tab is ready
-        const waitForTabReady = (): Promise<void> => {
-          return new Promise((resolve) => {
-            const checkTab = async () => {
-              try {
-                const tab = await browser.tabs.get(newTabId);
-                // Check if tab is complete (loaded) or at least has a valid status
-                if (tab.status === 'complete' || tab.status === 'loading') {
-                  resolve();
-                } else {
-                  // Check again after a short delay
-                  setTimeout(checkTab, 50);
-                }
-              } catch {
-                // Tab might have been closed or doesn't exist, resolve anyway
-                resolve();
-              }
-            };
-            // Start checking immediately
-            void checkTab();
-          });
-        };
-
-        await waitForTabReady();
-        window.close();
-      } else {
-        // If tab creation didn't return an ID, show step1-complete state
+    switch (outcome.type) {
+      case 'tab-reopened':
+        // Window will close, no state update needed
+        break;
+      case 'step1-complete':
+        storedHandleRef.current = null; // Will be reloaded on new page
+        setHasStoredHandle(true);
         setState({
           status: 'step1-complete',
-          managedRelativePath,
-          parentDirectoryName,
+          managedRelativePath: outcome.managedRelativePath,
+          parentDirectoryName: outcome.parentDirectoryName,
         });
-      }
-    } catch (err) {
-      const lastPickerError =
-        (
-          window as typeof window & {
-            __newNameLastDirectoryPickerError?: unknown;
-          }
-        ).__newNameLastDirectoryPickerError ?? null;
-      debugLogger.error('[DownloadsPermissionPage] Granting access failed', {
-        error: err,
-        lastPickerError,
-      });
-      const { message, hint } = classifyPermissionError(err, lastPickerError);
-      setState({
-        status: 'error',
-        message,
-        hint,
-      });
+        break;
+      case 'error':
+        setState({
+          status: 'error',
+          message: outcome.message,
+          hint: outcome.hint,
+        });
+        break;
     }
     setPendingAction(null);
   }
 
   async function handleRestoreExisting(): Promise<void> {
-    if (state.status === 'pending') {
-      return;
-    }
+    if (state.status === 'pending') return;
 
     const handle = storedHandleRef.current;
     if (!handle) {
@@ -293,73 +171,30 @@ export function DownloadsPermissionPage(): JSX.Element {
     setState({ status: 'pending' });
     setPendingAction('restore');
 
-    try {
-      const permission = await verifyDirectoryPermission(handle);
-      if (permission !== 'granted') {
-        throw new Error('Permission not granted');
-      }
+    const outcome = await restoreExistingAccess(handle);
 
-      const managedRelativePath =
-        (await getManagedRelativePath()) ?? handle.name ?? 'downloads';
-
-      await updateLastVerified();
-      await markOnboardingCompleted();
-
-      // Clear badge since setup is complete
-      await clearBadge();
-
+    if (outcome.type === 'success') {
       setHasStoredHandle(true);
       setState({
         status: 'success',
         grantedAt: Date.now(),
-        managedRelativePath,
+        managedRelativePath: outcome.result.managedRelativePath,
         createdManagedFolder: false,
-        parentDirectoryName: handle.name,
+        parentDirectoryName: outcome.result.parentDirectoryName,
       });
-
-      // Navigate to AI mode selection (new users) or AI setup (existing users)
-      void navigateAfterDownloadsSetup();
-    } catch (err) {
-      debugLogger.error(
-        '[DownloadsPermissionPage] Restoring saved access failed',
-        {
-          error: err,
-        },
-      );
-      const { message, hint } = classifyPermissionError(err, null);
+    } else {
       setState({
         status: 'error',
-        message,
-        hint,
+        message: outcome.message,
+        hint: outcome.hint,
       });
-    } finally {
-      setPendingAction(null);
     }
+    setPendingAction(null);
   }
 
   // Success state - show celebration screen
   if (state.status === 'success') {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-success-50 via-background to-background text-foreground">
-        <main className="mx-auto flex min-h-screen w-full max-w-xl flex-col items-center justify-center gap-6 px-6 py-10 text-center">
-          <div className="relative">
-            <div className="absolute -inset-4 animate-pulse rounded-full bg-success-200/50" />
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-success-500 text-white shadow-lg">
-              <CheckCircleIcon className="h-12 w-12" />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-success-700">All set! 🎉</h1>
-            <p className="text-default-600">
-              NewName can now organize your downloads.
-            </p>
-          </div>
-
-          <p className="text-sm text-default-400">Closing...</p>
-        </main>
-      </div>
-    );
+    return <SuccessScreen />;
   }
 
   return (
@@ -367,33 +202,8 @@ export function DownloadsPermissionPage(): JSX.Element {
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-6 py-6">
         {/* Main content card */}
         <div className="relative rounded-3xl border border-default-200 bg-white/80 p-6 shadow-xl backdrop-blur sm:p-8 lg:p-10">
-          {/* Compact step indicator in top-right corner */}
-          <div className="absolute right-4 top-4 flex items-center gap-1.5 sm:right-6 sm:top-6">
-            {Array.from({ length: 2 }, (_, i) => {
-              const stepNum = i + 1;
-              const isCompleted = stepNum < currentStep;
-              const isCurrent = stepNum === currentStep;
+          <StepIndicator currentStep={currentStep} />
 
-              return (
-                <div
-                  key={stepNum}
-                  className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-all ${
-                    isCompleted
-                      ? 'bg-success-500 text-white'
-                      : isCurrent
-                        ? 'bg-primary text-white ring-2 ring-primary/20'
-                        : 'bg-default-200 text-default-500'
-                  }`}
-                >
-                  {isCompleted ? (
-                    <CheckCircleIcon className="h-4 w-4" />
-                  ) : (
-                    stepNum
-                  )}
-                </div>
-              );
-            })}
-          </div>
           {/* Header with icon */}
           <div className="mb-5 flex flex-col items-center gap-2.5 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-100 text-primary-600">
@@ -411,42 +221,11 @@ export function DownloadsPermissionPage(): JSX.Element {
             </h1>
           </div>
 
-          {/* Error message */}
+          {/* Status messages */}
           {state.status === 'error' && (
-            <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-                  <span className="text-lg">💡</span>
-                </div>
-                <div className="space-y-0.5">
-                  <p className="font-semibold text-amber-900">
-                    {state.message}
-                  </p>
-                  {state.hint && (
-                    <p className="text-sm text-amber-700">{state.hint}</p>
-                  )}
-                </div>
-              </div>
-            </div>
+            <ErrorMessage message={state.message} hint={state.hint} />
           )}
-
-          {/* Step 1 complete message */}
-          {state.status === 'step1-complete' && (
-            <div className="mb-4 rounded-2xl border border-success-200 bg-success-50 p-3.5">
-              <div className="flex items-start gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-success-100 text-success-600">
-                  <CheckCircleIcon className="h-5 w-5" />
-                </div>
-                <div className="space-y-0.5">
-                  <p className="font-semibold text-success-900">Step 1 done!</p>
-                  <p className="text-sm text-success-700">
-                    A new tab will open for step 2. If not, close this and click
-                    the extension icon.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+          {state.status === 'step1-complete' && <Step1CompleteMessage />}
 
           {/* Step 1: Large video demo */}
           {!hasStoredHandle && state.status !== 'step1-complete' && (
@@ -456,7 +235,6 @@ export function DownloadsPermissionPage(): JSX.Element {
                 aspectRatio={4 / 3}
                 ariaLabel="Video demonstration of folder selection process - step 1"
               />
-              {/* Important tip about creating subfolder */}
               <div className="rounded-xl bg-primary-50/60 p-3 text-center">
                 <p className="text-sm text-primary-800">
                   💡 Create a subfolder like{' '}
@@ -475,7 +253,6 @@ export function DownloadsPermissionPage(): JSX.Element {
                 aspectRatio={4 / 3}
                 ariaLabel="Video demonstration of folder selection process - step 2"
               />
-              {/* Simple instruction */}
               <div className="rounded-xl bg-primary-50/60 p-3 text-center">
                 <p className="text-sm text-primary-800">
                   Click below, select the same folder, and choose{' '}
@@ -494,9 +271,7 @@ export function DownloadsPermissionPage(): JSX.Element {
               <>
                 <button
                   type="button"
-                  onClick={() => {
-                    void handleRestoreExisting();
-                  }}
+                  onClick={() => void handleRestoreExisting()}
                   disabled={state.status === 'pending'}
                   className={`flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition ${
                     state.status === 'pending'
@@ -511,9 +286,7 @@ export function DownloadsPermissionPage(): JSX.Element {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    void handleGrantAccess();
-                  }}
+                  onClick={() => void handleGrantAccess()}
                   disabled={state.status === 'pending'}
                   className={`flex w-full items-center justify-center gap-2 rounded-xl border border-default-300 bg-white px-6 py-3 text-sm font-medium text-default-600 transition ${
                     state.status === 'pending'
@@ -529,9 +302,7 @@ export function DownloadsPermissionPage(): JSX.Element {
             ) : (
               <button
                 type="button"
-                onClick={() => {
-                  void handleGrantAccess();
-                }}
+                onClick={() => void handleGrantAccess()}
                 disabled={state.status === 'pending'}
                 className={`flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-base font-semibold text-white shadow-lg transition ${
                   state.status === 'pending'
@@ -549,22 +320,7 @@ export function DownloadsPermissionPage(): JSX.Element {
         </div>
 
         {/* Troubleshooting section - only show on error */}
-        {state.status === 'error' && (
-          <details className="rounded-2xl border border-default-200 bg-default-50/50">
-            <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-default-600 hover:text-default-900">
-              Need help?
-            </summary>
-            <div className="space-y-2 border-t border-default-200 px-4 py-3 text-sm text-default-600">
-              <p className="font-medium">If Chrome blocked access:</p>
-              <ol className="list-inside list-decimal space-y-1.5 text-default-500">
-                <li>Click the padlock icon in the address bar</li>
-                <li>Go to Site settings</li>
-                <li>Set File system access to Allow</li>
-                <li>Try again</li>
-              </ol>
-            </div>
-          </details>
-        )}
+        {state.status === 'error' && <TroubleshootingSection />}
       </main>
 
       {/* Skip button - fixed to bottom-right of screen */}
