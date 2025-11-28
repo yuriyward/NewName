@@ -49,3 +49,11 @@ export async function clearBadge(): Promise<void> {
 export async function showPersistentPermissionBadge(): Promise<void> {
   await showBadge('action-required');
 }
+
+/**
+ * Show badge indicating setup is required (permissions revoked)
+ * Alias for showPersistentPermissionBadge with clearer intent
+ */
+export async function showSetupRequiredBadge(): Promise<void> {
+  await showBadge('action-required');
+}

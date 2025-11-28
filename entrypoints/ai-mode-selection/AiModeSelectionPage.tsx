@@ -8,9 +8,8 @@ import {
   updateSettings,
 } from '@/entrypoints/shared/settings/settings';
 import { CloudAiOption } from './components/CloudAiOption';
-import { ConsentDenialModal } from './components/ConsentDenialModal';
+import { ConsentModal } from './components/ConsentModal';
 import { LocalAiOption } from './components/LocalAiOption';
-import { PageContextDisclosure } from './components/PageContextDisclosure';
 
 const RAM_THRESHOLD_GB = 16;
 
@@ -20,21 +19,21 @@ type PageState =
   | { status: 'navigating'; choice: 'local' | 'cloud' | 'manual' }
   | { status: 'error'; message: string };
 
+type ConsentModalState =
+  | { open: false }
+  | { open: true; choice: 'local' | 'cloud' };
+
 export function AiModeSelectionPage(): JSX.Element {
   const [state, setState] = useState<PageState>({ status: 'loading' });
-  const [consentGranted, setConsentGranted] = useState<boolean | null>(null);
-  const [showDenialModal, setShowDenialModal] = useState(false);
+  const [consentModal, setConsentModal] = useState<ConsentModalState>({
+    open: false,
+  });
 
-  // Fetch RAM info and existing consent state on mount
+  // Fetch RAM info on mount
   useEffect(() => {
     let active = true;
     void (async () => {
       try {
-        // Load existing consent state from settings
-        const settings = await getSettings();
-        if (!active) return;
-        setConsentGranted(settings.pageContextConsent.consentGranted);
-
         const { totalCapacityGB } = await getSystemMemoryInfo();
         if (!active) return;
         setState({ status: 'ready', ramGB: totalCapacityGB });
@@ -43,7 +42,6 @@ export function AiModeSelectionPage(): JSX.Element {
           error,
         });
         if (!active) return;
-        setConsentGranted(false);
         setState({
           status: 'error',
           message: 'Could not detect system specifications. Please try again.',
@@ -55,16 +53,20 @@ export function AiModeSelectionPage(): JSX.Element {
     };
   }, []);
 
-  async function handleChoice(choice: 'local' | 'cloud'): Promise<void> {
-    if (state.status !== 'ready' || consentGranted === null) return;
+  // Called when user clicks on Local AI or Cloud AI option
+  function handleOptionSelect(choice: 'local' | 'cloud'): void {
+    if (state.status !== 'ready') return;
+    // Show consent modal instead of proceeding directly
+    setConsentModal({ open: true, choice });
+  }
 
-    // Check if consent is granted before proceeding with AI mode
-    if (consentGranted !== true) {
-      setShowDenialModal(true);
-      return;
-    }
+  // Called when user confirms consent in the modal
+  async function handleConsentConfirm(): Promise<void> {
+    if (!consentModal.open) return;
+    const choice = consentModal.choice;
 
     setState({ status: 'navigating', choice });
+    setConsentModal({ open: false });
 
     try {
       const settings = await getSettings();
@@ -123,7 +125,9 @@ export function AiModeSelectionPage(): JSX.Element {
     }
   }
 
-  async function handleContinueManual(): Promise<void> {
+  // Called when user declines consent (clicks Continue without checking box)
+  async function handleConsentDecline(): Promise<void> {
+    setConsentModal({ open: false });
     setState({ status: 'navigating', choice: 'manual' });
 
     try {
@@ -158,16 +162,15 @@ export function AiModeSelectionPage(): JSX.Element {
     }
   }
 
-  function handleEnableAI(): void {
-    // Close modal and return to main screen
-    setShowDenialModal(false);
-    // User needs to check the consent checkbox
+  // Called when user cancels the consent modal
+  function handleConsentCancel(): void {
+    setConsentModal({ open: false });
   }
 
   const ramGB = state.status === 'ready' ? state.ramGB : 0;
   const recommendation = ramGB >= RAM_THRESHOLD_GB ? 'local' : 'cloud';
   const isNavigating = state.status === 'navigating';
-  const isLoading = state.status === 'loading' || consentGranted === null;
+  const isLoading = state.status === 'loading';
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -189,27 +192,19 @@ export function AiModeSelectionPage(): JSX.Element {
           </div>
         )}
 
-        {/* Page Context Consent Disclosure */}
-        {consentGranted !== null && (
-          <PageContextDisclosure
-            consentGranted={consentGranted}
-            onConsentChange={setConsentGranted}
-          />
-        )}
-
         <div className="grid gap-6 md:grid-cols-2">
           <LocalAiOption
             recommended={recommendation === 'local'}
             ramGB={ramGB}
             meetsRamRequirement={ramGB >= RAM_THRESHOLD_GB}
-            onSelect={() => handleChoice('local')}
+            onSelect={() => handleOptionSelect('local')}
             disabled={isNavigating || isLoading}
             loading={state.status === 'navigating' && state.choice === 'local'}
           />
 
           <CloudAiOption
             recommended={recommendation === 'cloud'}
-            onSelect={() => handleChoice('cloud')}
+            onSelect={() => handleOptionSelect('cloud')}
             disabled={isNavigating || isLoading}
             loading={state.status === 'navigating' && state.choice === 'cloud'}
           />
@@ -227,11 +222,14 @@ export function AiModeSelectionPage(): JSX.Element {
         </footer>
       </main>
 
-      {/* Consent Denial Modal */}
-      <ConsentDenialModal
-        open={showDenialModal}
-        onEnableAI={handleEnableAI}
-        onContinueManual={handleContinueManual}
+      {/* Consent Modal - shown when user selects an AI option */}
+      <ConsentModal
+        open={consentModal.open}
+        choice={consentModal.open ? consentModal.choice : 'local'}
+        onConfirm={handleConsentConfirm}
+        onDecline={handleConsentDecline}
+        onCancel={handleConsentCancel}
+        loading={isNavigating}
       />
     </div>
   );
