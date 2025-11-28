@@ -28,8 +28,8 @@ export function StepIndicator({
               isCompleted
                 ? 'bg-success-500 text-white'
                 : isCurrent
-                  ? 'bg-primary text-white ring-2 ring-primary/20'
-                  : 'bg-default-200 text-default-500'
+                  ? 'bg-primary text-white ring-2 ring-primary/20 dark:ring-primary/40'
+                  : 'bg-default-200 text-default-500 dark:bg-content3 dark:text-default-400'
             }`}
           >
             {isCompleted ? <CheckCircleIcon className="h-4 w-4" /> : stepNum}

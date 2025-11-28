@@ -2,8 +2,7 @@
  * Settings popup for configuring deterministic Instant Baseline strategies
  */
 
-import { SunIcon } from '@heroicons/react/16/solid';
-import { Cog6ToothIcon, MoonIcon } from '@heroicons/react/24/outline';
+import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { Alert } from '@heroui/alert';
 import { Chip } from '@heroui/chip';
 import { Skeleton } from '@heroui/skeleton';
@@ -14,6 +13,7 @@ import { useCallback, useEffect } from 'react';
 import { browser, type PublicPath } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { STRATEGY_OPTIONS } from '@/entrypoints/shared/pipeline/strategy-options';
+import { ThemeToggleButton } from '@/entrypoints/shared/ui/ThemeToggleButton';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import { AiFeatureReminderBanner } from './components/AiFeatureReminderBanner';
 import AiModelBanner from './components/AiModelBanner';
@@ -62,17 +62,23 @@ function App(): JSX.Element {
   const {
     strategy,
     processingMode,
+    cloudSettings,
     loading,
     saving,
     error,
     savedAt,
     handleStrategyChange,
-    updateThemePreference,
   } = usePopupSettings(setTheme);
 
   // Local AI is ready when status is checked and no blocking models
   const localAiReady =
     aiStatusChecked && !!aiStatuses && aiBlockingModels.length === 0;
+
+  // Cloud AI is functional only when enabled AND has API key configured
+  const cloudFunctional =
+    processingMode === 'cloud' &&
+    cloudSettings?.enabled === true &&
+    !!cloudSettings?.apiKey;
 
   const { showReminder, handleTryAi, handleRemindLater } = useAiFeatureReminder(
     { localAiReady },
@@ -88,9 +94,11 @@ function App(): JSX.Element {
 
   const options = STRATEGY_OPTIONS;
 
-  // AI is enabled if setup is complete OR user is using cloud-only mode
-  const aiEnabled =
-    !!aiSetupCompletedAt || processingMode === 'cloud' || !aiStatusChecked;
+  // AI is enabled if:
+  // - Local AI setup is complete, OR
+  // - Cloud mode is selected AND properly configured (enabled + API key), OR
+  // - Status hasn't been checked yet (optimistic default)
+  const aiEnabled = !!aiSetupCompletedAt || cloudFunctional || !aiStatusChecked;
 
   const shouldShowAiBanner =
     aiStatusChecked &&
@@ -161,36 +169,21 @@ function App(): JSX.Element {
       )}
 
       {/* Dark Mode Toggle */}
-      <IconButton
-        onClick={() => {
-          const newTheme = theme === 'dark' ? 'light' : 'dark';
-          void updateThemePreference(newTheme);
-        }}
-        icon={
-          theme === 'dark' ? (
-            <SunIcon className="size-4" />
-          ) : (
-            <MoonIcon className="size-4" />
-          )
-        }
-        title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-        className="absolute top-2 right-2 z-20"
-      />
+      <ThemeToggleButton size="sm" className="absolute top-2 right-2 z-20" />
 
-      {/* Floating Saved Chip */}
-      {!saving && savedAt !== null && (
-        <Chip
-          color="success"
-          variant="flat"
-          size="sm"
-          className="absolute top-2 right-18 z-10 text-xs animate-in fade-in slide-in-from-top-2 duration-300"
-        >
-          Saved
-        </Chip>
-      )}
-
-      <header className="mb-3">
+      <header className="mb-3 flex items-center gap-2">
         <h1 className="text-lg font-semibold">NewName</h1>
+        {/* Saved Chip - inline with header to avoid overlap with icons */}
+        {!saving && savedAt !== null && (
+          <Chip
+            color="success"
+            variant="flat"
+            size="sm"
+            className="text-xs animate-in fade-in slide-in-from-left-2 duration-300"
+          >
+            Saved
+          </Chip>
+        )}
       </header>
 
       {accessCheckError ? (
@@ -310,6 +303,7 @@ function App(): JSX.Element {
             options={options}
             onChange={handleStrategyChange}
             aiEnabled={aiEnabled}
+            onDisabledClick={handleOpenSettings}
           />
         </Tab>
 

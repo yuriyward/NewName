@@ -93,7 +93,7 @@ export function ConsentModal({
             <p className="text-[10px] uppercase tracking-wide text-default-400 pl-1">
               Data we access
             </p>
-            <ul className="space-y-1.5 text-xs text-default-500 pl-1">
+            <ul className="space-y-1.5 text-xs text-default-600 pl-1">
               <li className="flex items-center gap-2">
                 <span className="text-primary-400">✓</span>
                 <Tooltip
@@ -126,7 +126,7 @@ export function ConsentModal({
             <p className="text-[10px] uppercase tracking-wide text-default-400 pl-1">
               Privacy
             </p>
-            <ul className="space-y-1 text-xs text-default-500 pl-1">
+            <ul className="space-y-1 text-xs text-default-600 pl-1">
               <li className="flex items-center gap-2">
                 <span className="text-default-400">•</span>
                 <span>
@@ -156,9 +156,9 @@ export function ConsentModal({
               type="checkbox"
               checked={consentChecked}
               onChange={(e) => setConsentChecked(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 focus:ring-offset-0 cursor-pointer"
+              className="h-3.5 w-3.5 rounded border-default-300 text-foreground accent-foreground focus:ring-default-400 focus:ring-offset-0 cursor-pointer"
             />
-            <span className="text-xs text-default-600 group-hover:text-primary-600 transition-colors">
+            <span className="text-xs text-default-600 group-hover:text-foreground transition-colors">
               I agree to let NewName read page info and downloads for AI
               renaming
               <span className="text-danger-500 ml-0.5">*</span>
@@ -180,7 +180,7 @@ export function ConsentModal({
                 type="button"
                 onClick={onConfirm}
                 disabled={loading}
-                className="flex-1 rounded-lg px-3 py-2 text-xs font-medium bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 transition-colors disabled:opacity-50"
+                className="flex-1 rounded-lg px-3 py-2 text-xs font-medium bg-foreground text-background hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-default-400 focus:ring-offset-1 transition-all disabled:opacity-50"
               >
                 {loading ? (
                   <span className="flex items-center justify-center gap-1.5">
