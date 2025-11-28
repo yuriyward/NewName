@@ -2,7 +2,10 @@
  * Per-file-type processing preferences
  */
 
-import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import {
+  ChevronDownIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline';
 import { Button } from '@heroui/button';
 import { Card } from '@heroui/card';
 import {
@@ -29,6 +32,8 @@ import type {
 interface ProcessingPreferencesProps {
   preferences: ProcessingPreferences;
   cloudEnabled: boolean;
+  /** API key for cloud processing (null if not configured) */
+  cloudApiKey: string | null;
   onUpdate: (preferences: Partial<ProcessingPreferences>) => void;
 }
 
@@ -57,6 +62,7 @@ const modeOptions: Array<{
 export function ProcessingPreferencesSection({
   preferences,
   cloudEnabled,
+  cloudApiKey,
   onUpdate,
 }: ProcessingPreferencesProps) {
   const [showPerType, setShowPerType] = useState(
@@ -78,6 +84,10 @@ export function ProcessingPreferencesSection({
       }
     })();
   }, []);
+
+  // Determine if cloud mode is selected but missing API key
+  const isCloudModeWithoutApiKey =
+    preferences.global === 'cloud' && cloudEnabled && !cloudApiKey;
 
   const handleGlobalChange = (keys: 'all' | Set<React.Key>) => {
     if (keys === 'all') return;
@@ -205,6 +215,14 @@ export function ProcessingPreferencesSection({
               );
             })}
           </Select>
+
+          {/* Warning when cloud mode selected without API key */}
+          {isCloudModeWithoutApiKey && (
+            <p className="text-xs text-warning-600 mt-1.5 flex items-center gap-1">
+              <ExclamationTriangleIcon className="size-3.5 flex-shrink-0" />
+              <span>Add your API key above to enable cloud processing.</span>
+            </p>
+          )}
         </Card>
 
         {/* Advanced Per-Type Toggle */}

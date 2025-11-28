@@ -168,6 +168,7 @@ export function SettingsPage() {
         <ProcessingPreferencesSection
           preferences={settings.processingPreferences}
           cloudEnabled={settings.cloud.enabled}
+          cloudApiKey={settings.cloud.apiKey}
           onUpdate={handlePreferencesUpdate}
         />
 

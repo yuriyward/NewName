@@ -6,10 +6,17 @@
 import FolderIcon from '@heroicons/react/24/outline/FolderIcon';
 import FolderOpenIcon from '@heroicons/react/24/outline/FolderOpenIcon';
 import HandRaisedIcon from '@heroicons/react/24/outline/HandRaisedIcon';
+import { useTheme } from '@heroui/use-theme';
 import { type JSX, useEffect, useRef, useState } from 'react';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { getStoredDirectoryHandle } from '@/entrypoints/shared/filesystem/handle-storage';
 import { getOnboardingState } from '@/entrypoints/shared/onboarding/onboarding-state';
+import {
+  getSettings,
+  subscribeSettings,
+} from '@/entrypoints/shared/settings/settings';
+import { ThemeToggleButton } from '@/entrypoints/shared/ui/ThemeToggleButton';
+import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import { ErrorMessage } from './components/ErrorMessage';
 import { Step1CompleteMessage } from './components/Step1CompleteMessage';
 import { StepIndicator } from './components/StepIndicator';
@@ -29,6 +36,7 @@ import type { RequestState } from './types';
 import { VideoDemo } from './VideoDemo';
 
 export function DownloadsPermissionPage(): JSX.Element {
+  const { setTheme } = useTheme();
   const [state, setState] = useState<RequestState>({ status: 'idle' });
   const [hasStoredHandle, setHasStoredHandle] = useState(false);
   const [pendingAction, setPendingAction] = useState<
@@ -62,6 +70,39 @@ export function DownloadsPermissionPage(): JSX.Element {
       active = false;
     };
   }, []);
+
+  // Load theme from settings and subscribe to changes
+  useEffect(() => {
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+
+    getSettings()
+      .then((settings) => {
+        if (!active) return;
+        const appropriateTheme = getAppropriateTheme(settings.theme);
+        setTheme(appropriateTheme);
+      })
+      .catch((err) => {
+        debugLogger.error('[DownloadsPermission] Failed to load theme', {
+          error: err,
+        });
+      });
+
+    // Subscribe to settings changes (syncs theme with other contexts)
+    unsubscribe = subscribeSettings((updatedSettings) => {
+      if (!active) return;
+      if (updatedSettings.theme) {
+        setTheme(updatedSettings.theme);
+      }
+    });
+
+    return () => {
+      active = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [setTheme]);
 
   // Auto-close tab after successful setup
   useEffect(() => {
@@ -198,10 +239,13 @@ export function DownloadsPermissionPage(): JSX.Element {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary-50/40 via-background to-background text-foreground">
+    <div className="min-h-screen bg-gradient-to-b from-primary-50/40 via-background to-background text-foreground dark:from-primary-950/20">
+      {/* Theme toggle button - fixed to top-right */}
+      <ThemeToggleButton className="fixed top-4 right-4 z-50" />
+
       <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-6 py-6">
         {/* Main content card */}
-        <div className="relative rounded-3xl border border-default-200 bg-white/80 p-6 shadow-xl backdrop-blur sm:p-8 lg:p-10">
+        <div className="relative rounded-3xl border border-default-200 bg-content1 p-6 shadow-xl backdrop-blur dark:border-content3 sm:p-8 lg:p-10">
           <StepIndicator currentStep={currentStep} />
 
           {/* Header with icon */}
@@ -235,11 +279,13 @@ export function DownloadsPermissionPage(): JSX.Element {
                 aspectRatio={4 / 3}
                 ariaLabel="Video demonstration of folder selection process - step 1"
               />
-              <div className="rounded-xl bg-primary-50/60 p-3 text-center">
-                <p className="text-sm text-primary-800">
+              <div className="rounded-xl border border-default-200 bg-content2 p-3 text-center dark:border-content3">
+                <p className="text-sm text-default-600 dark:text-foreground/80">
                   💡 Create a subfolder like{' '}
-                  <strong>Downloads/Organized</strong> — you can't select main
-                  system folders
+                  <strong className="text-foreground">
+                    Downloads/Organized
+                  </strong>{' '}
+                  — you can't select main system folders
                 </p>
               </div>
             </div>
@@ -253,10 +299,10 @@ export function DownloadsPermissionPage(): JSX.Element {
                 aspectRatio={4 / 3}
                 ariaLabel="Video demonstration of folder selection process - step 2"
               />
-              <div className="rounded-xl bg-primary-50/60 p-3 text-center">
-                <p className="text-sm text-primary-800">
+              <div className="rounded-xl border border-default-200 bg-content2 p-3 text-center dark:border-content3">
+                <p className="text-sm text-default-600 dark:text-foreground/80">
                   Click below, select the same folder, and choose{' '}
-                  <span className="whitespace-nowrap rounded bg-primary-100 px-1.5 py-0.5 font-medium text-primary-700">
+                  <span className="whitespace-nowrap rounded bg-primary-500 px-1.5 py-0.5 font-medium text-white">
                     Allow on every visit
                   </span>{' '}
                   to finish
@@ -288,10 +334,10 @@ export function DownloadsPermissionPage(): JSX.Element {
                   type="button"
                   onClick={() => void handleGrantAccess()}
                   disabled={state.status === 'pending'}
-                  className={`flex w-full items-center justify-center gap-2 rounded-xl border border-default-300 bg-white px-6 py-3 text-sm font-medium text-default-600 transition ${
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl border border-default-300 bg-content1 px-6 py-3 text-sm font-medium text-default-600 transition dark:border-content3 ${
                     state.status === 'pending'
                       ? 'cursor-not-allowed opacity-60'
-                      : 'hover:bg-default-50'
+                      : 'hover:bg-content2'
                   }`}
                 >
                   {state.status === 'pending' && pendingAction === 'grant'

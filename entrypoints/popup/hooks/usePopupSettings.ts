@@ -8,10 +8,18 @@ import {
 } from '@/entrypoints/shared/settings/settings';
 import type { ProcessingMode } from '@/entrypoints/shared/settings/types';
 
+/** Subset of cloud settings needed for popup validation */
+interface CloudSettingsForPopup {
+  enabled: boolean;
+  apiKey: string | null;
+}
+
 interface UsePopupSettingsResult {
   strategy: InstantBaselineStrategy | null;
   settingsTheme: 'light' | 'dark';
   processingMode: ProcessingMode | null;
+  /** Cloud settings needed to determine if cloud AI is functional */
+  cloudSettings: CloudSettingsForPopup | null;
   loading: boolean;
   saving: boolean;
   error: string | null;
@@ -31,6 +39,8 @@ export const usePopupSettings = (
   const [processingMode, setProcessingMode] = useState<ProcessingMode | null>(
     null,
   );
+  const [cloudSettings, setCloudSettings] =
+    useState<CloudSettingsForPopup | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +57,10 @@ export const usePopupSettings = (
         setStrategy(settings.instantBaselineStrategy);
         setSettingsTheme(settings.theme);
         setProcessingMode(settings.processingPreferences.global);
+        setCloudSettings({
+          enabled: settings.cloud.enabled,
+          apiKey: settings.cloud.apiKey,
+        });
         themeRef.current = settings.theme;
         applyTheme(settings.theme);
         setLoading(false);
@@ -62,6 +76,10 @@ export const usePopupSettings = (
       if (!active) return;
       setStrategy(settings.instantBaselineStrategy);
       setProcessingMode(settings.processingPreferences.global);
+      setCloudSettings({
+        enabled: settings.cloud.enabled,
+        apiKey: settings.cloud.apiKey,
+      });
       if (settings.theme !== themeRef.current) {
         setSettingsTheme(settings.theme);
         themeRef.current = settings.theme;
@@ -123,6 +141,7 @@ export const usePopupSettings = (
     strategy,
     settingsTheme,
     processingMode,
+    cloudSettings,
     loading,
     saving,
     error,

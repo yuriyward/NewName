@@ -9,6 +9,7 @@ import {
   subscribeSettings,
   updateSettings,
 } from '@/entrypoints/shared/settings/settings';
+import { ThemeToggleButton } from '@/entrypoints/shared/ui/ThemeToggleButton';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import { CloudAiOption } from './components/CloudAiOption';
 import { ConsentModal } from './components/ConsentModal';
@@ -212,6 +213,9 @@ export function AiModeSelectionPage(): JSX.Element {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-primary-50/40 via-transparent to-transparent" />
+
+      {/* Theme toggle button - fixed to top-right */}
+      <ThemeToggleButton className="fixed top-4 right-4 z-50" />
 
       <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 px-6 py-10">
         <header className="space-y-2">
