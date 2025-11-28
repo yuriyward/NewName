@@ -27,10 +27,10 @@ export function LocalAiOption({
         relative flex flex-col gap-4 rounded-2xl border-2 p-6 text-left transition-all
         ${
           recommended
-            ? 'border-primary-500 bg-primary-50/50'
-            : 'border-default-200 bg-white hover:border-primary-300'
+            ? 'border-primary-500 bg-primary-50/50 dark:border-primary-400 dark:bg-primary-500/15 hover:bg-primary-100/60 dark:hover:bg-primary-500/25 hover:border-primary-600 dark:hover:border-primary-300'
+            : 'border-content3 bg-content1 hover:border-primary-300 dark:hover:border-primary-400 hover:bg-content2'
         }
-        ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:shadow-lg'}
+        ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:shadow-lg dark:hover:shadow-primary-500/20'}
       `}
     >
       {recommended && (

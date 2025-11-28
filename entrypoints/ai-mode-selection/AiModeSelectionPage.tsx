@@ -1,3 +1,4 @@
+import { useTheme } from '@heroui/use-theme';
 import { type JSX, useEffect, useState } from 'react';
 import { browser } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
@@ -5,8 +6,10 @@ import { getSystemMemoryInfo } from '@/entrypoints/shared/messaging/core-message
 import { markAiModeSelected } from '@/entrypoints/shared/onboarding/onboarding-state';
 import {
   getSettings,
+  subscribeSettings,
   updateSettings,
 } from '@/entrypoints/shared/settings/settings';
+import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import { CloudAiOption } from './components/CloudAiOption';
 import { ConsentModal } from './components/ConsentModal';
 import { LocalAiOption } from './components/LocalAiOption';
@@ -24,10 +27,44 @@ type ConsentModalState =
   | { open: true; choice: 'local' | 'cloud' };
 
 export function AiModeSelectionPage(): JSX.Element {
+  const { setTheme } = useTheme();
   const [state, setState] = useState<PageState>({ status: 'loading' });
   const [consentModal, setConsentModal] = useState<ConsentModalState>({
     open: false,
   });
+
+  // Load theme from settings and subscribe to changes
+  useEffect(() => {
+    let active = true;
+    let unsubscribe: (() => void) | undefined;
+
+    getSettings()
+      .then((settings) => {
+        if (!active) return;
+        const appropriateTheme = getAppropriateTheme(settings.theme);
+        setTheme(appropriateTheme);
+      })
+      .catch((err) => {
+        debugLogger.error('[AiModeSelection] Failed to load theme', {
+          error: err,
+        });
+      });
+
+    // Subscribe to settings changes (syncs theme with other contexts)
+    unsubscribe = subscribeSettings((updatedSettings) => {
+      if (!active) return;
+      if (updatedSettings.theme) {
+        setTheme(updatedSettings.theme);
+      }
+    });
+
+    return () => {
+      active = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [setTheme]);
 
   // Fetch RAM info on mount
   useEffect(() => {
