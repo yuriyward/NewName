@@ -1,16 +1,22 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+/**
+ * React app entry point for AI mode selection onboarding
+ */
+import { HeroUIProvider } from '@heroui/react';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
 import { AiModeSelectionPage } from './AiModeSelectionPage';
 import '@/assets/tailwind.css';
 
-const container = document.getElementById('root');
-if (!container) {
-  throw new Error('Root element not found');
+const rootElement = document.getElementById('root');
+
+if (!rootElement) {
+  throw new Error('Root element with id "root" not found');
 }
 
-const root = createRoot(container);
-root.render(
-  <StrictMode>
-    <AiModeSelectionPage />
-  </StrictMode>,
+ReactDOM.createRoot(rootElement).render(
+  <React.StrictMode>
+    <HeroUIProvider>
+      <AiModeSelectionPage />
+    </HeroUIProvider>
+  </React.StrictMode>,
 );
