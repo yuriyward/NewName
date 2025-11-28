@@ -6,15 +6,10 @@ import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { Alert } from '@heroui/alert';
 import { Chip } from '@heroui/chip';
 import { Tab, Tabs } from '@heroui/tabs';
-import { useTheme } from '@heroui/use-theme';
 import type { JSX } from 'react';
-import { useCallback, useEffect } from 'react';
-import { browser, type PublicPath } from 'wxt/browser';
-import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { STRATEGY_OPTIONS } from '@/entrypoints/shared/pipeline/strategy-options';
 import { Skeleton } from '@/entrypoints/shared/ui/Skeleton';
 import { ThemeToggleButton } from '@/entrypoints/shared/ui/ThemeToggleButton';
-import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import { AiFeatureReminderBanner } from './components/AiFeatureReminderBanner';
 import AiModelBanner from './components/AiModelBanner';
 import HistoryTab from './components/HistoryTab';
@@ -22,115 +17,23 @@ import { IconButton } from './components/IconButton';
 import { PrimaryButton } from './components/PrimaryButton';
 import { ProcessingModeIndicator } from './components/ProcessingModeIndicator';
 import StrategyTab from './components/StrategyTab';
-import { useAiFeatureReminder } from './hooks/useAiFeatureReminder';
-import { useAiModelStatus } from './hooks/useAiModelStatus';
-import { useDownloadsAccess } from './hooks/useDownloadsAccess';
-import { useHistory } from './hooks/useHistory';
-import { usePopupSettings } from './hooks/usePopupSettings';
+import { usePopupState } from './hooks/usePopupState';
 import { DownloadsAccessScreen } from './onboarding/DownloadsAccessScreen';
 
 function App(): JSX.Element {
-  const { theme, setTheme } = useTheme();
   const {
-    downloadsAccessChecked,
-    hasDownloadsAccess,
-    showOnboarding,
-    accessCheckError,
-    persistentAccessGranted,
-    needsPersistentSetup,
-    openOnboarding,
-    openPersistentSetup,
-    handleOnboardingComplete,
-  } = useDownloadsAccess();
-  const {
-    historyLoaded,
-    historyFilter,
-    setHistoryFilter,
-    filteredHistory,
-    loadHistory,
-    upgradeCount,
-    fileTypeCounts,
-  } = useHistory();
-  const {
-    aiStatuses,
-    aiStatusChecked,
-    aiStatusError,
-    aiSetupCompletedAt,
-    aiLastSetupError,
-    aiBlockingModels,
-  } = useAiModelStatus();
-  const {
-    strategy,
-    processingMode,
-    cloudSettings,
-    loading,
-    saving,
-    error,
-    savedAt,
-    handleStrategyChange,
-  } = usePopupSettings(setTheme);
-
-  // Local AI is ready when status is checked and no blocking models
-  const localAiReady =
-    aiStatusChecked && !!aiStatuses && aiBlockingModels.length === 0;
-
-  // Cloud AI is functional only when enabled AND has API key configured
-  const cloudFunctional =
-    processingMode === 'cloud' &&
-    cloudSettings?.enabled === true &&
-    !!cloudSettings?.apiKey;
-
-  const { showReminder, handleTryAi, handleRemindLater } = useAiFeatureReminder(
-    { localAiReady },
-  );
-
-  // Auto-detect system theme on first load and daily reset
-  useEffect(() => {
-    const appropriateTheme = getAppropriateTheme(theme);
-    if (appropriateTheme !== theme) {
-      setTheme(appropriateTheme);
-    }
-  }, [theme, setTheme]);
+    downloadsAccess,
+    history,
+    aiModel,
+    settings,
+    reminder,
+    computed,
+    navigation,
+  } = usePopupState();
 
   const options = STRATEGY_OPTIONS;
 
-  // AI is enabled if:
-  // - Local AI setup is complete, OR
-  // - Cloud mode is selected AND properly configured (enabled + API key), OR
-  // - Status hasn't been checked yet (optimistic default)
-  const aiEnabled = !!aiSetupCompletedAt || cloudFunctional || !aiStatusChecked;
-
-  const shouldShowAiBanner =
-    aiStatusChecked &&
-    !!aiStatuses &&
-    aiBlockingModels.length > 0 &&
-    !aiSetupCompletedAt &&
-    // Only show if user needs local models (auto or local mode, not cloud-only)
-    processingMode !== 'cloud';
-
-  const handleOpenAiSetup = useCallback(async () => {
-    try {
-      const url = browser.runtime.getURL(
-        '/ai-mode-selection.html' as PublicPath,
-      );
-      await browser.tabs.create({ url });
-    } catch (err) {
-      debugLogger.error('Failed to open AI mode selection page', {
-        error: err,
-      });
-    }
-  }, []);
-
-  const handleOpenSettings = useCallback(async () => {
-    try {
-      const url = browser.runtime.getURL('/settings.html' as PublicPath);
-      await browser.tabs.create({ url });
-    } catch (err) {
-      debugLogger.error('Failed to open settings page', { error: err });
-    }
-  }, []);
-
-  if (!downloadsAccessChecked) {
+  if (!downloadsAccess.downloadsAccessChecked) {
     return (
       <div className="w-96 p-3 bg-background text-foreground">
         <div className="space-y-2">
@@ -143,10 +46,12 @@ function App(): JSX.Element {
     );
   }
 
-  if (showOnboarding) {
+  if (downloadsAccess.showOnboarding) {
     return (
       <div className="w-96 p-4 bg-background text-foreground">
-        <DownloadsAccessScreen onComplete={handleOnboardingComplete} />
+        <DownloadsAccessScreen
+          onComplete={downloadsAccess.handleOnboardingComplete}
+        />
       </div>
     );
   }
@@ -155,16 +60,16 @@ function App(): JSX.Element {
     <div className="w-96 p-3 bg-background text-foreground relative">
       {/* Settings Icon */}
       <IconButton
-        onClick={() => void handleOpenSettings()}
+        onClick={() => void navigation.handleOpenSettings()}
         icon={<Cog6ToothIcon className="size-4" />}
         title="Open settings"
         className="absolute top-2 right-10 z-20"
       />
 
       {/* Processing Mode Indicator */}
-      {processingMode && (
+      {settings.processingMode && (
         <div className="absolute top-2 right-18 z-20">
-          <ProcessingModeIndicator mode={processingMode} />
+          <ProcessingModeIndicator mode={settings.processingMode} />
         </div>
       )}
 
@@ -174,7 +79,7 @@ function App(): JSX.Element {
       <header className="mb-3 flex items-center gap-2">
         <h1 className="text-lg font-semibold">NewName</h1>
         {/* Saved Chip - inline with header to avoid overlap with icons */}
-        {!saving && savedAt !== null && (
+        {!settings.saving && settings.savedAt !== null && (
           <Chip
             color="success"
             variant="flat"
@@ -186,38 +91,38 @@ function App(): JSX.Element {
         )}
       </header>
 
-      {accessCheckError ? (
+      {downloadsAccess.accessCheckError ? (
         <Alert color="warning" variant="flat" className="mb-3 text-xs">
-          {accessCheckError}
+          {downloadsAccess.accessCheckError}
         </Alert>
       ) : null}
 
-      {aiStatusError ? (
+      {aiModel.aiStatusError ? (
         <Alert
           color="warning"
           variant="flat"
           className="mb-3 text-xs space-y-1"
         >
           <p>Unable to check AI model status.</p>
-          <p>{aiStatusError}</p>
+          <p>{aiModel.aiStatusError}</p>
         </Alert>
       ) : null}
 
       {/* AI Feature Reminder Banner - shown to users who declined AI after 3 days */}
       <AiFeatureReminderBanner
-        visible={showReminder && !shouldShowAiBanner}
-        onTryAi={handleTryAi}
-        onRemindLater={handleRemindLater}
+        visible={reminder.showReminder && !computed.shouldShowAiBanner}
+        onTryAi={reminder.handleTryAi}
+        onRemindLater={reminder.handleRemindLater}
       />
 
       {/* AI Model Setup Banner - shown when local AI models need setup */}
       <AiModelBanner
-        visible={shouldShowAiBanner}
-        lastError={aiLastSetupError}
-        onEnableAi={handleOpenAiSetup}
+        visible={computed.shouldShowAiBanner}
+        lastError={aiModel.aiLastSetupError}
+        onEnableAi={navigation.handleOpenAiSetup}
       />
 
-      {needsPersistentSetup ? (
+      {downloadsAccess.needsPersistentSetup ? (
         <Alert
           color="primary"
           variant="flat"
@@ -228,13 +133,15 @@ function App(): JSX.Element {
             Close all browser tabs and reopen to grant permanent folder access.
             Or click below to continue setup now.
           </p>
-          <PrimaryButton onClick={() => void openPersistentSetup()}>
+          <PrimaryButton
+            onClick={() => void downloadsAccess.openPersistentSetup()}
+          >
             Complete setup
           </PrimaryButton>
         </Alert>
       ) : null}
 
-      {hasDownloadsAccess === false ? (
+      {downloadsAccess.hasDownloadsAccess === false ? (
         <Alert
           color="warning"
           variant="flat"
@@ -248,13 +155,14 @@ function App(): JSX.Element {
             persistent &quot;Allow on every visit&quot; permission so this
             doesn&apos;t happen again.
           </p>
-          <PrimaryButton onClick={openOnboarding}>
+          <PrimaryButton onClick={downloadsAccess.openOnboarding}>
             Grant persistent access
           </PrimaryButton>
         </Alert>
       ) : null}
 
-      {hasDownloadsAccess === true && !persistentAccessGranted ? (
+      {downloadsAccess.hasDownloadsAccess === true &&
+      !downloadsAccess.persistentAccessGranted ? (
         <Alert
           color="default"
           variant="flat"
@@ -265,7 +173,7 @@ function App(): JSX.Element {
             Currently using temporary access. Grant persistent access to skip
             setup on future visits.
           </p>
-          <PrimaryButton onClick={openOnboarding}>
+          <PrimaryButton onClick={downloadsAccess.openOnboarding}>
             Enable persistent access
           </PrimaryButton>
         </Alert>
@@ -275,8 +183,8 @@ function App(): JSX.Element {
         aria-label="Navigation tabs"
         variant="underlined"
         onSelectionChange={(key) => {
-          if (key === 'history' && !historyLoaded) {
-            void loadHistory();
+          if (key === 'history' && !history.historyLoaded) {
+            void history.loadHistory();
           }
         }}
         classNames={{
@@ -296,14 +204,14 @@ function App(): JSX.Element {
           }
         >
           <StrategyTab
-            loading={loading}
-            saving={saving}
-            error={error}
-            strategy={strategy}
+            loading={settings.loading}
+            saving={settings.saving}
+            error={settings.error}
+            strategy={settings.strategy}
             options={options}
-            onChange={handleStrategyChange}
-            aiEnabled={aiEnabled}
-            onDisabledClick={handleOpenSettings}
+            onChange={settings.handleStrategyChange}
+            aiEnabled={computed.aiEnabled}
+            onDisabledClick={navigation.handleOpenSettings}
           />
         </Tab>
 
@@ -312,24 +220,24 @@ function App(): JSX.Element {
           title={
             <div className="flex items-center gap-2">
               <span>History</span>
-              {upgradeCount > 0 && (
+              {history.upgradeCount > 0 && (
                 <Chip
                   size="sm"
                   variant="flat"
                   color="primary"
                   className="text-[9px] h-4 px-1 min-w-4"
                 >
-                  {upgradeCount}
+                  {history.upgradeCount}
                 </Chip>
               )}
             </div>
           }
         >
           <HistoryTab
-            historyFilter={historyFilter}
-            onFilterChange={setHistoryFilter}
-            filteredHistory={filteredHistory}
-            fileTypeCounts={fileTypeCounts}
+            historyFilter={history.historyFilter}
+            onFilterChange={history.setHistoryFilter}
+            filteredHistory={history.filteredHistory}
+            fileTypeCounts={history.fileTypeCounts}
           />
         </Tab>
       </Tabs>
