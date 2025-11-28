@@ -31,7 +31,9 @@ const AiModelBanner = ({
           Setup issue: {lastError.message}
         </p>
       ) : null}
-      <PrimaryButton onClick={onEnableAi}>Set up AI renaming</PrimaryButton>
+      <PrimaryButton onClick={onEnableAi} className="mt-1">
+        Set up AI renaming
+      </PrimaryButton>
     </Alert>
   );
 };

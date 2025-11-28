@@ -31,11 +31,13 @@ import {
 import { clearBadge } from '@/entrypoints/shared/ui/badge-manager';
 import { VideoDemo } from './VideoDemo';
 
-// Video hosted on GitHub for step 1 of folder selection process
-// Keep video external to avoid bloating extension size
-// Using 4:3 cropped version for larger display in the UI
-const FOLDER_SELECTION_VIDEO_URL =
+// Videos hosted on GitHub for folder selection process
+// Keep videos external to avoid bloating extension size
+// Using 4:3 cropped versions for larger display in the UI
+const FOLDER_SELECTION_STEP1_VIDEO_URL =
   'https://cdn.jsdelivr.net/gh/yuriyward/github-public-media@main/videos/folder_access_setup_step_1_cropped_4x3.mp4';
+const FOLDER_SELECTION_STEP2_VIDEO_URL =
+  'https://cdn.jsdelivr.net/gh/yuriyward/github-public-media@main/videos/folder_access_setup_step_2_cropped_4x3.mp4';
 
 type RequestState =
   | { status: 'idle' }
@@ -214,9 +216,35 @@ export function DownloadsPermissionPage(): JSX.Element {
       const setupUrl = browser.runtime.getURL('/downloads-permission.html');
       const newTab = await browser.tabs.create({ url: setupUrl });
 
-      // Close current setup page once new tab is successfully created
+      // Close current setup page once new tab is visible and ready
       // The new page will detect 'awaiting-persistent' status and auto-trigger requestPermission()
-      if (newTab.id) {
+      const newTabId = newTab.id;
+      if (newTabId !== undefined) {
+        // Wait for the new tab to be fully loaded/visible before closing current one
+        // This prevents the jarring experience of closing before the new tab is ready
+        const waitForTabReady = (): Promise<void> => {
+          return new Promise((resolve) => {
+            const checkTab = async () => {
+              try {
+                const tab = await browser.tabs.get(newTabId);
+                // Check if tab is complete (loaded) or at least has a valid status
+                if (tab.status === 'complete' || tab.status === 'loading') {
+                  resolve();
+                } else {
+                  // Check again after a short delay
+                  setTimeout(checkTab, 50);
+                }
+              } catch {
+                // Tab might have been closed or doesn't exist, resolve anyway
+                resolve();
+              }
+            };
+            // Start checking immediately
+            void checkTab();
+          });
+        };
+
+        await waitForTabReady();
         window.close();
       } else {
         // If tab creation didn't return an ID, show step1-complete state
@@ -424,9 +452,9 @@ export function DownloadsPermissionPage(): JSX.Element {
           {!hasStoredHandle && state.status !== 'step1-complete' && (
             <div className="mb-5 space-y-3">
               <VideoDemo
-                src={FOLDER_SELECTION_VIDEO_URL}
+                src={FOLDER_SELECTION_STEP1_VIDEO_URL}
                 aspectRatio={4 / 3}
-                ariaLabel="Video demonstration of folder selection process"
+                ariaLabel="Video demonstration of folder selection process - step 1"
               />
               {/* Important tip about creating subfolder */}
               <div className="rounded-xl bg-primary-50/60 p-3 text-center">
@@ -443,9 +471,9 @@ export function DownloadsPermissionPage(): JSX.Element {
           {hasStoredHandle && (
             <div className="mb-5 space-y-3">
               <VideoDemo
-                src={FOLDER_SELECTION_VIDEO_URL}
+                src={FOLDER_SELECTION_STEP2_VIDEO_URL}
                 aspectRatio={4 / 3}
-                ariaLabel="Video demonstration of folder selection process"
+                ariaLabel="Video demonstration of folder selection process - step 2"
               />
               {/* Simple instruction */}
               <div className="rounded-xl bg-primary-50/60 p-3 text-center">
