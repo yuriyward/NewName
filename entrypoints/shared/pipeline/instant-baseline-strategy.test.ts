@@ -235,29 +235,26 @@ describe('evaluateInstantBaseline (file-type awareness)', () => {
     ['audio/mpeg', 'song.mp3', 'audio'],
     ['video/x-matroska', 'clip.weird', 'video'],
     ['application/x-7z-compressed', 'archive.unknownext', 'archive'],
-  ] as const)(
-    'classifies %s downloads as %s',
-    (mime, filename, expectedType) => {
-      const settings: Settings = {
-        ...DEFAULT_SETTINGS,
-        instantBaselineStrategy: 'keep-original',
-      };
+  ] as const)('classifies %s downloads as %s', (mime, filename, expectedType) => {
+    const settings: Settings = {
+      ...DEFAULT_SETTINGS,
+      instantBaselineStrategy: 'keep-original',
+    };
 
-      const signals: InstantBaselineSignals = {
-        url: `https://example.com/downloads/${filename}`,
-        filename,
-        mime,
-        startTime: '2025-01-02T03:04:05Z',
-        page: {
-          title: 'Example Page',
-          capturedAt,
-        },
-      };
+    const signals: InstantBaselineSignals = {
+      url: `https://example.com/downloads/${filename}`,
+      filename,
+      mime,
+      startTime: '2025-01-02T03:04:05Z',
+      page: {
+        title: 'Example Page',
+        capturedAt,
+      },
+    };
 
-      const { evaluation } = evaluateInstantBaseline(signals, settings);
+    const { evaluation } = evaluateInstantBaseline(signals, settings);
 
-      expect(evaluation.fileType).toBe(expectedType);
-      expect(evaluation.rename).toBeUndefined();
-    },
-  );
+    expect(evaluation.fileType).toBe(expectedType);
+    expect(evaluation.rename).toBeUndefined();
+  });
 });

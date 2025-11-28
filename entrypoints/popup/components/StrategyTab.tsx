@@ -2,8 +2,8 @@ import { ArrowTopRightOnSquareIcon } from '@heroicons/react/16/solid';
 import { Alert } from '@heroui/alert';
 import { Divider } from '@heroui/divider';
 import { Radio, RadioGroup } from '@heroui/radio';
-import { Skeleton } from '@heroui/skeleton';
 import type { InstantBaselineStrategy } from '@/entrypoints/shared/settings/settings';
+import { Skeleton } from '@/entrypoints/shared/ui/Skeleton';
 
 interface StrategyOption {
   value: InstantBaselineStrategy;

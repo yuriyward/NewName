@@ -1,6 +1,7 @@
 import PlayCircleIcon from '@heroicons/react/24/outline/PlayCircleIcon';
 import type { JSX } from 'react';
 import { useState } from 'react';
+import { Skeleton } from '@/entrypoints/shared/ui/Skeleton';
 
 /**
  * Arcade demo embed showing how to enable Chrome's built-in AI flags
@@ -8,6 +9,9 @@ import { useState } from 'react';
  */
 export function ArcadeEmbed(): JSX.Element {
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // Arcade embed aspect ratio: 62.367724867724874% = 100/62.367... ≈ 1.6034
+  const aspectRatio = 100 / 62.367724867724874;
 
   return (
     <div
@@ -19,13 +23,9 @@ export function ArcadeEmbed(): JSX.Element {
       }}
     >
       {!isLoaded && (
-        <div
-          className="absolute inset-0 flex items-center justify-center bg-default-100"
-          style={{
-            animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-          }}
-        >
-          <div className="flex flex-col items-center gap-3 text-default-400">
+        <div className="absolute inset-0">
+          <Skeleton aspectRatio={aspectRatio} className="w-full" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-foreground/60">
             <PlayCircleIcon className="h-12 w-12" />
             <p className="text-sm font-medium">Loading tutorial...</p>
           </div>
