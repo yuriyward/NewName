@@ -6,6 +6,7 @@ import SparklesIcon from '@heroicons/react/24/outline/SparklesIcon';
 import XMarkIcon from '@heroicons/react/24/outline/XMarkIcon';
 import { type JSX, useState } from 'react';
 import type { SystemDiagnostics } from '@/entrypoints/shared/integrations/chrome-ai/diagnostics';
+import { LoadingSpinner } from '@/entrypoints/shared/ui/LoadingSpinner';
 import { CopyableUrl } from './CopyableUrl';
 
 interface DiagnosticsSectionProps {
@@ -48,7 +49,11 @@ export function DiagnosticsSection({
                   className="inline-flex items-center justify-center rounded-full bg-warning-600 px-4 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-warning-700 disabled:cursor-not-allowed disabled:bg-warning-400"
                 >
                   {isRunning ? (
-                    <ArrowPathIcon className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    <LoadingSpinner
+                      size="xs"
+                      className="mr-1.5"
+                      label="Running diagnostics"
+                    />
                   ) : (
                     <SparklesIcon className="mr-1.5 h-3.5 w-3.5" />
                   )}

@@ -1,6 +1,6 @@
-import ArrowPathIcon from '@heroicons/react/24/outline/ArrowPathIcon';
 import SparklesIcon from '@heroicons/react/24/outline/SparklesIcon';
 import type { JSX } from 'react';
+import { LoadingSpinner } from '@/entrypoints/shared/ui/LoadingSpinner';
 import { CopyableUrl } from './CopyableUrl';
 
 interface InlineAlertProps {
@@ -44,7 +44,11 @@ export function LoadingCard(): JSX.Element {
   return (
     <div className="rounded-xl border border-default-200 bg-white/70 p-5 shadow-sm">
       <div className="flex items-center gap-3">
-        <ArrowPathIcon className="h-5 w-5 animate-spin text-default-500" />
+        <LoadingSpinner
+          size="md"
+          className="text-default-500"
+          label="Checking model availability"
+        />
         <div>
           <p className="text-sm font-medium text-default-700">
             Checking model availability…

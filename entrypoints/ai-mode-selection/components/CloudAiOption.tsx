@@ -1,4 +1,5 @@
 import type { JSX } from 'react';
+import { LoadingSpinner } from '@/entrypoints/shared/ui/LoadingSpinner';
 
 interface CloudAiOptionProps {
   recommended: boolean;
@@ -48,7 +49,7 @@ export function CloudAiOption({
 
       {loading && (
         <div className="mt-2 flex items-center gap-2 text-sm text-primary-600">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <LoadingSpinner size="sm" label="Setting up" />
           Setting up...
         </div>
       )}
