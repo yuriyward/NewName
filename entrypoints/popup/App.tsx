@@ -5,7 +5,6 @@
 import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { Alert } from '@heroui/alert';
 import { Chip } from '@heroui/chip';
-import { Skeleton } from '@heroui/skeleton';
 import { Tab, Tabs } from '@heroui/tabs';
 import { useTheme } from '@heroui/use-theme';
 import type { JSX } from 'react';
@@ -13,6 +12,7 @@ import { useCallback, useEffect } from 'react';
 import { browser, type PublicPath } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { STRATEGY_OPTIONS } from '@/entrypoints/shared/pipeline/strategy-options';
+import { Skeleton } from '@/entrypoints/shared/ui/Skeleton';
 import { ThemeToggleButton } from '@/entrypoints/shared/ui/ThemeToggleButton';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import { AiFeatureReminderBanner } from './components/AiFeatureReminderBanner';

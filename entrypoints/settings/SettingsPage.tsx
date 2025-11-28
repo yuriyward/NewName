@@ -6,7 +6,6 @@ import { SunIcon } from '@heroicons/react/16/solid';
 import { Cog6ToothIcon, MoonIcon } from '@heroicons/react/24/outline';
 import { Card } from '@heroui/card';
 import { Chip } from '@heroui/chip';
-import { Spinner } from '@heroui/spinner';
 import { useTheme } from '@heroui/use-theme';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/entrypoints/popup/components/IconButton';
@@ -17,6 +16,7 @@ import {
   updateSettings,
 } from '@/entrypoints/shared/settings/settings';
 import type { Settings } from '@/entrypoints/shared/settings/types';
+import { Skeleton } from '@/entrypoints/shared/ui/Skeleton';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
 import { CloudAiSection } from './components/CloudAiSection';
 import { LocalAiModelSection } from './components/LocalAiModelSection';
@@ -113,8 +113,26 @@ export function SettingsPage() {
 
   if (!settings) {
     return (
-      <div className="min-h-screen bg-[var(--heroui-background)] flex items-center justify-center">
-        <Spinner size="lg" label="Loading settings..." />
+      <div className="min-h-screen bg-[var(--heroui-background)]">
+        <header className="border-b border-[var(--heroui-content3)] bg-[var(--heroui-content1)]">
+          <div className="max-w-4xl mx-auto px-3 py-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <Skeleton variant="circular" className="size-5" />
+                <div>
+                  <Skeleton className="h-5 w-24 mb-1" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+              </div>
+              <Skeleton variant="circular" className="size-7" />
+            </div>
+          </div>
+        </header>
+        <main className="max-w-4xl mx-auto px-3 py-3 space-y-3">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </main>
       </div>
     );
   }

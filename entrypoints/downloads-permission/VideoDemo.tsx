@@ -3,8 +3,16 @@
  * Designed to auto-play and loop seamlessly like a GIF
  */
 
+import PlayCircleIcon from '@heroicons/react/24/outline/PlayCircleIcon';
 import { type JSX, useEffect, useRef, useState } from 'react';
-import { LoadingSpinner } from '@/entrypoints/shared/ui/LoadingSpinner';
+import { Skeleton } from '@/entrypoints/shared/ui/Skeleton';
+
+/**
+ * HTMLMediaElement.readyState value indicating enough data is available
+ * to start playback (HAVE_FUTURE_DATA or higher)
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/readyState
+ */
+const VIDEO_READY_STATE_HAVE_FUTURE_DATA = 3;
 
 interface VideoDemoProps {
   /**
@@ -40,6 +48,13 @@ export function VideoDemo({
   // Validate aspectRatio to prevent division by zero or negative values
   const safeAspectRatio = aspectRatio > 0 ? aspectRatio : 16 / 9;
 
+  // Warn in development mode when aspect ratio validation fails
+  if (import.meta.env.DEV && aspectRatio <= 0) {
+    console.warn(
+      `[VideoDemo] Invalid aspectRatio: ${aspectRatio}. Using default 16/9.`,
+    );
+  }
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -64,7 +79,7 @@ export function VideoDemo({
     video.addEventListener('error', handleError);
 
     // Try to play if already loaded
-    if (video.readyState >= 3) {
+    if (video.readyState >= VIDEO_READY_STATE_HAVE_FUTURE_DATA) {
       handleCanPlay();
     }
 
@@ -82,16 +97,13 @@ export function VideoDemo({
         className="relative w-full"
         style={{ paddingBottom: `${(1 / safeAspectRatio) * 100}%` }}
       >
-        {/* Loading state */}
+        {/* Loading state with skeleton placeholder */}
         {isLoading && !hasError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-default-50">
-            <div className="flex flex-col items-center gap-3">
-              <LoadingSpinner
-                size="lg"
-                className="text-primary"
-                label="Loading demo"
-              />
-              <p className="text-sm text-default-500">Loading demo...</p>
+          <div className="absolute inset-0">
+            <Skeleton aspectRatio={safeAspectRatio} className="h-full w-full" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-foreground/60">
+              <PlayCircleIcon className="h-12 w-12" />
+              <p className="text-sm font-medium">Loading video...</p>
             </div>
           </div>
         )}
