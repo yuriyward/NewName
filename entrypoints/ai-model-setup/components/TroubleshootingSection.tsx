@@ -4,6 +4,7 @@ import ChevronRightIcon from '@heroicons/react/24/outline/ChevronRightIcon';
 import WrenchScrewdriverIcon from '@heroicons/react/24/outline/WrenchScrewdriverIcon';
 import { type JSX, useState } from 'react';
 import type { SystemDiagnostics } from '@/entrypoints/shared/integrations/chrome-ai/diagnostics';
+import { LoadingSpinner } from '@/entrypoints/shared/ui/LoadingSpinner';
 import { CopyableUrl } from './CopyableUrl';
 import { DiagnosticsSection } from './DiagnosticsSection';
 
@@ -82,9 +83,15 @@ export function TroubleshootingSection({
               disabled={loading || Boolean(activeModelId)}
               className="inline-flex items-center justify-center rounded-full border border-default-200 px-4 py-2 text-sm font-medium text-default-600 transition hover:border-default-300 hover:text-default-700 disabled:cursor-not-allowed disabled:border-default-200 disabled:text-default-400"
             >
-              <ArrowPathIcon
-                className={`mr-1.5 h-4 w-4 ${loading ? 'animate-spin text-default-400' : ''}`}
-              />
+              {loading ? (
+                <LoadingSpinner
+                  size="sm"
+                  className="mr-1.5 text-default-400"
+                  label="Re-checking models"
+                />
+              ) : (
+                <ArrowPathIcon className="mr-1.5 h-4 w-4" />
+              )}
               Re-check Models
             </button>
           </div>
