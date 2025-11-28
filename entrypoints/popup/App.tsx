@@ -15,12 +15,14 @@ import { browser, type PublicPath } from 'wxt/browser';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
 import { STRATEGY_OPTIONS } from '@/entrypoints/shared/pipeline/strategy-options';
 import { getAppropriateTheme } from '@/entrypoints/shared/ui/theme-service';
+import { AiFeatureReminderBanner } from './components/AiFeatureReminderBanner';
 import AiModelBanner from './components/AiModelBanner';
 import HistoryTab from './components/HistoryTab';
 import { IconButton } from './components/IconButton';
 import { PrimaryButton } from './components/PrimaryButton';
 import { ProcessingModeIndicator } from './components/ProcessingModeIndicator';
 import StrategyTab from './components/StrategyTab';
+import { useAiFeatureReminder } from './hooks/useAiFeatureReminder';
 import { useAiModelStatus } from './hooks/useAiModelStatus';
 import { useDownloadsAccess } from './hooks/useDownloadsAccess';
 import { useHistory } from './hooks/useHistory';
@@ -67,6 +69,14 @@ function App(): JSX.Element {
     handleStrategyChange,
     updateThemePreference,
   } = usePopupSettings(setTheme);
+
+  // Local AI is ready when status is checked and no blocking models
+  const localAiReady =
+    aiStatusChecked && !!aiStatuses && aiBlockingModels.length === 0;
+
+  const { showReminder, handleTryAi, handleRemindLater } = useAiFeatureReminder(
+    { localAiReady },
+  );
 
   // Auto-detect system theme on first load and daily reset
   useEffect(() => {
@@ -200,6 +210,14 @@ function App(): JSX.Element {
         </Alert>
       ) : null}
 
+      {/* AI Feature Reminder Banner - shown to users who declined AI after 3 days */}
+      <AiFeatureReminderBanner
+        visible={showReminder && !shouldShowAiBanner}
+        onTryAi={handleTryAi}
+        onRemindLater={handleRemindLater}
+      />
+
+      {/* AI Model Setup Banner - shown when local AI models need setup */}
       <AiModelBanner
         visible={shouldShowAiBanner}
         lastError={aiLastSetupError}
