@@ -2,19 +2,14 @@
  * Hook for managing AI feature reminder state in the popup
  * Handles visibility logic, dismissal, and navigation to AI setup
  */
-import { useCallback, useEffect, useState } from 'react';
-import { browser, type PublicPath } from 'wxt/browser';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { debugLogger } from '@/entrypoints/shared/debug/logger';
+import { shouldShowAiFeatureReminder } from '@/entrypoints/shared/settings/reminder-helpers';
+import { subscribeSettings } from '@/entrypoints/shared/settings/settings';
 import {
-  markReminderShown,
-  resetReminderState,
-  shouldShowAiFeatureReminder,
-} from '@/entrypoints/shared/settings/reminder-helpers';
-import {
-  getSettings,
-  subscribeSettings,
-  updateSettings,
-} from '@/entrypoints/shared/settings/settings';
+  checkAndMarkReminderState,
+  handleTryAiAction,
+} from './ai-feature-reminder-service';
 
 interface UseAiFeatureReminderResult {
   /** Whether the reminder banner should be visible */
@@ -24,7 +19,7 @@ interface UseAiFeatureReminderResult {
   /** Handle user clicking "Try AI Features" */
   handleTryAi: () => Promise<void>;
   /** Handle user clicking "Remind me later" (snoozes for cooldown period) */
-  handleRemindLater: () => Promise<void>;
+  handleRemindLater: () => void;
 }
 
 interface UseAiFeatureReminderOptions {
@@ -47,26 +42,30 @@ export function useAiFeatureReminder({
 }: UseAiFeatureReminderOptions): UseAiFeatureReminderResult {
   const [showReminder, setShowReminder] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [reminderMarkedShown, setReminderMarkedShown] = useState(false);
+
+  // Use ref to track if reminder was marked shown this session
+  // This avoids the dependency array issue and prevents infinite loops
+  const reminderMarkedShownRef = useRef(false);
 
   // Check if reminder should be shown on mount and subscribe to changes
   useEffect(() => {
     let active = true;
 
-    async function checkReminder() {
+    async function initializeReminderState() {
       try {
-        const settings = await getSettings();
+        const result = await checkAndMarkReminderState(
+          localAiReady,
+          reminderMarkedShownRef.current,
+        );
+
         if (!active) return;
 
-        const shouldShow = shouldShowAiFeatureReminder(settings, localAiReady);
-        setShowReminder(shouldShow);
+        setShowReminder(result.shouldShow);
         setLoading(false);
 
-        // Mark reminder as shown (only once per session)
-        if (shouldShow && !reminderMarkedShown) {
-          setReminderMarkedShown(true);
-          const updatedReminder = markReminderShown(settings.aiFeatureReminder);
-          await updateSettings({ aiFeatureReminder: updatedReminder });
+        // Update ref if reminder was marked shown
+        if (result.wasMarkedShown) {
+          reminderMarkedShownRef.current = true;
         }
       } catch (error) {
         debugLogger.error('[useAiFeatureReminder] Failed to check reminder', {
@@ -77,7 +76,7 @@ export function useAiFeatureReminder({
       }
     }
 
-    void checkReminder();
+    void initializeReminderState();
 
     // Subscribe to settings changes
     const unsubscribe = subscribeSettings((settings) => {
@@ -90,38 +89,20 @@ export function useAiFeatureReminder({
       active = false;
       unsubscribe();
     };
-  }, [reminderMarkedShown, localAiReady]);
+  }, [localAiReady]);
 
   // Handle user clicking "Try AI Features"
   const handleTryAi = useCallback(async () => {
-    try {
-      // Reset reminder state since user is trying AI
-      await updateSettings({
-        aiFeatureReminder: resetReminderState(),
-      });
-
-      // Navigate to AI mode selection page
-      const url = browser.runtime.getURL(
-        '/ai-mode-selection.html' as PublicPath,
-      );
-      await browser.tabs.create({ url });
-
-      // Hide the banner
+    const success = await handleTryAiAction();
+    if (success) {
       setShowReminder(false);
-    } catch (error) {
-      debugLogger.error(
-        '[useAiFeatureReminder] Failed to navigate to AI setup',
-        {
-          error,
-        },
-      );
     }
   }, []);
 
   // Handle "Remind me later" - snooze for cooldown period
   // The reminder state was already updated when shown, so just hide the banner
   // It will reappear after the cooldown period (1 day)
-  const handleRemindLater = useCallback(async () => {
+  const handleRemindLater = useCallback(() => {
     setShowReminder(false);
   }, []);
 

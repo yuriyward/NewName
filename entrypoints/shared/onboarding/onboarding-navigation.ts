@@ -2,7 +2,7 @@
  * Onboarding navigation logic
  * Determines post-downloads navigation based on user status
  */
-import { browser } from 'wxt/browser';
+import { browser, type PublicPath } from 'wxt/browser';
 import { ensureLocalAiSetup } from '@/entrypoints/shared/integrations/chrome-ai/ensure-local-ai-setup';
 import { getInstallDate } from '@/entrypoints/shared/lifecycle/install-tracking';
 import { getSettings } from '@/entrypoints/shared/settings/settings';
@@ -10,6 +10,9 @@ import {
   AI_MODE_SELECTION_FEATURE_DATE,
   getOnboardingState,
 } from './onboarding-state';
+
+/** AI mode selection page path */
+const AI_MODE_SELECTION_PATH = '/ai-mode-selection.html' as PublicPath;
 
 /**
  * Check if user needs to see AI mode selection screen.
@@ -33,18 +36,21 @@ export async function needsAiModeSelection(): Promise<boolean> {
 }
 
 /**
+ * Open the AI mode selection page in a new tab
+ */
+export async function openAiModeSelectionPage(): Promise<void> {
+  const url = browser.runtime.getURL(AI_MODE_SELECTION_PATH);
+  await browser.tabs.create({ url });
+}
+
+/**
  * Navigate to appropriate page after downloads permission completes.
  * New installs → AI mode selection
  * Existing users → AI setup (if needed)
  */
 export async function navigateAfterDownloadsSetup(): Promise<void> {
   if (await needsAiModeSelection()) {
-    const url = browser.runtime.getURL(
-      '/ai-mode-selection.html' satisfies Parameters<
-        typeof browser.runtime.getURL
-      >[0],
-    );
-    await browser.tabs.create({ url });
+    await openAiModeSelectionPage();
   } else {
     // Existing behavior for users who skip selection screen
     await ensureLocalAiSetup();

@@ -1,68 +1,183 @@
 /**
  * Helper functions for AI feature reminder state management
+ *
  * Handles the reminder logic for users without fully configured AI:
  * - First reminder: 3 days after declining AI or incomplete setup
  * - Subsequent reminders: 7 days after last reminder
+ *
+ * The reminder system encourages users to complete AI setup without being intrusive.
+ * Users can permanently dismiss reminders via the `dismissed` flag.
  */
-import type { ReminderState, Settings } from './types';
+import type {
+  CloudSettings,
+  ProcessingMode,
+  ReminderState,
+  Settings,
+} from './types';
+import { validateGeminiApiKeyFormat } from './validation';
 
-/** First reminder threshold: 3 days in milliseconds */
+/**
+ * First reminder threshold: 3 days in milliseconds
+ *
+ * This delay gives users time to explore the extension before prompting
+ * them about AI features. Could be made user-configurable in the future
+ * if users want more control over reminder frequency.
+ */
 export const FIRST_REMINDER_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000;
 
-/** Subsequent reminder cooldown: 7 days in milliseconds */
+/**
+ * Subsequent reminder cooldown: 7 days in milliseconds
+ *
+ * Longer cooldown for repeat reminders to avoid being annoying.
+ * Could be made user-configurable in the future alongside FIRST_REMINDER_THRESHOLD_MS.
+ */
 export const SUBSEQUENT_REMINDER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
- * Check if AI is properly configured based on settings
+ * Check if cloud AI is fully configured and ready to use.
+ *
+ * Cloud configuration requires:
+ * - Cloud processing enabled
+ * - User has given explicit consent for cloud data processing
+ * - Valid API key format (starts with "AIza", 35-45 chars)
+ *
+ * Note: This validates format only, not whether the key actually works.
+ * Use testCloudConnection() for runtime validation.
+ *
+ * @param cloud - Cloud settings to validate
+ * @returns true if cloud is fully configured
+ */
+function isCloudConfigured(cloud: CloudSettings): boolean {
+  return (
+    cloud.enabled &&
+    cloud.consentGiven &&
+    validateGeminiApiKeyFormat(cloud.apiKey)
+  );
+}
+
+/**
+ * Mode validators lookup table for cleaner configuration checking.
+ * Each mode has specific requirements for AI to be considered "configured":
+ * - local: Requires local AI models to be downloaded and ready
+ * - cloud: Requires cloud enabled, consent given, and valid API key
+ * - auto: Either local OR cloud being ready is sufficient
+ */
+const MODE_VALIDATORS: Record<
+  ProcessingMode,
+  (settings: Settings, localAiReady: boolean) => boolean
+> = {
+  local: (_settings, localAiReady) => localAiReady,
+  cloud: (settings) => isCloudConfigured(settings.cloud),
+  auto: (settings, localAiReady) =>
+    localAiReady || isCloudConfigured(settings.cloud),
+};
+
+/**
+ * Check if AI is properly configured based on settings.
  *
  * AI is considered configured if:
- * - Page context consent is granted AND
- * - Either local AI is ready (checked separately) OR cloud AI has an API key
+ * - Page context consent is granted (required because AI features need
+ *   access to page metadata for contextual renaming)
+ * - The selected processing mode has its requirements met
  *
  * @param settings - Current application settings
  * @param localAiReady - Whether local AI models are available (from useAiModelStatus)
  * @returns true if AI is properly configured
  */
-export function isAiProperlyConfigured(
+export function isAiConfigured(
   settings: Settings,
   localAiReady: boolean,
 ): boolean {
-  const { pageContextConsent, processingPreferences, cloud } = settings;
+  const { pageContextConsent, processingPreferences } = settings;
 
-  // Must have page context consent for any AI to work
+  // Page context consent is required because AI features need access to
+  // page metadata (title, heading, URL) for contextual renaming
   if (!pageContextConsent.consentGranted) {
     return false;
   }
 
-  // Check based on processing mode
   const mode = processingPreferences.global;
-
-  if (mode === 'cloud') {
-    // Cloud mode requires API key
-    return cloud.enabled && cloud.apiKey !== null && cloud.apiKey.length > 0;
-  }
-
-  if (mode === 'local') {
-    // Local mode requires models to be ready
-    return localAiReady;
-  }
-
-  // Auto mode: either cloud with API key OR local models ready
-  if (cloud.enabled && cloud.apiKey !== null && cloud.apiKey.length > 0) {
-    return true;
-  }
-
-  return localAiReady;
+  const validator = MODE_VALIDATORS[mode];
+  return validator(settings, localAiReady);
 }
 
 /**
- * Check if the AI feature reminder should be shown
+ * @deprecated Use isAiConfigured instead. This alias is kept for backward compatibility.
+ */
+export const isAiProperlyConfigured = isAiConfigured;
+
+/**
+ * Check if user is eligible to receive an AI feature reminder.
  *
- * Conditions for showing:
- * 1. AI is NOT properly configured (no consent, or missing API key/local models)
- * 2. Either:
- *    a. Reminder has never been shown AND 3+ days since install/consent denial
- *    b. OR last reminder was shown 7+ days ago (subsequent cooldown)
+ * Eligibility requires:
+ * - AI is NOT properly configured (otherwise no reminder needed)
+ * - User has not permanently dismissed reminders
+ * - User has gone through onboarding (has a consent timestamp)
+ *
+ * @param settings - Current application settings
+ * @param localAiReady - Whether local AI models are available
+ * @returns true if user is a candidate for receiving a reminder
+ */
+function isEligibleForReminder(
+  settings: Settings,
+  localAiReady: boolean,
+): boolean {
+  const { pageContextConsent, aiFeatureReminder } = settings;
+
+  // Don't show if AI is already properly configured - no reminder needed
+  if (isAiConfigured(settings, localAiReady)) {
+    return false;
+  }
+
+  // Respect user's choice to permanently dismiss reminders
+  if (aiFeatureReminder.dismissed) {
+    return false;
+  }
+
+  // Need a timestamp to calculate elapsed time.
+  // If consent was never explicitly handled (no timestamp), don't show.
+  // This handles fresh installs where user hasn't gone through onboarding yet.
+  if (pageContextConsent.consentTimestamp === null) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Check if enough time has passed since the last reminder (or initial action).
+ *
+ * Timing rules:
+ * - First reminder: 3+ days since consent action (granted or denied)
+ * - Subsequent reminders: 7+ days since last reminder shown
+ *
+ * @param settings - Current application settings
+ * @returns true if cooldown period has passed
+ */
+function hasReminderCooldownPassed(settings: Settings): boolean {
+  const { pageContextConsent, aiFeatureReminder } = settings;
+
+  const now = Date.now();
+
+  // If reminder was never shown before, check first reminder threshold (3 days)
+  if (aiFeatureReminder.lastShownTimestamp === null) {
+    // The timestamp represents when consent was granted or denied
+    const timeSinceConsentAction =
+      now - (pageContextConsent.consentTimestamp ?? 0);
+    return timeSinceConsentAction >= FIRST_REMINDER_THRESHOLD_MS;
+  }
+
+  // For subsequent reminders, check 7-day cooldown
+  const timeSinceLastReminder = now - aiFeatureReminder.lastShownTimestamp;
+  return timeSinceLastReminder >= SUBSEQUENT_REMINDER_COOLDOWN_MS;
+}
+
+/**
+ * Check if the AI feature reminder should be shown.
+ *
+ * Combines eligibility and timing checks:
+ * 1. User must be eligible (AI not configured, not dismissed, has timestamp)
+ * 2. Enough time must have passed (3 days first time, 7 days subsequently)
  *
  * @param settings - Current application settings
  * @param localAiReady - Whether local AI models are available
@@ -72,35 +187,15 @@ export function shouldShowAiFeatureReminder(
   settings: Settings,
   localAiReady: boolean,
 ): boolean {
-  const { pageContextConsent, aiFeatureReminder } = settings;
-
-  // Don't show if AI is already properly configured
-  if (isAiProperlyConfigured(settings, localAiReady)) {
+  if (!isEligibleForReminder(settings, localAiReady)) {
     return false;
   }
 
-  // Need a timestamp to calculate elapsed time
-  // If consent was never explicitly denied (no timestamp), don't show
-  // This handles fresh installs where user hasn't gone through onboarding yet
-  if (pageContextConsent.consentTimestamp === null) {
-    return false;
-  }
-
-  const now = Date.now();
-
-  // If reminder was never shown before, check first reminder threshold (3 days)
-  if (aiFeatureReminder.lastShownTimestamp === null) {
-    const timeSinceConsentDenied = now - pageContextConsent.consentTimestamp;
-    return timeSinceConsentDenied >= FIRST_REMINDER_THRESHOLD_MS;
-  }
-
-  // For subsequent reminders, check 7-day cooldown
-  const timeSinceLastReminder = now - aiFeatureReminder.lastShownTimestamp;
-  return timeSinceLastReminder >= SUBSEQUENT_REMINDER_COOLDOWN_MS;
+  return hasReminderCooldownPassed(settings);
 }
 
 /**
- * Create updated reminder state after showing the reminder
+ * Create updated reminder state after showing the reminder.
  *
  * @param current - Current reminder state
  * @returns Updated reminder state with incremented count and new timestamp
@@ -114,7 +209,7 @@ export function markReminderShown(current: ReminderState): ReminderState {
 }
 
 /**
- * Reset reminder state (used when user enables AI features)
+ * Reset reminder state (used when user enables AI features).
  *
  * @returns Fresh reminder state
  */
