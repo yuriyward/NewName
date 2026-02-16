@@ -34,7 +34,7 @@
     "test:manual": "node scripts/fixtures-server.mjs"
   },
   "dependencies": {
-    "@ai-sdk/google": "^2.0.44",
+    "@ai-sdk/google": "^3.0.29",
     "@heroicons/react": "^2.2.0",
     "@heroui/accordion": "^2.2.24",
     "@heroui/alert": "^2.2.27",
