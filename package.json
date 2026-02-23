@@ -57,7 +57,7 @@
     "@webext-core/messaging": "^2.3.0",
     "@webext-core/proxy-service": "^1.2.1",
     "ai": "^5.0.104",
-    "framer-motion": "12.23.24",
+    "framer-motion": "12.34.3",
     "idb-keyval": "^6.2.2",
     "mediainfo.js": "^0.3.6",
     "mupdf": "^1.26.4",
